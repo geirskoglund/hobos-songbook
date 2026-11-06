@@ -1,0 +1,30 @@
+{title: Akkordskjema og dynamikk — prøve}
+{key: D}
+{comment: Prøv begge temaer, skriftstørrelse og visningsvalgene nederst.}
+{start_of_grid shape="4x4" label="Intro"}
+|| D . . . | G . . . | Bm . A . | D . . . ||
+|: G . . . | % . . . | D~A . . . | D . . . :| 2 ganger
+{end_of_grid}
+{comment: Første tekstlinje har normalnivå 3.}
+[D]Vi samler sangene i kveld.
+{x_dyn: 1}
+[D]En stille start med rom for [G]toner.
+{x_dyn: 2}
+[Bm]Vi finner pulsen, steg for [A]steg.
+{x_dyn: 3}
+[D]Nå bærer sangen gjennom [G]rommet.
+{soc}
+{x_dyn: 4}
+[G]Syng med, og la [D]stemmen få plass.
+{x_dyn: 5}
+[A]Alle sammen, [D]her og nå.
+{eoc}
+{x_dyn: 2}
+[Bm]Vi lar det [A]falle til ro.
+{chorus}
+{comment: Refrenghenvisningen gjentar også dynamikkangivelsene i refrengteksten.}
+{x_dyn: 1}
+{start_of_grid label="Avslutning"}
+| G . . . | D . . . |.
+{end_of_grid}
+[D]Så lar vi siste tone klinge.

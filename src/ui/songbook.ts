@@ -1,4 +1,5 @@
-import {parseChordPro, type Content} from '../domain/chordpro.ts';
+import {renderContent, type DynamicsContext} from './song-content.ts';
+import {parseChordPro} from '../domain/chordpro.ts';
 import {createSong, type Song, type SongPersonal} from '../domain/song.ts';
 import {songStorage} from '../storage/songs.ts';
 import {applyPreferences, defaultPreferences, readPreferences, savePreferences} from '../storage/preferences.ts';
@@ -9,27 +10,6 @@ const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, c
   if (className) node.className = className;
   return node;
 };
-function renderContent(content: Content[]): DocumentFragment {
-  const fragment = document.createDocumentFragment();
-  for (const block of content) {
-    if (block.kind !== 'line') {fragment.append(element('p', block.text, block.kind)); continue;}
-    const line = element('div', undefined, 'song-line');
-    const hasChords = block.segments.some(segment => segment.chord);
-    if (hasChords) line.classList.add('has-chords');
-    for (const segment of block.segments) {
-      const words = segment.text.split(/(\s+)/).filter(Boolean);
-      if (!words.length) words.push('');
-      words.forEach((word, index) => {
-        const piece = element('span', undefined, 'piece');
-        if (hasChords) piece.append(element('span', index === 0 ? segment.chord ?? '' : '', 'chord'));
-        piece.append(element('span', word || '\u00a0', 'lyric')); line.append(piece);
-      });
-    }
-    if (!line.textContent) line.append(document.createTextNode('\u00a0'));
-    fragment.append(line);
-  }
-  return fragment;
-}
 export function startSongbook() {
   const query = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const storage = songStorage(__APP_ENV__.namespace);
@@ -42,14 +22,17 @@ export function startSongbook() {
   catch {query('settings-status').textContent = 'Visningsvalg kunne ikke hentes. Endringer gjelder nå, men kan ikke loves husket.';}
   applyPreferences(preferences);
   const theme = query<HTMLSelectElement>('theme'), size = query<HTMLInputElement>('font-size');
+  const dynamics = query<HTMLInputElement>('show-dynamics'), grids = query<HTMLInputElement>('show-grids');
+  dynamics.checked = preferences.showDynamics; grids.checked = preferences.showGrids;
   theme.value = preferences.theme; size.value = String(preferences.fontSize);
   const updatePreferences = () => {
-    preferences = {theme: theme.value === 'light' ? 'light' : 'dark', fontSize: Number(size.value)};
+    preferences = {theme: theme.value === 'light' ? 'light' : 'dark', fontSize: Number(size.value), showDynamics: dynamics.checked, showGrids: grids.checked};
     applyPreferences(preferences); query('font-value').textContent = `${preferences.fontSize} px`;
     try {savePreferences(__APP_ENV__.namespace, preferences); query('settings-status').textContent = '';}
     catch {query('settings-status').textContent = 'Visningen er endret, men valget kunne ikke lagres til neste oppstart.';}
   };
   query('font-value').textContent = `${preferences.fontSize} px`;
+  dynamics.addEventListener('change', updatePreferences); grids.addEventListener('change', updatePreferences);
   theme.addEventListener('change', updatePreferences); size.addEventListener('input', updatePreferences);
   function drawList() {
     list.replaceChildren();
@@ -79,16 +62,18 @@ export function startSongbook() {
     article.replaceChildren();
     const title = element('h1', parsed.title); title.id = 'song-title'; title.tabIndex = -1; article.append(title);
     if (parsed.key) article.append(element('p', `Klingende toneart: ${parsed.key}`, 'song-key'));
+    const dynamicsContext: DynamicsContext = {level: 3};
     for (const block of parsed.blocks) {
       if (block.kind === 'chorus') {
-        const section = element('section', undefined, 'chorus'); section.append(element('h2', 'Refreng'), renderContent(block.content)); article.append(section);
+        const section = element('section', undefined, 'chorus'); section.append(element('h2', 'Refreng'), renderContent(block.content, dynamicsContext)); article.append(section);
       } else if (block.kind === 'reference') {
         if (!block.content) {article.append(element('p', 'Refreng — ingen tidligere refrengtekst er definert.', 'comment')); continue;}
         const section = element('section', undefined, 'chorus reference');
         const heading = element('h2'), button = element('button', 'Refreng'); button.type = 'button';
         button.setAttribute('aria-label', 'Refreng');
         const body = element('div'); body.id = `chorus-${block.occurrence.replace(':', '-')}`;
-        body.append(renderContent(block.content));
+        body.append(renderContent(block.content, dynamicsContext));
+        dynamicsContext.spokenLevel = undefined; // The following content stays accessible when this body is collapsed.
         let expanded = personal.chorus[block.occurrence] === true;
         const reflect = () => {button.setAttribute('aria-expanded', String(expanded)); body.hidden = !expanded;};
         button.setAttribute('aria-controls', body.id); reflect();
@@ -100,7 +85,7 @@ export function startSongbook() {
           finally {button.disabled = false;}
         });
         heading.append(button); section.append(heading, body); article.append(section);
-      } else article.append(renderContent([block]));
+      } else article.append(renderContent([block], dynamicsContext));
     }
     library.hidden = true; reader.hidden = false;
     title.focus({preventScroll: true}); window.scrollTo(0, 0);

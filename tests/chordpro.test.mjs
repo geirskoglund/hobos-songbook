@@ -36,3 +36,46 @@ test('parser keeps content order, deterministic independent references and neare
   assert.equal(a.blocks.at(-1).content[0].segments[0].text, 'Uferdig');
   assert.equal(a.blocks.at(-2).segments[0].text, 'Etter');
 });
+
+test('grid bars retain beat cells, repeats, margins and multi-chord cells without rewriting source', async () => {
+  const {parseGridRow, gridOptions} = await import('../src/domain/grid.ts');
+  const row = parseGridRow('Intro || D . A/C# . | G~D / % %% :|2> 2 ganger');
+  assert.equal(row.left, 'Intro'); assert.equal(row.right, '2 ganger');
+  assert.deepEqual(row.measures, [
+    {opening:'||', closing:'|', cells:['D','.','A/C#','.']},
+    {opening:'', closing:':|2>', cells:['G~D','/','%','%%']},
+  ]);
+  assert.equal(parseGridRow('Bare en merknad').left, 'Bare en merknad');
+  assert.equal(parseGridRow('| C . |.').measures[0].closing, '|.');
+  assert.deepEqual(gridOptions('shape="1+4x4+1" label="Intro"'), {columns:4, beats:4, label:'Intro'});
+  assert.deepEqual(gridOptions('2x4 Mellomspill'), {columns:2, beats:4, label:'Mellomspill'});
+  assert.deepEqual(gridOptions('', {columns:2, beats:3, label:'Tidligere'}), {columns:2, beats:3, label:null});
+  const original = '\uFEFF{t: Skjema}\r\n{start_of_grid shape="2x4" label="Intro"}\r\n| D . . . | A . . . |\r\n{end_of_grid}\r\nTekst';
+  const song = createSong('skjema.cho', new TextEncoder().encode(original));
+  assert.equal(song.original, original);
+  const parsed = parseChordPro(song.original, song.title);
+  assert.equal(parsed.blocks[0].kind, 'grid'); assert.equal(parsed.blocks[0].options.columns, 2);
+  assert.equal(parsed.blocks[1].segments[0].text, 'Tekst');
+});
+
+test('dynamics are ordered instructions, including inside grids and repeated choruses; invalid values leave state alone', () => {
+  const parsed = parseChordPro('{x_dyn: 1}\nLavt\n{x_dyn: 2}\n{soc}\n{x_dyn: 4}\nRefreng\n{eoc}\n{chorus}\n{start_of_grid}\n| C . |\n{x_dyn: 5}\n| G . |\n{end_of_grid}\n{x_dyn: 0}\n{x_dyn: 6}\n{x_dyn: feil}\nEtter', 'T');
+  assert.deepEqual(parsed.blocks.slice(0,3).map(block => block.kind), ['dynamic','line','dynamic']);
+  const chorus = parsed.blocks.find(block => block.kind === 'chorus');
+  const ref = parsed.blocks.find(block => block.kind === 'reference');
+  assert.deepEqual(chorus.content[0], {kind:'dynamic',level:4}); assert.deepEqual(ref.content, chorus.content);
+  const grid = parsed.blocks.find(block => block.kind === 'grid');
+  assert.deepEqual(grid.rows.map(row => row.kind), ['grid-row','dynamic','grid-row']);
+  assert.deepEqual(grid.rows[1], {kind:'dynamic',level:5});
+  assert.equal(parsed.blocks.filter(block => block.kind === 'comment' && block.text.includes('Ugyldig dynamikknivå')).length, 3);
+  assert.equal(parsed.blocks.at(-1).segments[0].text, 'Etter');
+});
+
+test('missing and nested grid markers preserve subsequent lyrics and chorus boundaries', () => {
+  const parsed = parseChordPro('{end_of_grid}\nFør\n{start_of_grid}\n| C . |\n{x_custom: behold}\n{start_of_grid}\n| G . |\n{soc}\nRefreng\n{eoc}\nEtter\n{sog}\n| D . |', 'T');
+  assert.deepEqual(parsed.blocks.map(block => block.kind), ['line','grid','grid','chorus','line','grid']);
+  assert.equal(parsed.blocks[1].rows[1].text, '{x_custom: behold}');
+  assert.equal(parsed.blocks[3].content[0].segments[0].text, 'Refreng');
+  assert.equal(parsed.blocks[4].segments[0].text, 'Etter');
+  assert.equal(parsed.blocks.at(-1).rows[0].measures[0].cells[0], 'D');
+});

@@ -6,8 +6,8 @@ Statisk HTML/CSS/TypeScript bygges med Vite. Ingen backend, skydatabase, autenti
 
 | Del | Ansvar nå | Grense mot senere arbeid |
 | --- | --- | --- |
-| `index.html`, `src/main.ts`, `src/app-updates.ts`, `src/style.css`, `src/ui/songbook.ts` | Sanginnlesing, enkel oversikt/lesevisning, miljømerking og workerstatus | Fullverdig bibliotek/editor/setlister kommer senere |
-| `src/domain/{song,chordpro}.ts` | Sangmodell, UTF-8-validering og avledet ChordPro-tolkning | Ingen DOM- eller leverandøravhengighet |
+| `index.html`, `src/main.ts`, `src/app-updates.ts`, `src/style.css`, `src/ui/{songbook,song-content}.ts` | Sanginnlesing, enkel oversikt/lesevisning, miljømerking og workerstatus | Fullverdig bibliotek/editor/setlister kommer senere |
+| `src/domain/{song,chordpro,grid}.ts` | Sangmodell, UTF-8-validering og avledet ChordPro-tolkning | Ingen DOM- eller leverandøravhengighet |
 | `src/environment.ts` | Én validert miljøkonfigurasjon | ID-er/scopes/navn følger miljø; SHA/PR er bare byggmetadata |
 | `src/storage/{songs,preferences,local-settings}.ts` | IndexedDB-sanger/personlig refrengtilstand og miljøavgrensede visningsvalg | Ingen ekstern lagring; fremtidige skjemaversjoner oppgraderes additivt |
 | `vite.config.mjs` | Miljøstier, manifest, lokale ikoner, `build-info.json` og Workbox-worker | Bygget er selvstendig under miljøets sti |
@@ -29,7 +29,7 @@ Nye domenemoduler kan legges under `src/domain/`, lokal vedvarende lagring under
 
 IndexedDB har eksplisitt skjemaversjon 1 med `songs` (keyPath `id`) og `personal` (keyPath `songId`). Hver innlesing oppretter UUID, også for samme fil/tittel. En sang inneholder `id`, autoritativ `original`, avledet `title`/`key` og `origin` med `kind`, `filename`, `importedAt` samt plass til `provider`, `sourceId`, `fileId`, `relativePath`. Originalen beholder BOM, linjeskift og ukjente direktiver. Parseren arbeider med en separat representasjon, som ikke skrives tilbake.
 
-`personal` inneholder `songId` og et kart `chorus` fra deterministisk originallinjereferanse (`line:N`, nullbasert) til boolsk tilstand. Det er separat fra sanginnholdet. Editor/synk må senere håndtere gjenforankring ved tekstendring. localStorage-nøkkelen `<namespace>:display` inneholder globalt `theme` og `fontSize`. Appens oppstart bruker miljøets innstillinger før innholdet vises. Ingen lagringsnavn følger SHA/PR.
+`personal` inneholder `songId` og et kart `chorus` fra deterministisk originallinjereferanse (`line:N`, nullbasert) til boolsk tilstand. Det er separat fra sanginnholdet. Editor/synk må senere håndtere gjenforankring ved tekstendring. localStorage-nøkkelen `<namespace>:display` inneholder globalt `theme`, `fontSize`, `showGrids` og `showDynamics`. Eksisterende innstillinger uten de nye feltene beholder tema/størrelse og får begge visningene på. Appens oppstart bruker miljøets innstillinger før innholdet vises. Ingen lagringsnavn følger SHA/PR.
 
 Databaseoperasjoner lukker forbindelsen etter fullført transaksjon. Innlesing regnes først som lagret ved `oncomplete`; `add` kan ikke overskrive en eksisterende sang. Blokkert/avvist åpning, abort og innstillingsfeil vises uten nullstilling. Ingen database-/brukerdatasletting skjer ved appstart eller oppdatering. Testharness bruker egne `-harness`-databaser; workeroppdatering prøves også med faktiske sanger og personlige valg.
 
@@ -80,3 +80,11 @@ Bevarte konfigurasjonsbeslutninger fra originalen, **ikke aktive integrasjoner**
 Parseren støtter `title/t`, `key`, `comment/c`, `soc/eoc`, `start_of_chorus/end_of_chorus` og `chorus` som egne direktivlinjer. Refrenghenvisning bruker nærmeste tidligere definerte refrengblokk; uten tidligere definisjon vises en merknad. Første og øvrige eksplisitte refrengblokker er fullt synlige, mens henvisninger starter lukket. Uavsluttede blokker lukkes ved filslutt/neste blokk; feilplassert sluttmarkør sluker ingen tekst. Ukjente direktiver vises forsiktig som lesbar tekst. Ingen full ChordPro-standardstøtte eller eldreformatkonvertering loves.
 
 Gjenkjennelige akkordsymboler beholdes i originale stavemåter; `[Solo]`, `[Fele]`, `[Ref]` forblir tekst. Visningen bygger trygge tekstnoder, og bruker inline-grid for akkord/tekst-par. Ord kan brytes mellom par; lange enkeltord kan brytes inne i tekstcellen uten å flytte akkorden fra starten. Flere påfølgende akkorder og rene akkordlinjer har egne celler.
+
+## Felles akkordskjema og dynamikk (F31–F32)
+
+`start_of_grid/end_of_grid` og `sog/eog` gir egne gridblokker på sin plass i sangen, også inne i refreng. Griden har avledede rader, marginmerknader og takter med slagceller. Taktstreker, repetisjon/volta, tomme celler (`.`), slag (`/`), gjentakelser (`%`/`%%`) og flere akkorder i samme celle (`C~G`) vises. Klangsymboler bruker samme konservative akkordgjenkjenning som sangtekst. `shape="4x4"`, tilsvarende eldre kolonform og `label` støttes; uten form følger layouten rader/takter fra teksten. [ChordPro-gridspesifikasjonen](https://www.chordpro.org/chordpro/directives-env_grid/) er formatreferanse. Strum-pseudokorder og øvrige ukjente utvidelser vises lesbart, uten automatisk konvertering eller transponering. Uavsluttede/nestede blokker mister ikke etterfølgende innhold.
+
+Gyldig `x_dyn: 1`–`5` gir instruksjonsnoder i den avledede strukturen. Visningen starter på 3 og følger nivået til neste gyldige tagg. Ugyldige verdier gir merknad og beholder forrige nivå. Ved refrenghenvisning gjentas også instruksjonene som faktisk finnes i refrengblokken; uten ny tagg videreføres gjeldende nivå. Dette beregnes uavhengig av om henvisningen er foldet sammen.
+
+Profilen tegnes med CSS bak innholdet, på én felles midtakse gjennom tekst, refreng og grid. Nivå 1–5 bruker henholdsvis 18, 36, 54, 72 og 90 prosent av sangflatens bredde, med dempet tematilpasset farge og umiddelbare trinn. Høyden følger den viste teksten; den er ingen musikalsk tidsmåling. Av/på for profil og felles grid er uavhengige globale visningsvalg per miljø. Ingen sang-/databaseskjemaoppgradering er nødvendig: lagrede originaler tolkes på nytt ved åpning.

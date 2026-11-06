@@ -1,6 +1,6 @@
 # Gjeldende krav
 
-Dette er produktkrav, ikke en liste over ferdige funksjoner. **Implementert i denne kodebasen:** PWA-skall, offline-cache, miljøidentitet, oppdatering, CI/CD samt lokal UTF-8 ChordPro/TXT-innlesing, sanglagring, enkel oversikt og grunnleggende sangvisning med personlige refreng-/visningsvalg fra issue #4. De øvrige v1-funksjonene nedenfor er vedtatt og gjenstår. Installert/fysisk test og publisering rapporteres separat i PR-en og [TESTING](TESTING.md).
+Dette er produktkrav, ikke en liste over ferdige funksjoner. **Implementert i denne kodebasen:** PWA-skall, offline-cache, miljøidentitet, oppdatering, CI/CD samt lokal UTF-8 ChordPro/TXT-innlesing, sanglagring, enkel oversikt og grunnleggende sangvisning med personlige refreng-/visningsvalg samt felles akkordskjema og femnivå-dynamikk fra issue #4 (inkludert F31–F32). De øvrige v1-funksjonene nedenfor er vedtatt og gjenstår. Installert/fysisk test og publisering rapporteres separat i PR-en og [TESTING](TESTING.md).
 
 Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4](https://github.com/geirskoglund/hobos-songbook/issues/1#issuecomment-6673680408) og avklaringene i samme issue. GitHub er autoritativ kilde etter oppstartsleveransen; Drive-originalen og de uendrede kommentarene er historisk kilde. Seksjonsnumrene følger originalen. **[B]** betyr besluttet, **[T]** historisk rapportert praktisk forsøk, **[Å]** uavklart, **[RETNING]** foretrukket designretning. Tekniske/designmessige vurderingspunkter er ikke testbevis eller godkjenning av en bestemt løsning.
 
@@ -164,7 +164,7 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 
 **[Å / DESIGN]** Skisser og eierens vurdering av bibliotek, sangvisning med notater/akkordskjema/dynamikk, setlister, redigeringsmodi og mobiltilpasning gjenstår. Prøv plass, lesbarhet, berøring og navigasjon uten å gjenåpne avklarte domeneregler.
 
-**[TEKNISK]** Parser/grid/konvertering, annoteringsforankring, intern/ekstern identitet, konfliktsikker lagring/synk, `.setlist`-transport/publiseringsstatus og backup-manifest gjenstår. Codex velger implementeringsdetaljer innenfor vedtatte regler og løfter reelle produktmotstrid. PWA-skallet og CI/CD er oppstartsleveransen, ikke funksjonell v1.
+**[TEKNISK]** Full format-/konverteringsstøtte, personlige akkordskjemaer, annoteringsforankring, intern/ekstern identitet, konfliktsikker lagring/synk, `.setlist`-transport/publiseringsstatus og backup-manifest gjenstår. Codex velger implementeringsdetaljer innenfor vedtatte regler og løfter reelle produktmotstrid. PWA-skallet og CI/CD er oppstartsleveransen, ikke funksjonell v1.
 
 **[TEST]** Før v1 må rekursiv lesing fra eksterne delte mapper, fil-/kildeidentitet mellom Dropbox-kontoer, negativ tilgangstest, offline på iPad og systemdeling av `.setlist` til Dropbox fra mobil/nettbrett verifiseres. Se [TESTING](TESTING.md). Produktkravene er i hovedsak avklart; ingen nye serieintervjuer om hypotetiske unntak kreves.
 

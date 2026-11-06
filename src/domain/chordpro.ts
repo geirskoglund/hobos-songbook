@@ -1,5 +1,10 @@
+import {parseGridRow, gridOptions, type GridRow, type GridOptions} from './grid.ts';
 export interface Segment {chord?: string; text: string}
-export type Content = {kind: 'line'; segments: Segment[]} | {kind: 'comment' | 'unknown'; text: string};
+export type DynamicLevel = 1 | 2 | 3 | 4 | 5;
+export interface DynamicDirective {kind: 'dynamic'; level: DynamicLevel}
+export type GridContent = GridRow | DynamicDirective | {kind: 'comment' | 'unknown'; text: string};
+export interface GridBlock {kind: 'grid'; options: GridOptions; rows: GridContent[]}
+export type Content = {kind: 'line'; segments: Segment[]} | {kind: 'comment' | 'unknown'; text: string} | DynamicDirective | GridBlock;
 export type Block = Content | {kind: 'chorus'; content: Content[]} | {kind: 'reference'; occurrence: string; content: Content[] | null};
 export interface ParsedSong {title: string; key: string | null; blocks: Block[]}
 
@@ -22,23 +27,34 @@ export function parseLine(line: string): Segment[] {
 export function parseChordPro(original: string, fallbackTitle: string): ParsedSong {
   const song: ParsedSong = {title: fallbackTitle, key: null, blocks: []};
   let chorus: Content[] | null = null, previous: Content[] | null = null;
+  let grid: GridBlock | null = null, previousGrid: GridOptions | undefined;
   const emit = (block: Content) => {if (chorus) chorus.push(block); else song.blocks.push(block);};
+  const finishGrid = () => {if (grid) {emit(grid); grid = null;}};
+  const emitInstruction = (block: DynamicDirective | {kind: 'comment' | 'unknown'; text: string}) => {if (grid) grid.rows.push(block); else emit(block);};
   const finish = () => {if (chorus) {song.blocks.push({kind: 'chorus', content: chorus}); previous = chorus; chorus = null;}};
   // Only this derived working copy normalizes line endings/BOM.
   original.replace(/^\uFEFF/, '').split(/\r\n|\n|\r/).forEach((line, index) => {
-    const directive = line.trim().match(/^\{([a-z_]+)(?:\s*:\s*(.*?))?\s*\}$/i);
-    if (!directive) {emit({kind: 'line', segments: parseLine(line)}); return;}
+    const directive = line.trim().match(/^\{([a-z_]+)(?:(?:\s*:\s*|\s+)(.*?))?\s*\}$/i);
+    if (!directive) {if (grid) grid.rows.push(parseGridRow(line)); else emit({kind: 'line', segments: parseLine(line)}); return;}
     const name = directive[1].toLowerCase(), value = directive[2] ?? '';
     switch (name) {
       case 'title': case 't': if (value.trim()) song.title = value.trim(); break;
       case 'key': song.key = value.trim() || null; break;
-      case 'comment': case 'c': emit({kind: 'comment', text: value}); break;
-      case 'soc': case 'start_of_chorus': finish(); chorus = []; break;
-      case 'eoc': case 'end_of_chorus': finish(); break;
+      case 'comment': case 'c': emitInstruction({kind: 'comment', text: value}); break;
+      case 'x_dyn':
+        if (/^[1-5]$/.test(value.trim())) emitInstruction({kind: 'dynamic', level: Number(value.trim()) as DynamicLevel});
+        else emitInstruction({kind: 'comment', text: `Ugyldig dynamikknivå «${value}». Bruk 1–5; forrige nivå beholdes.`});
+        break;
+      case 'start_of_grid': case 'sog':
+        finishGrid(); previousGrid = gridOptions(value, previousGrid);
+        grid = {kind: 'grid', options: previousGrid, rows: []}; break;
+      case 'end_of_grid': case 'eog': finishGrid(); break;
+      case 'soc': case 'start_of_chorus': finishGrid(); finish(); chorus = []; break;
+      case 'eoc': case 'end_of_chorus': finishGrid(); finish(); break;
       case 'chorus':
-        finish(); song.blocks.push({kind: 'reference', occurrence: `line:${index}`, content: previous}); break;
-      default: emit({kind: 'unknown', text: line});
+        finishGrid(); finish(); song.blocks.push({kind: 'reference', occurrence: `line:${index}`, content: previous}); break;
+      default: emitInstruction({kind: 'unknown', text: line});
     }
   });
-  finish(); return song;
+  finishGrid(); finish(); return song;
 }
