@@ -71,8 +71,8 @@ code {font: inherit; font-family: ui-monospace, monospace;}
 .update-notice button {width: 100%;}
 body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 
-:root {--dynamic-color: #b6caba10;}
-:root[data-theme="light"] {--dynamic-color: #63795c14;}
+:root {--dynamic-color: #b6caba18;}
+:root[data-theme="light"] {--dynamic-color: #63795c1c;}
 .song-body, #song-body {position: relative; isolation: isolate;}
 #dynamics-profile {position: absolute; z-index: -1; left: 50%; top: 0; transform: translateX(-50%); pointer-events: none; overflow: visible;}
 #dynamics-profile path {fill: var(--dynamic-color);}
