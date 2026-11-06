@@ -1,4 +1,6 @@
-/** Native lifecycle handling also covers updates during the first app session. */
+import {workerBuild} from './worker-build.ts';
+import type {AppEnvironment} from './environment.ts';
+
 export function startAppUpdates() {
   const env = __APP_ENV__;
   const offline = document.querySelector<HTMLElement>('#offline-status')!;
@@ -15,74 +17,79 @@ export function startAppUpdates() {
     offline.textContent = 'Denne nettleseren støtter ikke offline-oppsettet.'; button.hidden = true; return;
   }
   const workers = navigator.serviceWorker;
+  const initialController = workers.controller;
   const workerURL = new URL(`${env.base}sw.js`, location.origin).href;
   let registration: ServiceWorkerRegistration | undefined;
   let checking = false, applying = false, reloadAvailable = false;
-  let controller = workers.controller;
-  let activationTarget: ServiceWorker | null = null;
+  let announced: ServiceWorker | null = null, activationTarget: ServiceWorker | null = null;
+  let inspection = 0;
   let activationTimer: ReturnType<typeof setTimeout> | undefined;
   const watched = new WeakSet<ServiceWorker>();
+  const builds = new WeakMap<ServiceWorker, Promise<AppEnvironment | null>>();
   const matches = (worker: ServiceWorker | null) => worker?.scriptURL === workerURL;
-  function offerUpdate() {
-    if (applying) return;
-    notice.hidden = false;
-    noticeText.textContent = 'En ny versjon er klar.';
-    button.textContent = 'Oppdater appen';
-    status.textContent = 'En ny versjon er klar.';
+  function clearNotice() {
+    announced = null; reloadAvailable = false; notice.hidden = true;
+    noticeText.textContent = status.textContent = '';
+    button.textContent = 'Se etter oppdatering';
   }
-  function inspect() {
+  async function inspect() {
     if (registration?.active?.state === 'activated') ready();
-    if (registration?.waiting) offerUpdate();
     const installing = registration?.installing;
-    if (!installing || watched.has(installing)) return;
-    watched.add(installing);
-    const changed = () => {
-      if (installing.state === 'installed') {
-        if (registration?.waiting) offerUpdate();
-      } else if (installing.state === 'activated') ready();
-      else if (installing.state === 'redundant' && !registration?.waiting) {
-        status.textContent = 'Oppdateringen kunne ikke lastes ned. Prøv igjen når nettet er tilgjengelig.';
-      }
-    };
-    installing.addEventListener('statechange', changed); changed();
+    if (installing && !watched.has(installing)) {
+      watched.add(installing);
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' || installing.state === 'activated') void inspect();
+        else if (installing.state === 'redundant' && !registration?.waiting) {
+          status.textContent = 'Oppdateringen kunne ikke lastes ned. Prøv igjen når nettet er tilgjengelig.';
+        }
+      });
+    }
+    const candidate = registration?.waiting ?? (workers.controller !== initialController && matches(workers.controller) ? workers.controller : null);
+    if (applying) return 'none';
+    if (!candidate) {clearNotice(); return 'none';}
+    const epoch = ++inspection;
+    let build = builds.get(candidate);
+    if (!build) {build = workerBuild(candidate, env); builds.set(candidate, build);}
+    const info = await build;
+    if (!info) builds.delete(candidate); // A timeout is not proof of any version; retry later.
+    if (epoch !== inspection || applying || candidate !== (registration?.waiting ?? workers.controller)) return 'stale';
+    if (!info) {clearNotice(); return 'unknown';}
+    if (info.sha === env.sha && info.pr === env.pr) {clearNotice(); return 'same';}
+    announced = candidate; reloadAvailable = registration?.waiting !== candidate;
+    notice.hidden = false; noticeText.textContent = status.textContent = 'En ny versjon er klar.';
+    button.textContent = 'Oppdater appen';
+    return 'different';
   }
   workers.addEventListener('controllerchange', () => {
-    const next = workers.controller;
-    if (!matches(next) || next === controller) return;
-    const hadController = matches(controller);
-    controller = next;
-    if (applying && next === activationTarget) {
+    if (!matches(workers.controller)) return;
+    if (applying && workers.controller === activationTarget) {
       clearTimeout(activationTimer); location.reload();
-    } else if (hadController && !applying) {
-      // Another tab in this environment activated it. This page still has old JS.
-      reloadAvailable = true; offerUpdate();
-    }
+    } else void inspect();
   });
   async function check(manual = false) {
-    inspect();
-    if (checking || applying || registration?.waiting || reloadAvailable) return;
+    if (checking || applying) return;
     checking = true;
     if (manual) {button.disabled = true; status.textContent = 'Ser etter oppdatering…';}
     try {
       if (!registration) {
         const existing = await workers.getRegistration(env.base);
         if (existing && new URL(existing.scope).pathname === env.base) {
-          registration = existing; registration.addEventListener('updatefound', inspect); inspect();
+          registration = existing; registration.addEventListener('updatefound', () => {void inspect();});
+          void inspect();
         }
       }
-      if (!navigator.onLine) {
-        if (manual) status.textContent = 'Koble til nett for å se etter oppdateringer.';
-        if (!registration) offline.textContent = 'Åpne appen på nett for å gjøre den klar for bruk uten nett.';
-        return;
-      }
-      if (!registration) {
-        registration = await workers.register(workerURL, {scope: env.base, updateViaCache: 'none'});
-        if (new URL(registration.scope).pathname !== env.base) throw new Error('Feil worker-scope.');
-        registration.addEventListener('updatefound', inspect);
-      } else await registration.update();
-      inspect();
-      if (manual && !registration.waiting && !reloadAvailable) {
-        status.textContent = registration.installing ? 'Laster ned oppdateringen…' : 'Du har siste tilgjengelige versjon.';
+      if (navigator.onLine) {
+        if (!registration) {
+          registration = await workers.register(workerURL, {scope: env.base, updateViaCache: 'none'});
+          if (new URL(registration.scope).pathname !== env.base) throw new Error('Feil worker-scope.');
+          registration.addEventListener('updatefound', () => {void inspect();});
+        } else await registration.update();
+      } else if (!registration) offline.textContent = 'Åpne appen på nett for å gjøre den klar for bruk uten nett.';
+      const result = await inspect();
+      if (manual && !announced && result !== 'stale') {
+        status.textContent = result === 'unknown' ? 'Kunne ikke bekrefte versjonen. Prøv igjen.' :
+          !navigator.onLine ? 'Koble til nett for å se etter oppdateringer.' :
+          registration?.installing ? 'Laster ned oppdateringen…' : 'Du har siste tilgjengelige versjon.';
       }
     } catch {
       if (!registration) offline.textContent = 'Offline-oppsettet kunne ikke fullføres. Prøv igjen mens du er på nett.';
@@ -91,15 +98,16 @@ export function startAppUpdates() {
   }
   async function applyUpdate() {
     if (applying) return;
-    if (reloadAvailable) {location.reload(); return;}
-    const waiting = registration?.waiting;
-    if (!waiting) {await check(true); return;}
-    activationTarget = waiting;
+    if (!announced) {await check(true); return;}
+    await inspect(); // Recheck a notice that may have been superseded in another tab.
+    if (!announced) return;
+    if (reloadAvailable && workers.controller === announced) {location.reload(); return;}
+    if (registration?.waiting !== announced) {await check(true); return;}
+    activationTarget = announced;
     applying = true; button.disabled = true; noticeButton.disabled = true;
     status.textContent = noticeText.textContent = 'Tar i bruk den nye versjonen…';
     try {
-      // Workbox's generated worker handles this message; reload only after takeover.
-      waiting.postMessage({type: 'SKIP_WAITING'});
+      activationTarget.postMessage({type: 'SKIP_WAITING'});
       activationTimer = setTimeout(() => {
         if (workers.controller === activationTarget) {location.reload(); return;}
         applying = false; button.disabled = false; noticeButton.disabled = false;
@@ -116,7 +124,6 @@ export function startAppUpdates() {
   window.addEventListener('online', checkWhenVisible);
   window.addEventListener('focus', checkWhenVisible);
   document.addEventListener('visibilitychange', checkWhenVisible);
-  // A long-running reading session must discover a new build without navigation.
   setInterval(checkWhenVisible, 60_000);
   void check();
 }

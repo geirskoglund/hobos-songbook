@@ -13,6 +13,10 @@ test('update on first visit activates and reloads without requiring an earlier p
   await page.getByRole('button', {name:'Oppdater appen', exact:true}).click();
   await expect(page.locator('.build')).toContainText('ccccccc');
   expect(await savedSongs(page)).toEqual(before);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
+  await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
+  await expect(page.locator('#update-notice')).toBeHidden();
 });
 
 test('long reading session gets an automatic visible notice; update still needs an explicit choice', async ({page, request}) => {
@@ -64,5 +68,57 @@ test('waiting update is announced after reopening; other tabs only reload by cho
   await expect(other.locator('.build')).toContainText('ccccccc');
   await expect(page.locator('.build')).toContainText('bbbbbbb');
   await page.getByRole('button', {name:'Oppdater nå',exact:true}).click();
+  await expect(page.locator('.build')).toContainText('ccccccc');
+});
+
+
+test('same app build never announces a new version when its worker is repacked or takes control', async ({page, request}) => {
+  await page.goto(url); await ready(page);
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  await importSong(page); const before = await savedSongs(page);
+  await request.post('/__test__/update?channel=test&variant=same');
+  await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
+  await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true);
+  await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
+  await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
+  await expect(page.locator('#update-notice')).toBeHidden();
+  await page.evaluate(async () => {
+    await new Promise(resolve => {
+      navigator.serviceWorker.addEventListener('controllerchange', resolve, {once:true});
+      navigator.serviceWorker.getRegistration().then(reg => reg.waiting.postMessage({type:'SKIP_WAITING'}));
+    });
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
+  await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
+  await expect(page.locator('#update-notice')).toBeHidden();
+  expect(await savedSongs(page)).toEqual(before);
+});
+
+
+test('fresh page already on latest build does not announce its older controller or the matching waiting worker', async ({page, context, request}) => {
+  await page.goto(url); await ready(page);
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  const keeper = await context.newPage(); await keeper.goto(url); await ready(keeper);
+  await request.post('/__test__/update?channel=test');
+  const session = await context.newCDPSession(page);
+  await session.send('Network.enable');
+  // Reproduce fresh HTML arriving while an older worker still controls the page.
+  await session.send('Network.setBypassServiceWorker', {bypass:true});
+  await page.reload(); await expect(page.locator('.build')).toContainText('ccccccc');
+  await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true);
+  await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
+  await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
+  await expect(page.locator('#update-notice')).toBeHidden();
+  await session.send('Network.setBypassServiceWorker', {bypass:false});
+  await page.evaluate(async () => {
+    await new Promise(resolve => {
+      navigator.serviceWorker.addEventListener('controllerchange', resolve, {once:true});
+      navigator.serviceWorker.getRegistration().then(reg => reg.waiting.postMessage({type:'SKIP_WAITING'}));
+    });
+  });
+  await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
+  await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
+  await expect(page.locator('#update-notice')).toBeHidden();
   await expect(page.locator('.build')).toContainText('ccccccc');
 });

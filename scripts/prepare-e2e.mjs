@@ -1,4 +1,4 @@
-import {mkdir, rm, cp} from 'node:fs/promises';
+import {mkdir, rm, cp, appendFile} from 'node:fs/promises';
 import {resolve, join} from 'node:path';
 import {build} from 'vite';
 import {assemblePages} from './assemble-pages.mjs';
@@ -18,6 +18,9 @@ for (const variant of variants) {
   process.env.APP_CHANNEL = variant.channel; process.env.APP_SHA = variant.sha; process.env.APP_PR = variant.pr;
   await build({logLevel: 'warn', build: {outDir: join(root, variant.target), emptyOutDir: true}});
 }
+// A regenerated worker can change bytes without changing the app build.
+await cp(join(root, 'test-v1'), join(root, 'test-v1-repacked'), {recursive: true});
+await appendFile(join(root, 'test-v1-repacked/sw.js'), '\n// Repacked worker, identical app version.\n');
 // The actual new app must fit bootstrap's placeholder-production / PR-test assembly contract.
 const builds = join(root, 'bootstrap-builds');
 const master = {sha: 'a'.repeat(40), pr: null, kind: 'placeholder'};

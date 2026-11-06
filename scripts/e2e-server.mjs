@@ -11,7 +11,7 @@ const server = createServer(async (request, response) => {
     variants.app = 'production-v1'; variants.test = 'test-v1'; response.end('reset'); return;
   }
   if (request.method === 'POST' && url.pathname === '/__test__/update' && ['app', 'test'].includes(url.searchParams.get('channel'))) {
-    const channel = url.searchParams.get('channel'); variants[channel] = channel === 'app' ? 'production-v2' : 'test-v2'; response.end('updated'); return;
+    const channel = url.searchParams.get('channel'); variants[channel] = channel === 'app' ? 'production-v2' : url.searchParams.get('variant') === 'same' ? 'test-v1-repacked' : 'test-v2'; response.end('updated'); return;
   }
   if (url.pathname === '/__test__/ready') {response.end('ready'); return;}
   const match = /^\/hobos-songbook\/(app|test)\/(.*)$/.exec(decodeURIComponent(url.pathname));
