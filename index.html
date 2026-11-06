@@ -7,32 +7,69 @@
     <meta name="description" content="En sangbok for øving og scene. Grunnversjonen fungerer uten konto og kan åpnes uten nett etter første lasting." />
     <link rel="icon" type="image/png" href="./icon-192.png" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <script>
+      // Apply the saved theme before styles/first paint; storage errors are reported by the app.
+      try {
+        const saved = JSON.parse(localStorage.getItem('__APP_NAMESPACE__:display') || '{}');
+        if (saved.theme === 'light') document.documentElement.dataset.theme = 'light';
+      } catch {}
+    </script>
     <title>__APP_NAME__</title>
   </head>
   <body>
     <div id="app">
       <header class="topbar">
-        <a class="wordmark" href="./" aria-label="Hobo's Songbook, startside">HOBO'S <span>SONGBOOK</span></a>
-        <span class="environment">__APP_LABEL__</span>
+        <div class="nav-left"><button id="back" type="button" aria-label="← Mine sanger" hidden>←</button><a class="wordmark" href="./" aria-label="Hobo's Songbook, startside">HOBO'S <span>SONGBOOK</span></a></div>
+        <div class="nav-right"><span class="environment">__APP_LABEL__</span><button id="menu-button" type="button" aria-haspopup="dialog" aria-label="Meny">☰</button></div>
       </header>
       <main>
-        <div class="book" aria-hidden="true"><svg viewBox="0 0 96 96" fill="none"><path d="M48 27C35 19 23 19 12 23v49c12-4 24-4 36 4 12-8 24-8 36-4V23c-11-4-23-4-36 4Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M48 27v49M22 34c6-1 11 0 16 2M22 44c6-1 11 0 16 2M22 54c6-1 11 0 16 2M58 36c5-2 10-3 16-2M58 46c5-2 10-3 16-2M58 56c5-2 10-3 16-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
-        <p class="eyebrow">FOR ØVING OG SCENE</p>
-        <h1>Hobo's Songbook</h1>
-        <p class="intro">Et sted for sangene dine.</p>
-        <section class="card" aria-labelledby="shell-heading">
-          <span class="step">GRUNNVERSJON</span>
-          <h2 id="shell-heading">Sangboken tar form.</h2>
-          <p>Dette er appskallet. Sangbibliotek, sangvisning og setlister kommer i senere leveranser.</p>
-          <div class="offline"><span class="status-dot" aria-hidden="true"></span><p id="offline-status" role="status">Gjør klart for bruk uten nett…</p></div>
-          <p class="hint">Åpne appen én gang på nett og vent til den er klar. Deretter kan dette appskallet åpnes uten nett.</p>
-          <button id="update" type="button">Se etter oppdatering <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 17 17 7M6 7h11v11"/></svg></button>
-          <p id="update-status" class="hint" role="status"></p>
+        <section id="library" aria-labelledby="library-title">
+          <p class="eyebrow">FOR ØVING OG SCENE</p>
+          <h1 id="library-title" tabindex="-1">Hobo's Songbook</h1>
+          <p class="intro">Sangene dine, klare når du trenger dem.</p>
+          <div class="import-panel">
+            <label for="song-file">Legg til en sang</label>
+            <p id="file-help" class="hint">Velg én UTF-8-tekstfil: .cho, .chordpro, .chopro, .crd, .pro, .chord eller .txt. Filen beholdes uendret.</p>
+            <input id="song-file" type="file" accept=".cho,.chordpro,.chopro,.crd,.pro,.chord,.txt" aria-describedby="file-help" />
+          </div>
+          <h2>Mine sanger</h2>
+          <p id="library-status" role="status">Åpner sanglageret…</p>
+          <button id="retry-storage" type="button" hidden>Prøv sanglageret igjen</button>
+          <ul id="song-list" class="song-list"></ul>
         </section>
-        <p class="install-hint">Du kan legge sangboken på hjemskjermen eller installere den fra nettleseren der dette støttes.</p>
+        <section id="reader" aria-labelledby="song-title" hidden>
+          <article id="song-content"></article>
+        </section>
+        <p id="song-status" role="status" aria-live="polite"></p>
         <noscript><p>JavaScript må være aktivert for å starte offline-oppsettet.</p></noscript>
       </main>
-      <footer><span id="connection"></span><span class="build">__APP_SOURCE__ · <code>__APP_SHA__</code></span></footer>
+      <aside id="update-notice" class="update-notice" aria-label="Appoppdatering" hidden>
+        <p id="update-notice-text" role="status" aria-live="polite"></p>
+        <button id="apply-update" type="button">Oppdater nå</button>
+      </aside>
+      <dialog id="settings-dialog" aria-labelledby="settings-heading">
+        <div class="menu-heading"><h2 id="settings-heading">Innstillinger</h2><button id="menu-close" type="button" aria-label="Lukk meny">×</button></div>
+        <fieldset class="display-settings">
+          <legend>Visning</legend>
+          <label for="theme">Tema</label>
+          <select id="theme"><option value="dark">Mørk</option><option value="light">Lys</option></select>
+          <label for="font-size">Skriftstørrelse <output id="font-value" for="font-size">22 px</output></label>
+          <input id="font-size" type="range" min="16" max="36" step="1" value="22" />
+          <label class="check-option"><input id="show-grids" type="checkbox" checked /> Vis akkordskjema</label>
+          <label class="check-option"><input id="show-dynamics" type="checkbox" checked /> Vis dynamikkprofil</label>
+          <p id="settings-status" class="hint" role="status"></p>
+        </fieldset>
+        <details class="app-info" open>
+          <summary>App og offline</summary>
+          <p id="offline-status" role="status">Gjør klart for bruk uten nett…</p>
+          <p class="hint">Lagrede sanger kan leses uten nett når appen er klar. Nettleserdata er ikke en sikkerhetskopi.</p>
+          <button id="update" type="button">Se etter oppdatering</button>
+          <p id="update-status" class="hint" role="status"></p>
+          <p class="hint">Legg sangboken på hjemskjermen eller installer den fra nettleseren der dette støttes.</p>
+        </details>
+
+        <footer><span id="connection"></span><span class="build">__APP_SOURCE__ · <code>__APP_SHA__</code></span></footer>
+      </dialog>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

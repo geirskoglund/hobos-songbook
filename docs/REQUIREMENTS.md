@@ -1,6 +1,6 @@
 # Gjeldende krav
 
-Dette er produktkrav, ikke en liste over ferdige funksjoner. **Implementert i denne kodebasen:** et minimalt, responsivt PWA-skall, lokal offline-cache, miljøidentitet, oppdatering og CI/CD. Sangfunksjonene nedenfor er **vedtatt for v1, men ikke implementert**. Installert/fysisk test og produksjonspublisering rapporteres separat i PR-en og [TESTING](TESTING.md).
+Dette er produktkrav, ikke en liste over ferdige funksjoner. **Implementert i denne kodebasen:** PWA-skall, offline-cache, miljøidentitet, oppdatering, CI/CD samt lokal UTF-8 ChordPro/TXT-innlesing, sanglagring, enkel oversikt og grunnleggende sangvisning med personlige refreng-/visningsvalg samt felles akkordskjema og femnivå-dynamikk fra issue #4 (inkludert F31–F33 og gjennomgått kompakt sangvisning). De øvrige v1-funksjonene nedenfor er vedtatt og gjenstår. Installert/fysisk test og publisering rapporteres separat i PR-en og [TESTING](TESTING.md).
 
 Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4](https://github.com/geirskoglund/hobos-songbook/issues/1#issuecomment-6673680408) og avklaringene i samme issue. GitHub er autoritativ kilde etter oppstartsleveransen; Drive-originalen og de uendrede kommentarene er historisk kilde. Seksjonsnumrene følger originalen. **[B]** betyr besluttet, **[T]** historisk rapportert praktisk forsøk, **[Å]** uavklart, **[RETNING]** foretrukket designretning. Tekniske/designmessige vurderingspunkter er ikke testbevis eller godkjenning av en bestemt løsning.
 
@@ -65,7 +65,7 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 
 ### Klingende toneart, capo, stemming og eldre filer
 
-- **[B]** `{key: ...}` er klingende toneart, uavhengig av personlig capo. Capo skrives ikke i felles sangfil. Klingende toneart og personlig capo-/grepstoneart er synlige samtidig, også på setlisteraden, slik at musikere kan kommunisere riktig toneart.
+- **[B]** `{key: ...}` er klingende toneart, uavhengig av personlig capo. I sangvisningen vises verdien alene i en diskret pille uten ledetekst. Senere kan en egen pille ved siden av vise for eksempel «Capo 7: Am». Capo skrives ikke i felles sangfil. Klingende toneart og personlig capo-/grepstoneart er synlige samtidig, også på setlisteraden, slik at musikere kan kommunisere riktig toneart.
 - **[B]** Når filen har akkorder, kan visningen veksle mellom klingende akkorder og omregnede capo-grep. Dette endrer bare visningen, ikke originalakkorder eller klingende toneart.
 - **[B]** Nye filer tolkes som klingende akkorder som standard. Eldre filer med noterte capo-grep må konverteres/tolkes eksplisitt; de antas ikke automatisk å være klingende. Originalen omskrives aldri uten bevisst godkjenning.
 - **[B]** Import må forstå kombinasjoner som `key: D`, `capo: 2`, `relative key: C`: D er klingende, C grepene ved capo 2. Forslag kan normaliseres til klingende akkorder med kontroll/godkjenning før lagring. Ulike eldre notasjoner må kartlegges.
@@ -76,15 +76,15 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 
 ### Felles og personlig akkordskjema
 
-- **[B]** Felles ChordPro-grid ligger i originalfilen og vises der i teksten. Personlig skjema er privat, lagres i App folder og vises som standard under sangtittel før teksten. Personlig skjema krever ikke redigering av andres filer. Begge inngår i v1, kan skjules hver for seg og bruker samme akkordmodell for capo-visning, med taktstreker/flere akkorder per takt.
-- **[B]** Sticky gjelder bare personlig skjema, ikke felles grid. Generell brukerinnstilling er på som standard. Når tittelen scrolles bort, fester personlig skjema øverst. × frigjør det bare i aktuell sangvisning; neste åpning følger igjen brukerinnstillingen.
+- **[B]** Sangen har én skjemavisning. Hvis et personlig/privat skjema finnes, brukes dette innholdet. Ellers brukes felles ChordPro-grid fra originalfilen. Finnes ingen av delene, vises ikke noe skjema. Personlig og felles skjema vises aldri samtidig. Personlig innhold lagres separat fra originalfilen; ekstern App folder-lagring og redigering kommer i egne leveranser.
+- **[B]** Den samme skjemavisningen brukes uavhengig av innholdskilde. Den ligger kompakt under tittelen og fester seg under toppen ved scrolling. × slår bare av sticky i aktuell åpning. Skjemaet blir stående på sin opprinnelige plass i siden og kan leses ved å scrolle opp. Neste åpning har sticky på igjen, i tråd med den generelle visningsinnstillingen.
 - **[B]** For høyt sticky-skjema på liten skjerm vises automatisk kompakt fremfor med separat scrolling. **[Å / DESIGN]** Kompakt utforming og maksimal høyde avgjøres i nettbrett-/mobilskisser.
 
 ## 5. Felles dynamikk i v1
 
 - **[B]** Dynamikk er felles arrangementsinformasjon og visuell påminnelse for musikere som kjenner sangen, ikke eksakt tidslinje eller tradisjonell pp–ff-notasjon.
 - **[B]** Fem nivåer 1–5, normalnivå 3. `{x_dyn: N}` lagres direkte i originalfilen. Ny tagg endrer nivå umiddelbart til neste tagg; ingen tagg betyr 3. Innlegging støttes visuelt og i råtekst.
-- **[B]** Diskret, symmetrisk, midtstilt profil bak sangteksten; bredden viser intensitet, og visning kan slås av/på. Avrundede kanter er tillatt, men grafikken fremstiller ikke automatiske crescendoer. Antall tekstlinjer er ikke musikalsk varighet.
+- **[B]** Én sammenhengende, smal og symmetrisk søyle bak sangteksten, med myke lokale breddeoverganger. Også nivå 5 er smalt og betyr ikke full skjermbredde; bredden viser intensitet, og visning kan slås av/på. Avrundede kanter er tillatt, men grafikken fremstiller ikke automatiske crescendoer. Antall tekstlinjer er ikke musikalsk varighet.
 - **[B]** Ingen separat `.songbook`-annoteringsfil, personlig dynamikk eller `{dyn:...}` i v1. Tidligere forslag om utsettelse til fase 2 gjelder ikke. Avanserte ramper og frihåndstegning er utenfor v1.
 - **[Å / DESIGN]** Kontrollene for nivå og den konkrete midtstilte profilen prøves i skisser. Originalens merking «DESIGN/FASE 2» gjelder dette utformingsarbeidet, ikke en utsettelse av den vedtatte v1-funksjonen.
 
@@ -164,7 +164,7 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 
 **[Å / DESIGN]** Skisser og eierens vurdering av bibliotek, sangvisning med notater/akkordskjema/dynamikk, setlister, redigeringsmodi og mobiltilpasning gjenstår. Prøv plass, lesbarhet, berøring og navigasjon uten å gjenåpne avklarte domeneregler.
 
-**[TEKNISK]** Parser/grid/konvertering, annoteringsforankring, intern/ekstern identitet, konfliktsikker lagring/synk, `.setlist`-transport/publiseringsstatus og backup-manifest gjenstår. Codex velger implementeringsdetaljer innenfor vedtatte regler og løfter reelle produktmotstrid. PWA-skallet og CI/CD er oppstartsleveransen, ikke funksjonell v1.
+**[TEKNISK]** Full format-/konverteringsstøtte, redigering av personlige akkordskjemaer, annoteringsforankring, intern/ekstern identitet, konfliktsikker lagring/synk, `.setlist`-transport/publiseringsstatus og backup-manifest gjenstår. Codex velger implementeringsdetaljer innenfor vedtatte regler og løfter reelle produktmotstrid. PWA-skallet og CI/CD er oppstartsleveransen, ikke funksjonell v1.
 
 **[TEST]** Før v1 må rekursiv lesing fra eksterne delte mapper, fil-/kildeidentitet mellom Dropbox-kontoer, negativ tilgangstest, offline på iPad og systemdeling av `.setlist` til Dropbox fra mobil/nettbrett verifiseres. Se [TESTING](TESTING.md). Produktkravene er i hovedsak avklart; ingen nye serieintervjuer om hypotetiske unntak kreves.
 

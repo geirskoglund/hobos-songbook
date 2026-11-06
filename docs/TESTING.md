@@ -2,7 +2,7 @@
 
 ## Leveransegrense og kontroll
 
-Kodebasen for [issue #1](https://github.com/geirskoglund/hobos-songbook/issues/1) har et installérbart PWA-skall, miljøisolasjon, oppdatering, CI/CD og strukturert produktgrunnlag. Sangfunksjoner og Dropbox er ikke implementert. Bootstrap etablerer først publiseringsinfrastrukturen med to oppstartsplassholdere uten offline-/installasjonsløfte. Hoved-PR-en leverer det reelle skallet og trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
+Kodebasen har PWA/offline, miljøisolasjon og CI/CD samt lokal sanglagring, ChordPro-innlesing og grunnleggende sangvisning fra issue #4. Fullverdig bibliotek, editor/konvertering og Dropbox er senere arbeid. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
 
 Node.js 24 LTS og låst npm-fil brukes lokalt og i Actions:
 
@@ -15,7 +15,7 @@ npm run build
 
 `npm run check` kjører TypeScript-kontroll, JavaScript-syntaks, Node-kontrakttester og Playwright. `npm test` kjører bare kontrakttestene. Disse prøver første oppsett, eksakt workflow-/repo-/hendelses-/SHA-bevis, ugyldige/stale PR-er, mastervalidering, bevart testcommit også etter lukket PR, metadatafeil, faktisk feilende npm-validering, artifactkontroll og HTTPS-etterkontroll. Kontraktfixtures er atskilt fra de reelle appbyggene i Playwright.
 
-`npm run test:e2e` bygger begge faktiske miljøer og to nye oppdateringer, og prøver dem under de nøyaktige `/hobos-songbook/app/`- og `/hobos-songbook/test/`-stiene på én origin. Det prøves 320px mobil, nettbrett og desktop, lokal ressurslasting, manifestidentiteter/ikonstørrelser, egne worker-scopes og caches, lukking/gjenåpning offline, localStorage-/IndexedDB-markører, bytte av PR/commit og oppdatering av begge miljøer mens søskenmiljøet er åpent. En uvedkommende cache beholdes som kontroll. Før-merge-sammensetning med ekte testapp og betrodd produksjonsplassholder prøves også. Markørdatabaser er testharness, ikke en levert sangdatabase.
+`npm run test:e2e` bygger begge faktiske miljøer og to nye oppdateringer, og prøver dem under de nøyaktige `/hobos-songbook/app/`- og `/hobos-songbook/test/`-stiene på én origin. Det prøves 320px mobil, nettbrett og desktop, lokal ressurslasting, manifestidentiteter/ikonstørrelser, egne worker-scopes og caches, lukking/gjenåpning offline, localStorage-/IndexedDB-markører, bytte av PR/commit og oppdatering av begge miljøer mens søskenmiljøet er åpent. En uvedkommende cache beholdes som kontroll. Før-merge-sammensetning med ekte testapp og betrodd produksjonsplassholder prøves også. Markørdatabaser er separat testharness (`<namespace>-harness`). Den samme workerflyten kontrollerer også faktiske sanger, ID-er, originaltekst og personlige valg i produktets IndexedDB-skjema.
 
 Playwright bruker pinnet Chromium når installert. `CHROMIUM_PATH=/usr/bin/chromium npm run check` kan bruke en tilgjengelig systemnettleser; ellers velges installert Chromium/Google Chrome på kjente systemstier. CI installerer pinnet Playwright-nettleser. Publiseringsbyggets isolerte sjekk kan bruke hosted-runnerens system-Chrome. Rapporter nettleserversjonen ved konkret verifikasjon. Browserbinær og npm-pakker må være installert/cachet før full offline-kontroll; selve appen har ingen kjøretidsnettavhengighet.
 
@@ -88,7 +88,7 @@ Før hoved-PR-merge bygges `/app/` som masterens betrodde plassholder og bare `/
 1. Åpne fast testadresse mens du er på nett. Kontroller «Testversjon», forventet PR og commit i bunnteksten mot PR-leveringen/`build-info.json`. Startsiden skal identifisere Hobo's Songbook, ha lesbar tekst og ingen fungerende sang-/setlistekontroller.
 2. Vent på «Klart for bruk uten nett». Installer på hjemskjermen på iPad, åpne den installerte appen online og vent på samme status. Oppgi iPadOS-versjon, Safari/installert modus og commit. Chromium eller en simulert iPad-bredde er ikke fysisk iPad-bevis.
 3. Lukk appen helt, slå på flymodus og åpne den installerte appen igjen. Navn, riktig testmiljø, tekst og oppdateringskontroll skal vises; «Uten nett» er forventet. Prøv også vanlig nettleser og en annen tilgjengelig plattform, og registrer OS/nettleser/installert modus separat.
-4. Gå online igjen. «Se etter oppdatering» kontrollerer ny worker. Når en ny testcommit er publisert, skal «Oppdater appen» ta i bruk den og vise ny commit. Ikke slett nettleserdata ved en eldre utgave; lukk/åpne mens du er på nett og bruk oppdateringskontrollen.
+4. Gå online igjen. Appen kontrollerer automatisk ved oppstart, fokus/synlighet, nettilbakekomst og hvert minutt mens den er synlig på nett. En ny versjon skal gi et fast varsel også langt nede i en sang og når appinformasjonen er lukket. «Se etter oppdatering» kontrollerer også manuelt. Når en ny testcommit er publisert, skal «Oppdater appen» ta i bruk den og vise ny commit. Ikke slett nettleserdata ved en eldre utgave; lukk/åpne mens du er på nett og bruk oppdateringskontrollen.
 5. Meld konkret forløp, forventet/faktisk resultat, enhet/OS/nettleser/modus og PR/SHA. Rettelser gjøres i samme PR/testløp. Produktansvarlig gir uttrykkelig mergegodkjenning etter vurdering. Eventuelle uutførte fysiske kontroller skal oppgis, ikke kvitteres ut av CI.
 
 Etter godkjent merge kontrolleres master-CI, Pages-kjøring, produksjonens SHA og uendret test-SHA over HTTPS. Reell produksjonsinstallasjon/offline kan først prøves etter dette. Grunnfunksjoner i fremtidig v1 har egne tester: rekursiv Dropbox-lesing, identitet mellom kontoer, negativ tilgang, parser/konvertering, konflikt/synk/backup og `.setlist`-systemdeling på faktisk iPad/Android. Ingen av disse er utført av skallets tester.
@@ -106,3 +106,51 @@ Ved feilende testapp velges `preview=master` eller en kjent fungerende, validert
 GitHub-integrasjonen kan lese/skrive repo, branch og PR og lese tilgjengelige Actions-resultater. Den tilgjengelige integrasjonen har ingen ny workflow-dispatch eller full innstillingsadministrasjon. Hvis direkte CLI ikke virker, må testvalget kjøres via Actions-grensesnittet over. Direkte API/Pages-kontroll fra utviklingsmiljøet trenger fungerende proxy og tillatte verter `api.github.com` og `geirskoglund.github.io`; en tillatt vert alene beviser ikke autentisering eller Actions-rettighet. Bruk støttet miljøoppsett og bevar proxyen.
 
 Hver levering oppgir faktisk kjørte kontroller, resultat, eksakt commit, PR og eventuelle konkrete blokkeringer. Lokal simulering er ikke en reell Actions-/Pages-deployment, og vellykket testdeploy beviser ikke produksjonspublisering etter merge. Fysisk app-test rapporteres separat. Historiske forsøk fra originalspesifikasjonen er heller ikke verifikasjon av denne appen.
+
+## Sanggrunnlaget fra issue #4
+
+Automatisert kravdekning (T01–T10 viser til issuen):
+
+| Bevis | Krav / testforløp |
+| --- | --- |
+| `tests/chordpro.test.mjs`: UUID per innlesing, uendret BOM/CRLF/LF/ukjent innhold, opprinnelse, filnavnfallback | F01–F05, F10, F14; T01–T02 |
+| Parserprøver: påkrevde direktiver, musikalsk rekkefølge, akkordsymboler/midt i ord/påfølgende akkorder, eldre markører, manglende/ufullstendig refreng, stabile forekomster | F15–F21, F23; T03–T04 |
+| `songs.spec.mjs`: tre like titler/filer, ulike ID-er, trygg HTML-tekst, individuelle refreng og gjenåpning | F01–F05, F10–F12, F14–F16, F19–F21, F23; T01–T04 |
+| Layout ved 320/768/1440 px, begge temaer, 16/36 px, langt enkeltord, midtordakkorder og rene akkordlinjer; tekst/akkord-cellers geometri og viewportbredde | F17–F18, F22–F25, F28–F30; T05 |
+| Tema/størrelse på tvers av sanger/omstart, OS-lyst med mørk standard og scroll øverst ved ny åpning | F26–F30; T06 |
+| Full lukking av Chromium, ny prosess med samme vedvarende profil, offline før navigasjon, sang/refreng/innstillinger uendret | F06–F07, F11–F12, F20, F28–F29; T07 |
+| `shell.spec.mjs`: faktiske sanger i begge miljøer, to ekte workeroppdateringer, ny PR/SHA, uendret ID/original/personlig tilstand og uvedkommende cache | F01, F03, F06–F09, F20, F28–F29; T08 |
+| Tom/binær/ugyldig UTF-8/feil filtype, ekte transaksjonsabort for sang og refreng, avvist database og utilgjengelig localStorage, deretter vellykket ny innlesing | F10, F13–F14, F20, F28–F29; T09 |
+| Refreng med Enter, semantiske navn/expanded, miljømerking, oppdatering og navigasjon | Deler av T10; fysisk berøring/manuell kontroll gjenstår |
+
+Filvelgeren aksepterer `.cho`, `.chordpro`, `.chopro`, `.crd`, `.pro`, `.chord`, `.txt` uten krav om bestemt MIME-type. UTF-8-dekoding er streng; BOM beholdes i originalen. Ingen eldreformatkonvertering skjer automatisk. Referanser bruker nærmeste tidligere definerte refreng.
+
+Kort manuelt forløp på testutgaven:
+
+1. Les inn to ChordPro-filer med samme tittel og samme fil en gang til. Åpne alle tre separat, prøv ren TXT og feil fil. Kontroller forståelig status og uendret oversikt etter feil.
+2. Prøv kommentarer, lange linjer/ord, midtordakkorder og rene akkordlinjer. Første refreng er helt; åpne bare én senere henvisning. Bytt sang og åpne på nytt.
+3. Bruk tastatur/berøring for filvalg, sangvalg, tilbake, refreng, tema og skriftstørrelse. Kontroller fokus og lesbarhet i begge temaer ved 16–36 px. Les langt ned, åpne sangen igjen og kontroller at den starter øverst.
+4. Vent på offline-klar, lukk nettleser/installert PWA helt, koble fra nettet og gjenåpne. Åpne sangen fra oversikten; kontroller refreng og globale valg.
+5. Gjenta på fysisk iPad/Safari/installert PWA og en annen plattform. Etter neste testoppdatering kontrolleres at sanger og valg består. Produksjon og test skal ha egne data.
+
+Fysisk iPad/Safari, installert PWA og fysisk berøring er **ikke utført** av Codex. Chromium ved nettbrettbredde er kun automatisert layoutbevis. Konkret SHA, nettleserversjon, kommandoresultater og publiseringsbevis oppgis i implementerings-PR-en, uten å forveksle det med produktgodkjenning.
+
+## Oppdateringskontroll
+
+`tests/e2e/updates.spec.mjs` bruker ekte genererte workere og miljøbygg. Første appbesøk uten omlasting skal kunne oppdateres helt til ny synlig SHA. En lang leseøkt får et synlig varsel ved minuttkontroll (nettleserens sidetid akselereres; workerinstallasjonen er reell), uten automatisk navigasjon eller datatap. Fokus og faktisk offline/online-overgang gir ny kontroll. En ventende oppdatering oppdages i en ny fane, og aktivering der gir den gamle fanen et eksplisitt omlastingsvalg. Bevaring av sangdata gjennom oppdateringen kontrolleres også. En repakket worker med samme SHA/PR skal verken gi varsel mens den venter eller når den overtar. Fersk HTML på siste versjon prøves med en eldre controller ved hjelp av Chromium-nettverksbypass, deretter reell workerovertakelse: fortsatt ingen oppdateringsbeskjed. Etter en ekte oppdatering skal ny kontroll gi «Du har siste tilgjengelige versjon». Manuelt trykk under en pågående automatisk kontroll skal få resultatet fra denne kontrollen, og senere automatiske kontroller skal bevare resultatteksten.
+
+Manuelt: la appen stå åpen gjennom publisering av en ny testutgave, både rett etter første besøk og etter lengre lesing. Kontroller varsel, aktivering og ny SHA uten ekstra omlasting. Prøv hjemskjerm-PWA ved retur fra bakgrunnen og nettilbakekomst. Fysisk iPad/Safari-verifikasjon rapporteres separat.
+
+## F31–F34: skjema, dynamikk og kompakt sangvisning
+
+`tests/chordpro.test.mjs` prøver takter/slag, marginer, repetisjon/volta, flercelleakkorder, form/etikett, ugyldige nivåer og ufullstendige/nestede markører. Originaltekst med BOM/CRLF bevares. Valg av personlig skjema før felles, ingen ved fravær og ingen duplisering fra refrenghenvisninger har en deterministisk domeneprøve.
+
+`tests/e2e/arrangement.spec.mjs` prøver én kompakt skjemaflate, fravær av generisk overskrift og inline-duplikater, sticky plassering under toppen, høydebegrensning ved vindusendring og × som bare frigjør sticky for aktuell åpning: samme scrollposisjon, innhold tilbake på originalplassen ved oppscrolling og sticky på ved neste åpning. Personlig prioritet prøves med en faktisk separat `personal`-oppføring i IndexedDB; samme UI brukes, og personlig innhold består gjennom lagring av refrengtilstand/ny åpning. Original/ID bevares. Ingen editor kreves for dette lagringsbeviset.
+
+Profilen prøves som én sammenhengende SVG-sti med symmetri, avrundede overganger, fem bredder og smal maksimumsbredde. Høyden oppdateres ved refrengfolding. Meny med Escape, fokus, vedvarende valg og offline gjenåpning inngår. Layout/geometri prøves ved 320/768/1440 px, 16/36 px og begge temaer. Eksisterende lagrings-/oppdateringsprøver bruker menyen for de flyttede kontrollene; automatiske varsler prøves fortsatt under lesing uten meny.
+
+Samme testfil kontrollerer faktiske avstander mellom synlige innholdselementer med lange blanklinjer, kommentarer, flyttet grid og åpne/lukkede refreng. Blanklinjeserier gir en halv tekstlinje ekstra avstand ved 320/768/1440 px og skrift 16/36 px. Reell høyde for ordinære tekstlinjer er høyst 1,2 ganger skriftstørrelsen; korte akkordlinjer og refrengkontroll må også holde seg innenfor kompakte høydegrenser. Kommentar → fullt refreng, kommentar → refrenghenvisning og kommentar → tekst uten blanklinje i kilden har null ekstra layoutavstand, både med åpen og lukket henvisning. Lagret original med BOM/CRLF og alle blanklinjer er fortsatt identisk.
+
+`songs.spec.mjs` kontrollerer at toneartspillen bare viser verdien, med tilgjengelig navn «Toneart: …», og at sanger uten toneart ikke får noen tom metadatarad.
+
+Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontroller kompakt topp og samlet skjema, scroll og se at det fester seg. Trykk × mens skjemaet er sticky, scroll opp og finn det på originalplassen. Åpne sangen igjen og kontroller at sticky er på igjen. Følg den smale, sammenhengende profilen, trykk direkte på «Refreng», og bruk menyen for tema/skrift/av-på og appstatus. Kontroller at menyen kan lukkes uten å miste lesestedet. På fysisk iPhone/iPad/Safari gjenstår kontroll av profilform, berøring, sticky høyde og offline etter oppdatering.

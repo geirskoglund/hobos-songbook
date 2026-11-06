@@ -1,4 +1,5 @@
 import {test, expect} from '@playwright/test';
+import {importSong, savedSongs, original, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
 
 const base = '/hobos-songbook/';
 const ready = page => expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
@@ -8,7 +9,7 @@ async function mark(page, value) {
     const info = await (await fetch('./build-info.json')).json();
     localStorage.setItem(`${info.namespace}:probe`, value);
     await new Promise((resolve, reject) => {
-      const request = indexedDB.open(info.namespace, 1);
+      const request = indexedDB.open(`${info.namespace}-harness`, 1);
       request.onupgradeneeded = () => request.result.createObjectStore('harness');
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
@@ -24,7 +25,7 @@ async function markers(page) {
   return page.evaluate(async () => {
     const info = await (await fetch('./build-info.json')).json();
     const value = await new Promise((resolve, reject) => {
-      const request = indexedDB.open(info.namespace, 1);
+      const request = indexedDB.open(`${info.namespace}-harness`, 1);
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         const db = request.result, result = db.transaction('harness').objectStore('harness').get('probe');
@@ -66,6 +67,14 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   await production.goto(`${base}app/`); await preview.goto(`${base}test/`);
   await ready(production); await ready(preview);
   await production.reload(); await preview.reload();
+  await importSong(production, 'prod.cho', original.replace('Samme tittel', 'Produksjonssang'));
+  await importSong(preview, 'test.cho');
+  await preview.getByRole('button', {name: 'Refreng', exact: true}).nth(1).click();
+  await expect(preview.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
+  await setDisplay(preview, {theme:'light'});
+  await setDisplay(preview, {fontSize:'30'});
+  const productionSongs = await savedSongs(production), previewSongs = await savedSongs(preview);
+  expect(productionSongs[0].id).not.toBe(previewSongs[0].id);
   await mark(production, 'production-marker'); await mark(preview, 'test-marker');
   await production.evaluate(async () => {const cache = await caches.open('unrelated-project'); await cache.put('/control', new Response('keep'));});
   const scopes = await production.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).map(reg => new URL(reg.scope).pathname).sort());
@@ -77,16 +86,22 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   await production.goto(`${base}app/`); await preview.goto(`${base}test/`);
   await expect(production.locator('h1')).toBeVisible(); await expect(preview.locator('h1')).toBeVisible();
   await expect(preview.locator('#connection')).toHaveText('Uten nett');
+  expect(await savedSongs(production)).toEqual(productionSongs);
+  expect(await savedSongs(preview)).toEqual(previewSongs);
   expect(await markers(production)).toEqual({local: 'production-marker', database: 'production-marker'});
   expect(await markers(preview)).toEqual({local: 'test-marker', database: 'test-marker'});
   await context.setOffline(false);
   for (const [channel, page, expectedSha] of [['test', preview, 'c'], ['app', production, 'd']]) {
     await request.post(`/__test__/update?channel=${channel}`);
+    await openMenu(page);
     await page.getByRole('button', {name: 'Se etter oppdatering'}).click();
     await expect(page.getByRole('button', {name: 'Oppdater appen'})).toBeVisible();
+    await openMenu(page);
     await page.getByRole('button', {name: 'Oppdater appen'}).click();
     await expect(page.locator('.build')).toContainText(expectedSha.repeat(7));
     await ready(page);
+    expect(await savedSongs(production)).toEqual(productionSongs);
+    expect(await savedSongs(preview)).toEqual(previewSongs);
     expect(await markers(production)).toEqual({local: 'production-marker', database: 'production-marker'});
     expect(await markers(preview)).toEqual({local: 'test-marker', database: 'test-marker'});
     expect(await page.evaluate(async () => (await caches.match('/control', {cacheName: 'unrelated-project'})).text())).toBe('keep');
@@ -100,8 +115,16 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   await production.goto(`${base}app/`); await preview.goto(`${base}test/`);
   await expect(production.locator('.build')).toContainText('ddddddd');
   await expect(preview.locator('.build')).toContainText('ccccccc');
+  expect(await savedSongs(production)).toEqual(productionSongs);
+  expect(await savedSongs(preview)).toEqual(previewSongs);
   expect(await markers(production)).toEqual({local: 'production-marker', database: 'production-marker'});
   expect(await markers(preview)).toEqual({local: 'test-marker', database: 'test-marker'});
+  await expect(production.locator('#theme')).toHaveValue('dark');
+  await expect(preview.locator('#theme')).toHaveValue('light');
+  await expect(preview.locator('#font-size')).toHaveValue('30');
+  await preview.getByRole('button', {name: /Samme tittel/}).click();
+  await expect(preview.getByRole('button', {name: 'Refreng', exact: true}).nth(0)).toHaveAttribute('aria-expanded', 'false');
+  await expect(preview.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
 });
 
 test('failed worker registration gives a truthful status and leaves the shell readable', async ({browser}) => {
