@@ -36,19 +36,19 @@ input::file-selector-button {color: var(--text); margin-right: 10px;}
 #back, #menu-button, #menu-close {min-height: 44px; width: 40px; padding: 4px; border: 0; background: none; text-align: center; font-size: 1.3rem; flex: none;}
 .nav-left, .nav-right {display: flex; align-items: center; gap: 8px; min-width: 0;}
 .environment {padding: 4px 8px;}
-#song-content {font-size: var(--song-size); line-height: 1.5; min-width: 0;}
+#song-content {font-size: var(--song-size); line-height: 1.2; min-width: 0;}
 #song-content h1 {font-size: clamp(1.35rem, 1.15em, 2.3rem); margin-bottom: .15em;}
 .song-metadata {display: flex; flex-wrap: wrap; gap: 6px; margin: .15em 0 .4em;}
 .song-key {font: 500 .65em/1.4 ui-sans-serif, system-ui, sans-serif; color: var(--muted); padding: 2px 9px; border: 1px solid var(--border); border-radius: 999px; overflow-wrap: anywhere; max-width: 100%;}
-.song-line {min-height: 1.5em; font-family: ui-serif, Georgia, serif; overflow-wrap: anywhere;}
+.song-line {min-height: 1.2em; font-family: ui-serif, Georgia, serif; overflow-wrap: anywhere;}
 .piece {display: inline-grid; max-width: 100%; vertical-align: bottom; white-space: pre-wrap;}
-.chord {font: 650 .72em/1.45 ui-sans-serif, system-ui, sans-serif; color: var(--accent); min-height: 1.45em; overflow-wrap: anywhere; min-width: 0;}
+.chord {font: 650 .72em/1.15 ui-sans-serif, system-ui, sans-serif; color: var(--accent); min-height: 1.15em; overflow-wrap: anywhere; min-width: 0;}
 .lyric {min-width: 0; overflow-wrap: anywhere;}
-.comment, .unknown {font: italic .8em/1.6 ui-sans-serif, system-ui, sans-serif; color: var(--comment); white-space: pre-wrap; overflow-wrap: anywhere; margin: 0;}
+.comment, .unknown {font: italic .8em/1.2 ui-sans-serif, system-ui, sans-serif; color: var(--comment); white-space: pre-wrap; overflow-wrap: anywhere; margin: 0;}
 .unknown {color: var(--muted);}
 .chorus {margin: 0; min-width: 0;}
-.chorus h2 {font: 650 .8em/1.5 ui-sans-serif, system-ui, sans-serif; color: var(--accent); margin: 0;}
-.reference h2 button {font: inherit; color: var(--muted); width: auto; display: inline-block; padding: 6px 0; min-height: 44px; border: 0; background: none; border-radius: 0;}
+.chorus h2 {font: 650 .8em/1.2 ui-sans-serif, system-ui, sans-serif; color: var(--accent); margin: 0;}
+.reference h2 button {font: inherit; color: var(--muted); width: auto; display: block; padding: 0; min-height: 24px; min-width: 44px; border: 0; background: none; border-radius: 0;}
 .reference h2 {margin: 0;}
 .reference h2 button:hover {color: var(--accent);}
 .display-settings {margin: 8px 0 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;}
@@ -109,6 +109,6 @@ body:has(#settings-dialog[open]) {overflow: hidden;}
 .reader-active #song-status[data-error="true"] {position: fixed; z-index: 15; bottom: 12px; left: 50%; transform: translateX(-50%); width: min(480px, calc(100% - 24px)); margin: 0; padding: 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--panel); font-size: .9rem;}
 
 #chart-dock[data-sticky="false"] {position: relative; top: auto;}
-#song-body {--reader-line: calc(var(--song-size) * 1.5); display: flow-root;}
+#song-body {--reader-line: calc(var(--song-size) * 1.2); display: flow-root;}
 #song-body :is(.song-line, .comment, .unknown, .chorus > h2) {margin: var(--content-gap, 0px) 0 0;}
 .song-space, .grid-blank + .grid-blank {display: none;}

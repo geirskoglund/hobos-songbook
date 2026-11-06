@@ -1,4 +1,4 @@
-/** Show source blank lines at most once; adjacent content gets no added gap. */
+/** Source blank lines create one compact pause; adjacent content gets no added gap. */
 export function attachSongSpacing(body: HTMLElement): () => void {
   function normalize() {
     let previous: HTMLElement | null = null, blank = false;
@@ -6,7 +6,7 @@ export function attachSongSpacing(body: HTMLElement): () => void {
       unit.style.removeProperty('--content-gap');
       if (unit.closest('[hidden]')) continue;
       if (unit.classList.contains('song-space')) {blank = true; continue;}
-      const gap = previous && blank ? 'var(--reader-line)' : '0px';
+      const gap = previous && blank ? 'calc(var(--reader-line) / 2)' : '0px';
       unit.style.setProperty('--content-gap', gap);
       previous = unit; blank = false;
     }

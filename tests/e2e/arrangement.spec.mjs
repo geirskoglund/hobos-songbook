@@ -139,12 +139,12 @@ test('compact reader and charts fit all widths and both themes at both font limi
 });
 
 
-test('only source blank lines create gaps, capped at one reading line', async ({page})=>{
+test('reader uses tight lines and compact source pauses without added gaps around comments or choruses', async ({page})=>{
   const original='\uFEFF{t: Plassbruk}\r\n\r\n\r\n{comment: Testfil – felles skjema og kommentarer}\r\n'+
     '\r\n'.repeat(9)+'{start_of_grid}\r\n| Em . | C . |\r\n{end_of_grid}\r\n'+
     '\r\n'.repeat(8)+'{comment: Intro – gitar alene}\r\n'+
     '\r\n'.repeat(6)+'{x_dyn: 1}\r\n\r\n{comment: Vers 1 – dempet}\r\n'+
-    '\r\n'.repeat(5)+'[Em]Første linje [C]som prøves\r\n'+
+    '\r\n'.repeat(5)+'[Em]Kort [C]linje\r\n'+
     '\r\n'.repeat(8)+'{comment: Før fullt refreng}\r\n{soc}\r\n[G]Refreng\r\n{eoc}\r\n'+
     '\r\n'.repeat(6)+'{comment: Før henvisning}\r\n{chorus}\r\n{comment: Etter henvisning}\r\nEtter\r\n\r\n';
   await page.goto(base); await importSong(page,'luft.cho',original);
@@ -164,13 +164,20 @@ test('only source blank lines create gaps, capped at one reading line', async ({
           });
         });
         expect(gaps.every(({gap,line})=>gap>=-.5 && gap<=line+.5)).toBe(true);
-        expect(gaps.some(({gap,line})=>Math.abs(gap-line)<.5)).toBe(true);
+        expect(gaps.some(({gap,line})=>Math.abs(gap-line/2)<.5)).toBe(true);
+        expect(gaps.every(({gap,line})=>gap<=line/2+.5)).toBe(true);
         for (const label of ['Før fullt refreng','Før henvisning','Etter henvisning']) {
           const adjacent=gaps.find(({previous})=>previous===label);
           expect(adjacent).toBeDefined();
           expect(Math.abs(adjacent.gap)).toBeLessThan(.5);
         }
       }
+      const textLine=page.locator('.song-line').filter({hasText:'Etter'});
+      expect((await textLine.boundingBox()).height).toBeLessThanOrEqual(fontSize*1.2+.5);
+      const heading=await page.locator('.reference h2').boundingBox();
+      expect(heading.height).toBeLessThanOrEqual(Math.max(24,fontSize*.8*1.2)+.5);
+      const chordRow=page.locator('.song-line.has-chords').first();
+      expect((await chordRow.boundingBox()).height).toBeLessThanOrEqual(fontSize*2.1);
     }
   }
   expect((await savedSongs(page))[0].original).toBe(original);
