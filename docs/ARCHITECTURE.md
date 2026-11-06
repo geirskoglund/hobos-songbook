@@ -6,7 +6,7 @@ Statisk HTML/CSS/TypeScript bygges med Vite. Ingen backend, skydatabase, autenti
 
 | Del | Ansvar nå | Grense mot senere arbeid |
 | --- | --- | --- |
-| `index.html`, `src/main.ts`, `src/style.css`, `src/ui/songbook.ts` | Sanginnlesing, enkel oversikt/lesevisning, miljømerking og workerstatus | Fullverdig bibliotek/editor/setlister kommer senere |
+| `index.html`, `src/main.ts`, `src/app-updates.ts`, `src/style.css`, `src/ui/songbook.ts` | Sanginnlesing, enkel oversikt/lesevisning, miljømerking og workerstatus | Fullverdig bibliotek/editor/setlister kommer senere |
 | `src/domain/{song,chordpro}.ts` | Sangmodell, UTF-8-validering og avledet ChordPro-tolkning | Ingen DOM- eller leverandøravhengighet |
 | `src/environment.ts` | Én validert miljøkonfigurasjon | ID-er/scopes/navn følger miljø; SHA/PR er bare byggmetadata |
 | `src/storage/{songs,preferences,local-settings}.ts` | IndexedDB-sanger/personlig refrengtilstand og miljøavgrensede visningsvalg | Ingen ekstern lagring; fremtidige skjemaversjoner oppgraderes additivt |
@@ -41,7 +41,9 @@ Begge miljøer og andre Pages-prosjekter deler `geirskoglund.github.io`-origin. 
 
 Et første nettbesøk må fullføre caching/worker-oppsett før offline loves. Startsiden viser når skallet er klart. Manglende workerstøtte eller registreringsfeil gir ingen falsk offline-klar status. Cache-/nettleserdata kan fortsatt slettes/evikteres av plattformen; de er ikke backup.
 
-Oppdatering er en enkel prompt-flyt: «Se etter oppdatering», deretter «Oppdater appen» når ny worker er klar. Den nye workeren aktiveres og siden lastes på nytt. Ingen localStorage-/IndexedDB-sletting, automatisk ny navigasjon i søskenmiljøet eller avansert funksjonell oppdaterings-UI fra referanseprosjektet. Senere redigeringsøkter trenger egne vurderinger før oppdateringsflyten utvides.
+`src/app-updates.ts` registrerer den genererte workeren med nettleserens service-worker-API og `updateViaCache: none`. Kontroller skjer ved oppstart, når appen får fokus/blir synlig, ved nettilbakekomst og hvert minutt mens den er synlig og på nett. «Se etter oppdatering» kan også brukes manuelt. En ferdig nedlastet, ventende worker gir et fast, tilgjengelig varsel med «Oppdater nå», også mens brukeren leser langt nede i en sang eller har lukket appinformasjonen.
+
+Aktivering krever et eksplisitt trykk. Appen sender `SKIP_WAITING` til den ventende workeren og laster siden på nytt når akkurat denne workeren overtar kontrollen. Dette gjelder også oppdatering i første appøkt uten tidligere omlasting. Dersom en annen fane i samme miljø aktiverer den, får den eksisterende siden tilbud om omlasting og fortsetter å vise sitt innhold inntil brukeren velger. Manglende aktivering gir en tidsavgrenset feil med mulighet for nytt forsøk. Sanger/innstillinger slettes ikke, og søskenmiljøet navigeres ikke. Senere redigeringsøkter trenger egne vurderinger før oppdateringsflyten utvides.
 
 ## Publisering
 

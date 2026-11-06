@@ -133,6 +133,7 @@ test('closing the browser and reopening the same persistent profile offline pres
     await context.close(); context = await launch(); await context.setOffline(true);
     page = context.pages()[0]; await page.goto('http://127.0.0.1:4173/hobos-songbook/test/');
     await expect(page.locator('#connection')).toHaveText('Uten nett');
+    await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
     await page.getByRole('button', {name: /Samme tittel/}).click();
     await expect(page.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('#theme')).toHaveValue('light'); await expect(page.locator('#font-size')).toHaveValue('28');
