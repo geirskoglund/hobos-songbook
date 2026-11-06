@@ -1,4 +1,4 @@
-/** Cap the combined display gap, including source blank lines and semantic block spacing. */
+/** Show source blank lines at most once; adjacent content gets no added gap. */
 export function attachSongSpacing(body: HTMLElement): () => void {
   function normalize() {
     let previous: HTMLElement | null = null, blank = false;
@@ -6,8 +6,7 @@ export function attachSongSpacing(body: HTMLElement): () => void {
       unit.style.removeProperty('--content-gap');
       if (unit.closest('[hidden]')) continue;
       if (unit.classList.contains('song-space')) {blank = true; continue;}
-      const semantic = unit.matches('.comment, .unknown, h2') || previous?.matches('.comment, .unknown, h2');
-      const gap = previous ? blank ? 'var(--reader-line)' : semantic ? 'calc(var(--reader-line) / 4)' : '0px' : '0px';
+      const gap = previous && blank ? 'var(--reader-line)' : '0px';
       unit.style.setProperty('--content-gap', gap);
       previous = unit; blank = false;
     }

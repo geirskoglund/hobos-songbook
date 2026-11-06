@@ -91,7 +91,7 @@ Gyldig `x_dyn: 1`–`5` gir instruksjonsnoder i den avledede strukturen. Visning
 
 `chart-dock.ts` gir samme kompakte, sticky flate for begge kilder. × endrer bare panelet fra sticky til ordinær plassering i dokumentet. Innhold og høyde beholdes, og fokus flyttes til tilbakeknappen uten scrolling. Tilstanden lagres ikke; neste åpning har sticky på igjen. ResizeObserver/vindusendring tilpasser høyden ved behov med samlet skalering, uten indre scroll. Observatører og hendelseslyttere fjernes ved bytte/lukking av sang.
 
-`song-spacing.ts` samler avledede blanklinjemarkører og semantisk blokkavstand til én felles avstand før neste synlige innhold, høyst én tekstlinje. Markørene opptar ingen egen høyde; skjulte refreng tas ikke med. Normaliseringen gjentas ved folding, og CSS-variabler følger skriftvalget uten å endre originaltekst eller parserdata.
+`song-spacing.ts` samler avledede blanklinjemarkører til høyst én tekstlinje før neste synlige innhold. Uten blanklinje i kilden settes ingen ekstra avstand, også mellom kommentarer og refreng. Markørene opptar ingen egen høyde; skjulte refreng tas ikke med. Normaliseringen gjentas ved folding, og CSS-variabler følger skriftvalget uten å endre originaltekst eller parserdata.
 
 `dynamics-profile.ts` tegner én lukket, symmetrisk SVG-sti over hele tekstområdets høyde. Fem bredder skaleres innenfor et smalt felt på høyst 112 px / 22 prosent av leseområdet. Nivåer kommer fortsatt fra de avledede instruksjonene (default 3); lokale Bézier-overganger runder skiftene uten automatisk crescendo. Synlige rader gir plassering; skjulte refreng endrer ikke det beregnede nivået etter henvisningen. ResizeObserver og observasjon av sammenfolding holder formen oppdatert. Dette er layoutgeometri, ikke en tidsakse.
 

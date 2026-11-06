@@ -74,7 +74,12 @@ export function startSongbook() {
     const parsed = parseChordPro(song.original, song.title), article = query('song-content');
     disposeView(); article.replaceChildren();
     const title = element('h1', parsed.title); title.id = 'song-title'; title.tabIndex = -1; article.append(title);
-    if (parsed.key) article.append(element('p', `Klingende toneart: ${parsed.key}`, 'song-key'));
+    if (parsed.key) {
+      const metadata = element('div', undefined, 'song-metadata');
+      const key = element('span', parsed.key, 'song-key');
+      key.setAttribute('aria-label', `Toneart: ${parsed.key}`);
+      metadata.append(key); article.append(metadata);
+    }
     const chosenGrid = selectSongGrid(parsed, personal);
     const dock = chosenGrid ? createChartDock(chosenGrid.grids, chosenGrid.source, () => query('back').focus({preventScroll:true})) : null;
     if (dock) article.append(dock.element);

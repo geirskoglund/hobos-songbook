@@ -139,14 +139,14 @@ test('compact reader and charts fit all widths and both themes at both font limi
 });
 
 
-test('combined source blanks and layout spacing never exceed one reading line', async ({page})=>{
+test('only source blank lines create gaps, capped at one reading line', async ({page})=>{
   const original='\uFEFF{t: Plassbruk}\r\n\r\n\r\n{comment: Testfil – felles skjema og kommentarer}\r\n'+
     '\r\n'.repeat(9)+'{start_of_grid}\r\n| Em . | C . |\r\n{end_of_grid}\r\n'+
     '\r\n'.repeat(8)+'{comment: Intro – gitar alene}\r\n'+
     '\r\n'.repeat(6)+'{x_dyn: 1}\r\n\r\n{comment: Vers 1 – dempet}\r\n'+
     '\r\n'.repeat(5)+'[Em]Første linje [C]som prøves\r\n'+
-    '\r\n'.repeat(8)+'{soc}\r\n\r\n[G]Refreng\r\n\r\n\r\n{eoc}\r\n'+
-    '\r\n'.repeat(6)+'{chorus}\r\n'+ '\r\n'.repeat(6)+'Etter\r\n\r\n';
+    '\r\n'.repeat(8)+'{comment: Før fullt refreng}\r\n{soc}\r\n[G]Refreng\r\n{eoc}\r\n'+
+    '\r\n'.repeat(6)+'{comment: Før henvisning}\r\n{chorus}\r\n{comment: Etter henvisning}\r\nEtter\r\n\r\n';
   await page.goto(base); await importSong(page,'luft.cho',original);
   for (const width of [320,768,1440]) {
     await page.setViewportSize({width,height:800});
@@ -158,9 +158,14 @@ test('combined source blanks and layout spacing never exceed one reading line', 
         const gaps=await page.locator('#song-body').evaluate(body=>{
           const units=[...body.querySelectorAll('.song-line, .comment, .unknown, .chorus > h2')].filter(node=>!node.closest('[hidden]'));
           const line=parseFloat(getComputedStyle(body).lineHeight);
-          return units.slice(1).map((node,index)=>({gap:node.getBoundingClientRect().top-units[index].getBoundingClientRect().bottom,line}));
+          return units.slice(1).map((node,index)=>({gap:node.getBoundingClientRect().top-units[index].getBoundingClientRect().bottom,line,previous:units[index].textContent}));
         });
         expect(gaps.every(({gap,line})=>gap>=-.5 && gap<=line+.5)).toBe(true);
+        for (const label of ['Før fullt refreng','Før henvisning','Etter henvisning']) {
+          const adjacent=gaps.find(({previous})=>previous===label);
+          expect(adjacent).toBeDefined();
+          expect(Math.abs(adjacent.gap)).toBeLessThan(.5);
+        }
         const comments=await page.locator('#song-body > .comment').evaluateAll(nodes=>nodes.slice(1).map((node,index)=>node.getBoundingClientRect().top-nodes[index].getBoundingClientRect().bottom));
         expect(comments.every(gap=>gap<=fontSize*1.5+.5)).toBe(true);
       }

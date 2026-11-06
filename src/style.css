@@ -38,7 +38,8 @@ input::file-selector-button {color: var(--text); margin-right: 10px;}
 .environment {padding: 4px 8px;}
 #song-content {font-size: var(--song-size); line-height: 1.5; min-width: 0;}
 #song-content h1 {font-size: clamp(1.35rem, 1.15em, 2.3rem); margin-bottom: .15em;}
-.song-key {font: 500 .75em/1.6 ui-sans-serif, system-ui, sans-serif; color: var(--muted); margin: .15em 0 .6em;}
+.song-metadata {display: flex; flex-wrap: wrap; gap: 6px; margin: .15em 0 .4em;}
+.song-key {font: 500 .65em/1.4 ui-sans-serif, system-ui, sans-serif; color: var(--muted); padding: 2px 9px; border: 1px solid var(--border); border-radius: 999px; overflow-wrap: anywhere; max-width: 100%;}
 .song-line {min-height: 1.5em; font-family: ui-serif, Georgia, serif; overflow-wrap: anywhere;}
 .piece {display: inline-grid; max-width: 100%; vertical-align: bottom; white-space: pre-wrap;}
 .chord {font: 650 .72em/1.45 ui-sans-serif, system-ui, sans-serif; color: var(--accent); min-height: 1.45em; overflow-wrap: anywhere; min-width: 0;}

@@ -141,7 +141,7 @@ Fysisk iPad/Safari, installert PWA og fysisk berøring er **ikke utført** av Co
 
 Manuelt: la appen stå åpen gjennom publisering av en ny testutgave, både rett etter første besøk og etter lengre lesing. Kontroller varsel, aktivering og ny SHA uten ekstra omlasting. Prøv hjemskjerm-PWA ved retur fra bakgrunnen og nettilbakekomst. Fysisk iPad/Safari-verifikasjon rapporteres separat.
 
-## F31–F33: skjema, dynamikk og kompakt sangvisning
+## F31–F34: skjema, dynamikk og kompakt sangvisning
 
 `tests/chordpro.test.mjs` prøver takter/slag, marginer, repetisjon/volta, flercelleakkorder, form/etikett, ugyldige nivåer og ufullstendige/nestede markører. Originaltekst med BOM/CRLF bevares. Valg av personlig skjema før felles, ingen ved fravær og ingen duplisering fra refrenghenvisninger har en deterministisk domeneprøve.
 
@@ -149,6 +149,8 @@ Manuelt: la appen stå åpen gjennom publisering av en ny testutgave, både rett
 
 Profilen prøves som én sammenhengende SVG-sti med symmetri, avrundede overganger, fem bredder og smal maksimumsbredde. Høyden oppdateres ved refrengfolding. Meny med Escape, fokus, vedvarende valg og offline gjenåpning inngår. Layout/geometri prøves ved 320/768/1440 px, 16/36 px og begge temaer. Eksisterende lagrings-/oppdateringsprøver bruker menyen for de flyttede kontrollene; automatiske varsler prøves fortsatt under lesing uten meny.
 
-Samme testfil kontrollerer faktiske avstander mellom synlige innholdselementer med lange blanklinjer, kommentarer, flyttet grid og åpne/lukkede refreng. Samlet visuell luft er høyst én tekstlinje ved 320/768/1440 px og skrift 16/36 px. Lagret original med BOM/CRLF og alle blanklinjer er fortsatt identisk.
+Samme testfil kontrollerer faktiske avstander mellom synlige innholdselementer med lange blanklinjer, kommentarer, flyttet grid og åpne/lukkede refreng. Samlet visuell luft er høyst én tekstlinje ved 320/768/1440 px og skrift 16/36 px. Kommentar → fullt refreng, kommentar → refrenghenvisning og kommentar → tekst uten blanklinje i kilden har null ekstra layoutavstand, både med åpen og lukket henvisning. Lagret original med BOM/CRLF og alle blanklinjer er fortsatt identisk.
+
+`songs.spec.mjs` kontrollerer at toneartspillen bare viser verdien, med tilgjengelig navn «Toneart: …», og at sanger uten toneart ikke får noen tom metadatarad.
 
 Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontroller kompakt topp og samlet skjema, scroll og se at det fester seg. Trykk × mens skjemaet er sticky, scroll opp og finn det på originalplassen. Åpne sangen igjen og kontroller at sticky er på igjen. Følg den smale, sammenhengende profilen, trykk direkte på «Refreng», og bruk menyen for tema/skrift/av-på og appstatus. Kontroller at menyen kan lukkes uten å miste lesestedet. På fysisk iPhone/iPad/Safari gjenstår kontroll av profilform, berøring, sticky høyde og offline etter oppdatering.

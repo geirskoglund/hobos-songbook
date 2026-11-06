@@ -5,6 +5,9 @@ test.beforeEach(async ({request}) => {await request.post('/__test__/reset');});
 test('same titles and same files remain independent; exact originals and chorus state survive reopening', async ({page}) => {
   await page.goto('/hobos-songbook/test/');
   await importSong(page);
+  await expect(page.locator('.song-key')).toHaveText('D');
+  await expect(page.locator('.song-key')).toHaveAttribute('aria-label', 'Toneart: D');
+  await expect(page.locator('#song-content')).not.toContainText('Klingende toneart');
   await expect(page.locator('.chorus:not(.reference)')).toContainText('Syng med');
   const refs = page.getByRole('button', {name: 'Refreng', exact: true});
   await expect(refs).toHaveCount(2); await expect(refs.nth(0)).toHaveAttribute('aria-expanded', 'false');
@@ -51,6 +54,7 @@ test('lyrics and chord anchors wrap at mobile/tablet/desktop at both font limits
   await setDisplay(page, {theme:'light'});
   await page.getByRole('button', {name: '← Mine sanger'}).click();
   await importSong(page, 'ren.txt', 'Bare sangtekst\nuten akkorder');
+  await expect(page.locator('.song-metadata')).toHaveCount(0);
   await expect(page.locator('.chord')).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.reload();
