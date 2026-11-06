@@ -1,0 +1,145 @@
+name: Deploy GitHub Pages
+on:
+  workflow_dispatch:
+    inputs:
+      preview:
+        description: 'Testutgave: PR-nummer, master eller keep'
+        required: true
+        default: keep
+        type: string
+  workflow_run:
+    workflows: [Validate]
+    types: [completed]
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  plan:
+    if: >-
+      github.ref == 'refs/heads/master' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pull-requests: read
+    outputs:
+      deploy: ${{ steps.plan.outputs.deploy }}
+      plan: ${{ steps.plan.outputs.plan }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+      infra: ${{ steps.plan.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/github-script@v8
+        id: plan
+        env:
+          PREVIEW_SELECTION: ${{ inputs.preview || 'keep' }}
+        with:
+          script: |
+            const {createPlan} = await import(`${process.env.GITHUB_WORKSPACE}/scripts/github-pages.mjs`);
+            await createPlan({github, context, core, selection: process.env.PREVIEW_SELECTION});
+  build:
+    needs: plan
+    if: needs.plan.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.plan.outputs.infra }}
+          path: infra
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ matrix.sha }}
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Build exact source without deployment permissions
+        env:
+          APP_CHANNEL: ${{ matrix.channel }}
+          APP_SHA: ${{ matrix.sha }}
+          APP_PR: ${{ matrix.pr }}
+          APP_KIND: ${{ matrix.kind }}
+        run: node infra/scripts/build-channel.mjs source build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pages-${{ matrix.target }}
+          path: build/
+          if-no-files-found: error
+          retention-days: 7
+  deploy:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pull-requests: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # Only validated, pinned master infrastructure is executed in this privileged job.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.plan.outputs.infra }}
+          path: infra
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: pages-production
+          path: builds/production
+      - uses: actions/download-artifact@v4
+        with:
+          name: pages-preview
+          path: builds/preview
+      - name: Validate and assemble both channels without executing build code
+        env:
+          PAGES_PLAN: ${{ needs.plan.outputs.plan }}
+        run: node infra/scripts/assemble-pages.mjs builds site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Reject stale plan before deployment
+        uses: actions/github-script@v8
+        env:
+          PAGES_PLAN: ${{ needs.plan.outputs.plan }}
+        with:
+          script: |
+            const {checkCurrent} = await import(`${process.env.GITHUB_WORKSPACE}/infra/scripts/github-pages.mjs`);
+            await checkCurrent({github, context, plan: JSON.parse(process.env.PAGES_PLAN)});
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify deployed channels over HTTPS
+        uses: actions/github-script@v8
+        env:
+          PAGES_PLAN: ${{ needs.plan.outputs.plan }}
+        with:
+          script: |
+            const {verifyWithRetry} = await import(`${process.env.GITHUB_WORKSPACE}/infra/scripts/verify-pages.mjs`);
+            const {metadata} = JSON.parse(process.env.PAGES_PLAN);
+            await verifyWithRetry(metadata);
+            await core.summary.addRaw('HTTPS-kontroll bestått: https://geirskoglund.github.io/hobos-songbook/app/ og https://geirskoglund.github.io/hobos-songbook/test/\n').addCodeBlock(JSON.stringify(metadata, null, 2), 'json').write();
