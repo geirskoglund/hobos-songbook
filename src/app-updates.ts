@@ -20,7 +20,7 @@ export function startAppUpdates() {
   const initialController = workers.controller;
   const workerURL = new URL(`${env.base}sw.js`, location.origin).href;
   let registration: ServiceWorkerRegistration | undefined;
-  let checking = false, applying = false, reloadAvailable = false;
+  let checking = false, applying = false, reloadAvailable = false, manualRequested = false;
   let announced: ServiceWorker | null = null, activationTarget: ServiceWorker | null = null;
   let inspection = 0;
   let activationTimer: ReturnType<typeof setTimeout> | undefined;
@@ -28,8 +28,9 @@ export function startAppUpdates() {
   const builds = new WeakMap<ServiceWorker, Promise<AppEnvironment | null>>();
   const matches = (worker: ServiceWorker | null) => worker?.scriptURL === workerURL;
   function clearNotice() {
+    if (announced || !notice.hidden) status.textContent = '';
     announced = null; reloadAvailable = false; notice.hidden = true;
-    noticeText.textContent = status.textContent = '';
+    noticeText.textContent = '';
     button.textContent = 'Se etter oppdatering';
   }
   async function inspect() {
@@ -67,7 +68,13 @@ export function startAppUpdates() {
     } else void inspect();
   });
   async function check(manual = false) {
-    if (checking || applying) return;
+    if (applying) return;
+    if (checking) {
+      if (manual) {
+        manualRequested = true; button.disabled = true; status.textContent = 'Ser etter oppdatering…';
+      }
+      return;
+    }
     checking = true;
     if (manual) {button.disabled = true; status.textContent = 'Ser etter oppdatering…';}
     try {
@@ -86,15 +93,15 @@ export function startAppUpdates() {
         } else await registration.update();
       } else if (!registration) offline.textContent = 'Åpne appen på nett for å gjøre den klar for bruk uten nett.';
       const result = await inspect();
-      if (manual && !announced && result !== 'stale') {
+      if ((manual || manualRequested) && !announced && result !== 'stale') {
         status.textContent = result === 'unknown' ? 'Kunne ikke bekrefte versjonen. Prøv igjen.' :
           !navigator.onLine ? 'Koble til nett for å se etter oppdateringer.' :
           registration?.installing ? 'Laster ned oppdateringen…' : 'Du har siste tilgjengelige versjon.';
       }
     } catch {
       if (!registration) offline.textContent = 'Offline-oppsettet kunne ikke fullføres. Prøv igjen mens du er på nett.';
-      if (manual) status.textContent = 'Kunne ikke hente oppdateringen. Prøv igjen når nettet er tilgjengelig.';
-    } finally {checking = false; if (!applying) button.disabled = false;}
+      if (manual || manualRequested) status.textContent = 'Kunne ikke hente oppdateringen. Prøv igjen når nettet er tilgjengelig.';
+    } finally {checking = false; manualRequested = false; if (!applying) button.disabled = false;}
   }
   async function applyUpdate() {
     if (applying) return;

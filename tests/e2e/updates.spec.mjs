@@ -122,3 +122,30 @@ test('fresh page already on latest build does not announce its older controller 
   await expect(page.locator('#update-notice')).toBeHidden();
   await expect(page.locator('.build')).toContainText('ccccccc');
 });
+
+
+test('manual check joins a background check and its result survives subsequent automatic checks', async ({page}) => {
+  await page.goto(url); await ready(page);
+  await page.locator('#update').click();
+  await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
+  await page.evaluate(() => {
+    const original = ServiceWorkerRegistration.prototype.update;
+    const gate = new Promise(resolve => {window.releaseUpdateCheck = resolve;});
+    window.updateChecksStarted = 0; window.updateChecksCompleted = 0;
+    ServiceWorkerRegistration.prototype.update = async function () {
+      window.updateChecksStarted++; await gate;
+      const result = await original.call(this); window.updateChecksCompleted++; return result;
+    };
+    window.dispatchEvent(new Event('focus'));
+  });
+  await expect.poll(() => page.evaluate(() => window.updateChecksStarted)).toBe(1);
+  await page.locator('#update').click();
+  await expect(page.locator('#update-status')).toHaveText('Ser etter oppdatering…');
+  await page.evaluate(() => window.releaseUpdateCheck());
+  await expect(page.locator('#update')).toBeEnabled();
+  await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect.poll(() => page.evaluate(() => window.updateChecksCompleted)).toBe(2);
+  await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
+  await expect(page.locator('#update-notice')).toBeHidden();
+});
