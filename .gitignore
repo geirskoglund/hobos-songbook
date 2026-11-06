@@ -3,3 +3,5 @@ dist/
 site/
 builds/
 test-results/
+playwright-report/
+work/
