@@ -75,6 +75,10 @@ export function renderContent(content: Content[], context: DynamicsContext): Doc
       context.spokenLevel = undefined; continue;
     }
     if (block.kind !== 'line') {fragment.append(decorate(node('p', block.text, block.kind), context)); continue;}
+    if (block.segments.every(segment => !segment.chord && !segment.text.trim())) {
+      const space = node('div', undefined, 'song-space'); space.setAttribute('aria-hidden', 'true');
+      fragment.append(space); continue;
+    }
     const line = node('div', undefined, 'song-line');
     const hasChords = block.segments.some(segment => segment.chord);
     if (hasChords) line.classList.add('has-chords');

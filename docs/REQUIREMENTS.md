@@ -77,7 +77,7 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 ### Felles og personlig akkordskjema
 
 - **[B]** Sangen har én skjemavisning. Hvis et personlig/privat skjema finnes, brukes dette innholdet. Ellers brukes felles ChordPro-grid fra originalfilen. Finnes ingen av delene, vises ikke noe skjema. Personlig og felles skjema vises aldri samtidig. Personlig innhold lagres separat fra originalfilen; ekstern App folder-lagring og redigering kommer i egne leveranser.
-- **[B]** Den samme skjemavisningen brukes uavhengig av innholdskilde. Den ligger kompakt under tittelen og fester seg under toppen ved scrolling. × skjuler skjemaet bare i aktuell åpning; neste åpning følger igjen den generelle visningsinnstillingen.
+- **[B]** Den samme skjemavisningen brukes uavhengig av innholdskilde. Den ligger kompakt under tittelen og fester seg under toppen ved scrolling. × slår bare av sticky i aktuell åpning. Skjemaet blir stående på sin opprinnelige plass i siden og kan leses ved å scrolle opp. Neste åpning har sticky på igjen, i tråd med den generelle visningsinnstillingen.
 - **[B]** For høyt sticky-skjema på liten skjerm vises automatisk kompakt fremfor med separat scrolling. **[Å / DESIGN]** Kompakt utforming og maksimal høyde avgjøres i nettbrett-/mobilskisser.
 
 ## 5. Felles dynamikk i v1

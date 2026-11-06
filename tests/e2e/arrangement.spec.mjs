@@ -21,7 +21,7 @@ test('one compact chart keeps musical content without generic heading or inline 
   await expect(page.locator('#song-body')).toContainText('Før'); await expect(page.locator('#song-body')).toContainText('Etter');
 });
 
-test('chart sticks under compact navigation, closes for this opening only, and stays within viewport height', async ({page}) => {
+test('chart sticks, releases into its original position, and sticks again on reopening', async ({page}) => {
   await page.setViewportSize({width:320,height:568}); await page.goto(base);
   const original='{t: Lang sang}\n{start_of_grid}\n'+('| C . . . | G . . . |\n').repeat(16)+'{end_of_grid}\n'+('Lang sangtekst\n').repeat(90);
   await importSong(page,'lang.cho',original); const before=await savedSongs(page);
@@ -32,9 +32,18 @@ test('chart sticks under compact navigation, closes for this opening only, and s
   expect(await page.locator('#chart-dock').evaluate(node=>node.scrollHeight<=node.clientHeight+1)).toBe(true);
   await page.setViewportSize({width:320,height:420});
   await expect.poll(async () => (await page.locator('#chart-dock').boundingBox()).height).toBeLessThan(420*.34);
-  await page.getByRole('button',{name:'Skjul akkordskjema'}).click(); await expect(page.locator('#chart-dock')).toBeHidden();
+  const scrollBefore=await page.evaluate(()=>scrollY);
+  await page.getByRole('button',{name:'Frigjør akkordskjema'}).click();
+  await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','false');
+  await expect(page.locator('#chart-dock')).toBeVisible();
+  await expect(page.locator('#chart-dock')).not.toBeInViewport();
+  expect(await page.evaluate(()=>scrollY)).toBe(scrollBefore);
+  await page.evaluate(()=>scrollTo(0,0)); await expect(page.locator('#chart-dock')).toBeInViewport();
+  await expect(page.locator('#chart-dock .grid-chord').first()).toHaveText('C');
+  await page.evaluate(()=>scrollTo(0,800)); await expect(page.locator('#chart-dock')).not.toBeInViewport();
   await page.getByRole('button',{name:'← Mine sanger'}).click(); await page.getByRole('button',{name:/Lang sang/}).click();
-  await expect(page.locator('#chart-dock')).toBeVisible(); expect(await page.evaluate(()=>scrollY)).toBe(0);
+  await expect(page.locator('#chart-dock')).toBeVisible(); await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','true');
+  expect(await page.evaluate(()=>scrollY)).toBe(0);
   expect(await savedSongs(page)).toEqual(before);
 });
 
@@ -127,4 +136,35 @@ test('compact reader and charts fit all widths and both themes at both font limi
       await expect(page.locator('.display-settings')).not.toBeVisible();
     }
   }
+});
+
+
+test('combined source blanks and layout spacing never exceed one reading line', async ({page})=>{
+  const original='\uFEFF{t: Plassbruk}\r\n\r\n\r\n{comment: Testfil – felles skjema og kommentarer}\r\n'+
+    '\r\n'.repeat(9)+'{start_of_grid}\r\n| Em . | C . |\r\n{end_of_grid}\r\n'+
+    '\r\n'.repeat(8)+'{comment: Intro – gitar alene}\r\n'+
+    '\r\n'.repeat(6)+'{x_dyn: 1}\r\n\r\n{comment: Vers 1 – dempet}\r\n'+
+    '\r\n'.repeat(5)+'[Em]Første linje [C]som prøves\r\n'+
+    '\r\n'.repeat(8)+'{soc}\r\n\r\n[G]Refreng\r\n\r\n\r\n{eoc}\r\n'+
+    '\r\n'.repeat(6)+'{chorus}\r\n'+ '\r\n'.repeat(6)+'Etter\r\n\r\n';
+  await page.goto(base); await importSong(page,'luft.cho',original);
+  for (const width of [320,768,1440]) {
+    await page.setViewportSize({width,height:800});
+    for (const fontSize of [16,36]) {
+      await setDisplay(page,{fontSize});
+      for (const expanded of [false,true]) {
+        const ref=page.getByRole('button',{name:'Refreng',exact:true});
+        if ((await ref.getAttribute('aria-expanded'))!==String(expanded)) await ref.click();
+        const gaps=await page.locator('#song-body').evaluate(body=>{
+          const units=[...body.querySelectorAll('.song-line, .comment, .unknown, .chorus > h2')].filter(node=>!node.closest('[hidden]'));
+          const line=parseFloat(getComputedStyle(body).lineHeight);
+          return units.slice(1).map((node,index)=>({gap:node.getBoundingClientRect().top-units[index].getBoundingClientRect().bottom,line}));
+        });
+        expect(gaps.every(({gap,line})=>gap>=-.5 && gap<=line+.5)).toBe(true);
+        const comments=await page.locator('#song-body > .comment').evaluateAll(nodes=>nodes.slice(1).map((node,index)=>node.getBoundingClientRect().top-nodes[index].getBoundingClientRect().bottom));
+        expect(comments.every(gap=>gap<=fontSize*1.5+.5)).toBe(true);
+      }
+    }
+  }
+  expect((await savedSongs(page))[0].original).toBe(original);
 });

@@ -17,7 +17,7 @@ Fullverdig bibliotek/kildefilter, editor/konvertering, setlister, annotering, ca
 - Produksjonsadresse: https://geirskoglund.github.io/hobos-songbook/app/
 - Testadresse: https://geirskoglund.github.io/hobos-songbook/test/
 
-Produksjon følger godkjent master, mens valgt implementerings-PR prøves på testadressen. Publisert PR/SHA kontrolleres i appens bunntekst og `build-info.json`. Grønn CI betyr ikke produktgodkjenning.
+Produksjon følger godkjent master, mens valgt implementerings-PR prøves på testadressen. Publisert PR/SHA kontrolleres i appens meny og `build-info.json`. Grønn CI betyr ikke produktgodkjenning.
 
 Bruk Node.js 24 LTS:
 

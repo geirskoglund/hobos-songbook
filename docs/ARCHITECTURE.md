@@ -89,7 +89,9 @@ Gyldig `x_dyn: 1`–`5` gir instruksjonsnoder i den avledede strukturen. Visning
 
 `src/domain/song-grid.ts` velger ett innhold til den felles skjemavisningen: `personal.chordGrid` når det finnes, ellers alle originale gridblokker i kilderekkefølge (uten kopier fra refrenghenvisninger), ellers ingen. Personlig innhold er separat og brukes uendret som inngang til samme parser/renderer. Fremtidig opprettelse/redigering er ikke bygget. Inline-grid utelates fra selve tekstflaten, men dynamikkinstruksjoner der beholder sin musikalske virkning i sangen.
 
-`chart-dock.ts` gir samme kompakte, sticky flate for begge kilder. Lokal ×-tilstand lagres ikke, og tilbakestilles ved neste åpning. ResizeObserver/vindusendring tilpasser høyden ved behov med samlet skalering, uten indre scroll. Observatører og hendelseslyttere fjernes ved bytte/lukking av sang.
+`chart-dock.ts` gir samme kompakte, sticky flate for begge kilder. × endrer bare panelet fra sticky til ordinær plassering i dokumentet. Innhold og høyde beholdes, og fokus flyttes til tilbakeknappen uten scrolling. Tilstanden lagres ikke; neste åpning har sticky på igjen. ResizeObserver/vindusendring tilpasser høyden ved behov med samlet skalering, uten indre scroll. Observatører og hendelseslyttere fjernes ved bytte/lukking av sang.
+
+`song-spacing.ts` samler avledede blanklinjemarkører og semantisk blokkavstand til én felles avstand før neste synlige innhold, høyst én tekstlinje. Markørene opptar ingen egen høyde; skjulte refreng tas ikke med. Normaliseringen gjentas ved folding, og CSS-variabler følger skriftvalget uten å endre originaltekst eller parserdata.
 
 `dynamics-profile.ts` tegner én lukket, symmetrisk SVG-sti over hele tekstområdets høyde. Fem bredder skaleres innenfor et smalt felt på høyst 112 px / 22 prosent av leseområdet. Nivåer kommer fortsatt fra de avledede instruksjonene (default 3); lokale Bézier-overganger runder skiftene uten automatisk crescendo. Synlige rader gir plassering; skjulte refreng endrer ikke det beregnede nivået etter henvisningen. ResizeObserver og observasjon av sammenfolding holder formen oppdatert. Dette er layoutgeometri, ikke en tidsakse.
 

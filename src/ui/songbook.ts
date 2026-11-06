@@ -1,3 +1,4 @@
+import {attachSongSpacing} from './song-spacing.ts';
 import {selectSongGrid} from '../domain/song-grid.ts';
 import {createChartDock} from './chart-dock.ts';
 import {attachDynamicsProfile} from './dynamics-profile.ts';
@@ -104,8 +105,9 @@ export function startSongbook() {
       } else bodyContent.append(renderContent([block], dynamicsContext));
     }
     library.hidden = true; reader.hidden = false; query('back').hidden = false; document.body.classList.add('reader-active');
+    const disposeSpacing = attachSongSpacing(bodyContent);
     const disposeProfile = attachDynamicsProfile(bodyContent);
-    disposeView = () => {disposeProfile(); dock?.dispose();};
+    disposeView = () => {disposeSpacing(); disposeProfile(); dock?.dispose();};
     title.focus({preventScroll: true}); window.scrollTo(0, 0);
   }
   function back() {
