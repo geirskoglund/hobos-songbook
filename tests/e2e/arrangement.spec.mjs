@@ -158,16 +158,18 @@ test('only source blank lines create gaps, capped at one reading line', async ({
         const gaps=await page.locator('#song-body').evaluate(body=>{
           const units=[...body.querySelectorAll('.song-line, .comment, .unknown, .chorus > h2')].filter(node=>!node.closest('[hidden]'));
           const line=parseFloat(getComputedStyle(body).lineHeight);
-          return units.slice(1).map((node,index)=>({gap:node.getBoundingClientRect().top-units[index].getBoundingClientRect().bottom,line,previous:units[index].textContent}));
+          return units.slice(1).map((node,index)=>{
+            const previous=units[index].cloneNode(true); previous.querySelectorAll('.sr-only').forEach(node=>node.remove());
+            return {gap:node.getBoundingClientRect().top-units[index].getBoundingClientRect().bottom,line,previous:previous.textContent};
+          });
         });
         expect(gaps.every(({gap,line})=>gap>=-.5 && gap<=line+.5)).toBe(true);
+        expect(gaps.some(({gap,line})=>Math.abs(gap-line)<.5)).toBe(true);
         for (const label of ['Før fullt refreng','Før henvisning','Etter henvisning']) {
           const adjacent=gaps.find(({previous})=>previous===label);
           expect(adjacent).toBeDefined();
           expect(Math.abs(adjacent.gap)).toBeLessThan(.5);
         }
-        const comments=await page.locator('#song-body > .comment').evaluateAll(nodes=>nodes.slice(1).map((node,index)=>node.getBoundingClientRect().top-nodes[index].getBoundingClientRect().bottom));
-        expect(comments.every(gap=>gap<=fontSize*1.5+.5)).toBe(true);
       }
     }
   }
