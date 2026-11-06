@@ -7,11 +7,29 @@ export async function isValidated(github, repo, sha, pr) {
   const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
     ...repo, workflow_id: workflow.id, head_sha: sha, event: pr === null ? 'push' : 'pull_request', per_page: 100,
   });
-  const matches = runs.filter(run => run.workflow_id === workflow.id && run.path === workflow.path &&
+  const candidates = runs.filter(run => run.workflow_id === workflow.id && run.path === workflow.path &&
     run.head_sha === sha && run.repository?.full_name === repository && run.head_repository?.full_name === repository &&
     run.event === (pr === null ? 'push' : 'pull_request') &&
-    (pr === null ? run.head_branch === 'master' : run.pull_requests?.some(pull =>
-      pull.number === pr && pull.head?.sha === sha && pull.base?.ref === 'master')));
+    (pr !== null || run.head_branch === 'master'));
+  let frozenSource;
+  const matches = [];
+  for (const run of candidates) {
+    if (pr === null || run.pull_requests?.some(pull => pull.number === pr && pull.head?.sha === sha && pull.base?.ref === 'master')) {
+      matches.push(run);
+    } else if (run.pull_requests?.length === 0) {
+      // GitHub removes run.pull_requests after merge. Recover the historical binding
+      // from GitHub's commit/PR association, only for an already closed same-repo PR.
+      if (frozenSource === undefined) {
+        const {data: pull} = await github.rest.pulls.get({...repo, pull_number: pr});
+        frozenSource = false;
+        if (pull.state === 'closed' && pull.head?.repo?.full_name === repository && pull.base?.ref === 'master' && pull.base?.repo?.full_name === repository) {
+          const associated = await github.paginate(github.rest.repos.listPullRequestsAssociatedWithCommit, {...repo, commit_sha: sha, per_page: 100});
+          frozenSource = associated.some(item => item.number === pr);
+        }
+      }
+      if (frozenSource) matches.push(run);
+    }
+  }
   const latest = matches.sort((a, b) => b.id - a.id)[0];
   if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success') return false;
   const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {...repo, run_id: latest.id, filter: 'latest', per_page: 100});

@@ -9,13 +9,13 @@ const repo = {owner: 'geirskoglund', repo: 'hobos-songbook'};
 const run = (patch = {}) => ({id: 100, workflow_id: 42, path: workflow.path, status: 'completed', conclusion: 'success',
   head_sha: sha, head_branch: 'master', event: 'push', repository: {full_name: repository},
   head_repository: {full_name: repository}, pull_requests: [], ...patch});
-function client({runs = [run()], jobs = [{name: 'validate', conclusion: 'success', status: 'completed'}], deployments = [], statuses = [], workflowPatch = {}, getContent} = {}) {
+function client({runs = [run()], jobs = [{name: 'validate', conclusion: 'success', status: 'completed'}], deployments = [], statuses = [], workflowPatch = {}, getContent, getPull, associated = []} = {}) {
   const actions = {getWorkflow: async () => ({data: {...workflow, ...workflowPatch}}),
     listWorkflowRuns: () => {}, listJobsForWorkflowRun: () => {}};
-  const repos = {getBranch: async () => ({data: {commit: {sha}}}), listDeployments: () => {}, listDeploymentStatuses: () => {},
+  const repos = {getBranch: async () => ({data: {commit: {sha}}}), listDeployments: () => {}, listDeploymentStatuses: () => {}, listPullRequestsAssociatedWithCommit: () => {},
     getContent: getContent || (async () => {throw Object.assign(Error('missing'), {status: 404});})};
-  return {rest: {actions, repos, pulls: {get: async () => ({data: {state: 'open',
-    head: {sha: previewSha, repo: {full_name: repository}}, base: {ref: 'master', repo: {full_name: repository}}}})}},
+  return {rest: {actions, repos, pulls: {get: getPull || (async () => ({data: {state: 'open',
+    head: {sha: previewSha, repo: {full_name: repository}}, base: {ref: 'master', repo: {full_name: repository}}}}))}},
     paginate: async (method, args) => {
       if (method === actions.listWorkflowRuns) {
         assert.equal(args.workflow_id, 42);
@@ -24,6 +24,7 @@ function client({runs = [run()], jobs = [{name: 'validate', conclusion: 'success
       if (method === actions.listJobsForWorkflowRun) {assert.equal(args.filter, 'latest'); return jobs;}
       if (method === repos.listDeployments) return deployments;
       if (method === repos.listDeploymentStatuses) return statuses;
+      if (method === repos.listPullRequestsAssociatedWithCommit) {assert.equal(args.commit_sha, sha); return associated;}
       throw Error('Unexpected API');
     }};
 }
@@ -37,6 +38,13 @@ test('source proof requires expected workflow identity, repo, event and exact SH
   assert.equal(await isValidated(client({workflowPatch: {path: '.github/workflows/fake.yml'}}), repo, sha, null), false);
   assert.equal(await isValidated(client({jobs: [{name: 'validate', status: 'completed', conclusion: 'skipped'}]}), repo, sha, null), false);
   assert.equal(await isValidated(client({jobs: [{name: 'other', status: 'completed', conclusion: 'success'}]}), repo, sha, null), false);
+});
+test('closed PR retains exact source proof when GitHub drops run PR links after merge', async () => {
+  const runs = [run({event: 'pull_request', pull_requests: []})];
+  const getPull = async () => ({data: {state: 'closed', head: {repo: {full_name: repository}}, base: {ref: 'master', repo: {full_name: repository}}}});
+  assert.equal(await isValidated(client({runs, getPull, associated: [{number: 7}]}), repo, sha, 7), true);
+  assert.equal(await isValidated(client({runs, getPull, associated: [{number: 8}]}), repo, sha, 7), false);
+  assert.equal(await isValidated(client({runs, associated: [{number: 7}]}), repo, sha, 7), false);
 });
 test('PR evidence requires PR number, head SHA and master base; latest failed rerun blocks', async () => {
   const prRun = run({event: 'pull_request', head_branch: 'feature', pull_requests: [{number: 7, head: {sha}, base: {ref: 'master'}}]});
