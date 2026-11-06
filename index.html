@@ -19,8 +19,8 @@
   <body>
     <div id="app">
       <header class="topbar">
-        <a class="wordmark" href="./" aria-label="Hobo's Songbook, startside">HOBO'S <span>SONGBOOK</span></a>
-        <span class="environment">__APP_LABEL__</span>
+        <div class="nav-left"><button id="back" type="button" aria-label="← Mine sanger" hidden>←</button><a class="wordmark" href="./" aria-label="Hobo's Songbook, startside">HOBO'S <span>SONGBOOK</span></a></div>
+        <div class="nav-right"><span class="environment">__APP_LABEL__</span><button id="menu-button" type="button" aria-haspopup="dialog" aria-label="Meny">☰</button></div>
       </header>
       <main>
         <section id="library" aria-labelledby="library-title">
@@ -38,17 +38,24 @@
           <ul id="song-list" class="song-list"></ul>
         </section>
         <section id="reader" aria-labelledby="song-title" hidden>
-          <button id="back" type="button">← Mine sanger</button>
           <article id="song-content"></article>
         </section>
         <p id="song-status" role="status" aria-live="polite"></p>
+        <noscript><p>JavaScript må være aktivert for å starte offline-oppsettet.</p></noscript>
+      </main>
+      <aside id="update-notice" class="update-notice" aria-label="Appoppdatering" hidden>
+        <p id="update-notice-text" role="status" aria-live="polite"></p>
+        <button id="apply-update" type="button">Oppdater nå</button>
+      </aside>
+      <dialog id="settings-dialog" aria-labelledby="settings-heading">
+        <div class="menu-heading"><h2 id="settings-heading">Innstillinger</h2><button id="menu-close" type="button" aria-label="Lukk meny">×</button></div>
         <fieldset class="display-settings">
           <legend>Visning</legend>
           <label for="theme">Tema</label>
           <select id="theme"><option value="dark">Mørk</option><option value="light">Lys</option></select>
           <label for="font-size">Skriftstørrelse <output id="font-value" for="font-size">22 px</output></label>
           <input id="font-size" type="range" min="16" max="36" step="1" value="22" />
-          <label class="check-option"><input id="show-grids" type="checkbox" checked /> Vis felles akkordskjema</label>
+          <label class="check-option"><input id="show-grids" type="checkbox" checked /> Vis akkordskjema</label>
           <label class="check-option"><input id="show-dynamics" type="checkbox" checked /> Vis dynamikkprofil</label>
           <p id="settings-status" class="hint" role="status"></p>
         </fieldset>
@@ -60,13 +67,9 @@
           <p id="update-status" class="hint" role="status"></p>
           <p class="hint">Legg sangboken på hjemskjermen eller installer den fra nettleseren der dette støttes.</p>
         </details>
-        <noscript><p>JavaScript må være aktivert for å starte offline-oppsettet.</p></noscript>
-      </main>
-      <aside id="update-notice" class="update-notice" aria-label="Appoppdatering" hidden>
-        <p id="update-notice-text" role="status" aria-live="polite"></p>
-        <button id="apply-update" type="button">Oppdater nå</button>
-      </aside>
-      <footer><span id="connection"></span><span class="build">__APP_SOURCE__ · <code>__APP_SHA__</code></span></footer>
+
+        <footer><span id="connection"></span><span class="build">__APP_SOURCE__ · <code>__APP_SHA__</code></span></footer>
+      </dialog>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

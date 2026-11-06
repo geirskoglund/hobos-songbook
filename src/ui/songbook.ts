@@ -1,3 +1,6 @@
+import {selectSongGrid} from '../domain/song-grid.ts';
+import {createChartDock} from './chart-dock.ts';
+import {attachDynamicsProfile} from './dynamics-profile.ts';
 import {renderContent, type DynamicsContext} from './song-content.ts';
 import {parseChordPro} from '../domain/chordpro.ts';
 import {createSong, type Song, type SongPersonal} from '../domain/song.ts';
@@ -17,6 +20,15 @@ export function startSongbook() {
   const status = query('song-status'), libraryStatus = query('library-status');
   const retry = query<HTMLButtonElement>('retry-storage'), file = query<HTMLInputElement>('song-file');
   let songs: Song[] = [], importing = false, active: Song | null = null;
+  let disposeView = () => {};
+  const dialog = query<HTMLDialogElement>('settings-dialog'), menu = query<HTMLButtonElement>('menu-button');
+  menu.addEventListener('click', () => dialog.showModal());
+  query('menu-close').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', event => {
+    const rect = dialog.getBoundingClientRect();
+    if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
+  });
+  const notify = (message: string, error = false) => {status.textContent = message; status.dataset.error = String(error);};
   let preferences = {...defaultPreferences};
   try {preferences = readPreferences(__APP_ENV__.namespace);}
   catch {query('settings-status').textContent = 'Visningsvalg kunne ikke hentes. Endringer gjelder nå, men kan ikke loves husket.';}
@@ -53,21 +65,25 @@ export function startSongbook() {
   }
   retry.addEventListener('click', () => {void load();});
   async function openSong(song: Song) {
-    status.textContent = '';
+    notify('');
     let personal: SongPersonal;
     try {personal = await storage.personal(song.id) ?? {songId: song.id, chorus: {}};}
-    catch (error) {status.textContent = error instanceof Error ? error.message : 'Kunne ikke hente personlig tilstand.'; return;}
+    catch (error) {notify(error instanceof Error ? error.message : 'Kunne ikke hente personlig tilstand.', true); return;}
     active = song;
     const parsed = parseChordPro(song.original, song.title), article = query('song-content');
-    article.replaceChildren();
+    disposeView(); article.replaceChildren();
     const title = element('h1', parsed.title); title.id = 'song-title'; title.tabIndex = -1; article.append(title);
     if (parsed.key) article.append(element('p', `Klingende toneart: ${parsed.key}`, 'song-key'));
+    const chosenGrid = selectSongGrid(parsed, personal);
+    const dock = chosenGrid ? createChartDock(chosenGrid.grids, chosenGrid.source, () => query('back').focus({preventScroll:true})) : null;
+    if (dock) article.append(dock.element);
+    const bodyContent = element('div'); bodyContent.id = 'song-body'; article.append(bodyContent);
     const dynamicsContext: DynamicsContext = {level: 3};
     for (const block of parsed.blocks) {
       if (block.kind === 'chorus') {
-        const section = element('section', undefined, 'chorus'); section.append(element('h2', 'Refreng'), renderContent(block.content, dynamicsContext)); article.append(section);
+        const section = element('section', undefined, 'chorus'); section.append(element('h2', 'Refreng'), renderContent(block.content, dynamicsContext)); bodyContent.append(section);
       } else if (block.kind === 'reference') {
-        if (!block.content) {article.append(element('p', 'Refreng — ingen tidligere refrengtekst er definert.', 'comment')); continue;}
+        if (!block.content) {bodyContent.append(element('p', 'Refreng — ingen tidligere refrengtekst er definert.', 'comment')); continue;}
         const section = element('section', undefined, 'chorus reference');
         const heading = element('h2'), button = element('button', 'Refreng'); button.type = 'button';
         button.setAttribute('aria-label', 'Refreng');
@@ -80,25 +96,28 @@ export function startSongbook() {
         button.addEventListener('click', async () => {
           button.disabled = true;
           const next = {...personal, chorus: {...personal.chorus, [block.occurrence]: !expanded}};
-          try {await storage.savePersonal(next); personal = next; expanded = !expanded; reflect(); if (active?.id === song.id) status.textContent = '';}
-          catch {if (active?.id === song.id) status.textContent = 'Refrengvalget kunne ikke lagres. Prøv igjen; tidligere valg er beholdt.';}
+          try {await storage.savePersonal(next); personal = next; expanded = !expanded; reflect(); if (active?.id === song.id) notify('');}
+          catch {if (active?.id === song.id) notify('Refrengvalget kunne ikke lagres. Prøv igjen; tidligere valg er beholdt.', true);}
           finally {button.disabled = false;}
         });
-        heading.append(button); section.append(heading, body); article.append(section);
-      } else article.append(renderContent([block], dynamicsContext));
+        heading.append(button); section.append(heading, body); bodyContent.append(section);
+      } else bodyContent.append(renderContent([block], dynamicsContext));
     }
-    library.hidden = true; reader.hidden = false;
+    library.hidden = true; reader.hidden = false; query('back').hidden = false; document.body.classList.add('reader-active');
+    const disposeProfile = attachDynamicsProfile(bodyContent);
+    disposeView = () => {disposeProfile(); dock?.dispose();};
     title.focus({preventScroll: true}); window.scrollTo(0, 0);
   }
   function back() {
-    active = null; reader.hidden = true; library.hidden = false; status.textContent = '';
+    disposeView(); disposeView = () => {};
+    active = null; reader.hidden = true; library.hidden = false; query('back').hidden = true; document.body.classList.remove('reader-active'); notify('');
     query('library-title').focus({preventScroll: true}); window.scrollTo(0, 0);
   }
   query('back').addEventListener('click', back);
   document.querySelector('.wordmark')!.addEventListener('click', event => {event.preventDefault(); back();});
   file.addEventListener('change', async () => {
     const selected = file.files?.[0]; if (!selected || importing) return;
-    importing = true; file.disabled = true; status.textContent = 'Leser og lagrer sangen…';
+    importing = true; file.disabled = true; notify('Leser og lagrer sangen…');
     try {
       let bytes: ArrayBuffer;
       try {bytes = await selected.arrayBuffer();}
@@ -107,8 +126,8 @@ export function startSongbook() {
       await storage.add(song);
       songs.push(song); drawList();
       await openSong(song);
-      if (active?.id === song.id) status.textContent = 'Sangen er lagret på denne enheten.';
-    } catch (error) {status.textContent = error instanceof Error ? error.message : 'Filen kunne ikke leses eller lagres. Prøv igjen.';}
+      if (active?.id === song.id) notify('Sangen er lagret på denne enheten.');
+    } catch (error) {notify(error instanceof Error ? error.message : 'Filen kunne ikke leses eller lagres. Prøv igjen.', true);}
     finally {importing = false; file.disabled = false; file.value = '';}
   });
   void load();

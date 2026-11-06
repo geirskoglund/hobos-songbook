@@ -1,6 +1,6 @@
 {title: Akkordskjema og dynamikk — prøve}
 {key: D}
-{comment: Prøv begge temaer, skriftstørrelse og visningsvalgene nederst.}
+{comment: Prøv begge temaer, skriftstørrelse og visningsvalgene i menyen.}
 {start_of_grid shape="4x4" label="Intro"}
 || D . . . | G . . . | Bm . A . | D . . . ||
 |: G . . . | % . . . | D~A . . . | D . . . :| 2 ganger

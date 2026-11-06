@@ -6,8 +6,8 @@ Statisk HTML/CSS/TypeScript bygges med Vite. Ingen backend, skydatabase, autenti
 
 | Del | Ansvar nå | Grense mot senere arbeid |
 | --- | --- | --- |
-| `index.html`, `src/main.ts`, `src/app-updates.ts`, `src/style.css`, `src/ui/{songbook,song-content}.ts` | Sanginnlesing, enkel oversikt/lesevisning, miljømerking og workerstatus | Fullverdig bibliotek/editor/setlister kommer senere |
-| `src/domain/{song,chordpro,grid}.ts` | Sangmodell, UTF-8-validering og avledet ChordPro-tolkning | Ingen DOM- eller leverandøravhengighet |
+| `index.html`, `src/main.ts`, `src/app-updates.ts`, `src/style.css`, `src/ui/` | Sanginnlesing, enkel oversikt/lesevisning, miljømerking og workerstatus | Fullverdig bibliotek/editor/setlister kommer senere |
+| `src/domain/{song,chordpro,grid,song-grid}.ts` | Sangmodell, UTF-8-validering og avledet ChordPro-tolkning | Ingen DOM- eller leverandøravhengighet |
 | `src/environment.ts` | Én validert miljøkonfigurasjon | ID-er/scopes/navn følger miljø; SHA/PR er bare byggmetadata |
 | `src/storage/{songs,preferences,local-settings}.ts` | IndexedDB-sanger/personlig refrengtilstand og miljøavgrensede visningsvalg | Ingen ekstern lagring; fremtidige skjemaversjoner oppgraderes additivt |
 | `vite.config.mjs` | Miljøstier, manifest, lokale ikoner, `build-info.json` og Workbox-worker | Bygget er selvstendig under miljøets sti |
@@ -29,7 +29,7 @@ Nye domenemoduler kan legges under `src/domain/`, lokal vedvarende lagring under
 
 IndexedDB har eksplisitt skjemaversjon 1 med `songs` (keyPath `id`) og `personal` (keyPath `songId`). Hver innlesing oppretter UUID, også for samme fil/tittel. En sang inneholder `id`, autoritativ `original`, avledet `title`/`key` og `origin` med `kind`, `filename`, `importedAt` samt plass til `provider`, `sourceId`, `fileId`, `relativePath`. Originalen beholder BOM, linjeskift og ukjente direktiver. Parseren arbeider med en separat representasjon, som ikke skrives tilbake.
 
-`personal` inneholder `songId` og et kart `chorus` fra deterministisk originallinjereferanse (`line:N`, nullbasert) til boolsk tilstand. Det er separat fra sanginnholdet. Editor/synk må senere håndtere gjenforankring ved tekstendring. localStorage-nøkkelen `<namespace>:display` inneholder globalt `theme`, `fontSize`, `showGrids` og `showDynamics`. Eksisterende innstillinger uten de nye feltene beholder tema/størrelse og får begge visningene på. Appens oppstart bruker miljøets innstillinger før innholdet vises. Ingen lagringsnavn følger SHA/PR.
+`personal` inneholder `songId`, eventuelt `chordGrid` som separat ChordPro-tekst for personlig skjema, og et kart `chorus` fra deterministisk originallinjereferanse (`line:N`, nullbasert) til boolsk tilstand. Det er separat fra sanginnholdet. Editor/synk må senere håndtere gjenforankring ved tekstendring. localStorage-nøkkelen `<namespace>:display` inneholder globalt `theme`, `fontSize`, `showGrids` og `showDynamics`. Eksisterende innstillinger uten de nye feltene beholder tema/størrelse og får begge visningene på. Appens oppstart bruker miljøets innstillinger før innholdet vises. Ingen lagringsnavn følger SHA/PR.
 
 Databaseoperasjoner lukker forbindelsen etter fullført transaksjon. Innlesing regnes først som lagret ved `oncomplete`; `add` kan ikke overskrive en eksisterende sang. Blokkert/avvist åpning, abort og innstillingsfeil vises uten nullstilling. Ingen database-/brukerdatasletting skjer ved appstart eller oppdatering. Testharness bruker egne `-harness`-databaser; workeroppdatering prøves også med faktiske sanger og personlige valg.
 
@@ -87,4 +87,10 @@ Gjenkjennelige akkordsymboler beholdes i originale stavemåter; `[Solo]`, `[Fele
 
 Gyldig `x_dyn: 1`–`5` gir instruksjonsnoder i den avledede strukturen. Visningen starter på 3 og følger nivået til neste gyldige tagg. Ugyldige verdier gir merknad og beholder forrige nivå. Ved refrenghenvisning gjentas også instruksjonene som faktisk finnes i refrengblokken; uten ny tagg videreføres gjeldende nivå. Dette beregnes uavhengig av om henvisningen er foldet sammen.
 
-Profilen tegnes med CSS bak innholdet, på én felles midtakse gjennom tekst, refreng og grid. Nivå 1–5 bruker henholdsvis 18, 36, 54, 72 og 90 prosent av sangflatens bredde, med dempet tematilpasset farge og umiddelbare trinn. Høyden følger den viste teksten; den er ingen musikalsk tidsmåling. Av/på for profil og felles grid er uavhengige globale visningsvalg per miljø. Ingen sang-/databaseskjemaoppgradering er nødvendig: lagrede originaler tolkes på nytt ved åpning.
+`src/domain/song-grid.ts` velger ett innhold til den felles skjemavisningen: `personal.chordGrid` når det finnes, ellers alle originale gridblokker i kilderekkefølge (uten kopier fra refrenghenvisninger), ellers ingen. Personlig innhold er separat og brukes uendret som inngang til samme parser/renderer. Fremtidig opprettelse/redigering er ikke bygget. Inline-grid utelates fra selve tekstflaten, men dynamikkinstruksjoner der beholder sin musikalske virkning i sangen.
+
+`chart-dock.ts` gir samme kompakte, sticky flate for begge kilder. Lokal ×-tilstand lagres ikke, og tilbakestilles ved neste åpning. ResizeObserver/vindusendring tilpasser høyden ved behov med samlet skalering, uten indre scroll. Observatører og hendelseslyttere fjernes ved bytte/lukking av sang.
+
+`dynamics-profile.ts` tegner én lukket, symmetrisk SVG-sti over hele tekstområdets høyde. Fem bredder skaleres innenfor et smalt felt på høyst 112 px / 22 prosent av leseområdet. Nivåer kommer fortsatt fra de avledede instruksjonene (default 3); lokale Bézier-overganger runder skiftene uten automatisk crescendo. Synlige rader gir plassering; skjulte refreng endrer ikke det beregnede nivået etter henvisningen. ResizeObserver og observasjon av sammenfolding holder formen oppdatert. Dette er layoutgeometri, ikke en tidsakse.
+
+Visningsvalg leses fra den eksisterende miljønøkkelen og gjelder både personlig/felles skjema. Ingen sang-/databaseskjemaoppgradering er nødvendig. En tilgjengelig menydialog samler innstillinger og appstatus. Oppdateringsmodulen finner de samme kontroll-ID-ene og fortsetter å vise reelle oppdateringsvarsler utenfor menyen.

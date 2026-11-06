@@ -79,3 +79,17 @@ test('missing and nested grid markers preserve subsequent lyrics and chorus boun
   assert.equal(parsed.blocks[4].segments[0].text, 'Etter');
   assert.equal(parsed.blocks.at(-1).rows[0].measures[0].cells[0], 'D');
 });
+
+test('one chart prefers personal content, falls back to shared grids, and never duplicates chorus references', async () => {
+  const {selectSongGrid} = await import('../src/domain/song-grid.ts');
+  const shared=parseChordPro('{soc}\n{start_of_grid}\n| C . |\n{end_of_grid}\n{eoc}\n{chorus}\n{start_of_grid}\n| G . |\n{end_of_grid}','T');
+  const personal={songId:'stable-id',chorus:{}};
+  assert.equal(selectSongGrid(shared,personal).grids.length,2);
+  const selected=selectSongGrid(shared,{...personal,chordGrid:'| Dm . |'});
+  assert.equal(selected.source,'personal'); assert.equal(selected.grids.length,1);
+  assert.deepEqual(selected.grids[0].rows[0].measures[0].cells,['Dm','.']);
+  assert.equal(selectSongGrid(shared,{...personal,chordGrid:'   '}).source,'shared');
+  assert.equal(selectSongGrid(parseChordPro('Bare tekst','T'),personal),null);
+  assert.equal(selectSongGrid(parseChordPro('{start_of_grid}\n\n{end_of_grid}','T'),personal),null);
+  assert.equal(selectSongGrid(shared,{...personal,chordGrid:'{start_of_grid}\n{end_of_grid}'}).source,'shared');
+});

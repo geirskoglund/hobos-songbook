@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, original} from './song-helpers.mjs';
+import {importSong, savedSongs, original, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
 
 const base = '/hobos-songbook/';
 const ready = page => expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
@@ -71,8 +71,8 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   await importSong(preview, 'test.cho');
   await preview.getByRole('button', {name: 'Refreng', exact: true}).nth(1).click();
   await expect(preview.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
-  await preview.locator('#theme').selectOption('light');
-  await preview.locator('#font-size').fill('30'); await preview.locator('#font-size').dispatchEvent('input');
+  await setDisplay(preview, {theme:'light'});
+  await setDisplay(preview, {fontSize:'30'});
   const productionSongs = await savedSongs(production), previewSongs = await savedSongs(preview);
   expect(productionSongs[0].id).not.toBe(previewSongs[0].id);
   await mark(production, 'production-marker'); await mark(preview, 'test-marker');
@@ -93,8 +93,10 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   await context.setOffline(false);
   for (const [channel, page, expectedSha] of [['test', preview, 'c'], ['app', production, 'd']]) {
     await request.post(`/__test__/update?channel=${channel}`);
+    await openMenu(page);
     await page.getByRole('button', {name: 'Se etter oppdatering'}).click();
     await expect(page.getByRole('button', {name: 'Oppdater appen'})).toBeVisible();
+    await openMenu(page);
     await page.getByRole('button', {name: 'Oppdater appen'}).click();
     await expect(page.locator('.build')).toContainText(expectedSha.repeat(7));
     await ready(page);

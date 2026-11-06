@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, original} from './song-helpers.mjs';
+import {importSong, savedSongs, original, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
 test.beforeEach(async ({request}) => {await request.post('/__test__/reset');});
 
 test('same titles and same files remain independent; exact originals and chorus state survive reopening', async ({page}) => {
@@ -36,9 +36,9 @@ test('lyrics and chord anchors wrap at mobile/tablet/desktop at both font limits
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({width, height: 800});
     for (const theme of ['light', 'dark']) {
-      await page.locator('#theme').selectOption(theme);
+      await setDisplay(page, {theme:theme});
       for (const fontSize of ['16', '36']) {
-        await page.locator('#font-size').fill(fontSize); await page.locator('#font-size').dispatchEvent('input');
+        await setDisplay(page, {fontSize:fontSize});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         const geometry = await page.locator('.piece:has(.chord:not(:empty))').evaluateAll(pieces => pieces.every(piece => {
           const chord = piece.querySelector('.chord').getBoundingClientRect(), lyric = piece.querySelector('.lyric').getBoundingClientRect();
@@ -48,7 +48,7 @@ test('lyrics and chord anchors wrap at mobile/tablet/desktop at both font limits
       }
     }
   }
-  await page.locator('#theme').selectOption('light');
+  await setDisplay(page, {theme:'light'});
   await page.getByRole('button', {name: '← Mine sanger'}).click();
   await importSong(page, 'ren.txt', 'Bare sangtekst\nuten akkorder');
   await expect(page.locator('.chord')).toHaveCount(0);
@@ -96,7 +96,7 @@ test('invalid files, transaction abort, unavailable database and unavailable pre
   });
   await page.reload();
   await expect(page.locator('#settings-status')).toContainText('kunne ikke hentes');
-  await page.locator('#theme').selectOption('light'); await expect(page.locator('#settings-status')).toContainText('kunne ikke lagres');
+  await setDisplay(page, {theme:'light'}); await expect(page.locator('#settings-status')).toContainText('kunne ikke lagres');
   await expect(page.locator('.song-choice')).toHaveCount(2);
   await page.addInitScript(() => {indexedDB.open = () => {throw new Error('Denied');};});
   await page.reload(); await expect(page.locator('#library-status')).not.toContainText('Ingen sanger');
@@ -127,8 +127,8 @@ test('closing the browser and reopening the same persistent profile offline pres
     await importSong(page);
     await page.getByRole('button', {name: 'Refreng', exact: true}).nth(1).click();
     await expect(page.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
-    await page.locator('#theme').selectOption('light');
-    await page.locator('#font-size').fill('28'); await page.locator('#font-size').dispatchEvent('input');
+    await setDisplay(page, {theme:'light'});
+    await setDisplay(page, {fontSize:'28'});
     const before = await savedSongs(page);
     await context.close(); context = await launch(); await context.setOffline(true);
     page = context.pages()[0]; await page.goto('http://127.0.0.1:4173/hobos-songbook/test/');

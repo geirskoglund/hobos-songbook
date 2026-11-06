@@ -8,8 +8,6 @@ const node = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, clas
 };
 function decorate(row: HTMLElement, context: DynamicsContext) {
   row.classList.add('dynamic-row'); row.dataset.dynamicLevel = String(context.level);
-  row.style.setProperty('--dynamic-width', `${context.level * 18}%`);
-  row.style.setProperty('--dynamic-viewport-width', `${context.level * 18}cqw`);
   if (context.spokenLevel !== context.level) {
     row.prepend(node('span', `Dynamikk: nivå ${context.level} av 5. `, 'sr-only dynamic-announce'));
     context.spokenLevel = context.level;
@@ -20,9 +18,10 @@ function instruction(level: DynamicLevel, context: DynamicsContext) {context.lev
 function chordText(text: string) {
   return text.startsWith('[') && text.endsWith(']') && isChord(text.slice(1, -1)) ? text.slice(1, -1) : text;
 }
-function renderGrid(block: GridBlock, context: DynamicsContext): HTMLElement {
+export function renderGrid(block: GridBlock): HTMLElement {
   const figure = node('figure', undefined, 'chord-grid');
-  figure.append(node('figcaption', block.options.label ? `Felles akkordskjema — ${block.options.label}` : 'Felles akkordskjema'));
+  figure.setAttribute('aria-label', block.options.label || 'Akkordskjema');
+  if (block.options.label) figure.append(node('figcaption', block.options.label));
   const rows = block.rows.filter(row => row.kind === 'grid-row');
   const measures = rows.flatMap(row => row.measures);
   const columns = Math.min(8, block.options.columns ?? Math.max(1, ...rows.map(row => row.measures.length)));
@@ -32,12 +31,12 @@ function renderGrid(block: GridBlock, context: DynamicsContext): HTMLElement {
   const barWidth = Math.min(6, Math.max(1, ...measures.flatMap(measure => [measure.opening.length, measure.closing.length]))) * .85 + .25;
   figure.style.setProperty('--grid-bar-width', `${barWidth}ch`);
   figure.style.setProperty('--measure-min', `${cellWidth * beats + barWidth * 2}ch`);
-  figure.style.setProperty('--measure-track', `calc(${100 / columns}% - ${(columns - 1) * 8 / columns}px)`);
+  figure.style.setProperty('--measure-track', `calc(${100 / columns}% - ${(columns - 1) * 4 / columns}px)`);
   figure.style.setProperty('--cell-min', `${cellWidth}ch`);
   figure.style.setProperty('--beat-track', `${100 / beats}%`);
   for (const row of block.rows) {
-    if (row.kind === 'dynamic') {instruction(row.level, context); continue;}
-    if (row.kind !== 'grid-row') {figure.append(decorate(node('p', row.text, row.kind), context)); continue;}
+    if (row.kind === 'dynamic') continue;
+    if (row.kind !== 'grid-row') {figure.append(node('p', row.text, row.kind)); continue;}
     const line = node('div', undefined, 'grid-row');
     if (row.left) line.append(node('p', row.left, 'grid-note'));
     const bars = node('div', undefined, 'grid-measures');
@@ -63,7 +62,7 @@ function renderGrid(block: GridBlock, context: DynamicsContext): HTMLElement {
     line.append(bars);
     if (row.right) line.append(node('p', row.right, 'grid-note'));
     if (!row.measures.length && !row.left && !row.right) line.classList.add('grid-blank');
-    figure.append(decorate(line, context));
+    figure.append(line);
   }
   return figure;
 }
@@ -71,7 +70,10 @@ export function renderContent(content: Content[], context: DynamicsContext): Doc
   const fragment = document.createDocumentFragment();
   for (const block of content) {
     if (block.kind === 'dynamic') {instruction(block.level, context); continue;}
-    if (block.kind === 'grid') {fragment.append(renderGrid(block, context)); continue;}
+    if (block.kind === 'grid') {
+      for (const row of block.rows) if (row.kind === 'dynamic') instruction(row.level, context);
+      context.spokenLevel = undefined; continue;
+    }
     if (block.kind !== 'line') {fragment.append(decorate(node('p', block.text, block.kind), context)); continue;}
     const line = node('div', undefined, 'song-line');
     const hasChords = block.segments.some(segment => segment.chord);

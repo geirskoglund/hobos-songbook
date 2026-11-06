@@ -2,11 +2,11 @@
 
 Offline-first sangbok som PWA for nettbrett, mobil og PC/Mac.
 
-Appen har lokal innlesing av UTF-8 ChordPro/TXT, en enkel sangoversikt og sangvisning med akkorder, kommentarer og individuelle refrenghenvisninger, formaterte felles akkordskjemaer og en dynamikkprofil med fem nivåer. Sanger lagres i IndexedDB med stabil intern ID og uendret originaltekst. Lys/mørk modus og skriftstørrelse (16–36 px) huskes per miljø. Appen fungerer uten konto og kan lese lagrede sanger offline etter at appressursene er cachet.
+Appen har lokal innlesing av UTF-8 ChordPro/TXT, en enkel sangoversikt og sangvisning med akkorder, kommentarer og individuelle refrenghenvisninger, en kompakt sticky skjemavisning og en smal, sammenhengende dynamikkprofil med fem nivåer. Skjemaet bruker personlig innhold når det finnes, ellers felles grid fra filen. Innstillinger og appinformasjon åpnes fra menyen i toppen. Sanger lagres i IndexedDB med stabil intern ID og uendret originaltekst. Lys/mørk modus og skriftstørrelse (16–36 px) huskes per miljø. Appen fungerer uten konto og kan lese lagrede sanger offline etter at appressursene er cachet.
 
 [Eksempelfil med akkordskjema og dynamikk](examples/akkordskjema-og-dynamikk.cho) kan lastes ned og leses inn fra filvelgeren.
 
-Fullverdig bibliotek/kildefilter, editor/konvertering, setlister, annotering, capo, personlige akkordskjemaer og Dropbox er vedtatte fremtidskrav. Lokal lagring er ikke en sikkerhetskopi.
+Fullverdig bibliotek/kildefilter, editor/konvertering, setlister, annotering, capo, opprettelse/redigering av personlige akkordskjemaer og Dropbox er vedtatte fremtidskrav. Lokal lagring er ikke en sikkerhetskopi.
 
 - [Agentinstruksjoner](AGENTS.md)
 - [Gjeldende produktkrav](docs/REQUIREMENTS.md)

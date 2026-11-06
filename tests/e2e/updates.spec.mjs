@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs} from './song-helpers.mjs';
+import {importSong, savedSongs, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const ready = page => expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
 test.beforeEach(async ({request}) => {await request.post('/__test__/reset');});
@@ -10,10 +10,12 @@ test('update on first visit activates and reloads without requiring an earlier p
   const before = await savedSongs(page);
   await request.post('/__test__/update?channel=test');
   await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
+  await openMenu(page);
   await page.getByRole('button', {name:'Oppdater appen', exact:true}).click();
   await expect(page.locator('.build')).toContainText('ccccccc');
   expect(await savedSongs(page)).toEqual(before);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await openMenu(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
@@ -79,6 +81,7 @@ test('same app build never announces a new version when its worker is repacked o
   await request.post('/__test__/update?channel=test&variant=same');
   await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
   await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true);
+  await openMenu(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
@@ -89,6 +92,7 @@ test('same app build never announces a new version when its worker is repacked o
     });
   });
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await openMenu(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
@@ -107,6 +111,7 @@ test('fresh page already on latest build does not announce its older controller 
   await session.send('Network.setBypassServiceWorker', {bypass:true});
   await page.reload(); await expect(page.locator('.build')).toContainText('ccccccc');
   await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true);
+  await openMenu(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
@@ -117,6 +122,7 @@ test('fresh page already on latest build does not announce its older controller 
       navigator.serviceWorker.getRegistration().then(reg => reg.waiting.postMessage({type:'SKIP_WAITING'}));
     });
   });
+  await openMenu(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
@@ -126,6 +132,7 @@ test('fresh page already on latest build does not announce its older controller 
 
 test('manual check joins a background check and its result survives subsequent automatic checks', async ({page}) => {
   await page.goto(url); await ready(page);
+  await openMenu(page);
   await page.locator('#update').click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await page.evaluate(() => {
@@ -139,6 +146,7 @@ test('manual check joins a background check and its result survives subsequent a
     window.dispatchEvent(new Event('focus'));
   });
   await expect.poll(() => page.evaluate(() => window.updateChecksStarted)).toBe(1);
+  await openMenu(page);
   await page.locator('#update').click();
   await expect(page.locator('#update-status')).toHaveText('Ser etter oppdatering…');
   await page.evaluate(() => window.releaseUpdateCheck());
