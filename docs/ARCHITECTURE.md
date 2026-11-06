@@ -1,17 +1,18 @@
 # Arkitektur
 
-## Implementert appskall
+## Implementert app og sanggrunnlag
 
-Statisk HTML/CSS/TypeScript bygges med Vite. Ingen backend, database, autentisering, Dropbox-SDK eller CDN-ressurs brukes ved kjøring. Avhengighetsfilen låser verktøyene. De lokale PNG-ikonene har separate produksjons-/testvarianter; testbildet har «TEST». `scripts/generate-icons.mjs` gjenskaper dem uten nettavhengighet.
+Statisk HTML/CSS/TypeScript bygges med Vite. Ingen backend, skydatabase, autentisering, Dropbox-SDK eller CDN-ressurs brukes ved kjøring. Avhengighetsfilen låser verktøyene. De lokale PNG-ikonene har separate produksjons-/testvarianter; testbildet har «TEST». `scripts/generate-icons.mjs` gjenskaper dem uten nettavhengighet.
 
 | Del | Ansvar nå | Grense mot senere arbeid |
 | --- | --- | --- |
-| `index.html`, `src/main.ts`, `src/style.css` | Responsiv startside, miljømerking, workerstatus og oppdatering | Ingen sang-/bibliotek-/setliste-UI eller falske demokontroller |
+| `index.html`, `src/main.ts`, `src/style.css`, `src/ui/songbook.ts` | Sanginnlesing, enkel oversikt/lesevisning, miljømerking og workerstatus | Fullverdig bibliotek/editor/setlister kommer senere |
+| `src/domain/{song,chordpro}.ts` | Sangmodell, UTF-8-validering og avledet ChordPro-tolkning | Ingen DOM- eller leverandøravhengighet |
 | `src/environment.ts` | Én validert miljøkonfigurasjon | ID-er/scopes/navn følger miljø; SHA/PR er bare byggmetadata |
-| `src/storage/local-settings.ts` | Liten namespace-grense for fremtidige lokale innstillinger, prøvd uten produktdata | Ingen sangdatabase/skjema eller migrering levert; adapteren har ingen ekstern lagring |
+| `src/storage/{songs,preferences,local-settings}.ts` | IndexedDB-sanger/personlig refrengtilstand og miljøavgrensede visningsvalg | Ingen ekstern lagring; fremtidige skjemaversjoner oppgraderes additivt |
 | `vite.config.mjs` | Miljøstier, manifest, lokale ikoner, `build-info.json` og Workbox-worker | Bygget er selvstendig under miljøets sti |
 | `scripts/{pages-plan,github-pages,build-channel,assemble-pages,verify-pages}.mjs` | Betrodd CI/CD-kontrakt | PR-bygg kjøres ikke med deploymentrettigheter |
-| `tests/*.test.mjs`, `tests/e2e` | Kilde-/miljø-/publiseringskontrakter og ekte nettleser/offline | Produktfunksjoner og fysiske plattformer er senere verifikasjon |
+| `tests/*.test.mjs`, `tests/e2e` | Kilde-/miljø-/publiseringskontrakter og ekte nettleser/offline | Sanglagring/visning/offline testes; fysisk plattformtest rapporteres separat |
 
 Nye domenemoduler kan legges under `src/domain/`, lokal vedvarende lagring under `src/storage/` og leverandørtilkobling under `src/adapters/`. Disse grensene er arkitekturretning, ikke et forhåndsimplementert pluginrammeverk eller tomme krav om en omfattende lagdeling. Domenet skal ikke importere Dropbox-API/-SDK.
 
@@ -22,11 +23,15 @@ Nye domenemoduler kan legges under `src/domain/`, lokal vedvarende lagring under
 | Pages-sti, worker-scope | `/hobos-songbook/app/` | `/hobos-songbook/test/` |
 | Appnavn/short_name | Hobo's Songbook | Hobo's Songbook Test |
 | Stabil namespace/cache-ID | `hobos-songbook-production` | `hobos-songbook-test` |
-| Fremtidig IndexedDB-navn | `hobos-songbook-production` | `hobos-songbook-test` |
+| IndexedDB-navn | `hobos-songbook-production` | `hobos-songbook-test` |
 | localStorage-prefiks | `hobos-songbook-production:` | `hobos-songbook-test:` |
 | Manifest `id/start_url/scope` | `./`, løst til app-stien | `./`, løst til test-stien |
 
-Appen oppretter foreløpig ingen produktdatabase eller personlige data. Nettlesertestene bruker testmarkører i ekte localStorage og IndexedDB på de avtalte navnene for å prøve oppdatering/isolasjon uten å levere sangfunksjoner. Den lille innstillingsgrensen prøver navneavgrensning separat.
+IndexedDB har eksplisitt skjemaversjon 1 med `songs` (keyPath `id`) og `personal` (keyPath `songId`). Hver innlesing oppretter UUID, også for samme fil/tittel. En sang inneholder `id`, autoritativ `original`, avledet `title`/`key` og `origin` med `kind`, `filename`, `importedAt` samt plass til `provider`, `sourceId`, `fileId`, `relativePath`. Originalen beholder BOM, linjeskift og ukjente direktiver. Parseren arbeider med en separat representasjon, som ikke skrives tilbake.
+
+`personal` inneholder `songId` og et kart `chorus` fra deterministisk originallinjereferanse (`line:N`, nullbasert) til boolsk tilstand. Det er separat fra sanginnholdet. Editor/synk må senere håndtere gjenforankring ved tekstendring. localStorage-nøkkelen `<namespace>:display` inneholder globalt `theme` og `fontSize`. Appens oppstart bruker miljøets innstillinger før innholdet vises. Ingen lagringsnavn følger SHA/PR.
+
+Databaseoperasjoner lukker forbindelsen etter fullført transaksjon. Innlesing regnes først som lagret ved `oncomplete`; `add` kan ikke overskrive en eksisterende sang. Blokkert/avvist åpning, abort og innstillingsfeil vises uten nullstilling. Ingen database-/brukerdatasletting skjer ved appstart eller oppdatering. Testharness bruker egne `-harness`-databaser; workeroppdatering prøves også med faktiske sanger og personlige valg.
 
 Begge miljøer og andre Pages-prosjekter deler `geirskoglund.github.io`-origin. Navn/scopes hindrer utilsiktet kollisjon; script på samme origin er ikke sikkerhetsisolert fra andre miljøer. Nettleserprofil, privatmodus og en ny hjemskjerminstallasjon kan ha annen lagring. Ingen automatisk kopiering mellom test og prod.
 
@@ -46,9 +51,9 @@ Ingen direkte push-deploy kan vinne over master-CI. Riktig workflow-ID/-sti, rep
 
 Produksjon bruker bare master; test beholder valgt eksakt commit også etter merge/branchsletting. Før appskallet finnes på master kan produksjon være en betrodd oppstartsplassholder, mens PR-appen bare publiseres til test. [TESTING](TESTING.md) beskriver valg, minste rettigheter, feil, første oppsett og HTTPS-kontroll.
 
-## Senere domene og lokal lagring
+## Videre domene og lokal lagring
 
-Planlagt lokal IndexedDB lagrer intern sangidentitet separat fra kilde/ekstern filidentitet, sangtekst/versjonskontekst, private arbeidskopier, annoteringer og setlister. Konkrete skjemaer, atomiske transaksjoner, migreringer og tokenlagring bestemmes ved funksjonsimplementering; ingenting av dette er ferdig i skallet.
+Intern sangidentitet, originaltekst, opprinnelse og personlig refrengtilstand finnes nå. Private arbeidskopier, annoteringer, setlister og tokenlagring får egne versjonerte utvidelser ved senere funksjonsimplementering.
 
 - Kildesang, privat arbeidskopi og personlig lag er ulike ansvar. Synk overskriver ikke upublisert arbeid. Usikre annoteringer beholder gammel linje-/tekst-/kontekstinformasjon til brukerens avgjørelse.
 - Intern setliste er referanser; selvforsynt `.setlist` inkluderer tekst som transport/reserve. Oppdatert bibliotek er autoritativt, med forskjellige regler for førstegangsimport og senere manglende kilde. Se REQUIREMENTS §6.
@@ -65,3 +70,9 @@ Bevarte konfigurasjonsbeslutninger fra originalen, **ikke aktive integrasjoner**
 - Testens offentlige App key: `le5cddh388klcjz` (offentlig klient-ID, ikke App secret).
 - Eksakte OAuth Redirect URI-er må registreres ved integrasjonsarbeidet; ingen App secret i frontend.
 - App folder-scopes og krav til tilbakekalling/frakobling står i REQUIREMENTS §8. Rekursiv lesing, identitet mellom kontoer, negativ tilgangstest og sikker tokenhåndtering er fortsatt praktiske/tekniske arbeidsoppgaver.
+
+## Avgrenset ChordPro-tolkning
+
+Parseren støtter `title/t`, `key`, `comment/c`, `soc/eoc`, `start_of_chorus/end_of_chorus` og `chorus` som egne direktivlinjer. Refrenghenvisning bruker nærmeste tidligere definerte refrengblokk; uten tidligere definisjon vises en merknad. Første og øvrige eksplisitte refrengblokker er fullt synlige, mens henvisninger starter lukket. Uavsluttede blokker lukkes ved filslutt/neste blokk; feilplassert sluttmarkør sluker ingen tekst. Ukjente direktiver vises forsiktig som lesbar tekst. Ingen full ChordPro-standardstøtte eller eldreformatkonvertering loves.
+
+Gjenkjennelige akkordsymboler beholdes i originale stavemåter; `[Solo]`, `[Fele]`, `[Ref]` forblir tekst. Visningen bygger trygge tekstnoder, og bruker inline-grid for akkord/tekst-par. Ord kan brytes mellom par; lange enkeltord kan brytes inne i tekstcellen uten å flytte akkorden fra starten. Flere påfølgende akkorder og rene akkordlinjer har egne celler.

@@ -1,4 +1,4 @@
-/** Small local boundary for future preferences. No database, songs or provider dependency yet. */
+/** Environment-scoped boundary for personal preferences. */
 export function localSettings(namespace: string, storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>) {
   if (!['hobos-songbook-production', 'hobos-songbook-test'].includes(namespace)) throw new Error('Ugyldig lagringsmiljø.');
   const key = (name: string) => `${namespace}:${name}`;

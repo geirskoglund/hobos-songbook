@@ -1,4 +1,6 @@
 import './style.css';
+import {startSongbook} from './ui/songbook.ts';
+startSongbook();
 import {registerSW} from 'virtual:pwa-register';
 
 const env = __APP_ENV__;

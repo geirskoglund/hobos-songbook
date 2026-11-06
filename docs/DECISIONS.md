@@ -4,7 +4,7 @@ Dette er gjeldende beslutninger, ikke en kronologisk arbeidslogg. Produktgrunnla
 
 ## Produkt og databevaring
 
-- **D01 – Lokal bruk først.** Statisk PWA uten backend/skydatabase, fullt brukbar uten konto. En Dropbox-økt skal ikke avgjøre om sangboken kan åpnes på øving. Ingen skytjeneste, autentisering eller sangfunksjon er implementert i skallet.
+- **D01 – Lokal bruk først.** Statisk PWA uten backend/skydatabase, fullt brukbar uten konto. En Dropbox-økt skal ikke avgjøre om sangboken kan åpnes på øving. Lokal sanglagring og grunnleggende visning er implementert; skytjeneste og autentisering gjenstår.
 - **D02 – Stabil intern identitet.** Intern sang-ID skilles fra leverandørens fil-ID/kilde/sti. Like titler fra forskjellige kilder er ulike sangoppføringer. Dette beskytter domenemodellen ved leverandørbytte og nyopprettede eksterne filer. Ingen app-ID i eksisterende ChordPro-filer; konkret matching/gjenkobling gjenstår.
 - **D03 – Felles original og personlig lag.** Notater, selektive markeringer, capo, stemming og personlige skjemaer endrer ikke andres sangfiler. Klingende originalakkorder og personlig grepvisning holdes adskilt for å kunne kommunisere riktig toneart på scenen. Eldre capo-notasjon normaliseres bare etter godkjenning.
 - **D04 – Privat arbeidskopi og eksplisitt publisering.** Autosave gir sømløs redigering, mens publisering er en egen handling via fileksport/OS. Kildesynk er lesende. Samtidig endret kilde og arbeidskopi gir sammenligning og brukeravgjørelse, ikke automatisk overskriving. Samme prinsipp gjelder private endringer i publisert setliste.

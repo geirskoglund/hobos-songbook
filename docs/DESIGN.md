@@ -1,10 +1,14 @@
 # Designprinsipper
 
-## Appskallet nå
+## Implementert sangflyt
 
-Den implementerte flaten er bare startside med navn, miljø, PR/master/commit, offline-status, oppdatering og kort installasjonshjelp. En dempet mørk bakgrunn, varme detaljer og lokal bokillustrasjon gir en enkel, lesbar inngang. Test har synlig «Testversjon» og eget TEST-merket installasjonsikon. Det finnes ingen sangdemoer eller kontroller som antyder at senere funksjoner virker.
+Startsiden gir filvalg og én alfabetisk oversikt over lokale sanger. Hver rad viser tittel og filnavn med løpenummer, slik at også gjentatte innlesinger kan velges separat. Sangen åpnes etter fullført lagring. «Mine sanger» og ordmerket går tilbake til oversikten; hver sangåpning starter øverst med fokus på tittelen.
 
-Layouten tilpasser seg mobil, nettbrett og desktop uten sideveis scrolling. Tekst og knapper tåler linjebryting. Tastaturfokus er synlig, status bruker tekst i tillegg til farge, og appen bruker lokal systemfont uten kjøretids-CDN. Skallet fastsetter **ikke** endelig visuelt design for bibliotek, sangvisning, editor eller setlister.
+Sangvisningen bruker en bredere, venstrestilt leseflate enn det opprinnelige appskallet. Tekst har seriffont, akkorder en tydelig varm kontrastfarge, og kommentarer egen dempet kursiv typografi. Refreng har overskrift og diskret sidemarkering. Definerte refrengblokker vises fullt; hver senere henvisning har en egen trykk-/tastaturkontroll med `aria-expanded`. Tilstanden endres først etter vellykket lagring.
+
+Visningsvalg gjelder alle sanger i samme miljø: skriftstørrelse 16–36 px, standard 22 px, og eksplisitt lyst/mørkt tema. Mørkt er standard også ved lyst OS-tema. Kontrollene og app-/offlineinformasjon ligger etter sangen for å holde leseflaten rolig. Begge temaer har synlig fokus, tydelige kontrollnavn og minst 44 px berøringshøyde. Vanlig sangtekst tilpasses 320 px, nettbrett og desktop uten sideveis scrolling.
+
+Test har synlig «Testversjon», eget TEST-merket installasjonsikon og PR/commit i bunnteksten. Nettstatus, installasjonshjelp og eksplisitt appoppdatering er beholdt. Fullverdig bibliotek og fremføringsfunksjoner nedenfor er fortsatt senere leveranser; konkret sangdesign prøves med produktansvarlig i testutgaven.
 
 ## Vedtatte prinsipper for senere v1
 

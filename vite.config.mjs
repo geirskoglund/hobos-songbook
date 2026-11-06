@@ -16,7 +16,7 @@ export default defineConfig({
       this.emitFile({type: 'asset', fileName: 'build-info.json', source: JSON.stringify(env)});
     },
     transformIndexHtml(html) {
-      return html.replaceAll('__APP_NAME__', env.name)
+      return html.replaceAll('__APP_NAMESPACE__', env.namespace).replaceAll('__APP_NAME__', env.name)
         .replaceAll('__APP_LABEL__', env.channel === 'test' ? 'Testversjon' : 'Produksjon')
         .replaceAll('__APP_SOURCE__', env.pr ? `PR #${env.pr}` : 'master')
         .replaceAll('__APP_SHA__', env.sha.slice(0, 7));

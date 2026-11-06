@@ -1,6 +1,6 @@
 # Gjeldende krav
 
-Dette er produktkrav, ikke en liste over ferdige funksjoner. **Implementert i denne kodebasen:** et minimalt, responsivt PWA-skall, lokal offline-cache, miljøidentitet, oppdatering og CI/CD. Sangfunksjonene nedenfor er **vedtatt for v1, men ikke implementert**. Installert/fysisk test og produksjonspublisering rapporteres separat i PR-en og [TESTING](TESTING.md).
+Dette er produktkrav, ikke en liste over ferdige funksjoner. **Implementert i denne kodebasen:** PWA-skall, offline-cache, miljøidentitet, oppdatering, CI/CD samt lokal UTF-8 ChordPro/TXT-innlesing, sanglagring, enkel oversikt og grunnleggende sangvisning med personlige refreng-/visningsvalg fra issue #4. De øvrige v1-funksjonene nedenfor er vedtatt og gjenstår. Installert/fysisk test og publisering rapporteres separat i PR-en og [TESTING](TESTING.md).
 
 Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4](https://github.com/geirskoglund/hobos-songbook/issues/1#issuecomment-6673680408) og avklaringene i samme issue. GitHub er autoritativ kilde etter oppstartsleveransen; Drive-originalen og de uendrede kommentarene er historisk kilde. Seksjonsnumrene følger originalen. **[B]** betyr besluttet, **[T]** historisk rapportert praktisk forsøk, **[Å]** uavklart, **[RETNING]** foretrukket designretning. Tekniske/designmessige vurderingspunkter er ikke testbevis eller godkjenning av en bestemt løsning.
 

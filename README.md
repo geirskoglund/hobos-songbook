@@ -2,7 +2,9 @@
 
 Offline-first sangbok som PWA for nettbrett, mobil og PC/Mac.
 
-Prosjektgrunnlaget fra [issue #1](https://github.com/geirskoglund/hobos-songbook/issues/1) består av et minimalt, responsivt appskall med installasjonsmanifest, lokal offline-cache, enkel oppdatering, separate test-/produksjonsmiljøer og CI/CD. Sangbibliotek, import/editor, sangvisning, setlister, annotering, capo, dynamikk og Dropbox er vedtatte fremtidskrav, **ikke implementerte funksjoner**.
+Appen har lokal innlesing av UTF-8 ChordPro/TXT, en enkel sangoversikt og sangvisning med akkorder, kommentarer og individuelle refrenghenvisninger. Sanger lagres i IndexedDB med stabil intern ID og uendret originaltekst. Lys/mørk modus og skriftstørrelse (16–36 px) huskes per miljø. Appen fungerer uten konto og kan lese lagrede sanger offline etter at appressursene er cachet.
+
+Fullverdig bibliotek/kildefilter, editor/konvertering, setlister, annotering, capo, dynamikk og Dropbox er vedtatte fremtidskrav. Lokal lagring er ikke en sikkerhetskopi.
 
 - [Agentinstruksjoner](AGENTS.md)
 - [Gjeldende produktkrav](docs/REQUIREMENTS.md)
@@ -13,7 +15,7 @@ Prosjektgrunnlaget fra [issue #1](https://github.com/geirskoglund/hobos-songbook
 - Produksjonsadresse: https://geirskoglund.github.io/hobos-songbook/app/
 - Testadresse: https://geirskoglund.github.io/hobos-songbook/test/
 
-Før hoved-PR-en er godkjent og merget, viser produksjon bootstrap-plassholderen, mens valgt PR kan prøves på testadressen. Publisert PR/SHA kontrolleres i appens bunntekst og `build-info.json`. Grønn CI betyr ikke produktgodkjenning.
+Produksjon følger godkjent master, mens valgt implementerings-PR prøves på testadressen. Publisert PR/SHA kontrolleres i appens bunntekst og `build-info.json`. Grønn CI betyr ikke produktgodkjenning.
 
 Bruk Node.js 24 LTS:
 
