@@ -1,5 +1,5 @@
 import {isChord, type Content, type GridBlock, type DynamicLevel} from '../domain/chordpro.ts';
-export interface DynamicsContext {level: DynamicLevel; spokenLevel?: DynamicLevel}
+export interface DynamicsContext {level: DynamicLevel; spokenLevel?: DynamicLevel; chord?: (value: string) => string; occurrence?: string}
 const node = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) => {
   const result = document.createElement(tag);
   if (text !== undefined) result.textContent = text;
@@ -80,6 +80,8 @@ export function renderContent(content: Content[], context: DynamicsContext): Doc
       fragment.append(space); continue;
     }
     const line = node('div', undefined, 'song-line');
+    if (block.sourceLine !== undefined) {line.dataset.sourceLine = String(block.sourceLine); line.dataset.occurrence = `${context.occurrence ?? 'source'}/line:${block.sourceLine}`;}
+    let lyricOffset = 0;
     const hasChords = block.segments.some(segment => segment.chord);
     if (hasChords) line.classList.add('has-chords');
     for (const segment of block.segments) {
@@ -87,8 +89,9 @@ export function renderContent(content: Content[], context: DynamicsContext): Doc
       if (!words.length) words.push('');
       words.forEach((word, index) => {
         const piece = node('span', undefined, 'piece');
-        if (hasChords) piece.append(node('span', index === 0 ? segment.chord ?? '' : '', 'chord'));
-        piece.append(node('span', word || '\u00a0', 'lyric')); line.append(piece);
+        if (hasChords) {const chord = node('span', index === 0 ? context.chord?.(segment.chord ?? '') ?? segment.chord ?? '' : '', 'chord'); chord.dataset.original = index === 0 ? segment.chord ?? '' : ''; piece.append(chord);}
+        const lyric = node('span', word || '\u00a0', 'lyric'); lyric.dataset.offset = String(lyricOffset); lyric.dataset.length = String(word.length); lyricOffset += word.length;
+        piece.append(lyric); line.append(piece);
       });
     }
     if (!line.textContent) line.append(document.createTextNode('\u00a0'));

@@ -1,7 +1,7 @@
 import {workerBuild} from './worker-build.ts';
 import type {AppEnvironment} from './environment.ts';
 
-export function startAppUpdates(beforeReload: (focusId: string | null) => void) {
+export function startAppUpdates(beforeReload: (focusId: string | null) => void | Promise<void>) {
   const env = __APP_ENV__;
   const offline = document.querySelector<HTMLElement>('#offline-status')!;
   const status = document.querySelector<HTMLElement>('#update-status')!;
@@ -27,7 +27,16 @@ export function startAppUpdates(beforeReload: (focusId: string | null) => void) 
   let reloadFocusId: string | null = null;
   const watched = new WeakSet<ServiceWorker>();
   const builds = new WeakMap<ServiceWorker, Promise<AppEnvironment | null>>();
-  const reload = () => {beforeReload(reloadFocusId); location.reload();};
+  let reloading = false;
+  const reload = async () => {
+    if (reloading) return;
+    reloading = true;
+    try {await beforeReload(reloadFocusId); location.reload();}
+    catch (error) {
+      reloading = false; applying = false; button.disabled = false; noticeButton.disabled = false;
+      status.textContent = noticeText.textContent = error instanceof Error ? error.message : 'Kunne ikke lagre endringene før oppdatering. Prøv igjen.';
+    }
+  };
   const matches = (worker: ServiceWorker | null) => worker?.scriptURL === workerURL;
   function clearNotice() {
     if (announced || !notice.hidden) status.textContent = '';

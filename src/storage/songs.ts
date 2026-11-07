@@ -35,7 +35,24 @@ export function songStorage(namespace: string) {
       } catch {db.close(); reject(new Error('Sanglageret er utilgjengelig. Prøv igjen uten å slette nettleserdata.'));}
     });
   }
+  async function updatePersonal(songId: string, change: (current: SongPersonal) => SongPersonal): Promise<SongPersonal> {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      let next: SongPersonal;
+      try {
+        const tx = db.transaction('personal', 'readwrite'), store = tx.objectStore('personal');
+        const request = store.get(songId);
+        request.onsuccess = () => {
+          try {next = change(request.result ?? {songId, chorus: {}}); store.put({...next, songId, version: 2});}
+          catch {try {tx.abort();} catch { /* An injected or browser abort may already have ended the transaction. */ }}
+        };
+        tx.oncomplete = () => {db.close(); resolve(next);};
+        tx.onerror = tx.onabort = () => {db.close(); reject(new Error('Kunne ikke lagre personlige endringer. Prøv igjen; tidligere data er beholdt.'));};
+      } catch {db.close(); reject(new Error('Personlig lagring er utilgjengelig. Prøv igjen.'));}
+    });
+  }
   return {
+    updatePersonal,
     list: () => transaction<Song[]>('songs', 'readonly', store => store.getAll()),
     add: (song: Song) => transaction('songs', 'readwrite', store => store.add(song)),
     personal: (songId: string) => transaction<SongPersonal | undefined>('personal', 'readonly', store => store.get(songId)),

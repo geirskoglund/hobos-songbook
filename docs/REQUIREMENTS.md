@@ -1,6 +1,6 @@
 # Gjeldende krav
 
-Dette er produktkrav, ikke en liste over ferdige funksjoner. **Implementert i denne kodebasen:** PWA-skall, offline-cache, miljøidentitet, oppdatering, CI/CD samt lokal UTF-8 ChordPro/TXT-innlesing, sanglagring, enkel oversikt og grunnleggende sangvisning med personlige refreng-/visningsvalg samt felles akkordskjema og femnivå-dynamikk fra issue #4 (inkludert F31–F33 og gjennomgått kompakt sangvisning). De øvrige v1-funksjonene nedenfor er vedtatt og gjenstår. Installert/fysisk test og publisering rapporteres separat i PR-en og [TESTING](TESTING.md).
+Dette er produktkrav, ikke en liste over ferdige funksjoner. **Implementert i denne kodebasen:** PWA-skall, offline-cache, miljøidentitet, oppdatering, CI/CD samt lokal UTF-8 ChordPro/TXT-innlesing, sanglagring, enkel oversikt og grunnleggende sangvisning med personlige refreng-/visningsvalg samt felles akkordskjema og femnivå-dynamikk fra issue #4 (inkludert F31–F33 og gjennomgått kompakt sangvisning). Personlige tilpasninger og felles redigeringsinngang fra issue #8 (F01–F42) er implementert; fysisk brukertest gjenstår. Øvrige v1-funksjoner nedenfor er vedtatt og gjenstår. Installert/fysisk test og publisering rapporteres separat i PR-en og [TESTING](TESTING.md).
 
 Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4](https://github.com/geirskoglund/hobos-songbook/issues/1#issuecomment-6673680408) og avklaringene i samme issue. GitHub er autoritativ kilde etter oppstartsleveransen; Drive-originalen og de uendrede kommentarene er historisk kilde. Seksjonsnumrene følger originalen. **[B]** betyr besluttet, **[T]** historisk rapportert praktisk forsøk, **[Å]** uavklart, **[RETNING]** foretrukket designretning. Tekniske/designmessige vurderingspunkter er ikke testbevis eller godkjenning av en bestemt løsning.
 
@@ -30,6 +30,10 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 4. En sang som aldri har hatt ekstern kildefil og bare er opprettet/lagret lokalt, kan slettes i appen etter bekreftelse.
 5. Fjerning av sangreferanse fra setliste eller sletting av hele setlisten sletter aldri sangen eller kildefilen. Se §6 for reserveinnhold når kilde senere mangler.
 
+## Felles redigeringsprinsipp (issue #8 F01–F09, F41–F42)
+
+Ordinær sangvisning er beskyttet fremføring. Scrolling, trykk og langt trykk åpner ingen redigeringskontroller. Refreng og frigjøring av skjema virker direkte. «Rediger» i toppmenyen eller sangradens meny åpner samme sang med kompakt verktøylinje og lokale verktøy. Etter produktansvarligs senere presisering lagres personlige endringer eksplisitt med «Lagre», som ikke avslutter redigeringen. Tilbake/«Avslutt redigering» returnerer til utgangspunktet; ved ulagret arbeid velges lagring, forkasting eller fortsatt redigering. Feil beholder utkastet. Denne modellen erstatter autosave/«Ferdig» i issue #8 F07–F08. Inngangen videreføres til fremtidig originalredigering, med tydelig skille mellom personlig lag og originalinnhold.
+
 ## 3. Sangformat, import og editor
 
 - **[B]** Foretrukket format er ren tekst med ChordPro-kompatible direktiver, eksempelvis `{t:}`, `{title:}`, `{key:}`, `{soc}`, `{eoc}` og kommentarer. Akkorder i `[klammeparenteser]` støttes, men er ikke påkrevd.
@@ -56,8 +60,8 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 ### Notater, gulmarkering og forankring
 
 - **[B]** Trykk på en sang åpner lesbar sangvisning. Personlige notater/markeringer er umiddelbart lesbare mens man spiller, uten ekstra interaksjon, og endrer ikke felles sangfil.
-- **[B]** Korte, konsise notater er normal bruk; visning/editor prioriterer korte instrukser uten krav om nøyaktig én linje. Opprettelse/redigering skjer i egen notat-/annoteringsmodus; vanlig sangvisning skal ikke lage notater ved utilsiktet berøring.
-- **[B]** Selektiv personlig gulmarkering gjelder vilkårlige ord/tekstspenn innen én linje, eller hele linjen, eksempelvis egne korord. Endres i notatmodus. Ingen egen vertikal strek eller frihåndstegning i v1.
+- **[B]** Korte, konsise notater er normal bruk; visning/editor prioriterer korte instrukser uten krav om nøyaktig én linje. Opprettelse/redigering skjer i den felles modusen «Rediger»; vanlig sangvisning skal ikke lage notater ved utilsiktet berøring.
+- **[B]** Selektiv personlig gulmarkering gjelder vilkårlige ord/tekstspenn innen én linje, eller hele linjen, eksempelvis egne korord. Endres i den felles redigeringsmodusen. Ingen egen vertikal strek eller frihåndstegning i v1.
 - **[B]** Notater forankres til en bestemt logisk linjeforekomst, ikke bare tekstinnhold, slik at gjentatte refrenglinjer skilles. Automatisk linjebryting på ulike bredder tåles.
 - **[B]** Ved tekstoppdatering forsøkes gjenforankring fra posisjon, tekst og omkringliggende kontekst. Usikker matching varsles med gammel tekst, tilhørende annotering og foreslått ny plassering. Brukeren kan godkjenne, omplassere, forkaste eller utsette. Ingen automatisk sletting eller permanent flytting av usikre annoteringer, og ingen tvungen avklaring rett før fremføring.
 - **[B]** Nyeste synkroniserte tekst er standard; sikre annoteringer følger med. Usikre bevares uten ny tekstplassering, med diskret varsel og sammenligning mot gammel kontekst. Tidligere tekst med annoteringer er tilgjengelig for gjenoppretting/gjennomgang.
@@ -66,7 +70,7 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 
 ### Klingende toneart, capo, stemming og eldre filer
 
-- **[B]** `{key: ...}` er klingende toneart, uavhengig av personlig capo. I sangvisningen vises verdien alene i en diskret pille uten ledetekst. Senere kan en egen pille ved siden av vise for eksempel «Capo 7: Am». Capo skrives ikke i felles sangfil. Klingende toneart og personlig capo-/grepstoneart er synlige samtidig, også på setlisteraden, slik at musikere kan kommunisere riktig toneart.
+- **[B]** `{key: ...}` er klingende toneart, uavhengig av personlig capo. I sangvisningen vises verdien alene i en diskret pille uten ledetekst. En egen pille ved siden av viser for eksempel «Capo 7: Am». Capo skrives ikke i felles sangfil. Klingende toneart og personlig capo-/grepstoneart er synlige samtidig, også på setlisteraden, slik at musikere kan kommunisere riktig toneart.
 - **[B]** Når filen har akkorder, kan visningen veksle mellom klingende akkorder og omregnede capo-grep. Dette endrer bare visningen, ikke originalakkorder eller klingende toneart.
 - **[B]** Nye filer tolkes som klingende akkorder som standard. Eldre filer med noterte capo-grep må konverteres/tolkes eksplisitt; de antas ikke automatisk å være klingende. Originalen omskrives aldri uten bevisst godkjenning.
 - **[B]** Import må forstå kombinasjoner som `key: D`, `capo: 2`, `relative key: C`: D er klingende, C grepene ved capo 2. Forslag kan normaliseres til klingende akkorder med kontroll/godkjenning før lagring. Ulike eldre notasjoner må kartlegges.
@@ -78,7 +82,7 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 ### Felles og personlig akkordskjema
 
 - **[B]** Sangen har én skjemavisning. Hvis et personlig/privat skjema finnes, brukes dette innholdet. Ellers brukes felles ChordPro-grid fra originalfilen. Finnes ingen av delene, vises ikke noe skjema. Personlig og felles skjema vises aldri samtidig. Personlig innhold lagres separat fra originalfilen; ekstern App folder-lagring og redigering kommer i egne leveranser.
-- **[B]** Den samme skjemavisningen brukes uavhengig av innholdskilde. Den ligger kompakt under tittelen og fester seg under toppen ved scrolling. × slår bare av sticky i aktuell åpning. Skjemaet blir stående på sin opprinnelige plass i siden og kan leses ved å scrolle opp. Neste åpning har sticky på igjen, i tråd med den generelle visningsinnstillingen.
+- **[B]** Den samme skjemavisningen brukes uavhengig av innholdskilde. Den ligger kompakt under tittelen og fester seg under toppen ved scrolling i fremføringsvisningen. Under redigering scroller skjemaet med sangen uten sticky. × slår bare av sticky i aktuell åpning. Skjemaet blir stående på sin opprinnelige plass i siden og kan leses ved å scrolle opp. Neste åpning har sticky på igjen, i tråd med den generelle visningsinnstillingen.
 - **[B]** For høyt sticky-skjema på liten skjerm vises automatisk kompakt fremfor med separat scrolling. **[Å / DESIGN]** Kompakt utforming og maksimal høyde avgjøres i nettbrett-/mobilskisser.
 
 ## 5. Felles dynamikk i v1
@@ -165,8 +169,13 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 
 **[Å / DESIGN]** Skisser og eierens vurdering av bibliotek, sangvisning med notater/akkordskjema/dynamikk, setlister, redigeringsmodi og mobiltilpasning gjenstår. Prøv plass, lesbarhet, berøring og navigasjon uten å gjenåpne avklarte domeneregler.
 
-**[TEKNISK]** Full format-/konverteringsstøtte, redigering av personlige akkordskjemaer, annoteringsforankring, intern/ekstern identitet, konfliktsikker lagring/synk, `.setlist`-transport/publiseringsstatus og backup-manifest gjenstår. Codex velger implementeringsdetaljer innenfor vedtatte regler og løfter reelle produktmotstrid. PWA-skallet og CI/CD er oppstartsleveransen, ikke funksjonell v1.
+**[TEKNISK]** Full format-/konverteringsstøtte, gjenforankring ved ny originaltekst, ekstern identitetsmatching, konfliktsikker synk, `.setlist`-transport/publiseringsstatus og backup-manifest gjenstår. Codex velger implementeringsdetaljer innenfor vedtatte regler og løfter reelle produktmotstrid. PWA-skallet og CI/CD er oppstartsleveransen, ikke funksjonell v1.
 
 **[TEST]** Før v1 må rekursiv lesing fra eksterne delte mapper, fil-/kildeidentitet mellom Dropbox-kontoer, negativ tilgangstest, offline på iPad og systemdeling av `.setlist` til Dropbox fra mobil/nettbrett verifiseres. Se [TESTING](TESTING.md). Produktkravene er i hovedsak avklart; ingen nye serieintervjuer om hypotetiske unntak kreves.
 
 Ved ny beslutning endres berørt krav på plass; motstrid erstattes fremfor å akkumuleres. Historikk ligger i Git/issues/PR-er, mens vesentlige begrunnelser bevares i [DECISIONS](DECISIONS.md). Praktiske tester merkes utført først når de faktisk er gjennomført.
+
+
+### Presisering av personlig skjema og capo
+
+Capo 0 er standard i redigering og skjules under fremføring. Skjema redigeres som fri tekst i en kompakt boks, med skjulte rammetagger og eksplisitt råvisning. Innskriving kan forutsette valgt capo; C med capo 2 lagres som D. Ved visning regnes D tilbake til C for capo 2. Skjema har én faktisk akkordrepresentasjon, uavhengig av visningsvalg. Senere transponering av hele sangen skal flytte alle lagrede akkorder, inkludert personlige skjemaer; selve toneartsendringen inngår ikke i issue #8.

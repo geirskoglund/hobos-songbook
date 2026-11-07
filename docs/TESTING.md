@@ -164,3 +164,11 @@ Samme testfil kontrollerer faktiske avstander mellom synlige innholdselementer m
 `songs.spec.mjs` kontrollerer at toneartspillen bare viser verdien, med tilgjengelig navn «Toneart: …», og at sanger uten toneart ikke får noen tom metadatarad.
 
 Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontroller kompakt topp og samlet skjema, scroll og se at det fester seg. Trykk × mens skjemaet er sticky, scroll opp og finn det på originalplassen. Åpne sangen igjen og kontroller at sticky er på igjen. Følg den smale, sammenhengende profilen, trykk direkte på «Refreng», og bruk menyen for tema/skrift/av-på og appstatus. Kontroller at menyen kan lukkes uten å miste lesestedet. På fysisk iPhone/iPad/Safari gjenstår kontroll av profilform, berøring, sticky høyde og offline etter oppdatering.
+
+## Personlige tilpasninger (issue #8)
+
+`tests/personal.test.mjs` prøver capo, slash-bass, suffikser, B/H, fortegn, grid uten mutasjon og forankring med eksakt original/kontekst. Innskriving med capo prøves frem og tilbake med bevarte direktiver, etiketter, marginer, repetisjon og flere akkorder per celle.
+
+`tests/e2e/personal.spec.mjs` prøver sangen som arbeidsflate, capo 0, eksplisitt lagring uten utgang, utgang med lagre/forkast/fortsett, transaksjonsfeil og nye forsøk. Begge redigeringsinnganger og radmenyens ramme/lukking prøves. Skjematekst skjuler tagger, bevarer form/etiketter, omregner capo én gang og viser felles skjema ved fjerning. Native tekstspenn over akkordnoder, lokal notatplassering uten ordvalg, separate refrengforekomster, endring/fjerning av markering og notater samt flere faner/like titler dekkes. Ekte workeroppdatering blokkeres ved ulagret arbeid og venter på faktisk pågående lagring. Offline gjenåpning kontrollerer bevarte sanger/persondata. Testkode er ikke i seg selv verifikasjon; faktiske resultater og SHA rapporteres i PR-en.
+
+Manuelt: prøv berøringsmarkering og markeringspenn, små lokale felt ved skjermtastatur, flytende verktøylinje og skjema som scroller med sangen under redigering, samt sticky-skjema i fremføring, notatsletting, råvisning og fri skjematekst i begge temaer og store skrifter. Fysisk iPad/Safari, Android/Chrome og installert PWA gjenstår. Chromium er ikke fysisk plattformbevis.
