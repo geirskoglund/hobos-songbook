@@ -1,5 +1,5 @@
 import {isChord, parseChordPro, type GridBlock} from './chordpro.ts';
-import type {Song} from './song.ts';
+import type {Song, SongPersonal} from './song.ts';
 
 export interface LineAnchor {
   songId: string;
@@ -13,6 +13,13 @@ export interface LineAnchor {
 /** Half-open offsets in UTF-16 code units, matching DOM Range and textarea selection. */
 export interface Highlight {start: number; end: number}
 export interface Annotation {anchor: LineAnchor; note: string; highlights: Highlight[]}
+/** Patch only the edited annotation field, preserving changes made in another tab. */
+export function changeAnnotation(current: SongPersonal, anchor: LineAnchor, patch: Partial<Pick<Annotation, 'note' | 'highlights'>>): SongPersonal {
+  const existing = current.annotations?.[anchor.occurrence];
+  return {...current, annotations: {...current.annotations, [anchor.occurrence]: {
+    anchor, note: '', highlights: [], ...existing, ...patch,
+  }}};
+}
 export function anchorFor(song: Song, sourceLine: number, occurrence: string, text: string): LineAnchor {
   const lines = song.original.replace(/^\uFEFF/, '').split(/\r\n|\n|\r/);
   return {songId: song.id, occurrence, sourceLine, text, before: lines[sourceLine - 1] ?? '', after: lines[sourceLine + 1] ?? '', original: song.original};

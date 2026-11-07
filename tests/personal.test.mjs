@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {transposeChord, gripKey, transposeGrid, validCapo, validGrid, anchorFor, sharedGridText} from '../src/domain/personal.ts';
+import {transposeChord, gripKey, transposeGrid, validCapo, validGrid, anchorFor, sharedGridText, changeAnnotation} from '../src/domain/personal.ts';
 import {parseChordPro} from '../src/domain/chordpro.ts';
 
 test('capo transforms roots and slash bass without rewriting suffixes or unknown tokens', () => {
@@ -25,4 +25,17 @@ test('anchors distinguish duplicate lines and chorus references and preserve sou
   const anchors=['source/line:1','line:3/line:1','line:4/line:1'].map(id=>anchorFor(song,1,id,'Ærlig øvelse å synge'));
   assert.equal(new Set(anchors.map(a=>a.occurrence)).size,3);
   for(const anchor of anchors) {assert.equal(anchor.original,song.original); assert.equal(anchor.before,'{soc}'); assert.equal(anchor.after,'{eoc}'); assert.equal(anchor.songId,song.id);}
+});
+
+test('independent annotation edits from stale tabs preserve the other field and all unrelated personal state', () => {
+  const song={id:'stable-id', original:'Samme tekst', title:'T'};
+  const anchor=anchorFor(song,0,'source/line:0','Samme tekst');
+  const initial={songId:song.id, chorus:{'line:3':true}, capo:2, tuning:'Drop D', chordGrid:'| D |'};
+  const noteSaved=changeAnnotation(initial,anchor,{note:'Ny instruks fra første fane'});
+  const highlighted=changeAnnotation(noteSaved,anchor,{highlights:[{start:0,end:5}]});
+  assert.equal(highlighted.annotations[anchor.occurrence].note,'Ny instruks fra første fane');
+  const noteEdited=changeAnnotation(highlighted,anchor,{note:'Nyere instruks'});
+  assert.deepEqual(noteEdited.annotations[anchor.occurrence].highlights,[{start:0,end:5}]);
+  assert.deepEqual(noteEdited.chorus,initial.chorus); assert.equal(noteEdited.capo,2); assert.equal(noteEdited.chordGrid,initial.chordGrid);
+  assert.equal(noteSaved.annotations[anchor.occurrence].highlights.length,0);
 });

@@ -1,5 +1,5 @@
 import {parseChordPro} from '../domain/chordpro.ts';
-import {anchorFor, sharedGridText, validCapo, validGrid, type Annotation} from '../domain/personal.ts';
+import {anchorFor, changeAnnotation, sharedGridText, validCapo, validGrid, type Annotation} from '../domain/personal.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
 import {renderGrid} from './song-content.ts';
 
@@ -74,18 +74,19 @@ export function createPersonalEditor(song: Song, personal: SongPersonal, change:
   const selectionText = el('textarea'); selectionText.readOnly = true; selectionText.rows = 3; selectionText.id = 'annotation-text';
   const note = el('textarea'); note.rows = 2; note.id = 'annotation-note';
   let selected: Annotation | null = null;
-  const commit = () => {
+  const commit = (field: 'note' | 'highlights') => {
     if (!selected) return;
-    const snapshot = structuredClone(selected), key = snapshot.anchor.occurrence;
-    change(current => ({...current, annotations: {...current.annotations, [key]: snapshot}}));
+    const snapshot = structuredClone(selected);
+    const patch = field === 'note' ? {note: snapshot.note} : {highlights: snapshot.highlights};
+    change(current => changeAnnotation(current, snapshot.anchor, patch));
   };
-  note.addEventListener('input', () => {if (selected) {selected.note = note.value; commit();}});
+  note.addEventListener('input', () => {if (selected) {selected.note = note.value; commit('note');}});
   annotationPanel.append(heading, field('Marker ord eller tekst i denne linjen', selectionText), field('Personlig notat (tomt felt sletter notatet)', note),
     button('Gulmarker valgt tekst', () => {
       if (!selected) return;
       const start = selectionText.selectionStart, end = selectionText.selectionEnd;
-      if (start !== end) {selected.highlights.push({start, end}); commit();}
-    }), button('Gulmarker hele linjen', () => {if (selected) {selected.highlights = [{start:0, end:selected.anchor.text.length}]; commit();}}),
+      if (start !== end) {selected.highlights.push({start, end}); commit('highlights');}
+    }), button('Gulmarker hele linjen', () => {if (selected) {selected.highlights = [{start:0, end:selected.anchor.text.length}]; commit('highlights');}}),
     button('Fjern markering i valgt tekst', () => {
       if (!selected) return;
       const start = selectionText.selectionStart, end = selectionText.selectionEnd;
@@ -93,8 +94,8 @@ export function createPersonalEditor(song: Song, personal: SongPersonal, change:
       selected.highlights = selected.highlights.flatMap(range => range.end <= start || range.start >= end ? [range] : [
         ...(range.start < start ? [{start:range.start, end:start}] : []),
         ...(range.end > end ? [{start:end, end:range.end}] : []),
-      ]); commit();
-    }), button('Fjern gulmarkeringer', () => {if (selected) {selected.highlights = []; commit();}}));
+      ]); commit('highlights');
+    }), button('Fjern gulmarkeringer', () => {if (selected) {selected.highlights = []; commit('highlights');}}));
   panel.append(annotationPanel);
   return {element: panel, isValid: () => panel.checkVisibility() && [...panel.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input,textarea')].every(control => control.reportValidity()),
     select(line: HTMLElement, state: SongPersonal, range?: {start: number; end: number}) {
