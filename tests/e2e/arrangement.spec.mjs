@@ -128,6 +128,8 @@ test('compact reader and charts fit all widths and both themes at both font limi
     await page.setViewportSize({width,height:800});
     for(const theme of ['dark','light']) for(const fontSize of [16,36]) {
       await setDisplay(page,{theme,fontSize});
+      const chorusColor=await page.locator('.chorus:not(.reference) > h2').first().evaluate(node=>getComputedStyle(node).color);
+      await expect(page.getByRole('button',{name:'Refreng',exact:true})).toHaveCSS('color',chorusColor);
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
       const dock=await page.locator('#chart-dock').boundingBox();expect(dock.height).toBeLessThan(800*.34);
       expect(await page.locator('.grid-measure, .grid-cell').evaluateAll(nodes=>nodes.every(node=>node.scrollWidth<=node.clientWidth+1))).toBe(true);

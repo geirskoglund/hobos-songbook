@@ -1,4 +1,5 @@
 import {attachSongSpacing} from './song-spacing.ts';
+import {saveUpdateView, takeUpdateView, restoreUpdateView, focusUpdateView, type UpdateView} from './update-view.ts';
 import {selectSongGrid} from '../domain/song-grid.ts';
 import {createChartDock} from './chart-dock.ts';
 import {attachDynamicsProfile} from './dynamics-profile.ts';
@@ -22,9 +23,14 @@ export function startSongbook() {
   const retry = query<HTMLButtonElement>('retry-storage'), file = query<HTMLInputElement>('song-file');
   let songs: Song[] = [], importing = false, active: Song | null = null;
   let disposeView = () => {};
+  let pendingUpdateView = takeUpdateView(__APP_ENV__.namespace);
+  const originalScrollRestoration = history.scrollRestoration;
+  const app = query('app');
+  if (pendingUpdateView) {history.scrollRestoration = 'manual'; app.style.visibility = 'hidden';}
   const dialog = query<HTMLDialogElement>('settings-dialog'), menu = query<HTMLButtonElement>('menu-button');
   menu.addEventListener('click', () => dialog.showModal());
   query('menu-close').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => menu.focus({preventScroll: true}));
   dialog.addEventListener('click', event => {
     const rect = dialog.getBoundingClientRect();
     if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
@@ -61,11 +67,24 @@ export function startSongbook() {
   }
   async function load() {
     retry.hidden = true;
-    try {songs = await storage.list(); drawList();}
-    catch (error) {libraryStatus.textContent = error instanceof Error ? error.message : 'Kunne ikke åpne sanglageret.'; retry.hidden = false;}
+    const resume = pendingUpdateView; pendingUpdateView = null;
+    try {
+      songs = await storage.list(); drawList();
+      if (resume?.songId) {
+        const song = songs.find(song => song.id === resume.songId);
+        if (song) await openSong(song, resume);
+      } else if (resume) await restoreUpdateView(resume, () => active === null);
+    } catch (error) {
+      libraryStatus.textContent = error instanceof Error ? error.message : 'Kunne ikke åpne sanglageret.'; retry.hidden = false;
+    } finally {
+      if (resume) {
+        app.style.removeProperty('visibility'); history.scrollRestoration = originalScrollRestoration;
+        focusUpdateView(active || !resume.songId ? resume : {...resume, songId: null});
+      }
+    }
   }
   retry.addEventListener('click', () => {void load();});
-  async function openSong(song: Song) {
+  async function openSong(song: Song, resume?: UpdateView) {
     notify('');
     let personal: SongPersonal;
     try {personal = await storage.personal(song.id) ?? {songId: song.id, chorus: {}};}
@@ -81,19 +100,21 @@ export function startSongbook() {
       metadata.append(key); article.append(metadata);
     }
     const chosenGrid = selectSongGrid(parsed, personal);
-    const dock = chosenGrid ? createChartDock(chosenGrid.grids, chosenGrid.source, () => query('back').focus({preventScroll:true})) : null;
+    const dock = chosenGrid ? createChartDock(chosenGrid.grids, chosenGrid.source, () => query('back').focus({preventScroll:true}), !resume?.chartReleased) : null;
     if (dock) article.append(dock.element);
     const bodyContent = element('div'); bodyContent.id = 'song-body'; article.append(bodyContent);
     const dynamicsContext: DynamicsContext = {level: 3};
     for (const block of parsed.blocks) {
       if (block.kind === 'chorus') {
-        const section = element('section', undefined, 'chorus'); section.append(element('h2', 'Refreng'), renderContent(block.content, dynamicsContext)); bodyContent.append(section);
+        const section = element('section', undefined, 'chorus');
+        const body = element('div', undefined, 'chorus-text'); body.append(renderContent(block.content, dynamicsContext));
+        section.append(element('h2', 'Refreng'), body); bodyContent.append(section);
       } else if (block.kind === 'reference') {
         if (!block.content) {bodyContent.append(element('p', 'Refreng — ingen tidligere refrengtekst er definert.', 'comment')); continue;}
         const section = element('section', undefined, 'chorus reference');
         const heading = element('h2'), button = element('button', 'Refreng'); button.type = 'button';
         button.setAttribute('aria-label', 'Refreng');
-        const body = element('div'); body.id = `chorus-${block.occurrence.replace(':', '-')}`;
+        const body = element('div', undefined, 'chorus-text'); body.id = `chorus-${block.occurrence.replace(':', '-')}`;
         body.append(renderContent(block.content, dynamicsContext));
         dynamicsContext.spokenLevel = undefined; // The following content stays accessible when this body is collapsed.
         let expanded = personal.chorus[block.occurrence] === true;
@@ -113,7 +134,8 @@ export function startSongbook() {
     const disposeSpacing = attachSongSpacing(bodyContent);
     const disposeProfile = attachDynamicsProfile(bodyContent);
     disposeView = () => {disposeSpacing(); disposeProfile(); dock?.dispose();};
-    title.focus({preventScroll: true}); window.scrollTo(0, 0);
+    if (resume) await restoreUpdateView(resume, () => active?.id === song.id);
+    else {title.focus({preventScroll: true}); window.scrollTo(0, 0);}
   }
   function back() {
     disposeView(); disposeView = () => {};
@@ -138,4 +160,5 @@ export function startSongbook() {
     finally {importing = false; file.disabled = false; file.value = '';}
   });
   void load();
+  return {beforeUpdateReload: (focusId: string | null) => saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId)};
 }
