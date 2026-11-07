@@ -14,6 +14,8 @@ const rows = (songId: string | null) => [...document.querySelectorAll<HTMLElemen
   '#song-body .song-line, #song-body .comment, #song-body .unknown, #song-body .chorus > h2' : '#song-list .song-choice')];
 function readingTop() {
   let top = document.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 0;
+  const toolbar = document.querySelector('.edit-toolbar')?.getBoundingClientRect();
+  if (toolbar?.height && toolbar.top <= top + 1) top = Math.max(top, toolbar.bottom);
   const dock = document.getElementById('chart-dock');
   const rect = dock?.getBoundingClientRect();
   if (dock?.dataset.sticky === 'true' && rect?.height && rect.top <= top + 1) top = Math.max(top, rect.bottom);

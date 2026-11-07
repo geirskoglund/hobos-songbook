@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {transposeChord, gripKey, transposeGrid, validCapo, validGrid, anchorFor, sharedGridText, changeAnnotation} from '../src/domain/personal.ts';
+import {shiftChord, shiftGridText, transposeChord, gripKey, transposeGrid, validCapo, validGrid, anchorFor, sharedGridText, changeAnnotation} from '../src/domain/personal.ts';
 import {parseChordPro} from '../src/domain/chordpro.ts';
 
 test('capo transforms roots and slash bass without rewriting suffixes or unknown tokens', () => {
@@ -38,4 +38,15 @@ test('independent annotation edits from stale tabs preserve the other field and 
   assert.deepEqual(noteEdited.annotations[anchor.occurrence].highlights,[{start:0,end:5}]);
   assert.deepEqual(noteEdited.chorus,initial.chorus); assert.equal(noteEdited.capo,2); assert.equal(noteEdited.chordGrid,initial.chordGrid);
   assert.equal(noteSaved.annotations[anchor.occurrence].highlights.length,0);
+});
+
+
+test('grid input capo and display are reversible and preserve directives, labels and margins', () => {
+  const typed = '{sog: shape="2x4" label="C D"}\nIntro C |: C . C/E . | Am7~G % :| C outro\n{eog}';
+  const stored = shiftGridText(typed, 2);
+  assert.equal(stored, '{sog: shape="2x4" label="C D"}\nIntro C |: D . D/F# . | Bm7~A % :| C outro\n{eog}');
+  assert.equal(shiftGridText(stored, -2),typed);
+  assert.equal(shiftChord('C',7),'G');
+  assert.equal(shiftChord('G',-7),'C');
+  assert.equal(shiftChord('N.C.',7),'N.C.');
 });

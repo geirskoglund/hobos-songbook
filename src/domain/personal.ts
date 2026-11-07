@@ -28,13 +28,35 @@ export function validCapo(value: number): boolean {return Number.isInteger(value
 const pitch: Record<string, number> = {C:0,D:2,E:4,F:5,G:7,A:9,B:11,H:11};
 /** B is international B natural; H is its accepted alias. Never infer legacy German B-flat. */
 export function transposeChord(value: string, capo: number): string {
-  if (!validCapo(capo) || !capo || !isChord(value) || /^N\.?C\.?$/.test(value)) return value;
+  return validCapo(capo) ? shiftChord(value, -capo) : value;
+}
+/** Musical transposition; positive values raise the stored pitch. */
+export function shiftChord(value: string, semitones: number): string {
+  if (!Number.isInteger(semitones) || !isChord(value) || /^N\.?C\.?$/.test(value) || semitones % 12 === 0) return value;
   const flats = /[b♭]/.test(value);
   const names = flats ? ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'] : ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   return value.replace(/(^|\/)([A-GH])([#b♯♭]?)/g, (_, prefix: string, root: string, accidental: string) => {
     const offset = /[#♯]/.test(accidental) ? 1 : /[b♭]/.test(accidental) ? -1 : 0;
-    return prefix + names[(pitch[root] + offset - capo + 24) % 12];
+    return prefix + names[((pitch[root] + offset + semitones) % 12 + 12) % 12];
   });
+}
+/** Transform chord cells only; preserve directives, margins, bars and whitespace verbatim. */
+export function shiftGridText(text: string, semitones: number): string {
+  return text.split(/(\r\n|\n|\r)/).map(line => {
+    if (/^\s*\{/.test(line)) return line;
+    const bars = [...line.matchAll(/:\|(?:\d+>?|:)?|\|(?:\||:|\.|\d+>?)?/g)];
+    let result = '', at = 0;
+    for (let index = 0; index < bars.length - 1; index++) {
+      const start = bars[index].index! + bars[index][0].length, end = bars[index + 1].index!;
+      result += line.slice(at, start) + line.slice(start, end).replace(/\S+/g, token => token.split('~').map(part => {
+        const bracket = part.startsWith('[') && part.endsWith(']');
+        const chord = bracket ? part.slice(1, -1) : part;
+        return bracket ? `[${shiftChord(chord, semitones)}]` : shiftChord(chord, semitones);
+      }).join('~'));
+      at = end;
+    }
+    return result + line.slice(at);
+  }).join('');
 }
 export function gripKey(key: string | null, capo: number): string | null {
   return key && /^[A-GH][#b♯♭]?(?:m|min|maj)?$/.test(key) ? transposeChord(key, capo) : null;

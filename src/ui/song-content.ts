@@ -89,7 +89,7 @@ export function renderContent(content: Content[], context: DynamicsContext): Doc
       if (!words.length) words.push('');
       words.forEach((word, index) => {
         const piece = node('span', undefined, 'piece');
-        if (hasChords) piece.append(node('span', index === 0 ? context.chord?.(segment.chord ?? '') ?? segment.chord ?? '' : '', 'chord'));
+        if (hasChords) {const chord = node('span', index === 0 ? context.chord?.(segment.chord ?? '') ?? segment.chord ?? '' : '', 'chord'); chord.dataset.original = index === 0 ? segment.chord ?? '' : ''; piece.append(chord);}
         const lyric = node('span', word || '\u00a0', 'lyric'); lyric.dataset.offset = String(lyricOffset); lyric.dataset.length = String(word.length); lyricOffset += word.length;
         piece.append(lyric); line.append(piece);
       });

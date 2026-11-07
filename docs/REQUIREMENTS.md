@@ -32,7 +32,7 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 
 ## Felles redigeringsprinsipp (issue #8 F01–F09, F41–F42)
 
-Ordinær sangvisning er beskyttet fremføring. Scrolling, trykk og langt trykk åpner ingen redigeringskontroller. Refreng og frigjøring av skjema virker direkte. «Rediger» i toppmenyen eller sangradens egen meny åpner samme eksplisitte modus. Personlige endringer autospares; «Ferdig» venter på lagring og returnerer til utgangspunktet med lesested bevart der det er praktisk mulig. Feil beholder utkastet og gir nytt forsøk. Denne inngangen skal videreføres til fremtidig originalredigering, med tydelig skille mellom personlig lag og originalinnhold. Originalredigering er fortsatt ikke levert.
+Ordinær sangvisning er beskyttet fremføring. Scrolling, trykk og langt trykk åpner ingen redigeringskontroller. Refreng og frigjøring av skjema virker direkte. «Rediger» i toppmenyen eller sangradens meny åpner samme sang med kompakt verktøylinje og lokale verktøy. Etter produktansvarligs senere presisering lagres personlige endringer eksplisitt med «Lagre», som ikke avslutter redigeringen. Tilbake/«Avslutt redigering» returnerer til utgangspunktet; ved ulagret arbeid velges lagring, forkasting eller fortsatt redigering. Feil beholder utkastet. Denne modellen erstatter autosave/«Ferdig» i issue #8 F07–F08. Inngangen videreføres til fremtidig originalredigering, med tydelig skille mellom personlig lag og originalinnhold.
 
 ## 3. Sangformat, import og editor
 
@@ -82,7 +82,7 @@ Ordinær sangvisning er beskyttet fremføring. Scrolling, trykk og langt trykk �
 ### Felles og personlig akkordskjema
 
 - **[B]** Sangen har én skjemavisning. Hvis et personlig/privat skjema finnes, brukes dette innholdet. Ellers brukes felles ChordPro-grid fra originalfilen. Finnes ingen av delene, vises ikke noe skjema. Personlig og felles skjema vises aldri samtidig. Personlig innhold lagres separat fra originalfilen; ekstern App folder-lagring og redigering kommer i egne leveranser.
-- **[B]** Den samme skjemavisningen brukes uavhengig av innholdskilde. Den ligger kompakt under tittelen og fester seg under toppen ved scrolling. × slår bare av sticky i aktuell åpning. Skjemaet blir stående på sin opprinnelige plass i siden og kan leses ved å scrolle opp. Neste åpning har sticky på igjen, i tråd med den generelle visningsinnstillingen.
+- **[B]** Den samme skjemavisningen brukes uavhengig av innholdskilde. Den ligger kompakt under tittelen og fester seg under toppen ved scrolling i fremføringsvisningen. Under redigering scroller skjemaet med sangen uten sticky. × slår bare av sticky i aktuell åpning. Skjemaet blir stående på sin opprinnelige plass i siden og kan leses ved å scrolle opp. Neste åpning har sticky på igjen, i tråd med den generelle visningsinnstillingen.
 - **[B]** For høyt sticky-skjema på liten skjerm vises automatisk kompakt fremfor med separat scrolling. **[Å / DESIGN]** Kompakt utforming og maksimal høyde avgjøres i nettbrett-/mobilskisser.
 
 ## 5. Felles dynamikk i v1
@@ -174,3 +174,8 @@ Ordinær sangvisning er beskyttet fremføring. Scrolling, trykk og langt trykk �
 **[TEST]** Før v1 må rekursiv lesing fra eksterne delte mapper, fil-/kildeidentitet mellom Dropbox-kontoer, negativ tilgangstest, offline på iPad og systemdeling av `.setlist` til Dropbox fra mobil/nettbrett verifiseres. Se [TESTING](TESTING.md). Produktkravene er i hovedsak avklart; ingen nye serieintervjuer om hypotetiske unntak kreves.
 
 Ved ny beslutning endres berørt krav på plass; motstrid erstattes fremfor å akkumuleres. Historikk ligger i Git/issues/PR-er, mens vesentlige begrunnelser bevares i [DECISIONS](DECISIONS.md). Praktiske tester merkes utført først når de faktisk er gjennomført.
+
+
+### Presisering av personlig skjema og capo
+
+Capo 0 er standard i redigering og skjules under fremføring. Skjema redigeres som fri tekst i en kompakt boks, med skjulte rammetagger og eksplisitt råvisning. Innskriving kan forutsette valgt capo; C med capo 2 lagres som D. Ved visning regnes D tilbake til C for capo 2. Skjema har én faktisk akkordrepresentasjon, uavhengig av visningsvalg. Senere transponering av hele sangen skal flytte alle lagrede akkorder, inkludert personlige skjemaer; selve toneartsendringen inngår ikke i issue #8.
