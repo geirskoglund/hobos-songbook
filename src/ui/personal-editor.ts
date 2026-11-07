@@ -97,7 +97,9 @@ export function createPersonalEditor(song: Song, personal: SongPersonal, change:
       ]); commit('highlights');
     }), button('Fjern gulmarkeringer', () => {if (selected) {selected.highlights = []; commit('highlights');}}));
   panel.append(annotationPanel);
-  return {element: panel, isValid: () => panel.checkVisibility() && [...panel.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input,textarea')].every(control => control.reportValidity()),
+  return {element: panel, selection: () => selected ? {
+    occurrence: selected.anchor.occurrence, start: selectionText.selectionStart, end: selectionText.selectionEnd,
+  } : undefined, isValid: () => panel.checkVisibility() && [...panel.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input,textarea')].every(control => control.reportValidity()),
     select(line: HTMLElement, state: SongPersonal, range?: {start: number; end: number}) {
       const occurrence = line.dataset.occurrence!, text = [...line.querySelectorAll<HTMLElement>('.lyric')].map(lyric => (lyric.textContent ?? '').slice(0, Number(lyric.dataset.length))).join('');
       selected = structuredClone(state.annotations?.[occurrence] ?? {anchor: anchorFor(song, Number(line.dataset.sourceLine), occurrence, text), note:'', highlights:[]});

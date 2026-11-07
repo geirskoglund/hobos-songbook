@@ -44,7 +44,7 @@ export function songStorage(namespace: string) {
         const request = store.get(songId);
         request.onsuccess = () => {
           try {next = change(request.result ?? {songId, chorus: {}}); store.put({...next, songId, version: 2});}
-          catch {tx.abort();}
+          catch {try {tx.abort();} catch { /* An injected or browser abort may already have ended the transaction. */ }}
         };
         tx.oncomplete = () => {db.close(); resolve(next);};
         tx.onerror = tx.onabort = () => {db.close(); reject(new Error('Kunne ikke lagre personlige endringer. Prøv igjen; tidligere data er beholdt.'));};

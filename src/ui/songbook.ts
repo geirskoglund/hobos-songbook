@@ -197,6 +197,11 @@ export function startSongbook() {
       } else bodyContent.append(renderContent([block], dynamicsContext));
     }
     paintAnnotations(bodyContent, song, currentPersonal!);
+    if (editing?.annotation) {
+      const selection = editing.annotation;
+      const line = [...bodyContent.querySelectorAll<HTMLElement>('.song-line[data-occurrence]')].find(line => line.dataset.occurrence === selection.occurrence);
+      if (line) editor!.select(line, currentPersonal!, selection);
+    }
     if (editing) {
       for (const line of bodyContent.querySelectorAll<HTMLElement>('.song-line[data-occurrence]')) {
         const select = element('button', 'Notat / markering'); select.type = 'button'; select.className = 'annotate-line';
@@ -220,6 +225,7 @@ export function startSongbook() {
     if (writes.length) {void flush().then(ok => {if (ok) back();}); return;}
     editMenu.hidden = true; document.body.classList.remove('editing-active');
     disposeView(); disposeView = () => {};
+    query('song-content').replaceChildren();
     active = null; reader.hidden = true; library.hidden = false; query('back').hidden = true; document.body.classList.remove('reader-active'); notify('');
     query('library-title').focus({preventScroll: true}); window.scrollTo(0, 0);
   }
@@ -245,6 +251,6 @@ export function startSongbook() {
     if (editor && editing && !editor.isValid()) throw new Error('Rett eller fjern ugyldige utkast før oppdatering.');
     await Promise.all(chorusWrites);
     if (writes.length && !await flush()) throw new Error('Endringene kunne ikke lagres. Prøv lagring igjen før oppdatering.');
-    saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId, editing);
+    saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId, editing ? {...editing, annotation: editor?.selection()} : undefined);
   }};
 }

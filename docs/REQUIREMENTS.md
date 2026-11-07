@@ -169,7 +169,7 @@ Ordinær sangvisning er beskyttet fremføring. Scrolling, trykk og langt trykk �
 
 **[Å / DESIGN]** Skisser og eierens vurdering av bibliotek, sangvisning med notater/akkordskjema/dynamikk, setlister, redigeringsmodi og mobiltilpasning gjenstår. Prøv plass, lesbarhet, berøring og navigasjon uten å gjenåpne avklarte domeneregler.
 
-**[TEKNISK]** Full format-/konverteringsstøtte, redigering av personlige akkordskjemaer, annoteringsforankring, intern/ekstern identitet, konfliktsikker lagring/synk, `.setlist`-transport/publiseringsstatus og backup-manifest gjenstår. Codex velger implementeringsdetaljer innenfor vedtatte regler og løfter reelle produktmotstrid. PWA-skallet og CI/CD er oppstartsleveransen, ikke funksjonell v1.
+**[TEKNISK]** Full format-/konverteringsstøtte, gjenforankring ved ny originaltekst, ekstern identitetsmatching, konfliktsikker synk, `.setlist`-transport/publiseringsstatus og backup-manifest gjenstår. Codex velger implementeringsdetaljer innenfor vedtatte regler og løfter reelle produktmotstrid. PWA-skallet og CI/CD er oppstartsleveransen, ikke funksjonell v1.
 
 **[TEST]** Før v1 må rekursiv lesing fra eksterne delte mapper, fil-/kildeidentitet mellom Dropbox-kontoer, negativ tilgangstest, offline på iPad og systemdeling av `.setlist` til Dropbox fra mobil/nettbrett verifiseres. Se [TESTING](TESTING.md). Produktkravene er i hovedsak avklart; ingen nye serieintervjuer om hypotetiske unntak kreves.
 

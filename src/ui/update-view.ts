@@ -1,7 +1,7 @@
 /** One-shot, per-tab view handoff when the user applies an app update. */
 export interface UpdateView {
   version: 1;
-  editor?: {from: 'reader' | 'library'; returnView?: UpdateView};
+  editor?: {from: 'reader' | 'library'; returnView?: UpdateView; annotation?: {occurrence: string; start: number; end: number}};
   songId: string | null;
   scrollY: number;
   chartReleased: boolean;
@@ -50,6 +50,8 @@ export function takeUpdateView(namespace: string): UpdateView | null {
         typeof view.menu?.open !== 'boolean' || !finite(view.menu.scrollTop) || view.menu.scrollTop < 0 ||
         typeof view.menu.infoOpen !== 'boolean' || !(view.focusId === null || typeof view.focusId === 'string')) return null;
     if (view.editor && (!['reader','library'].includes(view.editor.from) || view.editor.returnView?.editor)) return null;
+    const annotation = view.editor?.annotation;
+    if (annotation && (typeof annotation.occurrence !== 'string' || !Number.isInteger(annotation.start) || !Number.isInteger(annotation.end) || annotation.start < 0 || annotation.end < annotation.start)) return null;
     if (view.anchor && (!Number.isInteger(view.anchor.index) || view.anchor.index < 0 || !finite(view.anchor.offset) ||
         !(view.anchor.itemId === undefined || typeof view.anchor.itemId === 'string'))) return null;
     return view;
