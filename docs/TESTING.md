@@ -135,6 +135,12 @@ Kort manuelt forløp på testutgaven:
 
 Fysisk iPad/Safari, installert PWA og fysisk berøring er **ikke utført** av Codex. Chromium ved nettbrettbredde er kun automatisert layoutbevis. Konkret SHA, nettleserversjon, kommandoresultater og publiseringsbevis oppgis i implementerings-PR-en, uten å forveksle det med produktgodkjenning.
 
+## Android: nedtrekk ved øvre scrollgrense
+
+`touch-scroll.spec.mjs` bruker Chromium med Android-/berøringsemulering i begge miljøer. Den kontrollerer at den faktiske scrollroten har vertikal overscrolling av, at nedtrekk øverst beholder dokument/sang/refrengtilstand, og at vanlig berøringsscroll, meny, refreng og tilbake fortsatt virker. Lagret sang/original endres ikke. Emulering kontrollerer appens scrollregel og gesthåndtering; den er ikke bevis for den fysiske Android-nettleserens native oppdateringsindikator.
+
+Manuelt på fysisk Android/Chrome og installert PWA: åpne en lang sang, scroll opp til toppen og dra videre ned flere ganger. Sangen skal forbli åpen uten sideoppdatering. Prøv deretter normal scrolling begge veier, zoom, refreng, meny og tilbake. Bevisst appoppdatering skal fortsatt fungere. Fysisk Android-kontroll er ikke utført av Codex.
+
 ## Oppdateringskontroll
 
 `tests/e2e/updates.spec.mjs` bruker ekte genererte workere og miljøbygg. Første appbesøk uten omlasting skal kunne oppdateres helt til ny synlig SHA. En lang leseøkt får et synlig varsel ved minuttkontroll (nettleserens sidetid akselereres; workerinstallasjonen er reell), uten automatisk navigasjon eller datatap. Fokus og faktisk offline/online-overgang gir ny kontroll. En ventende oppdatering oppdages i en ny fane, og aktivering der gir den gamle fanen et eksplisitt omlastingsvalg. Bevaring av sangdata gjennom oppdateringen kontrolleres også. En repakket worker med samme SHA/PR skal verken gi varsel mens den venter eller når den overtar. Fersk HTML på siste versjon prøves med en eldre controller ved hjelp av Chromium-nettverksbypass, deretter reell workerovertakelse: fortsatt ingen oppdateringsbeskjed. Etter en ekte oppdatering skal ny kontroll gi «Du har siste tilgjengelige versjon». Manuelt trykk under en pågående automatisk kontroll skal få resultatet fra denne kontrollen, og senere automatiske kontroller skal bevare resultatteksten.
