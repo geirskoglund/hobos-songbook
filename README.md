@@ -6,9 +6,11 @@ Appen har lokal innlesing av UTF-8 ChordPro/TXT, en enkel sangoversikt og sangvi
 
 Når brukeren tar i bruk en ny appversjon, gjenopprettes aktiv skjerm, lesested og åpen innstillingsmeny i samme fane. Vanlig åpning av en sang starter fortsatt øverst.
 
+«Rediger» i sangmenyen eller sangradens meny åpner samme personlige redigeringsmodus. Capo (0–12), akkordvisning, stemming, eget ChordPro-grid, linjenotater og gule tekstspenn lagres fortløpende separat fra originalen. «Ferdig» returnerer til oversikten eller lesestedet i sangen. Fremføringsvisningen har ingen redigeringshandlinger.
+
 [Eksempelfil med akkordskjema og dynamikk](examples/akkordskjema-og-dynamikk.cho) kan lastes ned og leses inn fra filvelgeren.
 
-Fullverdig bibliotek/kildefilter, editor/konvertering, setlister, annotering, capo, opprettelse/redigering av personlige akkordskjemaer og Dropbox er vedtatte fremtidskrav. Lokal lagring er ikke en sikkerhetskopi.
+Fullverdig bibliotek/kildefilter, redigering av originaltekst/konvertering, setlister og Dropbox er vedtatte fremtidskrav. Lokal lagring er ikke en sikkerhetskopi.
 
 - [Agentinstruksjoner](AGENTS.md)
 - [Gjeldende produktkrav](docs/REQUIREMENTS.md)

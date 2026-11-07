@@ -4,7 +4,7 @@ export type DynamicLevel = 1 | 2 | 3 | 4 | 5;
 export interface DynamicDirective {kind: 'dynamic'; level: DynamicLevel}
 export type GridContent = GridRow | DynamicDirective | {kind: 'comment' | 'unknown'; text: string};
 export interface GridBlock {kind: 'grid'; options: GridOptions; rows: GridContent[]}
-export type Content = {kind: 'line'; segments: Segment[]} | {kind: 'comment' | 'unknown'; text: string} | DynamicDirective | GridBlock;
+export type Content = {kind: 'line'; segments: Segment[]; sourceLine?: number} | {kind: 'comment' | 'unknown'; text: string} | DynamicDirective | GridBlock;
 export type Block = Content | {kind: 'chorus'; content: Content[]} | {kind: 'reference'; occurrence: string; content: Content[] | null};
 export interface ParsedSong {title: string; key: string | null; blocks: Block[]}
 
@@ -35,7 +35,7 @@ export function parseChordPro(original: string, fallbackTitle: string): ParsedSo
   // Only this derived working copy normalizes line endings/BOM.
   original.replace(/^\uFEFF/, '').split(/\r\n|\n|\r/).forEach((line, index) => {
     const directive = line.trim().match(/^\{([a-z_]+)(?:(?:\s*:\s*|\s+)(.*?))?\s*\}$/i);
-    if (!directive) {if (grid) grid.rows.push(parseGridRow(line)); else emit({kind: 'line', segments: parseLine(line)}); return;}
+    if (!directive) {if (grid) grid.rows.push(parseGridRow(line)); else emit({kind: 'line', segments: parseLine(line), sourceLine: index}); return;}
     const name = directive[1].toLowerCase(), value = directive[2] ?? '';
     switch (name) {
       case 'title': case 't': if (value.trim()) song.title = value.trim(); break;

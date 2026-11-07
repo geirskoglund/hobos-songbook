@@ -164,3 +164,11 @@ Samme testfil kontrollerer faktiske avstander mellom synlige innholdselementer m
 `songs.spec.mjs` kontrollerer at toneartspillen bare viser verdien, med tilgjengelig navn «Toneart: …», og at sanger uten toneart ikke får noen tom metadatarad.
 
 Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontroller kompakt topp og samlet skjema, scroll og se at det fester seg. Trykk × mens skjemaet er sticky, scroll opp og finn det på originalplassen. Åpne sangen igjen og kontroller at sticky er på igjen. Følg den smale, sammenhengende profilen, trykk direkte på «Refreng», og bruk menyen for tema/skrift/av-på og appstatus. Kontroller at menyen kan lukkes uten å miste lesestedet. På fysisk iPhone/iPad/Safari gjenstår kontroll av profilform, berøring, sticky høyde og offline etter oppdatering.
+
+## Personlige tilpasninger (issue #8)
+
+`tests/personal.test.mjs` prøver capo/slash-bass/suffikser, B/H, fortegn, manglende toneart, ugyldig capo, transponering av grid uten mutasjon, gridutkast og forankring med eksakt original/kontekst og separate refrengforekomster.
+
+`tests/e2e/personal.spec.mjs` dekker beskyttet fremføring, begge redigeringsinnganger, retur/lesested, capo i tekst/grid, stemming, personlig grid med tilbakefall, ugyldig utkast, flerlinjenotater, UTF-16-spenn over akkordsegmenter, ulike refrengforekomster, breddeendring, gjenåpning, transaksjonsabort med retry og ekte workeroppdatering tilbake til editoren. Eksisterende suiter er regresjonsgrunnlag for offline, miljøgrenser og oppdatering. Faktiske resultater rapporteres i PR-en; testkode alene er ikke verifikasjon.
+
+Manuelt på fast testadresse: prøv berøringsmarkering av deler av ord og flere ord, hele linjer, endring/fjerning, gjentatte refreng, korte/lange notater ved 320 px og store skrifter i begge temaer. Kontroller gridkopiering og capo, og at vanlig fremføring aldri åpner redigering. La ny versjon publiseres under aktiv redigering, prøv Ferdig/tilbake og riktig retursted. Gjenta offline og med to faner/like titler. Fysisk iPad/Safari, Android/Chrome og installert PWA gjenstår; Chromium er ikke fysisk plattformbevis.

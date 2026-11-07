@@ -1,0 +1,28 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {transposeChord, gripKey, transposeGrid, validCapo, validGrid, anchorFor, sharedGridText} from '../src/domain/personal.ts';
+import {parseChordPro} from '../src/domain/chordpro.ts';
+
+test('capo transforms roots and slash bass without rewriting suffixes or unknown tokens', () => {
+  for (const [chord, capo, expected] of [['D',2,'C'],['D/F#',2,'C/E'],['Bm7',2,'Am7'],['G',7,'C'],['Dm',2,'Cm'],['Bbmaj7/D',2,'Abmaj7/C'],['H',2,'A'],['B',2,'A'],['C♯m7/G♯',2,'Bm7/F#'],['N.C.',2,'N.C.'],['Solo',2,'Solo'],['D',0,'D']]) assert.equal(transposeChord(chord,capo),expected);
+  for (const capo of [-1,13,1.5,NaN]) {assert.equal(validCapo(capo),false); assert.equal(transposeChord('D',capo),'D');}
+  assert.equal(gripKey(null,2),null); assert.equal(gripKey('ukjent',2),null); assert.equal(gripKey('D',2),'C'); assert.equal(gripKey('G',7),'C');
+});
+test('same grid transformation preserves bars, repeats, form, labels and original', () => {
+  const original='{sog: shape="2x4" label="Intro"}\n|: D~D/F# . | Bm7 % :|\n{eog}';
+  const grid=parseChordPro(original,'').blocks[0], before=structuredClone(grid), transformed=transposeGrid(grid,2);
+  assert.deepEqual(grid,before); assert.equal(transformed.options.label,'Intro');
+  assert.deepEqual(transformed.rows[0].measures.map(m=>m.cells),[['C~C/E','.'],['Am7','%']]);
+  assert.equal(transformed.rows[0].measures[1].closing,':|');
+  assert.equal(sharedGridText(original),original);
+  assert.equal(validGrid(original),true); assert.equal(validGrid('| D . |'),true);
+  for (const invalid of ['', '   ', 'ikke et skjema', '{sog}\n{eog}', '{sog}\n| D |\n{eog}\nEkstra sangtekst']) assert.equal(validGrid(invalid),false);
+});
+test('anchors distinguish duplicate lines and chorus references and preserve source for later reanchoring', () => {
+  const song={id:'song-one',original:'\uFEFF{soc}\r\n[D]Ærlig øvelse å synge\r\n{eoc}\r\n{chorus}\r\n{chorus}',title:'T'};
+  const parsed=parseChordPro(song.original,'T'), first=parsed.blocks[0].content[0];
+  assert.equal(first.sourceLine,1);
+  const anchors=['source/line:1','line:3/line:1','line:4/line:1'].map(id=>anchorFor(song,1,id,'Ærlig øvelse å synge'));
+  assert.equal(new Set(anchors.map(a=>a.occurrence)).size,3);
+  for(const anchor of anchors) {assert.equal(anchor.original,song.original); assert.equal(anchor.before,'{soc}'); assert.equal(anchor.after,'{eoc}'); assert.equal(anchor.songId,song.id);}
+});

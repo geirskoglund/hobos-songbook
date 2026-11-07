@@ -1,6 +1,7 @@
 /** One-shot, per-tab view handoff when the user applies an app update. */
 export interface UpdateView {
   version: 1;
+  editor?: {from: 'reader' | 'library'; returnView?: UpdateView};
   songId: string | null;
   scrollY: number;
   chartReleased: boolean;
@@ -18,13 +19,13 @@ function readingTop() {
   if (dock?.dataset.sticky === 'true' && rect?.height && rect.top <= top + 1) top = Math.max(top, rect.bottom);
   return top;
 }
-export function saveUpdateView(namespace: string, songId: string | null, focusId: string | null) {
+export function saveUpdateView(namespace: string, songId: string | null, focusId: string | null, editor?: UpdateView['editor']) {
   try {
     const menu = document.getElementById('settings-dialog') as HTMLDialogElement;
     const view: UpdateView = {
       version: 1, songId, scrollY, chartReleased: Boolean(songId && document.getElementById('chart-dock')?.dataset.sticky === 'false'),
       menu: {open: menu.open, scrollTop: menu.scrollTop, infoOpen: document.querySelector<HTMLDetailsElement>('.app-info')!.open},
-      focusId,
+      focusId, editor,
     };
     if (scrollY > 0) {
       const content = rows(songId), top = readingTop();
@@ -48,6 +49,7 @@ export function takeUpdateView(namespace: string): UpdateView | null {
         !finite(view.scrollY) || view.scrollY < 0 || typeof view.chartReleased !== 'boolean' ||
         typeof view.menu?.open !== 'boolean' || !finite(view.menu.scrollTop) || view.menu.scrollTop < 0 ||
         typeof view.menu.infoOpen !== 'boolean' || !(view.focusId === null || typeof view.focusId === 'string')) return null;
+    if (view.editor && (!['reader','library'].includes(view.editor.from) || view.editor.returnView?.editor)) return null;
     if (view.anchor && (!Number.isInteger(view.anchor.index) || view.anchor.index < 0 || !finite(view.anchor.offset) ||
         !(view.anchor.itemId === undefined || typeof view.anchor.itemId === 'string'))) return null;
     return view;

@@ -113,3 +113,22 @@ body:has(#settings-dialog[open]) {overflow: hidden;}
 #song-body {--reader-line: calc(var(--song-size) * 1.2); display: flow-root;}
 #song-body :is(.song-line, .comment, .unknown, .chorus > h2) {margin: var(--content-gap, 0px) 0 0;}
 .song-space, .grid-blank + .grid-blank {display: none;}
+
+/* Personal editing is explicit; the performance surface has no editing handlers. */
+.song-list > li {display:flex; align-items:center; gap:.5rem; position:relative}
+.song-choice {flex:1; min-width:0}
+.song-actions {position:relative; flex:none}
+.song-actions summary {cursor:pointer; padding:.5rem; list-style:none}
+.song-actions[open] > button {position:absolute; right:0; z-index:3; min-width:6rem}
+.personal-editor {font:1rem/1.4 system-ui,sans-serif; padding:1rem; border:1px solid var(--muted); border-radius:.5rem; margin-bottom:1rem; overflow-wrap:anywhere}
+.personal-editor h2 {font-size:1.2rem}
+.personal-editor label {display:block; margin:.8rem 0}
+.personal-editor input, .personal-editor select, .personal-editor textarea {display:block; width:100%; max-width:100%; box-sizing:border-box; font:inherit; padding:.5rem; color:inherit; background:var(--bg); border:1px solid currentColor; border-radius:.25rem}
+.personal-editor button {margin:.2rem; font:inherit}
+#edit-done {position:sticky; top:4rem; z-index:6}
+.grid-preview {overflow:auto}
+.song-line {position:relative}
+.personal-note {float:right; position:relative; max-width:48%; margin:0 0 0 .5em; padding:0 .3em; white-space:pre-wrap; overflow-wrap:anywhere; font:.78em/1.2 system-ui,sans-serif; background:color-mix(in srgb, var(--bg) 80%, transparent); color:var(--text); border-radius:.2em}
+.lyric mark {background:#f1d84b; color:#201b00; border-radius:.1em}
+.annotate-line {display:inline-block; font:12px/1.2 system-ui,sans-serif; padding:.3em; margin-left:.5em}
+.editing-active #song-title::after {content:' · Redigering'; font:.6em system-ui,sans-serif}
