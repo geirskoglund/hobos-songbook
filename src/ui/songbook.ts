@@ -87,13 +87,15 @@ export function startSongbook() {
     const dynamicsContext: DynamicsContext = {level: 3};
     for (const block of parsed.blocks) {
       if (block.kind === 'chorus') {
-        const section = element('section', undefined, 'chorus'); section.append(element('h2', 'Refreng'), renderContent(block.content, dynamicsContext)); bodyContent.append(section);
+        const section = element('section', undefined, 'chorus');
+        const body = element('div', undefined, 'chorus-text'); body.append(renderContent(block.content, dynamicsContext));
+        section.append(element('h2', 'Refreng'), body); bodyContent.append(section);
       } else if (block.kind === 'reference') {
         if (!block.content) {bodyContent.append(element('p', 'Refreng — ingen tidligere refrengtekst er definert.', 'comment')); continue;}
         const section = element('section', undefined, 'chorus reference');
         const heading = element('h2'), button = element('button', 'Refreng'); button.type = 'button';
         button.setAttribute('aria-label', 'Refreng');
-        const body = element('div'); body.id = `chorus-${block.occurrence.replace(':', '-')}`;
+        const body = element('div', undefined, 'chorus-text'); body.id = `chorus-${block.occurrence.replace(':', '-')}`;
         body.append(renderContent(block.content, dynamicsContext));
         dynamicsContext.spokenLevel = undefined; // The following content stays accessible when this body is collapsed.
         let expanded = personal.chorus[block.occurrence] === true;
