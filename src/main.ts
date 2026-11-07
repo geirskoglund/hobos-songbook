@@ -3,8 +3,8 @@ import {startSongbook} from './ui/songbook.ts';
 import {startAppUpdates} from './app-updates.ts';
 
 document.documentElement.dataset.channel = __APP_ENV__.channel;
-startSongbook();
-startAppUpdates();
+const app = startSongbook();
+startAppUpdates(app.beforeUpdateReload);
 const connection = document.querySelector<HTMLElement>('#connection')!;
 const showConnection = () => {connection.textContent = navigator.onLine ? 'Nettverk tilgjengelig' : 'Uten nett';};
 showConnection();

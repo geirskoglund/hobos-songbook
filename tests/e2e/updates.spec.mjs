@@ -13,21 +13,29 @@ test('update on first visit activates and reloads without requiring an earlier p
   await openMenu(page);
   await page.getByRole('button', {name:'Oppdater appen', exact:true}).click();
   await expect(page.locator('.build')).toContainText('ccccccc');
+  await expect(page.locator('#reader')).toBeVisible();
+  await expect(page.locator('#song-title')).toHaveText('Samme tittel');
+  await expect(page.locator('#settings-dialog')).toBeVisible();
+  await expect(page.locator('#update')).toBeFocused();
   expect(await savedSongs(page)).toEqual(before);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await openMenu(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
+  await closeMenu(page); await page.reload();
+  await expect(page.locator('#library')).toBeVisible();
+  await expect(page.locator('#reader')).toBeHidden();
 });
 
 test('long reading session gets an automatic visible notice; update still needs an explicit choice', async ({page, request}) => {
   await page.clock.install();
   await page.setViewportSize({width:320,height:700});
   await page.goto(url); await ready(page);
-  await importSong(page, 'lang.txt', '{title: Lang sang}\n'+('En tekstlinje\n').repeat(100));
+  await importSong(page, 'lang.txt', '{title: Lang sang}\n'+Array.from({length:100},(_,index)=>`Linje ${index+1}\n`).join(''));
   const before = await savedSongs(page);
   await page.locator('.app-info').evaluate(details => {details.open = false;});
+  await page.addStyleTag({content:'.song-line {line-height:1.8; min-height:1.8em}'});
   await page.evaluate(() => scrollTo(0, 1000));
   const navigations = []; page.on('framenavigated', frame => {if (frame === page.mainFrame()) navigations.push(frame.url());});
   await request.post('/__test__/update?channel=test');
@@ -39,8 +47,19 @@ test('long reading session gets an automatic visible notice; update still needs 
   expect(box.x + box.width).toBeLessThanOrEqual(320);
   await expect(page.locator('.build')).toContainText('bbbbbbb');
   expect(navigations).toHaveLength(0); expect(await savedSongs(page)).toEqual(before);
+  const anchor=await page.locator('.song-line').evaluateAll(rows=>{
+    const top=document.querySelector('.topbar').getBoundingClientRect().bottom;
+    const row=rows.find(row=>row.getBoundingClientRect().bottom>top);
+    return {text:row.textContent,y:row.getBoundingClientRect().top,scroll:scrollY};
+  });
   await page.getByRole('button', {name:'Oppdater nå',exact:true}).focus(); await page.keyboard.press('Enter');
   await expect(page.locator('.build')).toContainText('ccccccc');
+  await expect(page.locator('#song-title')).toHaveText('Lang sang');
+  await expect(page.locator('#reader')).toBeVisible();
+  const restored=page.locator('.song-line').filter({hasText:new RegExp(`^${anchor.text}$`)});
+  await expect.poll(async()=>Math.abs((await restored.boundingBox()).y-anchor.y)).toBeLessThan(1);
+  expect(await page.evaluate(()=>scrollY)).toBeLessThan(anchor.scroll);
+  expect(await page.locator('.app-info').evaluate(details=>details.open)).toBe(false);
   expect(await savedSongs(page)).toEqual(before);
 });
 
@@ -60,17 +79,94 @@ for (const trigger of ['focus', 'online']) {
 
 test('waiting update is announced after reopening; other tabs only reload by choice', async ({page, request, context}) => {
   await page.goto(url); await ready(page);
+  await importSong(page,'første.txt','{t: Første fane}\n'+('Første tekst\n').repeat(120));
+  await page.evaluate(()=>scrollTo(0,800));
   await request.post('/__test__/update?channel=test');
   await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
   await expect(page.locator('#update-notice')).toBeVisible();
   const other = await context.newPage(); await other.goto(url);
+  await importSong(other,'andre.txt','{t: Andre fane}\n'+('Andre tekst\n').repeat(120));
+  await other.evaluate(()=>scrollTo(0,400));
   await expect(other.locator('#update-notice')).toBeVisible();
   await expect(other.locator('.build')).toContainText('bbbbbbb');
   await other.getByRole('button', {name:'Oppdater nå',exact:true}).click();
   await expect(other.locator('.build')).toContainText('ccccccc');
+  await expect(other.locator('#song-title')).toHaveText('Andre fane');
+  await expect(other.locator('#reader')).toBeVisible();
+  await expect.poll(()=>other.evaluate(()=>scrollY)).toBe(400);
   await expect(page.locator('.build')).toContainText('bbbbbbb');
+  await expect(page.locator('#song-title')).toHaveText('Første fane');
   await page.getByRole('button', {name:'Oppdater nå',exact:true}).click();
   await expect(page.locator('.build')).toContainText('ccccccc');
+  await expect(page.locator('#song-title')).toHaveText('Første fane');
+  await expect(page.locator('#reader')).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(800);
+});
+
+test('update restores library scroll, settings dialog and its scroll position', async ({page,request})=>{
+  await page.setViewportSize({width:320,height:520}); await page.goto(url); await ready(page);
+  for(let index=0;index<6;index++) {
+    await importSong(page,`${index}.txt`,`{t: Sang ${index}}\nTekst`);
+    await page.getByRole('button',{name:'← Mine sanger'}).click();
+  }
+  const before=await savedSongs(page);
+  await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
+  await request.post('/__test__/update?channel=test');
+  await page.evaluate(async()=>(await navigator.serviceWorker.getRegistration()).update());
+  await expect(page.locator('#update-notice')).toBeVisible();
+  await openMenu(page);
+  await page.locator('#settings-dialog').evaluate(dialog=>{dialog.scrollTop=200;});
+  const position=await page.evaluate(()=>({page:scrollY,menu:document.getElementById('settings-dialog').scrollTop}));
+  await page.getByRole('button',{name:'Oppdater appen',exact:true}).click();
+  await expect(page.locator('.build')).toContainText('ccccccc');
+  await expect(page.locator('#library')).toBeVisible();
+  await expect(page.locator('#settings-dialog')).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(position.page);
+  await expect.poll(()=>page.locator('#settings-dialog').evaluate(dialog=>dialog.scrollTop)).toBe(position.menu);
+  expect(await savedSongs(page)).toEqual(before);
+  await closeMenu(page); await page.getByRole('button',{name:'Sang 2',exact:false}).click();
+  await expect(page.locator('#song-title')).toHaveText('Sang 2');
+  expect(await page.evaluate(()=>scrollY)).toBe(0);
+});
+
+test('update restores the selected song, expanded chorus and released chart', async ({page,request})=>{
+  await page.goto(url);await ready(page);
+  const original='{t: Samme navn}\n{start_of_grid}\n| C . | G . |\n{end_of_grid}\n{soc}\nRefrengtekst\n{eoc}\n{chorus}\n'+('Sangtekst\n').repeat(120);
+  await importSong(page,'første.cho',original);
+  await page.getByRole('button',{name:'← Mine sanger'}).click();
+  await importSong(page,'valgt.cho',original.replace('Refrengtekst','Valgt refrengtekst'));
+  const before=await savedSongs(page);
+  await page.getByRole('button',{name:'Refreng',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Refreng',exact:true})).toHaveAttribute('aria-expanded','true');
+  await page.getByRole('button',{name:'Frigjør akkordskjema'}).click();
+  await page.evaluate(()=>scrollTo(0,700));
+  await request.post('/__test__/update?channel=test');
+  await page.evaluate(async()=>(await navigator.serviceWorker.getRegistration()).update());
+  await page.getByRole('button',{name:'Oppdater nå',exact:true}).click();
+  await expect(page.locator('.build')).toContainText('ccccccc');
+  await expect(page.locator('#reader')).toBeVisible();
+  await expect(page.locator('#song-content')).toContainText('Valgt refrengtekst');
+  await expect(page.getByRole('button',{name:'Refreng',exact:true})).toHaveAttribute('aria-expanded','true');
+  await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','false');
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(700);
+  expect(await savedSongs(page)).toEqual(before);
+  await page.getByRole('button',{name:'← Mine sanger'}).click();
+  await page.getByRole('button',{name:/valgt.cho/}).click();
+  await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','true');
+  expect(await page.evaluate(()=>scrollY)).toBe(0);
+});
+
+test('update still completes without data loss when session history cannot be written', async ({page,request})=>{
+  await page.goto(url);await ready(page);await importSong(page);
+  const before=await savedSongs(page);
+  await request.post('/__test__/update?channel=test');
+  await page.evaluate(async()=>(await navigator.serviceWorker.getRegistration()).update());
+  await expect(page.locator('#update-notice')).toBeVisible();
+  await page.evaluate(()=>{History.prototype.replaceState=()=>{throw new DOMException('History unavailable','SecurityError');};});
+  await page.getByRole('button',{name:'Oppdater nå',exact:true}).click();
+  await expect(page.locator('.build')).toContainText('ccccccc');
+  await expect(page.locator('#library')).toBeVisible();
+  expect(await savedSongs(page)).toEqual(before);
 });
 
 

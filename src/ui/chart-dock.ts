@@ -1,10 +1,11 @@
 import type {GridBlock} from '../domain/chordpro.ts';
 import {renderGrid} from './song-content.ts';
-export function createChartDock(grids: GridBlock[], source: string, onRelease: () => void) {
-  const dock = document.createElement('section'); dock.id = 'chart-dock'; dock.dataset.source = source; dock.dataset.sticky = 'true';
+export function createChartDock(grids: GridBlock[], source: string, onRelease: () => void, sticky = true) {
+  const dock = document.createElement('section'); dock.id = 'chart-dock'; dock.dataset.source = source; dock.dataset.sticky = String(sticky);
   dock.setAttribute('aria-label', 'Akkordskjema');
   const close = document.createElement('button'); close.type = 'button'; close.id = 'chart-close';
   close.textContent = '×'; close.setAttribute('aria-label', 'Frigjør akkordskjema');
+  close.hidden = !sticky;
   close.addEventListener('click', () => {dock.dataset.sticky = 'false'; close.hidden = true; onRelease();});
   const fit = document.createElement('div'); fit.className = 'chart-fit';
   const natural = document.createElement('div'); natural.className = 'chart-natural';

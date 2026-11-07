@@ -9,6 +9,7 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 - **[B]** Moderne sangbok primært for nettbrett under øving/konsert, også mobil og PC/Mac, både for band og privat på tvers av prosjekter. PC/Mac er særlig viktig for import/redigering. Uttrykket skal ikke oppleves som et gammeldags administrasjonsverktøy.
 - **[B]** Offline-first PWA på statisk GitHub Pages, uten egen backend eller skydatabase. Appen skal kunne installeres og kjøre standalone der plattformen støtter det. Ingen separat fullskjerm-/skjul-nettleser-kontroll i v1; nettleserens UI-begrensninger gjelder ved vanlig nettleserbruk.
 - **[B]** Manuell scrolling, ikke autoscroll. Nødvendig fremføringsinformasjon er synlig uten å åpne notater/menyer.
+- **[B]** Når brukeren tar i bruk en ny appversjon, beholdes aktiv skjerm og posisjon generelt i hele appen, inkludert oversikt, sang og åpen innstillingsmeny. Oppdateringen skal ikke sende brukeren til førstesiden. Tilstanden gjelder aktuell fane og miljø.
 - **[B]** Sangvisning og setliste holder som standard skjermen våken via støttet nettleserfunksjon. Brukeren kan slå dette av. Manglende plattformstøtte håndteres uten å love at dvale alltid kan hindres.
 - **[B]** Skriftstørrelse i sangvisning justeres og huskes som personlig innstilling på tvers av sanger. Lys/mørk modus velges uavhengig av OS. Mørk er standard, dempet og scenediskret uten unødig lys/støy.
 
@@ -98,7 +99,7 @@ Grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1, del 1–4]
 - **[B]** Ny tom setliste åpner direkte i redigering; eksisterende åpner vanlig visning. Alle endringer autospares. Ingen egen Lagre- eller Angre-knapp i setlisteeditoren.
 - **[B]** Sangreferanse kan fjernes uten å slette sang/kildefil. Hele setlisten slettes fra oversikten etter eksplisitt bekreftelse, aldri med sletting av refererte sanger.
 - **[B]** Pauser og fritekstpåminnelser har egne visuelt ulike rader og flyttes som sanger. Pauser kan ha valgfri varighet, eksempelvis 15 minutter; varighet er ikke obligatorisk.
-- **[B]** Trykk åpner detalj-/fremføringsvisning; sidesveip følger neste/forrige element i setlisterekkefølge, også pauser/påminnelser. Sangvisning starter alltid øverst ved valg/sveip, også tilbake til tidligere åpnet sang. Scrollposisjon gjenopprettes ikke.
+- **[B]** Trykk åpner detalj-/fremføringsvisning; sidesveip følger neste/forrige element i setlisterekkefølge, også pauser/påminnelser. Sangvisning starter alltid øverst ved valg/sveip, også tilbake til tidligere åpnet sang. Scrollposisjon gjenopprettes ikke ved slik navigasjon. Ved en appoppdatering beholdes derimot den aktive appvisningen og posisjonen; det er ikke et nytt sangvalg.
 - **[B]** Vanlig tilbake-navigasjon returnerer til setlisteoversikten med sist viste sang/element markert. Listen er ferdig posisjonert før visning uten synlig scrollanimasjon; elementet plasseres så nær vertikal midtstilling som naturlige listegrenser tillater. Ingen kunstig luft/overscroll for å sentrere første/siste rad. Ingen særskilt tilbake-til-setliste-knapp kreves.
 - **[B]** Oversikten har nyeste setliste først og tillater manuell omorganisering. Automatisk gjenåpning av sist brukte setliste er ikke prioritert/krevd i v1; brukeren velger fra oversikten.
 

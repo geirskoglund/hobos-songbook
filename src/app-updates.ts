@@ -1,7 +1,7 @@
 import {workerBuild} from './worker-build.ts';
 import type {AppEnvironment} from './environment.ts';
 
-export function startAppUpdates() {
+export function startAppUpdates(beforeReload: (focusId: string | null) => void) {
   const env = __APP_ENV__;
   const offline = document.querySelector<HTMLElement>('#offline-status')!;
   const status = document.querySelector<HTMLElement>('#update-status')!;
@@ -24,8 +24,10 @@ export function startAppUpdates() {
   let announced: ServiceWorker | null = null, activationTarget: ServiceWorker | null = null;
   let inspection = 0;
   let activationTimer: ReturnType<typeof setTimeout> | undefined;
+  let reloadFocusId: string | null = null;
   const watched = new WeakSet<ServiceWorker>();
   const builds = new WeakMap<ServiceWorker, Promise<AppEnvironment | null>>();
+  const reload = () => {beforeReload(reloadFocusId); location.reload();};
   const matches = (worker: ServiceWorker | null) => worker?.scriptURL === workerURL;
   function clearNotice() {
     if (announced || !notice.hidden) status.textContent = '';
@@ -64,7 +66,7 @@ export function startAppUpdates() {
   workers.addEventListener('controllerchange', () => {
     if (!matches(workers.controller)) return;
     if (applying && workers.controller === activationTarget) {
-      clearTimeout(activationTimer); location.reload();
+      clearTimeout(activationTimer); reload();
     } else void inspect();
   });
   async function check(manual = false) {
@@ -108,7 +110,8 @@ export function startAppUpdates() {
     if (!announced) {await check(true); return;}
     await inspect(); // Recheck a notice that may have been superseded in another tab.
     if (!announced) return;
-    if (reloadAvailable && workers.controller === announced) {location.reload(); return;}
+    reloadFocusId = document.activeElement?.id || null;
+    if (reloadAvailable && workers.controller === announced) {reload(); return;}
     if (registration?.waiting !== announced) {await check(true); return;}
     activationTarget = announced;
     applying = true; button.disabled = true; noticeButton.disabled = true;
@@ -116,7 +119,7 @@ export function startAppUpdates() {
     try {
       activationTarget.postMessage({type: 'SKIP_WAITING'});
       activationTimer = setTimeout(() => {
-        if (workers.controller === activationTarget) {location.reload(); return;}
+        if (workers.controller === activationTarget) {reload(); return;}
         applying = false; button.disabled = false; noticeButton.disabled = false;
         status.textContent = noticeText.textContent = 'Oppdateringen er ikke tatt i bruk ennå. Prøv igjen.';
       }, 15000);
