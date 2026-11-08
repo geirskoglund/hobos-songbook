@@ -8,6 +8,8 @@ import {buildChannel} from '../scripts/build-channel.mjs';
 import {assemblePages, appName} from '../scripts/assemble-pages.mjs';
 import {verifyPages, verifyWithRetry} from '../scripts/verify-pages.mjs';
 import {planPages, repository, siteUrl} from '../scripts/pages-plan.mjs';
+import {sealChannel, verifyInventory, restorePublished, parseInventory, inventoryName} from '../scripts/channel-files.mjs';
+import {buildValidated} from '../scripts/build-validated.mjs';
 
 const sha = 'a'.repeat(40), testSha = 'b'.repeat(40);
 const source = (sha, pr = null, kind = 'app') => ({sha, pr, kind});
@@ -132,4 +134,52 @@ test('post-deploy failures are reported without claiming rollback; retries can r
   await verifyWithRetry(expected, {attempts: 2, wait: async () => {}, fetchImpl: async url => failures-- > 0 ? new Response('', {status: 503}) : served(site)(url)});
   await assert.rejects(verifyWithRetry(expected, {attempts: 2, wait: async () => {}, fetchImpl: async () => new Response('', {status: 503})}), /etter deploy.*ikke automatisk gjenopprettet/);
   assert.equal((await readFile(join(site, 'deployment.json'), 'utf8')).includes(testSha), true);
+});
+
+test('CI builds only required channels after validation without installing or testing again', async t => {
+  const root = await temp(t), src = join(root,'source'), out = join(root,'release'), seen = [];
+  await mkdir(src);
+  await buildValidated(src,out,{APP_SHA:testSha,APP_PR:'7'},async(command,args,options) => {
+    seen.push([command,args,options.env.APP_CHANNEL]);
+    await app(join(src,'dist'),source(testSha,7),'test');
+  });
+  assert.deepEqual(seen,[['npm',['run','build'],'test']]);
+  await verifyInventory(join(out,'test')); await assert.rejects(access(join(out,'production')));
+  seen.length = 0;
+  await buildValidated(src,out,{APP_SHA:sha,APP_PR:''},async(command,args,options) => {
+    seen.push(options.env.APP_CHANNEL); await app(join(src,'dist'),source(sha),options.env.APP_CHANNEL);
+  });
+  assert.deepEqual(seen,['production','test']);
+  for (const channel of seen) await verifyInventory(join(out,channel));
+});
+test('unchanged published channel is copied byte for byte, including all runtime assets', async t => {
+  const root = await temp(t), site = join(root,'site'), original = join(site,'test'), restored = join(root,'restored');
+  await app(original,source(testSha,7),'test'); await mkdir(join(original,'assets'));
+  await writeFile(join(original,'assets','runtime.js'),'// unchanged runtime');
+  await sealChannel(original,source(testSha,7),'test');
+  assert.equal(await restorePublished(restored,source(testSha,7),'test',served(site)),true);
+  const inventory = JSON.parse(await readFile(join(original,inventoryName),'utf8'));
+  for (const file of [...inventory.files,{path:inventoryName}]) assert.deepEqual(await readFile(join(restored,file.path)),await readFile(join(original,file.path)));
+  await verifyInventory(restored);
+});
+test('only missing legacy inventory permits fallback; corruption, wrong identity and HTTP failure stop reuse', async t => {
+  const root = await temp(t), site = join(root,'site'), original = join(site,'test');
+  await app(original,source(testSha,7),'test');
+  assert.equal(await restorePublished(join(root,'legacy'),source(testSha,7),'test',served(site)),false);
+  await sealChannel(original,source(testSha,7),'test');
+  await assert.rejects(restorePublished(join(root,'wrong'),source(sha,7),'test',served(site)),/kildecommit/);
+  await writeFile(join(original,'sw.js'),'changed after sealing');
+  await assert.rejects(restorePublished(join(root,'corrupt'),source(testSha,7),'test',served(site)),/hash/);
+  await assert.rejects(restorePublished(join(root,'denied'),source(testSha,7),'test',async()=>new Response('',{status:403})),/bygginventar/);
+});
+test('inventory rejects traversal, absolute paths, duplicates, oversized files and modified or extra files', async t => {
+  const file = {path:'index.html',size:1,sha256:'a'.repeat(64)};
+  for (const path of ['../outside','/absolute','assets/../../outside','assets\\outside','https://outside/file','.hidden','node_modules/file']) {
+    assert.throws(()=>parseInventory({version:1,files:[{...file,path}]}),/Ugyldig/);
+  }
+  assert.throws(()=>parseInventory({version:1,files:[file,file]}),/Ugyldig/);
+  assert.throws(()=>parseInventory({version:1,files:[{...file,size:11*1024*1024}]}),/Ugyldig/);
+  const root = await temp(t); await app(root,source(testSha,7),'test'); await sealChannel(root,source(testSha,7),'test');
+  await writeFile(join(root,'extra.js'),'extra');await assert.rejects(verifyInventory(root),/avviker/);
+  await rm(join(root,'extra.js'));await writeFile(join(root,'sw.js'),'changed');await assert.rejects(verifyInventory(root),/hash/);
 });

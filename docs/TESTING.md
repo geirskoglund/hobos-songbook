@@ -4,7 +4,7 @@
 
 Kodebasen har PWA/offline, miljøisolasjon og CI/CD samt lokal sanglagring, ChordPro-innlesing og grunnleggende sangvisning fra issue #4. Fullverdig bibliotek, editor/konvertering og Dropbox er senere arbeid. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
 
-Node.js 24 LTS og låst npm-fil brukes lokalt og i Actions:
+Node.js 24 LTS og låst npm-fil brukes lokalt og i Actions. Eksempel på full kontroll ved behov:
 
 ```sh
 npm ci
@@ -17,7 +17,7 @@ npm run build
 
 `npm run test:e2e` bygger begge faktiske miljøer og to nye oppdateringer, og prøver dem under de nøyaktige `/hobos-songbook/app/`- og `/hobos-songbook/test/`-stiene på én origin. Det prøves 320px mobil, nettbrett og desktop, lokal ressurslasting, manifestidentiteter/ikonstørrelser, egne worker-scopes og caches, lukking/gjenåpning offline, localStorage-/IndexedDB-markører, bytte av PR/commit og oppdatering av begge miljøer mens søskenmiljøet er åpent. En uvedkommende cache beholdes som kontroll. Før-merge-sammensetning med ekte testapp og betrodd produksjonsplassholder prøves også. Markørdatabaser er separat testharness (`<namespace>-harness`). Den samme workerflyten kontrollerer også faktiske sanger, ID-er, originaltekst og personlige valg i produktets IndexedDB-skjema.
 
-Playwright bruker pinnet Chromium når installert. `CHROMIUM_PATH=/usr/bin/chromium npm run check` kan bruke en tilgjengelig systemnettleser; ellers velges installert Chromium/Google Chrome på kjente systemstier. CI installerer pinnet Playwright-nettleser. Publiseringsbyggets isolerte sjekk kan bruke hosted-runnerens system-Chrome. Rapporter nettleserversjonen ved konkret verifikasjon. Browserbinær og npm-pakker må være installert/cachet før full offline-kontroll; selve appen har ingen kjøretidsnettavhengighet.
+Playwright bruker pinnet Chromium når installert. `CHROMIUM_PATH=/usr/bin/chromium npm run check` kan bruke en tilgjengelig systemnettleser; ellers velges installert Chromium/Google Chrome på kjente systemstier. CI installerer pinnet Playwright-nettleser. Bare den historiske reserveflyten kan kjøre en ekstra isolert sjekk med hosted-runnerens system-Chrome. Rapporter nettleserversjonen ved konkret verifikasjon. Browserbinær og npm-pakker må være installert/cachet før full offline-kontroll; selve appen har ingen kjøretidsnettavhengighet.
 
 `Validate / validate` kjører automatisk på PR og master. Ved PR sjekkes PR-hodets SHA ut, ikke en midlertidig mergecommit. Bare den eksakte validerte kilden kan publiseres. Første bootstrap-deploy er et eget infrastrukturbevis, ikke fysisk PWA-verifikasjon.
 
@@ -58,7 +58,13 @@ Kontroller Actions-resultat, rootens `deployment.json` og begge `build-info.json
 
 Planlegging og deploy kjører bare script fra eksakt validert master. Produksjon får alltid master-SHA; PR-SHA kan bare bli test. Actions-bevis krever riktig `ci.yml`-workflow-ID/-sti, repo, kilderepo, hendelsestype, SHA, PR/base der relevant, og vellykket `validate`-jobb i nyeste aktuelle kjøring. Når GitHub fjerner Actions-kjøringens PR-kobling etter lukking, bevises en bevart kilde gjennom GitHubs commit/PR-assosiasjon for den lukkede samme-repo-PR-en. Nytt valg krever fortsatt åpen PR. En kontroll med et passende navn alene gir ingen tillatelse. Ved push til master venter Pages på vellykket Validate; det finnes ingen konkurrerende direkte push-deploy.
 
-Bygg kjører i separate jobber med `contents: read`, uten Pages-/OIDC-skriverettigheter eller lagrede Git-credentials. Deploy-jobben kjører aldri PR-script eller npm fra appkilden. Den leser kun statiske byggartefakter med masterens validator, setter sammen `app/` og `test/` og publiserer ett Pages-artifact. Den serialiserte workflowen leser testvalget på nytt og kontrollerer master/PR-hode og valideringsstatus rett før deploy. Endring under bygg avviser planen; en ny kjøring må ta utgangspunkt i ny kilde.
+CI kjører én full validering og bygger deretter test for PR, eller produksjon og test for master. Miljøbyggene heter `validated-test` og `validated-production` og beholdes som Actions-artifacts i 90 dager. Avhengigheter og Playwright-nedlasting bruker cache; utdaterte CI-kjøringer for samme PR avbrytes.
+
+Pages velger artifacts fra eksakt vellykket Validate-kjøring med eksisterende kildebevis. Et uendret miljø hentes fra sin publiserte adresse ved hjelp av `build-files.json`; alle filer kopieres byte for byte og kontrolleres mot størrelse og SHA-256. Dette virker også etter at Actions-artifactet er utløpt. Begge kanaler må fortsatt være med i ett samlet Pages-nettsted. Normal publisering kjører verken npm-installasjon, fulltest eller nytt appbygg.
+
+Bare eldre kilder som mangler både publisert inventar og tilgjengelig artifact går gjennom tidligere bygg-/testflyt én gang. Den publiserte kanalen får da et inventar for senere gjenbruk. Ugyldig inventar, feil hash, utrygge stier, feil identitet eller nettverksfeil gir stopp, ikke automatisk ombygging.
+
+Klargjøring kjører i separate jobber med `contents: read` og `actions: read`, uten Pages-/OIDC-skriverettigheter eller lagrede Git-credentials. Deploy-jobben kjører aldri PR-script eller npm fra appkilden. Den leser kun statiske byggartefakter med masterens validator, setter sammen `app/` og `test/` og publiserer ett Pages-artifact. Den serialiserte workflowen leser testvalget på nytt og kontrollerer master/PR-hode og valideringsstatus rett før deploy. Endring under bygg avviser planen; en ny kjøring må ta utgangspunkt i ny kilde.
 
 Rootens versjonerte `deployment.json` lagrer repo, produksjons-/test-SHA, PR, byggtype og faste stier. Feil i eksisterende metadata stopper også et eksplisitt nytt valg. Publisering kjører ingen migrering eller sletting av lokal lagring. Når produksjonsappen først finnes, kan den ikke erstattes med oppstartsplassholder.
 
@@ -164,3 +170,11 @@ Samme testfil kontrollerer faktiske avstander mellom synlige innholdselementer m
 `songs.spec.mjs` kontrollerer at toneartspillen bare viser verdien, med tilgjengelig navn «Toneart: …», og at sanger uten toneart ikke får noen tom metadatarad.
 
 Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontroller kompakt topp og samlet skjema, scroll og se at det fester seg. Trykk × mens skjemaet er sticky, scroll opp og finn det på originalplassen. Åpne sangen igjen og kontroller at sticky er på igjen. Følg den smale, sammenhengende profilen, trykk direkte på «Refreng», og bruk menyen for tema/skrift/av-på og appstatus. Kontroller at menyen kan lukkes uten å miste lesestedet. På fysisk iPhone/iPad/Safari gjenstår kontroll av profilform, berøring, sticky høyde og offline etter oppdatering.
+
+## Avgrensning av kontrollarbeid
+
+Lokalt velges relevante tester, for eksempel `node --test tests/pages-plan.test.mjs tests/github-pages.test.mjs tests/pages-artifacts.test.mjs` ved endring av publiseringsoppsettet. I miljøer med begrenset prosessisolasjon kan `--experimental-test-isolation=none` kjøre de samme Node-testene i én prosess. TypeScript eller målrettet Playwright og visuell kontroll kjøres når endringen berører dem. Hele nettlesersuiten trenger ikke kjøres både lokalt og i CI ved hver liten rettelse. CI gir det komplette regresjonsbeviset.
+
+Etter publisering kontrolleres forventet SHA og tilgjengelighet, og berørt funksjon prøves kort. Brede ekstra skript for uendrede funksjoner brukes bare ved konkret regresjonsrisiko. Plattformkrav og fysiske tester beholdes der de er relevante.
+
+Workflowendringen aktiveres først etter godkjent merge til master. Før dette prøves gjenbruk, identitet, korrupte/manglende filer og eldre kilder med kontrakttester; PR-CI prøver selve artifactproduksjonen. Faktisk Pages-kjøring med ny masterinfrastruktur må kontrolleres etter merge.
