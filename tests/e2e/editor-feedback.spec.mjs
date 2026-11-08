@@ -74,8 +74,28 @@ test('chart uses content width and explicit empty cells; no inferred beats, repe
  const widths=await bars.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().width));expect(Math.max(...widths)).toBeLessThan(80);expect(widths[1]).toBeLessThan(widths[0]);await expect(bars.nth(1).locator('.grid-barline')).toHaveCount(1);
  await edit(page);await page.getByRole('button',{name:'Akkordskjema',exact:true}).click();await page.locator('#personal-grid').fill('| . . Am F | Am . . . . . G |');await page.getByRole('button',{name:'OK',exact:true}).click();
  await expect(page.locator('.grid-cell[aria-label="Tom akkordcelle"]')).toHaveCount(7);await expect(page.locator('#chart-dock')).not.toContainText('·');
- const cells=await page.locator('.grid-measure').first().locator('.grid-cell').evaluateAll(nodes=>nodes.map(n=>({x:n.getBoundingClientRect().x,width:n.getBoundingClientRect().width})));expect(cells[2].x-cells[0].x).toBeGreaterThan(50);expect(cells[2].x-cells[0].x).toBeLessThan(100);
+ const cells=await page.locator('.grid-measure').first().locator('.grid-cell').evaluateAll(nodes=>nodes.map(n=>({x:n.getBoundingClientRect().x,width:n.getBoundingClientRect().width})));expect(Math.abs(cells[2].x-cells[0].x-2*cells[0].width)).toBeLessThan(1);
  await save(page);expect((await state(page))[0].chordGrid).toContain('. . . . .');expect((await savedSongs(page))[0].original).toBe(original);
+});
+
+test('dots add one space each while ordinary chord spacing stays unchanged',async({page})=>{
+ const text=[0,1,2,5].map(n=>'| '+'. '.repeat(n)+'G D | G '+'. '.repeat(n)+'D | G D '+'. '.repeat(n)+'|').join('\n');
+ await page.goto(url);await importSong(page,'punktum.cho','{sog}\n'+text+'\n{eog}\nTekst');
+ for(const width of [1000,320])for(const theme of ['dark','light']){
+  await page.setViewportSize({width,height:900});await page.locator('#menu-button').click();await page.locator('#theme').selectOption(theme);await page.locator('#menu-close').click();
+  const rows=await page.locator('.grid-row').evaluateAll(rows=>rows.map(row=>[...row.querySelectorAll('.grid-measure')].map(bar=>{
+   const cells=bar.querySelector('.grid-cells'),box=cells.getBoundingClientRect(),chords=[...cells.querySelectorAll('.grid-chord')].map(n=>n.getBoundingClientRect());
+   return{width:box.width,start:chords[0].left-box.left,gap:chords[1].left-chords[0].right,space:bar.querySelector('[aria-label="Tom akkordcelle"]')?.getBoundingClientRect().width};
+  })));
+  for(let i=1;i<rows.length;i++){
+   const count=[1,2,5][i-1];
+   for(let position=0;position<3;position++)expect(Math.abs(rows[i][position].width-rows[0][position].width-count*rows[i][position].space)).toBeLessThan(1);
+   expect(Math.abs(rows[i][0].start-rows[0][0].start-count*rows[i][0].space)).toBeLessThan(1);
+   expect(Math.abs(rows[i][0].gap-rows[0][0].gap)).toBeLessThan(1);
+   expect(Math.abs(rows[i][1].gap-rows[0][1].gap-count*rows[i][1].space)).toBeLessThan(1);
+  }
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+ }
 });
 
 test('pen scrolls at the edge and cancelling a subsequent selection keeps the saved group',async({page})=>{

@@ -89,9 +89,10 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 .grid-break {flex-basis:100%; height:0;}
 .grid-measure {display:flex; align-items:center; min-width:0; max-width:100%; padding:1px 0;}
 .grid-barline {white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); align-self: center; font-size: .85em;}
-.grid-cells {display:flex; flex-wrap:wrap; gap:0 2ch; align-items:center; min-width:0; padding:0 1ch;}
+.grid-cells {display:flex; flex-wrap:wrap; align-items:center; min-width:0; padding:0 1ch;}
 .grid-cell {min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: center; justify-content:flex-start; gap:0 .3ch; padding:1px 0;}
-.grid-cell[aria-label="Tom akkordcelle"] {flex:none; width:2ch;}
+.grid-cell[aria-label="Tom akkordcelle"] {flex:none; width:1ch;}
+.grid-cell:not([aria-label="Tom akkordcelle"]) ~ .grid-cell:not([aria-label="Tom akkordcelle"]) {margin-inline-start:2ch;}
 .grid-chord {color: var(--accent); font-weight: 650; overflow-wrap: anywhere; max-width: 100%;}
 .grid-symbol {color: var(--text); overflow-wrap: anywhere; max-width: 100%;}
 .grid-note {color: var(--comment); font: italic 11px/1.3 ui-sans-serif, system-ui, sans-serif; margin: 1px 0; white-space: pre-wrap; overflow-wrap: anywhere;}
