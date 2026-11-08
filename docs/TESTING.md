@@ -167,9 +167,27 @@ Profilen prøves som én sammenhengende SVG-sti med symmetri, avrundede overgang
 
 Samme testfil kontrollerer faktiske avstander mellom synlige innholdselementer med lange blanklinjer, kommentarer, flyttet grid og åpne/lukkede refreng. Blanklinjeserier gir en halv tekstlinje ekstra avstand ved 320/768/1440 px og skrift 16/36 px. Reell høyde for ordinære tekstlinjer er høyst 1,2 ganger skriftstørrelsen; korte akkordlinjer og refrengkontroll må også holde seg innenfor kompakte høydegrenser. Kommentar → fullt refreng, kommentar → refrenghenvisning og kommentar → tekst uten blanklinje i kilden har null ekstra layoutavstand, både med åpen og lukket henvisning. Lagret original med BOM/CRLF og alle blanklinjer er fortsatt identisk.
 
-`songs.spec.mjs` kontrollerer at toneartspillen bare viser verdien, med tilgjengelig navn «Toneart: …», og at sanger uten toneart ikke får noen tom metadatarad.
+`songs.spec.mjs` kontrollerer at toneartspillen bare viser verdien, med tilgjengelig navn «Toneart: …», og at sanger uten toneart viser standard taktart 4/4 uten en tom toneartspille.
 
 Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontroller kompakt topp og samlet skjema, scroll og se at det fester seg. Trykk × mens skjemaet er sticky, scroll opp og finn det på originalplassen. Åpne sangen igjen og kontroller at sticky er på igjen. Følg den smale, sammenhengende profilen, trykk direkte på «Refreng», og bruk menyen for tema/skrift/av-på og appstatus. Kontroller at menyen kan lukkes uten å miste lesestedet. På fysisk iPhone/iPad/Safari gjenstår kontroll av profilform, berøring, sticky høyde og offline etter oppdatering.
+
+## Personlige tilpasninger (issue #8)
+
+`tests/personal.test.mjs` prøver capo, slash-bass, suffikser, B/H, fortegn, grid uten mutasjon og forankring med eksakt original/kontekst. Innskriving med capo prøves frem og tilbake med bevarte direktiver, etiketter, marginer, repetisjon og flere akkorder per celle.
+
+`tests/e2e/personal.spec.mjs` prøver sangen som arbeidsflate, capo 0, eksplisitt lagring uten utgang, utgang med lagre/forkast/fortsett, transaksjonsfeil og nye forsøk. Begge redigeringsinnganger og radmenyens ramme/lukking prøves. Skjematekst skjuler tagger, bevarer form/etiketter, omregner capo én gang og viser felles skjema ved fjerning. Native tekstspenn over akkordnoder, lokal notatplassering uten ordvalg, separate refrengforekomster, endring/fjerning av markering og notater samt flere faner/like titler dekkes. Ekte workeroppdatering blokkeres ved ulagret arbeid og venter på faktisk pågående lagring. Offline gjenåpning kontrollerer bevarte sanger/persondata. Testkode er ikke i seg selv verifikasjon; faktiske resultater og SHA rapporteres i PR-en.
+
+Nettlesertestene kontrollerer også ikonrekkefølge, deaktivert lagring ved uendrede/tilbakeførte verdier, OK kontra Avbryt/Escape, bred skjema-popup, smalt capofelt, pillejustering og taktart i begge modi. Plassering i margen og på tom linje, ferskt mål etter tidligere tekstvalg, pekernedtrykk uten åpning, avbrutt berøring, drahåndtak og rene tekstkoordinater prøves særskilt. Tastaturplassering, dialogfokus, utvendig scroll/avbryt og touch-pan via Chromium-protokollen kontrolleres også, samt bevaring/tømming av flere skjemablokker.
+
+Manuelt: prøv berøringsmarkering og markeringspenn, små lokale felt ved skjermtastatur, fast verktøylinje i full bredde og skjema som scroller med sangen under redigering, samt sticky-skjema i fremføring, notatsletting, OK/Avbryt og fri skjematekst i begge temaer og store skrifter. Fysisk iPad/Safari, Android/Chrome og installert PWA gjenstår. Chromium er ikke fysisk plattformbevis.
+
+`editor-feedback.spec.mjs` kontrollerer verktøylinjens uendrede posisjon ved 0/1/3/10/80/450 px scroll og ulike bredder, ett flerlinjeutvalg med felles sletting/avgrensning etter lagring, touch-pen uten native Selection, notatflytting med mus/touch/tastatur, avbrudd og beskyttet opptatt mål. Skjemaets målbare innholdsbredde og eksplisitte tomme celler prøves mot samme korte takter som i brukertilbakemeldingen. Ingen firepunktumsgrense eller synlige prikker, og originalen forblir identisk. Fysisk Androids nettleser-/OS-meny og iPad/Safari må fortsatt prøves på enhetene.
+
+`app-interactions.spec.mjs` prøver felles kontekstpolicy i oversikt, innstillinger, fremføring og alle skrivefelter; appstyrte verktøytips/feltfeil, eget PC-utvalg før verktøyvalg, automatisk deaktivering av penn, tilbakegang til vanlig touch-scroll og notatflytting uten linjeramme. Lange touch-trykk i tekstfelt prøver appens Merk alt/Kopier/Lim inn, angre, tømming og Avbryt. Clipboard-prompt-status skal aldri kalle readText eller starte en ny tillatelsesdialog. Syntetisk kansellert contextmenu og fravær av native Selection er tekniske bevis; fysisk OS-/nettleser-UI må fortsatt vurderes på Android/iPad.
+
+Capokontrollen prøves med synlige `<`/`>`-knapper rundt et rent tall, uten input/textarea: alle steg 0–11, deaktiverte grenser, ingen overgang rundt endene, minst 44 px treffområde, fullført touch-trykk, piltaster/Home/End, Avbryt/Escape, OK uten vedvarende skriving og eksplisitt Lagre. Også capo 11 prøves mot faktisk akkordvisning. Domenevalideringen avviser 12, negative tall og desimaltall.
+
+Punktumavstand sammenlignes med samme takt uten punktum. Ett, to og fem punktum først, mellom akkorder og sist gir nøyaktig tilsvarende antall ekstra mellomrom. Vanlig akkordavstand beholdes. Prøves ved 320/1000 px i begge temaer.
 
 ## Avgrensning av kontrollarbeid
 

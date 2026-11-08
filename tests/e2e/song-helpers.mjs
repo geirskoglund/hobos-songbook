@@ -24,6 +24,12 @@ export async function openMenu(page) {
 export async function closeMenu(page) {
   if (await page.locator('#settings-dialog').isVisible()) await page.getByRole('button',{name:'Lukk meny',exact:true}).click();
 }
+export async function setCapo(page, value) {
+  await page.locator('#capo-pill').click();
+  const current = Number(await page.getByRole('spinbutton',{name:'Capo',exact:true}).textContent());
+  for (let n = 0; n < Math.abs(value-current); n++) await page.getByRole('button',{name:value > current ? 'Øk capo' : 'Reduser capo',exact:true}).click();
+  await page.getByRole('button',{name:'OK',exact:true}).click();
+}
 export async function setDisplay(page, {theme, fontSize, showGrids, showDynamics}) {
   await openMenu(page);
   if (theme !== undefined) await page.locator('#theme').selectOption(theme);

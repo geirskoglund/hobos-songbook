@@ -1,3 +1,5 @@
+import {createPersonalEditor, paintAnnotations} from './personal-editor.ts';
+import {gripKey, transposeChord, transposeGrid} from '../domain/personal.ts';
 import {attachSongSpacing} from './song-spacing.ts';
 import {saveUpdateView, takeUpdateView, restoreUpdateView, focusUpdateView, type UpdateView} from './update-view.ts';
 import {selectSongGrid} from '../domain/song-grid.ts';
@@ -23,11 +25,75 @@ export function startSongbook() {
   const retry = query<HTMLButtonElement>('retry-storage'), file = query<HTMLInputElement>('song-file');
   let songs: Song[] = [], importing = false, active: Song | null = null;
   let disposeView = () => {};
+  let editing: UpdateView['editor'] | undefined;
+  let editor: ReturnType<typeof createPersonalEditor> | undefined;
+  let currentPersonal: SongPersonal | undefined;
+  let saving: Promise<boolean> | undefined;
+  const chorusWrites = new Set<Promise<unknown>>();
+  const saveRetry = element('button', 'Prøv lagring igjen'); saveRetry.type = 'button'; saveRetry.hidden = true;
+  status.after(saveRetry);
+  async function flush(): Promise<boolean> {
+    if (!editor?.isValid()) return false;
+    if (saving) return saving;
+    saving = (async () => {
+      const submitting = editor!, snapshot = submitting.snapshot(), update = submitting.pendingChange();
+      try {
+        if (update) await storage.updatePersonal(snapshot.songId, update);
+        saveRetry.hidden = true;
+        submitting.markSaved(snapshot);
+        notify('Personlige endringer er lagret på denne enheten.'); return true;
+      } catch (error) {
+        notify(error instanceof Error ? error.message : 'Kunne ikke lagre. Prøv igjen.', true);
+        saveRetry.hidden = false; return false;
+      }
+    })();
+    try {return await saving;} finally {saving = undefined;}
+  }
+  saveRetry.addEventListener('click', () => {void flush();});
+  const editMenu = element('button', 'Rediger'); editMenu.type = 'button'; editMenu.id = 'edit-song'; editMenu.hidden = true;
+  async function beginEdit(song: Song, from: 'reader' | 'library') {
+    let returnView: UpdateView | undefined;
+    if (from === 'reader') {saveUpdateView(__APP_ENV__.namespace, song.id, 'menu-button'); returnView = takeUpdateView(__APP_ENV__.namespace) ?? undefined; if (returnView) returnView.menu.open = false;}
+    dialog.close(); editing = {from, returnView}; await openSong(song, returnView);
+    if (!document.body.classList.contains('editing-active')) editing = undefined;
+  }
+  let leaving = false;
+  async function confirmLeave(): Promise<'save' | 'discard' | 'cancel'> {
+    return new Promise(resolve => {
+      const prompt = element('dialog', undefined, 'leave-editor');
+      prompt.setAttribute('aria-label', 'Ulagrede endringer');
+      prompt.append(element('h2', 'Ulagrede endringer'), element('p', 'Vil du lagre før du går ut?'));
+      const finish = (value: 'save' | 'discard' | 'cancel') => {prompt.close(); prompt.remove(); resolve(value);};
+      for (const [value, text] of [['save','Lagre og gå ut'],['discard','Forkast endringer'],['cancel','Fortsett redigering']] as const) {
+        const action = element('button', text); action.type = 'button'; action.addEventListener('click', () => finish(value)); prompt.append(action);
+      }
+      prompt.addEventListener('cancel', event => {event.preventDefault(); finish('cancel');});
+      document.body.append(prompt); prompt.showModal(); prompt.querySelectorAll('button')[2].focus();
+    });
+  }
+  async function finishEdit() {
+    if (!active || leaving || saving) return;
+    leaving = true;
+    try {
+      if (editor?.dirty()) {
+        const choice = await confirmLeave();
+        if (choice === 'cancel' || choice === 'save' && !await flush()) return;
+      }
+      const song = active, returnTo = editing; editing = undefined;
+      editor?.dispose(); editor = undefined; saveRetry.hidden = true;
+      if (returnTo?.from === 'reader') await openSong(song, returnTo.returnView);
+      else back();
+    } finally {leaving = false;}
+  }
+  editMenu.addEventListener('click', () => {if (active) void beginEdit(active, 'reader');});
   let pendingUpdateView = takeUpdateView(__APP_ENV__.namespace);
   const originalScrollRestoration = history.scrollRestoration;
   const app = query('app');
   if (pendingUpdateView) {history.scrollRestoration = 'manual'; app.style.visibility = 'hidden';}
   const dialog = query<HTMLDialogElement>('settings-dialog'), menu = query<HTMLButtonElement>('menu-button');
+  const exitEdit = element('button', 'Avslutt redigering'); exitEdit.type = 'button'; exitEdit.hidden = true;
+  exitEdit.addEventListener('click', () => {dialog.close(); void finishEdit();});
+  dialog.querySelector('.menu-heading')!.after(editMenu, exitEdit);
   menu.addEventListener('click', () => dialog.showModal());
   query('menu-close').addEventListener('click', () => dialog.close());
   dialog.addEventListener('close', () => menu.focus({preventScroll: true}));
@@ -53,6 +119,12 @@ export function startSongbook() {
   query('font-value').textContent = `${preferences.fontSize} px`;
   dynamics.addEventListener('change', updatePreferences); grids.addEventListener('change', updatePreferences);
   theme.addEventListener('change', updatePreferences); size.addEventListener('input', updatePreferences);
+  const closeRowMenus = (except?: Element) => {
+    list.querySelectorAll<HTMLDetailsElement>('.song-actions[open]').forEach(action => {if (action !== except) action.open = false;});
+  };
+  document.addEventListener('pointerdown', event => {const actions = (event.target as Element).closest('.song-actions'); closeRowMenus(actions ?? undefined);});
+  document.addEventListener('keydown', event => {if (event.key === 'Escape') {const open = list.querySelector<HTMLDetailsElement>('.song-actions[open]'); closeRowMenus(); open?.querySelector('summary')?.focus();}});
+  window.addEventListener('beforeunload', event => {if (editor?.dirty()) {event.preventDefault(); event.returnValue = '';}});
   function drawList() {
     list.replaceChildren();
     songs.sort((a, b) => a.title.localeCompare(b.title, 'nb') || a.origin.importedAt.localeCompare(b.origin.importedAt));
@@ -60,8 +132,12 @@ export function startSongbook() {
       const button = element('button', undefined, 'song-choice'); button.type = 'button'; button.dataset.songId = song.id;
       button.append(element('span', song.title, 'song-name'));
       button.append(element('small', `${song.origin.filename} · ${index + 1}${song.key ? ` · ${song.key}` : ''}`));
-      button.addEventListener('click', () => {void openSong(song);});
-      const row = element('li'); row.append(button); list.append(row);
+      button.addEventListener('click', () => {closeRowMenus(); void openSong(song);});
+      const row = element('li'); row.append(button);
+      const actions = element('details', undefined, 'song-actions'), summary = element('summary', '⋮'); summary.setAttribute('aria-label', `Meny for ${song.title}`);
+      const edit = element('button', 'Rediger'); edit.type = 'button'; edit.addEventListener('click', () => {actions.open = false; void beginEdit(song, 'library');});
+      summary.addEventListener('click', () => closeRowMenus(actions));
+      actions.append(summary, edit); row.append(actions); list.append(row);
     }
     libraryStatus.textContent = songs.length ? `${songs.length} ${songs.length === 1 ? 'sang lagret' : 'sanger lagret'} på denne enheten.` : 'Ingen sanger ennå. Legg til din første sang fra en fil.';
   }
@@ -89,22 +165,74 @@ export function startSongbook() {
     let personal: SongPersonal;
     try {personal = await storage.personal(song.id) ?? {songId: song.id, chorus: {}};}
     catch (error) {notify(error instanceof Error ? error.message : 'Kunne ikke hente personlig tilstand.', true); return;}
-    active = song;
+    active = song; currentPersonal = personal;
+    if (resume?.editor) editing = resume.editor;
+    editMenu.hidden = Boolean(editing); exitEdit.hidden = !editing;
+    document.body.classList.toggle('editing-active', Boolean(editing));
+    if (resume) reader.style.visibility = 'hidden';
     const parsed = parseChordPro(song.original, song.title), article = query('song-content');
-    disposeView(); article.replaceChildren();
+    disposeView(); editor?.dispose(); editor = undefined; article.replaceChildren();
     const title = element('h1', parsed.title); title.id = 'song-title'; title.tabIndex = -1; article.append(title);
+    const metadata = element('div', undefined, 'song-metadata');
     if (parsed.key) {
-      const metadata = element('div', undefined, 'song-metadata');
       const key = element('span', parsed.key, 'song-key');
       key.setAttribute('aria-label', `Toneart: ${parsed.key}`);
-      metadata.append(key); article.append(metadata);
+      metadata.append(key);
     }
-    const chosenGrid = selectSongGrid(parsed, personal);
-    const dock = chosenGrid ? createChartDock(chosenGrid.grids, chosenGrid.source, () => query('back').focus({preventScroll:true}), !resume?.chartReleased) : null;
-    if (dock) article.append(dock.element);
+    const time = element('span', parsed.time, 'song-key'); time.setAttribute('aria-label', `Taktart: ${parsed.time}`); metadata.append(time); article.append(metadata);
+    const showMetadata = () => {
+      const state = currentPersonal!;
+      if (editing) {
+        const capoPill = metadata.querySelector('#capo-pill');
+        const key = gripKey(parsed.key, state.capo ?? 0);
+        if (capoPill) capoPill.textContent = state.capo ? `Capo ${state.capo}${key ? `: ${key}` : ''}` : 'Uten capo';
+        const tuningPill = metadata.querySelector('#tuning-pill'); if (tuningPill) tuningPill.textContent = state.tuning || 'Standard stemming';
+      } else {
+        if (state.capo) {const key = gripKey(parsed.key, state.capo); metadata.append(element('span', `Capo ${state.capo}${key ? `: ${key}` : ''}`, 'song-key'));}
+        if (state.tuning) metadata.append(element('span', state.tuning, 'song-key'));
+      }
+      if (metadata.childElementCount && metadata.parentElement !== article) title.after(metadata);
+    };
+    let disposeDock = () => {};
+    let chartReleased = Boolean(resume?.chartReleased);
+    const chartArea = element('div'); chartArea.className = 'chart-area'; article.append(chartArea);
+    const showChart = () => {
+      disposeDock(); chartArea.replaceChildren();
+      const state = currentPersonal!, capo = state.capo ?? 0;
+      const chosen = selectSongGrid(parsed, state);
+      if (chosen) {
+        const dock = createChartDock(chosen.grids.map(grid => transposeGrid(grid, capo)), chosen.source, () => query('back').focus({preventScroll:true}), !editing && !chartReleased);
+        if (editing) {
+          const edit = element('button','✎'); edit.setAttribute('aria-label','Rediger akkordskjema'); edit.dataset.tooltip = 'Rediger akkordskjema'; edit.type = 'button'; edit.className = 'edit-chart';
+          edit.addEventListener('click', event => {event.stopPropagation(); editor?.openGrid(dock.element);}); dock.element.append(edit);
+        }
+        chartArea.append(dock.element); disposeDock = dock.dispose;
+      } else if (editing) {
+        const add = element('button', 'Legg til akkordskjema', 'grid-placeholder'); add.type = 'button'; add.addEventListener('click', () => editor?.openGrid(add)); chartArea.append(add);
+      }
+    };
+    if (editing) {
+      editor = createPersonalEditor(song, personal, change => {
+        const previous = currentPersonal!; currentPersonal = change(previous);
+        notify('');
+        paintAnnotations(query('song-body'), song, currentPersonal);
+        showMetadata();
+        if (previous.capo !== currentPersonal.capo || previous.chordView !== currentPersonal.chordView || previous.chordGrid !== currentPersonal.chordGrid) {
+          const released = chartArea.querySelector<HTMLElement>('#chart-dock')?.dataset.sticky === 'false';
+          if (released) chartReleased = true;
+          showChart();
+          const capo = currentPersonal.capo ?? 0;
+          query('song-body').querySelectorAll<HTMLElement>('.chord[data-original]').forEach(node => node.textContent = transposeChord(node.dataset.original!,capo));
+        }
+      }, () => {void flush();});
+      article.prepend(editor.element); editor.metadata(metadata);
+    }
+    showMetadata(); showChart();
+    const capo = personal.capo ?? 0;
     const bodyContent = element('div'); bodyContent.id = 'song-body'; article.append(bodyContent);
-    const dynamicsContext: DynamicsContext = {level: 3};
+    const dynamicsContext: DynamicsContext = {level: 3, chord: value => transposeChord(value, capo)};
     for (const block of parsed.blocks) {
+      dynamicsContext.occurrence = block.kind === 'reference' ? block.occurrence : 'source';
       if (block.kind === 'chorus') {
         const section = element('section', undefined, 'chorus');
         const body = element('div', undefined, 'chorus-text'); body.append(renderContent(block.content, dynamicsContext));
@@ -122,23 +250,41 @@ export function startSongbook() {
         button.setAttribute('aria-controls', body.id); reflect();
         button.addEventListener('click', async () => {
           button.disabled = true;
-          const next = {...personal, chorus: {...personal.chorus, [block.occurrence]: !expanded}};
-          try {await storage.savePersonal(next); personal = next; expanded = !expanded; reflect(); if (active?.id === song.id) notify('');}
+          try {
+            const write = storage.updatePersonal(song.id, current => ({...current, chorus: {...current.chorus, [block.occurrence]: !expanded}}));
+            chorusWrites.add(write);
+            try {personal = await write;} finally {chorusWrites.delete(write);}
+            if (currentPersonal) currentPersonal.chorus = personal.chorus;
+            expanded = !expanded; reflect();
+            if (active?.id === song.id) notify('');
+          }
           catch {if (active?.id === song.id) notify('Refrengvalget kunne ikke lagres. Prøv igjen; tidligere valg er beholdt.', true);}
           finally {button.disabled = false;}
         });
         heading.append(button); section.append(heading, body); bodyContent.append(section);
       } else bodyContent.append(renderContent([block], dynamicsContext));
     }
+    paintAnnotations(bodyContent, song, currentPersonal!);
+    if (editing?.annotation) {
+      const selection = editing.annotation;
+      const line = [...bodyContent.querySelectorAll<HTMLElement>('.song-line[data-occurrence]')].find(line => line.dataset.occurrence === selection.occurrence);
+      if (line) editor!.select(line, currentPersonal!, selection);
+    }
+    if (editing) editor!.mount(bodyContent);
     library.hidden = true; reader.hidden = false; query('back').hidden = false; document.body.classList.add('reader-active');
     const disposeSpacing = attachSongSpacing(bodyContent);
     const disposeProfile = attachDynamicsProfile(bodyContent);
-    disposeView = () => {disposeSpacing(); disposeProfile(); dock?.dispose();};
+    disposeView = () => {disposeSpacing(); disposeProfile(); disposeDock();};
     if (resume) await restoreUpdateView(resume, () => active?.id === song.id);
     else {title.focus({preventScroll: true}); window.scrollTo(0, 0);}
+    reader.style.removeProperty('visibility');
   }
   function back() {
+    if (editing) {void finishEdit(); return;}
+
+    editMenu.hidden = true; exitEdit.hidden = true; document.body.classList.remove('editing-active');
     disposeView(); disposeView = () => {};
+    editor?.dispose(); editor = undefined; query('song-content').replaceChildren();
     active = null; reader.hidden = true; library.hidden = false; query('back').hidden = true; document.body.classList.remove('reader-active'); notify('');
     query('library-title').focus({preventScroll: true}); window.scrollTo(0, 0);
   }
@@ -160,5 +306,10 @@ export function startSongbook() {
     finally {importing = false; file.disabled = false; file.value = '';}
   });
   void load();
-  return {beforeUpdateReload: (focusId: string | null) => saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId)};
+  return {beforeUpdateReload: async (focusId: string | null) => {
+    if (saving) await saving;
+    if (editor?.dirty()) throw new Error('Du har ulagrede endringer. Bruk Lagre eller avslutt redigeringen før oppdatering.');
+    await Promise.all(chorusWrites);
+    saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId, editing ? {...editing, annotation: editor?.selection()} : undefined);
+  }};
 }

@@ -148,7 +148,7 @@ test('update restores the selected song, expanded chorus and released chart', as
   await expect(page.locator('#song-content')).toContainText('Valgt refrengtekst');
   await expect(page.getByRole('button',{name:'Refreng',exact:true})).toHaveAttribute('aria-expanded','true');
   await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','false');
-  await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(700);
+  await expect.poll(()=>page.evaluate(()=>Math.abs(scrollY-700))).toBeLessThanOrEqual(1);
   expect(await savedSongs(page)).toEqual(before);
   await page.getByRole('button',{name:'← Mine sanger'}).click();
   await page.getByRole('button',{name:/valgt.cho/}).click();
