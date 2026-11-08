@@ -3,7 +3,7 @@ import type {Song, SongPersonal} from './song.ts';
 
 export const validTime = (value: string) => !value || /^(?:[1-9]\d*(?:\s*\+\s*[1-9]\d*)*\s*\/\s*[1-9]\d*|C\|?)$/.test(value);
 export interface OriginalFields {title: string; key: string; time: string; text: string}
-const protectedText = 'Denne sangteksten har musikalske elementer som ennå ikke kan redigeres trygt. Teksten er beskyttet til disse verktøyene er levert.';
+const protectedText = 'Sangteksten er foreløpig låst fordi den inneholder akkorder eller andre markører.';
 /** Source spans, never the derived parser/DOM, are the editing authority. */
 export function originalDocument(song: Song) {
   const source = song.original, bom = source.startsWith('\uFEFF') ? '\uFEFF' : '';
@@ -57,10 +57,13 @@ export function originalDocument(song: Song) {
   }
   return {fields,bodyProtected:unsafeBody,protection:protectedText,apply};
 }
+export function originalProtection(song: Song, personal: SongPersonal): string | undefined {
+  if (Object.values(personal.annotations ?? {}).some(item => item.note || item.highlights.length)) return 'Originalen kan ikke endres mens sangen har notater eller gulmarkeringer. Trygg flytting av disse kommer senere. Personlige endringer kan fortsatt lagres.';
+  if (Object.keys(personal.chorus).length || /\{(?:soc|eoc|start_of_chorus|end_of_chorus|chorus)\b/i.test(song.original)) return 'Originalen er beskyttet for å bevare refreng og individuelle refrengvalg. Personlige endringer kan fortsatt lagres.';
+}
 export function originalChangeError(before: Song, after: Song, personal: SongPersonal): string | undefined {
   if (before.original === after.original) return;
-  if (Object.values(personal.annotations ?? {}).some(item => item.note || item.highlights.length)) return 'Originalen kan ikke endres mens sangen har notater eller gulmarkeringer. Trygg flytting av disse kommer senere. Personlige endringer kan fortsatt lagres.';
-  if (Object.keys(personal.chorus).length || /\{(?:soc|eoc|start_of_chorus|end_of_chorus|chorus)\b/i.test(before.original)) return 'Originalen er beskyttet for å bevare refreng og individuelle refrengvalg. Personlige endringer kan fortsatt lagres.';
+  return originalProtection(before,personal);
 }
 export function withOriginal(song: Song, original: string): Song {
   const parsed = parseChordPro(original,song.title);

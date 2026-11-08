@@ -1,12 +1,12 @@
 import {test,expect} from '@playwright/test';
 import {importSong,savedSongs,openMenu,setCapo,setDisplay} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
-const modal=page=>page.getByRole('dialog',{name:'Rediger original',exact:true});
+const modal=page=>page.getByRole('dialog',{name:'Rediger sangtekst',exact:true});
 const ok=page=>modal(page).getByRole('button',{name:'OK',exact:true}).click();
 const cancel=page=>modal(page).getByRole('button',{name:'Avbryt',exact:true}).click();
 const fresh=async page=>{await openMenu(page);await page.getByRole('button',{name:'Ny sang',exact:true}).click();await expect(modal(page)).toBeVisible();};
 const edit=async page=>{await openMenu(page);await page.getByRole('button',{name:'Rediger',exact:true}).click();};
-const original=async page=>{await page.getByRole('button',{name:'Rediger original',exact:true}).click();};
+const original=async page=>{await page.getByRole('button',{name:'Rediger sangtekst',exact:true}).click();};
 const save=async page=>{await page.locator('#edit-save').click();await expect(page.locator('#edit-save')).toBeDisabled();};
 const records=page=>page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test',1);r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal'),get=tx.objectStore('personal').getAll();tx.oncomplete=()=>{db.close();resolve(get.result);};};}));
 test.beforeEach(async({request,page})=>{await request.post('/__test__/reset');await page.goto(url);});
@@ -43,7 +43,7 @@ test('transaction abort rolls back both layers and new-song creation; retry does
 });
 
 test('protected structures and annotations cannot be lost, including annotations added after modal confirmation in another tab',async({page})=>{
- await importSong(page,'struktur.cho','{t: Struktur}\n[D]Akkord\n{soc}\nOrd\n{eoc}\n{chorus}\n{x_future: Behold}');const before=(await savedSongs(page))[0];await edit(page);await original(page);await expect(page.locator('#original-text')).toHaveCount(0);await expect(page.locator('#original-protection')).toBeVisible();await page.locator('#original-title').fill('Utrygg');await ok(page);await expect(modal(page).getByRole('alert')).toContainText('refreng');await cancel(page);await setCapo(page,2);await save(page);expect((await savedSongs(page))[0]).toEqual(before);await page.locator('#back').click();await page.locator('#back').click();
+ await importSong(page,'struktur.cho','{t: Struktur}\n[D]Akkord\n{soc}\nOrd\n{eoc}\n{chorus}\n{x_future: Behold}');const before=(await savedSongs(page))[0];await edit(page);await original(page);await expect(page.locator('#original-text')).toHaveCount(0);await expect(page.locator('#original-protection')).toBeVisible();await expect(page.locator('#original-title')).toHaveAttribute('readonly','');await expect(page.locator('#original-key')).toBeDisabled();await expect(page.locator('#original-time')).toBeDisabled();await expect(page.locator('#original-protection')).toContainText('refreng');await cancel(page);await setCapo(page,2);await save(page);expect((await savedSongs(page))[0]).toEqual(before);await page.locator('#back').click();await page.locator('#back').click();
  await importSong(page,'enkel.txt','{t: Enkel}\nOrd');const plain=(await savedSongs(page)).find(song=>song.title==='Enkel');await edit(page);await original(page);await page.locator('#original-title').fill('Utkast');await ok(page);await setCapo(page,3);
  await page.evaluate(song=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test',1);r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal','readwrite');tx.objectStore('personal').put({songId:song.id,chorus:{},tuning:'Annen fane',annotations:{line:{anchor:{original:song.original},note:'Behold notat',highlights:[]}}});tx.oncomplete=()=>{db.close();resolve();};};}),plain);
  await page.locator('#edit-save').click();await expect(page.locator('#song-status')).toContainText('notater');expect((await savedSongs(page)).find(song=>song.id===plain.id)).toEqual(plain);const state=(await records(page)).find(item=>item.songId===plain.id);expect(state.tuning).toBe('Annen fane');expect(state.capo).toBeUndefined();await expect(page.locator('#song-title')).toHaveText('Utkast');
@@ -51,7 +51,15 @@ test('protected structures and annotations cannot be lost, including annotations
 
 for(const width of [320,768,1440])test(`own scroll and fixed actions at ${width}px, both themes and a reduced keyboard viewport`,async({page})=>{
  await page.setViewportSize({width,height:800});await fresh(page);await page.locator('#original-title').fill('Lang');await page.locator('#original-text').fill(Array.from({length:200},(_,n)=>`Linje ${n} æøå`).join('\n'));await ok(page);
- for(const theme of ['light','dark']){await setDisplay(page,{theme,fontSize:36});await original(page);await page.locator('#original-text').focus();await page.keyboard.press('ControlOrMeta+End');await page.setViewportSize({width,height:420});await expect(modal(page).getByRole('button',{name:'OK',exact:true})).toBeInViewport();await expect(modal(page).getByRole('button',{name:'Avbryt',exact:true})).toBeInViewport();expect(await page.locator('#original-text').evaluate(node=>node.scrollTop)).toBeGreaterThan(0);expect(await modal(page).evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true);await page.keyboard.press('ControlOrMeta+Home');expect(await page.locator('#original-text').evaluate(node=>node.scrollTop)).toBe(0);await page.screenshot({path:`test-results/original-${width}-${theme}.png`});await cancel(page);await page.setViewportSize({width,height:800});}
+ for(const theme of ['light','dark']){
+  await setDisplay(page,{theme,fontSize:36});await original(page);
+  const tools=modal(page).getByRole('toolbar',{name:'Formater sangtekst'});await expect(tools).toBeVisible();await expect(tools.locator('*')).toHaveCount(0);const before=await tools.boundingBox();expect(before.height).toBeGreaterThanOrEqual(44);
+  await page.locator('#original-text').focus();await page.keyboard.press('ControlOrMeta+End');expect(await tools.boundingBox()).toEqual(before);
+  await page.setViewportSize({width,height:420});await expect(tools).toBeInViewport();const reduced=await tools.boundingBox();
+  await expect(modal(page).getByRole('button',{name:'OK',exact:true})).toBeInViewport();await expect(modal(page).getByRole('button',{name:'Avbryt',exact:true})).toBeInViewport();expect(await page.locator('#original-text').evaluate(node=>node.scrollTop)).toBeGreaterThan(0);expect(await modal(page).evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true);
+  await page.keyboard.press('ControlOrMeta+Home');expect(await page.locator('#original-text').evaluate(node=>node.scrollTop)).toBe(0);expect(await tools.boundingBox()).toEqual(reduced);
+  await page.screenshot({path:`test-results/original-${width}-${theme}.png`});await cancel(page);await page.setViewportSize({width,height:800});
+ }
 });
 
 test('newer originals are rejected and independent fields merge with the latest stored personal state',async({page})=>{
@@ -97,4 +105,45 @@ test('a created then edited song survives a full browser restart offline in both
   await context.close();context=await launch();await context.setOffline(true);page=context.pages()[0];
   for(const channel of ['app','test']){await page.goto(`http://127.0.0.1:4173/hobos-songbook/${channel}/`);await page.locator('.song-choice').click();await expect(page.locator('#song-title')).toHaveText(channel);await expect(page.locator('#song-body')).toContainText('Endret æøå 😀');await expect(page.locator('.song-metadata')).toContainText('Capo 2');expect(await savedSongs(page)).toEqual(saved[channel]);}
  }finally{await context?.close();await rm(profile,{recursive:true,force:true});}
+});
+
+for (const width of [320,390,768]) test(`mobile feedback: protected preview and compact popups at ${width}px`,async({browser},testInfo)=>{
+ const context=await browser.newContext({viewport:{width,height:844},hasTouch:true,isMobile:true}),page=await context.newPage();
+ const source='{t: Banner of Heaven}\n{key: Em}\n{x_dyn: 5}\n[Em]He came to town last summer\n{x_dyn: 2}\n{soc}\n[C]Under the banner of Heaven\n{eoc}\n{chorus}\n{sog}\n| Em . | C . |\n{eog}\n'+('More words\n').repeat(80);
+ try {
+  await page.goto('http://127.0.0.1:4173'+url);await importSong(page,'banner.cho',source);const before=await savedSongs(page);await edit(page);await setCapo(page,2);
+  const toolbar=page.locator('.edit-toolbar');await expect(toolbar).toHaveText('');await expect(toolbar.locator('button > svg')).toHaveCount(5);
+  for(const theme of ['dark','light']){
+   await setDisplay(page,{theme});await original(page);await expect(modal(page).locator('header')).toBeFocused();expect(await page.evaluate(()=>document.activeElement.matches('input,textarea'))).toBe(false);
+   await expect(page.locator('#original-title')).toHaveAttribute('readonly','');await expect(page.locator('#original-time')).toBeDisabled();await expect(page.locator('#original-protection')).toContainText('refreng');
+   const preview=page.locator('.original-preview');await expect(preview.locator('svg,.highlight-controls,.selection-preview,.personal-note,input,textarea,button')).toHaveCount(0);
+   const first=preview.locator('.song-line').first();await expect(first).toBeInViewport();await expect(first).toContainText('He came to town last summer');await expect(first.locator('.chord').first()).toHaveText('Em');
+   await expect(preview.locator('.chord-grid')).toHaveCount(1);await expect(page.locator('#dynamics-profile')).toHaveCount(1);
+   const tools=modal(page).getByRole('toolbar',{name:'Formater sangtekst'});await expect(tools).toBeVisible();await expect(tools.locator('*')).toHaveCount(0);const position=await tools.boundingBox();expect(position.height).toBeGreaterThanOrEqual(44);
+   await page.locator('.original-content').evaluate(node=>node.scrollTop=node.scrollHeight);await expect(preview.locator('.song-line').last()).toBeInViewport();await expect(modal(page).getByRole('button',{name:'OK',exact:true})).toBeInViewport();
+   expect(await tools.boundingBox()).toEqual(position);
+   await page.locator('.original-content').evaluate(node=>node.scrollTop=0);await page.screenshot({path:testInfo.outputPath(`protected-${theme}-${width}.png`)});await cancel(page);
+  }
+  expect(await savedSongs(page)).toEqual(before);await expect(page.locator('#edit-save')).toBeEnabled();await page.locator('#back').click();await page.getByRole('button',{name:'Forkast endringer'}).click();
+  await fresh(page);await expect(modal(page).locator('header')).toBeFocused();await page.locator('#original-title').fill('Dur i moll');
+  const inputBox=await page.locator('#original-title').boundingBox(),pillBox=await page.locator('#original-key').boundingBox();expect(pillBox.y-inputBox.y-inputBox.height).toBeGreaterThanOrEqual(11);
+  for(const [field,name,maxWidth] of [['key','Toneart',220],['time','Taktart',240]]) {
+   await page.locator(`#original-${field}`).tap();const popup=page.getByRole('dialog',{name,exact:true}),input=popup.getByRole('textbox',{name,exact:true});
+   const bounds=await popup.boundingBox(),fieldBounds=await input.boundingBox();expect(bounds.width).toBeLessThanOrEqual(maxWidth);expect(fieldBounds.width).toBeLessThan(bounds.width*.8);expect(bounds.width).toBeGreaterThan(fieldBounds.width+60);
+   await page.setViewportSize({width,height:420});await expect(popup.getByRole('button',{name:'OK',exact:true})).toBeInViewport();await expect(input).toBeInViewport();
+   await page.screenshot({path:testInfo.outputPath(`${field}-${width}.png`)});await page.keyboard.press('Escape');await page.setViewportSize({width,height:844});
+  }
+  await cancel(page);expect(await savedSongs(page)).toEqual(before);
+ }finally{await context.close();}
+});
+
+test('new song is available from performance and guards drafts before replacing an editing session',async({page})=>{
+ await importSong(page,'gammel.txt','{t: Gammel}\nBehold teksten');const before=(await savedSongs(page))[0];
+ await fresh(page);await cancel(page);expect((await savedSongs(page))[0]).toEqual(before);await page.locator('.song-choice').click();await edit(page);await setCapo(page,2);
+ await openMenu(page);await page.getByRole('button',{name:'Ny sang',exact:true}).click();await page.getByRole('button',{name:'Fortsett redigering'}).click();await expect(page.locator('#song-title')).toHaveText('Gammel');await expect(page.locator('#capo-pill')).toContainText('2');
+ await openMenu(page);await page.getByRole('button',{name:'Ny sang',exact:true}).click();await page.getByRole('button',{name:'Forkast endringer'}).click();await expect(modal(page)).toBeVisible();await cancel(page);expect(await records(page)).toEqual([]);
+ await page.locator('.song-choice').click();await edit(page);await setCapo(page,3);
+ await page.evaluate(()=>{const put=IDBObjectStore.prototype.put;window.restorePut=()=>IDBObjectStore.prototype.put=put;IDBObjectStore.prototype.put=function(...args){if(this.name==='personal')throw Error('unavailable');return put.apply(this,args);};});
+ await openMenu(page);await page.getByRole('button',{name:'Ny sang',exact:true}).click();await page.getByRole('button',{name:'Lagre og gå ut'}).click();await expect(page.locator('#song-status')).toContainText('Kunne ikke lagre');await expect(modal(page)).toHaveCount(0);await expect(page.locator('#capo-pill')).toContainText('3');
+ await page.evaluate(()=>window.restorePut());await openMenu(page);await page.getByRole('button',{name:'Ny sang',exact:true}).click();await page.getByRole('button',{name:'Lagre og gå ut'}).click();await expect(modal(page)).toBeVisible();expect((await records(page))[0].capo).toBe(3);await cancel(page);expect((await savedSongs(page))[0]).toEqual(before);
 });

@@ -1,6 +1,6 @@
 import {openOriginalEditor} from './original-editor.ts';
 import {newSong} from '../domain/original.ts';
-import {createPersonalEditor, paintAnnotations} from './personal-editor.ts';
+import {createPersonalEditor, paintAnnotations, iconButton} from './personal-editor.ts';
 import {gripKey, transposeChord, transposeGrid} from '../domain/personal.ts';
 import {attachSongSpacing} from './song-spacing.ts';
 import {saveUpdateView, takeUpdateView, restoreUpdateView, focusUpdateView, type UpdateView} from './update-view.ts';
@@ -93,14 +93,17 @@ export function startSongbook() {
       document.body.append(prompt); prompt.showModal(); prompt.querySelectorAll('button')[2].focus();
     });
   }
+  async function settleDraft(): Promise<boolean> {
+    if (saving) await saving;
+    if (!dirty()) return true;
+    const choice = await confirmLeave();
+    return choice === 'discard' || choice === 'save' && await flush();
+  }
   async function finishEdit() {
     if (!active || leaving || saving) return;
     leaving = true;
     try {
-      if (dirty()) {
-        const choice = await confirmLeave();
-        if (choice === 'cancel' || choice === 'save' && !await flush()) return;
-      }
+      if (!await settleDraft()) return;
       const song = savedSong ?? active, returnTo = editing; editing = undefined;
       editor?.dispose(); editor = undefined; saveRetry.hidden = true;
       if (returnTo?.from === 'reader') await openSong(song, returnTo.returnView);
@@ -116,12 +119,19 @@ export function startSongbook() {
   const exitEdit = element('button', 'Avslutt redigering'); exitEdit.type = 'button'; exitEdit.hidden = true;
   exitEdit.addEventListener('click', () => {dialog.close(); void finishEdit();});
   const create = element('button','Ny sang');create.type='button';create.id='new-song';
-  create.addEventListener('click', () => {
-    dialog.close();const song=newSong();savedSong=null;savedPersonal={songId:song.id,chorus:{}};currentPersonal=undefined;editing={from:'library'};
-    void openSong(song,undefined,true).then(() => showOriginal(true));
-  });
+  let creating = false;
+  create.addEventListener('click', () => {void beginNewSong();});
+  async function beginNewSong() {
+    if (creating || leaving) return;
+    creating = true; dialog.close();
+    try {
+      if (editing && !await settleDraft()) return;
+      const song=newSong();savedSong=null;savedPersonal={songId:song.id,chorus:{}};currentPersonal=undefined;editing={from:'library'};
+      await openSong(song,undefined,true);showOriginal(true);
+    } finally {creating = false;}
+  }
   dialog.querySelector('.menu-heading')!.after(create,editMenu,exitEdit);
-  menu.addEventListener('click', () => {create.hidden = Boolean(active);dialog.showModal();});
+  menu.addEventListener('click', () => dialog.showModal());
   query('menu-close').addEventListener('click', () => dialog.close());
   dialog.addEventListener('close', () => menu.focus({preventScroll: true}));
   dialog.addEventListener('click', event => {
@@ -253,7 +263,7 @@ export function startSongbook() {
           query('song-body').querySelectorAll<HTMLElement>('.chord[data-original]').forEach(node => node.textContent = transposeChord(node.dataset.original!,capo));
         }
       }, () => {void flush();}, savedPersonal ?? personal, originalDirty);
-      const originalButton=element('button','Original');originalButton.type='button';originalButton.id='edit-original';originalButton.setAttribute('aria-label','Rediger original');originalButton.addEventListener('click',()=>showOriginal());
+      const originalButton=iconButton('Rediger sangtekst','text',()=>showOriginal());originalButton.id='edit-original';
       editor.element.append(originalButton);
       article.prepend(editor.element); editor.metadata(metadata);
     }

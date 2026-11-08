@@ -15,8 +15,9 @@ const icons = {
   highlight: 'm15 3 6 6-9 9-6-6zM6 12l-3 6 3 3 6-3M3 22h12',
   note: 'M4 3h16v13l-5 5H4zM15 21v-6h5M8 8h8M8 12h5',
   grid: 'M3 5h18v14H3zM3 10h18M9 5v14M15 5v14',
+  text: 'M4 3h11l5 5v5M14 3v6h6M4 3v18h6M8 8h3M8 12h5m1 7 6-6 2 2-6 6-3 1z',
 };
-function iconButton(name: string, icon: keyof typeof icons, action: () => void) {
+export function iconButton(name: string, icon: keyof typeof icons, action: () => void) {
   const result = button('', action); result.setAttribute('aria-label', name); result.dataset.tooltip = name;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
   const path = document.createElementNS(svg.namespaceURI, 'path'); path.setAttribute('d', icons[icon]); svg.append(path); result.append(svg); return result;

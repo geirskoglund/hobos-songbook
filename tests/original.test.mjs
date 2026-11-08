@@ -23,7 +23,7 @@ test('new and fallback songs only gain deliberately edited metadata',()=>{
 });
 test('structures remain protected and first key never transposes chords',()=>{
   for(const source of ['[D]Ord','{comment: Rolig}\nOrd','{soc}\nOrd\n{eoc}\n{chorus}','{sog}\n| D |\n{eog}','{x_dyn: 2}\nOrd','{unknown: behold}\nOrd','Ord\n{title: Midt i}']) {
-    const model=originalDocument(song(source));assert.equal(model.bodyProtected,true);assert.throws(()=>model.apply({...model.fields,text:'Erstatt'}),/beskyttet/);assert.equal(model.apply(model.fields),source);
+    const model=originalDocument(song(source));assert.equal(model.bodyProtected,true);assert.throws(()=>model.apply({...model.fields,text:'Erstatt'}),/låst/);assert.equal(model.apply(model.fields),source);
   }
   const model=originalDocument(song('[Db]Ord'));assert.equal(model.apply({...model.fields,key:'Db'}),'{key: Db}\n[Db]Ord');
   const keyed=originalDocument(song('{key: Db}\n[Db]Ord'));assert.throws(()=>keyed.apply({...keyed.fields,key:'D'}),/transponering/);
