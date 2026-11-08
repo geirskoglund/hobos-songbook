@@ -40,7 +40,7 @@ export function anchorFor(song: Song, sourceLine: number, occurrence: string, te
   const lines = song.original.replace(/^\uFEFF/, '').split(/\r\n|\n|\r/);
   return {songId: song.id, occurrence, sourceLine, text, before: lines[sourceLine - 1] ?? '', after: lines[sourceLine + 1] ?? '', original: song.original};
 }
-export function validCapo(value: number): boolean {return Number.isInteger(value) && value >= 0 && value <= 12;}
+export function validCapo(value: number): boolean {return Number.isInteger(value) && value >= 0 && value <= 11;}
 const pitch: Record<string, number> = {C:0,D:2,E:4,F:5,G:7,A:9,B:11,H:11};
 /** B is international B natural; H is its accepted alias. Never infer legacy German B-flat. */
 export function transposeChord(value: string, capo: number): string {

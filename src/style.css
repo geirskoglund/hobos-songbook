@@ -148,7 +148,9 @@ button.song-key {font:500 .65em/1.2 ui-sans-serif,system-ui,sans-serif; padding:
 .edit-popup textarea {resize:vertical; min-height:70px; max-height:40svh}
 .popup-grid textarea {font:16px/1.6 ui-monospace,monospace; white-space:pre; overflow:auto}
 .popup-grid textarea + textarea {margin-top:12px}
-.popup-capo #personal-capo {width:76px; font-size:18px}
+.capo-control {display:flex; align-items:center; justify-content:center; gap:12px; margin:8px 0}
+.capo-control button {width:44px; min-height:44px; padding:0; border:0; background:transparent; text-align:center; font:24px/1 system-ui,sans-serif}
+.capo-control #personal-capo {min-width:2ch; text-align:center; font:24px/1.2 system-ui,sans-serif; font-variant-numeric:tabular-nums}
 .song-line, .song-space {position:relative; display:flow-root}
 .song-space {display:none}
 .song-space:has(.personal-note) {display:flow-root; min-height:1.2em}

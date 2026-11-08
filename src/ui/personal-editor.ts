@@ -129,9 +129,22 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
   function openCapo(anchorNode: HTMLElement) {
     const capo = personal.capo ?? 0;
     openPopup(anchorNode,'Capo','capo', content => {
-      const input = el('input'); input.type = 'text'; input.inputMode = 'numeric'; input.id = 'personal-capo'; input.value = String(capo); input.setAttribute('aria-label','Capo');
-      input.addEventListener('input', () => fieldError(input)); content.append(input);
-      return {apply:() => {const value=input.value.trim()===''?NaN:Number(input.value); if (!fieldError(input,validCapo(value) ? '' : 'Bruk et heltall fra 0 til 12.')) return false; if (value !== capo) update(current => ({...current,capo:value})); return true;},dirty:() => input.value !== String(capo),focus:input};
+      let value = validCapo(capo) ? capo : 0;
+      const control = el('div'); control.className = 'capo-control';
+      const number = el('span'); number.id = 'personal-capo'; number.tabIndex = 0;
+      number.setAttribute('role','spinbutton'); number.setAttribute('aria-label','Capo'); number.setAttribute('aria-valuemin','0'); number.setAttribute('aria-valuemax','11'); number.setAttribute('aria-live','polite');
+      const less = button('<', () => setValue(value-1)), more = button('>', () => setValue(value+1));
+      less.setAttribute('aria-label','Reduser capo'); more.setAttribute('aria-label','Øk capo');
+      function setValue(next: number) {
+        if (!validCapo(next)) return;
+        value = next; number.textContent = String(value); number.setAttribute('aria-valuenow',String(value)); less.disabled = value === 0; more.disabled = value === 11;
+      }
+      control.addEventListener('keydown', event => {
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? 11 : ['ArrowRight','ArrowUp'].includes(event.key) ? value+1 : ['ArrowLeft','ArrowDown'].includes(event.key) ? value-1 : undefined;
+        if (next !== undefined) {event.preventDefault(); setValue(next);}
+      });
+      control.append(less,number,more); content.append(control); setValue(value);
+      return {apply:() => {if (value !== capo) update(current => ({...current,capo:value})); return true;},dirty:() => value !== capo,focus:number};
     });
   }
   function openTuning(anchorNode: HTMLElement) {

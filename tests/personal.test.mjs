@@ -5,7 +5,9 @@ import {parseChordPro} from '../src/domain/chordpro.ts';
 
 test('capo transforms roots and slash bass without rewriting suffixes or unknown tokens', () => {
   for (const [chord, capo, expected] of [['D',2,'C'],['D/F#',2,'C/E'],['Bm7',2,'Am7'],['G',7,'C'],['Dm',2,'Cm'],['Bbmaj7/D',2,'Abmaj7/C'],['H',2,'A'],['B',2,'A'],['C♯m7/G♯',2,'Bm7/F#'],['N.C.',2,'N.C.'],['Solo',2,'Solo'],['D',0,'D']]) assert.equal(transposeChord(chord,capo),expected);
-  for (const capo of [-1,13,1.5,NaN]) {assert.equal(validCapo(capo),false); assert.equal(transposeChord('D',capo),'D');}
+  for (let capo=0;capo<=11;capo++) assert.equal(validCapo(capo),true);
+  assert.equal(transposeChord('C',11),'C#');
+  for (const capo of [-1,12,13,1.5,NaN]) {assert.equal(validCapo(capo),false); assert.equal(transposeChord('D',capo),'D');}
   assert.equal(gripKey(null,2),null); assert.equal(gripKey('ukjent',2),null); assert.equal(gripKey('D',2),'C'); assert.equal(gripKey('G',7),'C');
 });
 test('same grid transformation preserves bars, repeats, form, labels and original', () => {

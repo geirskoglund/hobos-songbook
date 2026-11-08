@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, openMenu} from './song-helpers.mjs';
+import {importSong, savedSongs, openMenu, setCapo} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
 const original='\uFEFF{t: Personlig}\r\n{key: D}\r\n{sog: shape="2x4" label="Intro"}\r\n| D . D/F# . | Bm7 . A . |\r\n{eog}\r\n[D]Ærlig [D/F#]øvelse å [Bm7]synge\r\n{soc}\r\n[D]Samme tekst\r\n{eoc}\r\n{chorus}\r\n{chorus}\r\n'+('Lang leselinje\r\n').repeat(60);
 const edit=async page=>{await openMenu(page);await page.getByRole('button',{name:'Rediger',exact:true}).click();await expect(page.locator('.edit-toolbar')).toBeVisible();};
@@ -8,7 +8,34 @@ const exit=async page=>{await page.locator('#back').click();await expect(page.lo
 const personal=page=>page.evaluate(()=>new Promise((resolve,reject)=>{
  const request=indexedDB.open('hobos-songbook-test',1);request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result,tx=db.transaction('personal'),get=tx.objectStore('personal').getAll();tx.oncomplete=()=>{db.close();resolve(get.result);};};
 }));
-async function capo(page,value) {await page.locator('#capo-pill').click();await page.locator('#personal-capo').fill(String(value));await page.getByRole('button',{name:'OK',exact:true}).click();}
+const capo = setCapo;
+
+test('capo arrows show a plain number, stop at 0 and 11, and only OK confirms the popup draft',async({page})=>{
+ await page.goto(url);await importSong(page,'capo.cho','{key: D}\n[D]Tekst');await edit(page);await page.locator('#capo-pill').click();
+ const popup=page.getByRole('dialog',{name:'Capo',exact:true}),number=page.getByRole('spinbutton',{name:'Capo',exact:true}),less=page.getByRole('button',{name:'Reduser capo',exact:true}),more=page.getByRole('button',{name:'Øk capo',exact:true});
+ await expect(popup.locator('input,textarea')).toHaveCount(0);await expect(popup.locator('.capo-control')).toHaveText('<0>');await expect(less).toBeDisabled();await expect(more).toBeEnabled();
+ const boxes=await Promise.all([less,number,more].map(node=>node.boundingBox()));expect(boxes[0].x+boxes[0].width).toBeLessThan(boxes[1].x);expect(boxes[1].x+boxes[1].width).toBeLessThan(boxes[2].x);
+ for(let n=1;n<=11;n++){await more.click();await expect(number).toHaveText(String(n));await expect(number).toHaveAttribute('aria-valuenow',String(n));}
+ await expect(more).toBeDisabled();await number.focus();await page.keyboard.press('ArrowUp');await expect(number).toHaveText('11');await expect(page.locator('#capo-pill')).toHaveText('Uten capo');expect((await personal(page))[0]?.capo).toBeUndefined();
+ await page.getByRole('button',{name:'Avbryt',exact:true}).click();await expect(page.locator('#edit-save')).toBeDisabled();
+ await page.locator('#capo-pill').click();await number.focus();await page.keyboard.press('End');await page.getByRole('button',{name:'OK',exact:true}).click();await expect(page.locator('#capo-pill')).toHaveText('Capo 11: D#');await expect(page.locator('.chord').first()).toHaveText('D#');expect((await personal(page))[0]?.capo).toBeUndefined();
+ await save(page);expect((await personal(page))[0].capo).toBe(11);
+ await page.locator('#capo-pill').click();await number.focus();await page.keyboard.press('Home');await page.keyboard.press('ArrowDown');await expect(number).toHaveText('0');await expect(less).toBeDisabled();await page.keyboard.press('Escape');await expect(page.locator('#capo-pill')).toHaveText('Capo 11: D#');await expect(page.locator('#edit-save')).toBeDisabled();
+ await capo(page,0);await save(page);await exit(page);await expect(page.locator('.song-metadata')).not.toContainText('Capo');
+});
+
+test('capo touch arrows change only on release and never focus an editable field',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:320,height:800},isMobile:true,hasTouch:true}),page=await context.newPage();
+ try {
+  await page.goto('http://127.0.0.1:4173'+url);await importSong(page,'beroring.txt','Tekst');await edit(page);await page.locator('#capo-pill').tap();
+  const number=page.getByRole('spinbutton',{name:'Capo',exact:true}),more=page.getByRole('button',{name:'Øk capo',exact:true}),rect=await more.boundingBox(),cdp=await context.newCDPSession(page);
+  expect(rect.width).toBeGreaterThanOrEqual(44);expect(rect.height).toBeGreaterThanOrEqual(44);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:rect.x+rect.width/2,y:rect.y+rect.height/2}]});await expect(number).toHaveText('0');await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await expect(number).toHaveText('1');
+  await page.getByRole('button',{name:'Reduser capo',exact:true}).tap();await expect(number).toHaveText('0');expect(await page.evaluate(()=>document.activeElement.matches('input,textarea,[contenteditable=true]'))).toBe(false);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);await page.getByRole('button',{name:'Avbryt',exact:true}).tap();await expect(page.locator('#edit-save')).toBeDisabled();
+ }finally{await context.close();}
+});
+
 async function select(page,occurrence,start,end) {
  await page.locator(`.song-line[data-occurrence="${occurrence}"]`).evaluate((line,{start,end})=>{
    const lyrics=[...line.querySelectorAll('.lyric')];
@@ -112,12 +139,11 @@ test('actual pending save delays worker reload and preserves note and capo offli
  await page.evaluate(()=>window.releaseWrite=true);await expect(page.locator('.build')).toContainText('ccccccc');await exit(page);await context.setOffline(true);await page.reload();await page.locator('.song-choice').click();await expect(page.locator('.song-metadata')).toContainText('Capo 2');expect(await savedSongs(page)).toEqual(before);await context.setOffline(false);
 });
 
-test('no-key song supports a new chart, invalid capo correction, whole-line highlight and both themes',async({page})=>{
+test('no-key song supports a new chart, capo changes, whole-line highlight and both themes',async({page})=>{
  await page.goto(url);await importSong(page,'uten.txt','Ærlig øvelse å synge\nSamme linje');await edit(page);await capo(page,2);
  await page.locator('.grid-placeholder').click();await page.locator('#personal-grid').fill('| C . C/E . |');await page.getByRole('button',{name:'OK',exact:true}).click();await save(page);
  expect((await personal(page))[0].chordGrid).toContain('D/F#');await expect(page.locator('#chart-dock')).toContainText('C/E');await expect(page.locator('#capo-pill')).toHaveText('Capo 2');
- await page.locator('#capo-pill').click();await page.locator('#personal-capo').fill('1.5');await page.getByRole('button',{name:'OK',exact:true}).click();await expect(page.locator('#personal-capo')).toBeVisible();expect((await personal(page))[0].capo).toBe(2);
- await page.locator('#personal-capo').fill('0');await page.getByRole('button',{name:'OK',exact:true}).click();
+ await capo(page,0);
  await select(page,'source/line:0',0,20);await page.getByRole('button',{name:'Markeringspenn',exact:true}).click();await save(page);await exit(page);
  const line=page.locator('.song-line').first();expect((await line.locator('mark').allTextContents()).join('')).toBe('Ærlig øvelse å synge');
  for(const theme of ['dark','light']) {
@@ -168,7 +194,7 @@ test('icon order, semantic save state, popup transactions and source time signat
  const pills=await page.locator('.song-metadata > .song-key').evaluateAll(nodes=>nodes.map(n=>({top:n.getBoundingClientRect().top,height:n.getBoundingClientRect().height})));
  expect(new Set(pills.map(n=>n.top)).size).toBe(1);expect(new Set(pills.map(n=>n.height)).size).toBe(1);
  await page.locator('#capo-pill').click();expect((await page.locator('#personal-capo').boundingBox()).width).toBeLessThan(90);
- await page.locator('#personal-capo').fill('2');await page.getByRole('button',{name:'Avbryt',exact:true}).click();await expect(page.locator('#capo-pill')).toHaveText('Uten capo');await expect(page.locator('#edit-save')).toBeDisabled();
+ await page.getByRole('button',{name:'Øk capo',exact:true}).click();await page.getByRole('button',{name:'Avbryt',exact:true}).click();await expect(page.locator('#capo-pill')).toHaveText('Uten capo');await expect(page.locator('#edit-save')).toBeDisabled();
  await capo(page,2);await expect(page.locator('#edit-save')).toBeEnabled();await capo(page,0);await expect(page.locator('#edit-save')).toBeDisabled();
  await page.getByRole('button',{name:'Akkordskjema',exact:true}).click();const box=await page.locator('.popup-grid').boundingBox();expect(box.width).toBeGreaterThan(700);expect(Math.abs(box.x-(768-box.width)/2)).toBeLessThan(1);
  const cancel=await page.getByRole('button',{name:'Avbryt',exact:true}).boundingBox(),ok=await page.getByRole('button',{name:'OK',exact:true}).boundingBox();expect(cancel.x).toBeLessThan(ok.x);expect(cancel.y).toBe(ok.y);expect(ok.x-cancel.x-cancel.width).toBeLessThanOrEqual(12);expect(box.x+box.width-ok.x-ok.width).toBeLessThanOrEqual(20);

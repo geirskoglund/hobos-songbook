@@ -178,7 +178,7 @@ Ved ny beslutning endres berørt krav på plass; motstrid erstattes fremfor å a
 
 ### Presisering av personlig skjema og capo
 
-Capo 0 er standard, heter «Uten capo» i redigering og skjules under fremføring. Stemming uten avvik heter «Standard stemming». Pillene viser toneart, taktart, capo og stemming i denne rekkefølgen. Taktart leses fra originalens `{time: ...}` og vises uredigerbart i begge modi, med 4/4 som standard; det er ikke personlige data.
+Capo velges med `<` og `>` rundt et rent tall, uten tekstfelt. Bare heltall fra 0 til 11 er lovlige, og knappene deaktiveres ved hver sin grense uten å gå rundt. Capo 0 er standard, heter «Uten capo» i redigering og skjules under fremføring. Stemming uten avvik heter «Standard stemming». Pillene viser toneart, taktart, capo og stemming i denne rekkefølgen. Taktart leses fra originalens `{time: ...}` og vises uredigerbart i begge modi, med 4/4 som standard; det er ikke personlige data.
 
 Skjema redigeres som fri tekst med taktstreker i en bred popup uten rammetagger eller råvisning. Overskriften følger valgt capo: «Akkordskjema» eller «Akkordskjema, capo N». C med capo 2 blir D i utkastets faktiske akkordrepresentasjon ved OK, og vises igjen som C. Endret capo omregner både skjema og tekstakkorder umiddelbart. Tomt bekreftet skjema gir felles skjema tilbake, ellers ingen skjemavisning. Skjemaflaten kan fylle bredden, men musikalsk innhold vises kompakt etter innholdets bredde. ChordPros punktum som separat element er en tom celle og vises som luft; antallet begrenses ikke til fire. Vanlige mellomrom angir ikke rytme. Det legges ikke til uspesifiserte tomme slag eller tomme startkolonner mellom takter.
 
