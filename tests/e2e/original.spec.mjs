@@ -23,7 +23,7 @@ test('new song stays in memory until Save; first cancel and discard leave no orp
 
 test('modal confirmation, popup cancellation, source preservation, unified Save and undo/clipboard shortcuts',async({page})=>{
  const source='\uFEFF {t: Enkel} \r\nFørste æøå\r\nSiste 😀\r\n';await importSong(page,'enkel.txt',source);const before=(await savedSongs(page))[0];await edit(page);await original(page);await ok(page);await expect(page.locator('#edit-save')).toBeDisabled();expect((await savedSongs(page))[0]).toEqual(before);
- await original(page);await page.locator('#original-title').fill('Ny tittel');await page.locator('#original-time').click();await page.getByRole('textbox',{name:'Taktart',exact:true}).fill('6/8');await page.keyboard.press('Escape');await expect(modal(page)).toBeVisible();await expect(page.locator('#original-time')).toContainText('4/4');
+ await original(page);await page.locator('#original-title').fill('Ny tittel');await page.locator('#original-time').click();await page.getByRole('textbox',{name:'Takt',exact:true}).fill('6/8');await page.keyboard.press('Escape');await expect(modal(page)).toBeVisible();await expect(page.locator('#original-time')).toContainText('4/4');
  await page.locator('#original-key').click();await page.getByRole('textbox',{name:'Toneart',exact:true}).fill('D');await page.getByRole('dialog',{name:'Toneart',exact:true}).getByRole('button',{name:'OK',exact:true}).click();
  await page.locator('#original-text').focus();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.type('Ny linje');await page.keyboard.press('ControlOrMeta+z');await expect(page.locator('#original-text')).toHaveValue('Første æøå\nSiste 😀\n');await page.keyboard.press('ControlOrMeta+Shift+z');
  await page.keyboard.press('ControlOrMeta+s');expect((await savedSongs(page))[0]).toEqual(before);
@@ -127,7 +127,7 @@ for (const width of [320,390,768]) test(`mobile feedback: protected preview and 
   expect(await savedSongs(page)).toEqual(before);await expect(page.locator('#edit-save')).toBeEnabled();await page.locator('#back').click();await page.getByRole('button',{name:'Forkast endringer'}).click();
   await fresh(page);await expect(modal(page).locator('header')).toBeFocused();await page.locator('#original-title').fill('Dur i moll');
   const inputBox=await page.locator('#original-title').boundingBox(),pillBox=await page.locator('#original-key').boundingBox();expect(pillBox.y-inputBox.y-inputBox.height).toBeGreaterThanOrEqual(11);
-  for(const [field,name,maxWidth] of [['key','Toneart',220],['time','Taktart',240]]) {
+  for(const [field,name,maxWidth] of [['key','Toneart',220],['time','Takt',240]]) {
    await page.locator(`#original-${field}`).tap();const popup=page.getByRole('dialog',{name,exact:true}),input=popup.getByRole('textbox',{name,exact:true});
    const bounds=await popup.boundingBox(),fieldBounds=await input.boundingBox();expect(bounds.width).toBeLessThanOrEqual(maxWidth);expect(fieldBounds.width).toBeLessThan(bounds.width*.8);expect(bounds.width).toBeGreaterThan(fieldBounds.width+60);
    await page.setViewportSize({width,height:420});await expect(popup.getByRole('button',{name:'OK',exact:true})).toBeInViewport();await expect(input).toBeInViewport();

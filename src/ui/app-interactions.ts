@@ -5,7 +5,7 @@ const textControl = (target: EventTarget | null): TextControl | undefined => {
 };
 /** App-wide policy: page-owned text tools, no browser context/selection callouts. */
 export function startAppInteractions() {
-  let menu: HTMLElement | undefined, menuControl: TextControl | undefined, tooltip: HTMLElement | undefined, pointerType = '', disposeMenu=()=>{};
+  let menu: HTMLElement | undefined, menuControl: TextControl | undefined, tooltip: HTMLElement | undefined, pointerType = '', disposeMenu=()=>{}, suppressTouchEnd=false;
   let hold: {control:TextControl;pointer:number;x:number;y:number;lastX:number;lastY:number;scrollX:number;scrollY:number;moved:boolean;opened:boolean;timer:ReturnType<typeof setTimeout>} | undefined;
   function closeMenu(restore=false) {const control=menuControl;disposeMenu();disposeMenu=()=>{};menu?.remove();menu=undefined;menuControl=undefined;if(restore&&control?.isConnected)control.focus({preventScroll:true});}
   function hideTooltip() {tooltip?.remove();tooltip=undefined;}
@@ -16,7 +16,7 @@ export function startAppInteractions() {
     else {select(control,start,end);if(document.execCommand('insertText',false,text))return;control.setRangeText(text,start,end,'end');}
     control.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertReplacementText',data:text}));
   }
-  /** A temporary mirror maps a completed tap to a caret without native touch selection. */
+  /** A temporary mirror locates the app-owned long-press menu caret. */
   function caret(control:TextControl,x:number,y:number) {
     const box=control.getBoundingClientRect(),computed=getComputedStyle(control),mirror=document.createElement('div');
     for(const key of ['font','line-height','letter-spacing','padding','border','text-align','text-indent','tab-size','word-spacing','overflow-wrap']) mirror.style.setProperty(key,computed.getPropertyValue(key));
@@ -67,6 +67,9 @@ export function startAppInteractions() {
   function stopHold() {if(hold)clearTimeout(hold.timer);hold=undefined;}
   function down(event:PointerEvent) {
     pointerType=event.pointerType;hideTooltip();
+    // Keep the keyboard/focus stable until a dialog action completes. Otherwise
+    // blur can resize the viewport and move the button before the release.
+    if((event.target as Element).closest('dialog .popup-actions button'))event.preventDefault();
     if(!(event.target as Element).closest('input,textarea,.edit-toolbar,.app-text-actions,.highlight-controls'))getSelection()?.removeAllRanges();if(menu?.contains(event.target as Node))return;closeMenu();stopHold();
     const control=textControl(event.target);if(event.pointerType!=='touch'||!control)return;
     hold={control,pointer:event.pointerId,x:event.clientX,y:event.clientY,lastX:event.clientX,lastY:event.clientY,scrollX:scrollX,scrollY:scrollY,moved:false,opened:false,timer:setTimeout(()=>{
@@ -76,28 +79,27 @@ export function startAppInteractions() {
   function move(event:PointerEvent) {
     if(!hold||event.pointerId!==hold.pointer)return;
     if(Math.hypot(event.clientX-hold.x,event.clientY-hold.y)>8){hold.moved=true;clearTimeout(hold.timer);if(hold.opened)closeMenu();}
-    if(hold.moved){
-      const dy=hold.lastY-event.clientY,dx=hold.lastX-event.clientX,before=hold.control.scrollTop;
-      if(Math.abs(event.clientX-hold.x)>Math.abs(event.clientY-hold.y))hold.control.scrollLeft+=dx;
-      else {hold.control.scrollTop+=dy;if(hold.control.scrollTop===before)window.scrollBy(0,dy);}
-      event.preventDefault();
-    }
+    // Native field scrolling and short-tap focus must remain available to the IME.
     hold.lastX=event.clientX;hold.lastY=event.clientY;
   }
   function up(event:PointerEvent) {
     if(!hold||event.pointerId!==hold.pointer)return;const current=hold;stopHold();
-    if(!current.moved&&!current.opened&&Math.abs(scrollY-current.scrollY)<2&&Math.abs(scrollX-current.scrollX)<2)select(current.control,caret(current.control,event.clientX,event.clientY));
+    suppressTouchEnd=current.moved||current.opened;
   }
-  function touch(event:TouchEvent) {if(textControl(event.target))event.preventDefault();}
+  function touch(event:TouchEvent) {
+    // A disabled action has no default behavior, including keyboard dismissal.
+    if((event.target as Element).closest('dialog .popup-actions button:disabled'))event.preventDefault();
+  }
+  function touchEnd(event:TouchEvent) {if(suppressTouchEnd&&textControl(event.target))event.preventDefault();suppressTouchEnd=false;}
   function context(event:MouseEvent) {event.preventDefault();hideTooltip();const control=textControl(event.target);if(control)tools(control,event.clientX,event.clientY);else closeMenu();}
   function tooltipFor(target:HTMLElement) {
     hideTooltip();const text=target.dataset.tooltip;if(!text)return;
     const box=document.createElement('div');box.className='app-tooltip';box.setAttribute('role','tooltip');box.textContent=text;parent(target).append(box);tooltip=box;
     const rect=target.getBoundingClientRect();box.style.left=`${Math.max(8,Math.min(rect.left,innerWidth-box.offsetWidth-8))}px`;box.style.top=`${Math.max(8,Math.min(rect.bottom+6,innerHeight-box.offsetHeight-8))}px`;
   }
-  document.addEventListener('pointerdown',down,true);document.addEventListener('pointermove',move,{capture:true,passive:false});document.addEventListener('pointerup',up,true);document.addEventListener('pointercancel',()=>{stopHold();closeMenu();},true);
-  document.addEventListener('touchstart',touch,{capture:true,passive:false});document.addEventListener('contextmenu',context,true);
-  document.addEventListener('selectstart',event=>{if(!textControl(event.target))event.preventDefault();},true);
+  document.addEventListener('pointerdown',down,true);document.addEventListener('pointermove',move,{capture:true,passive:false});document.addEventListener('pointerup',up,true);document.addEventListener('pointercancel',()=>{stopHold();suppressTouchEnd=false;closeMenu();},true);
+  document.addEventListener('touchstart',touch,{capture:true,passive:false});document.addEventListener('touchend',touchEnd,{capture:true,passive:false});document.addEventListener('contextmenu',context,true);
+  document.addEventListener('selectstart',event=>{if(!textControl(event.target)||pointerType==='touch'&&hold?.opened)event.preventDefault();},true);
   document.addEventListener('dragstart',event=>event.preventDefault(),true);
   document.addEventListener('invalid',event=>event.preventDefault(),true);
   document.addEventListener('keydown',event=>{

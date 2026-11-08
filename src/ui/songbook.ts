@@ -217,7 +217,7 @@ export function startSongbook() {
       key.setAttribute('aria-label', `Toneart: ${parsed.key}`);
       metadata.append(key);
     }
-    const time = element('span', parsed.time, 'song-key'); time.setAttribute('aria-label', `Taktart: ${parsed.time}`); metadata.append(time); article.append(metadata);
+    const time = element('span', parsed.time, 'song-key'); time.setAttribute('aria-label', `Takt: ${parsed.time}`); metadata.append(time); article.append(metadata);
     const showMetadata = () => {
       const state = currentPersonal!;
       if (editing) {

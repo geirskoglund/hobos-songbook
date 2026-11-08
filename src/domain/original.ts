@@ -28,7 +28,7 @@ export function originalDocument(song: Song) {
   const ambiguous = (field: string) => metadata.filter(item => item.field === field).length > 1;
   function apply(next: OriginalFields): string {
     if (!next.title.trim()) throw new Error('Skriv en tittel.');
-    if (next.time !== fields.time && !validTime(next.time)) throw new Error('Skriv en taktart, for eksempel 4/4, 6/8 eller C.');
+    if (next.time !== fields.time && !validTime(next.time)) throw new Error('Skriv takt, for eksempel 4/4, 6/8 eller C.');
     if (fields.key && next.key !== fields.key) throw new Error('Endring av angitt toneart kommer sammen med transponering.');
     const edits: {start:number;end:number;value:string}[] = [];
     let added = '';

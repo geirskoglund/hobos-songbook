@@ -25,7 +25,7 @@ export function openOriginalEditor(song: Song, personal:()=>SongPersonal, apply:
   let disposePreview=()=>{};
   if (model.bodyProtected || locked) {
     const state=personal(), hasAnnotations=Object.values(state.annotations ?? {}).some(item=>item.note || item.highlights.length);
-    const message=locked ? `Tekst, tittel, toneart og taktart er foreløpig låst for å bevare ${hasAnnotations ? 'notater og gulmarkeringer' : 'refreng og dine refrengvalg'}. Personlige tilpasninger kan fortsatt redigeres i sangvisningen.` : model.protection;
+    const message=locked ? `Tekst, tittel, toneart og takt er foreløpig låst for å bevare ${hasAnnotations ? 'notater og gulmarkeringer' : 'refreng og dine refrengvalg'}. Personlige tilpasninger kan fortsatt redigeres i sangvisningen.` : model.protection;
     const explanation=el('p',message);explanation.id='original-protection';
     if(locked){title.setAttribute('aria-describedby',explanation.id);key.setAttribute('aria-describedby',explanation.id);time.setAttribute('aria-describedby',explanation.id);}
     const preview=originalPreview(song);disposePreview=preview.dispose;
@@ -34,6 +34,7 @@ export function openOriginalEditor(song: Song, personal:()=>SongPersonal, apply:
   const error=el('p');error.className='field-error';error.setAttribute('role','alert');
   const actions=el('footer');actions.className='popup-actions';
   const ok=button('OK',()=>{
+    if(ok.disabled)return;
     try {
       const nextFields={...fields,title:title.value,text:text.value};
       model.apply(nextFields); // Validate this opening, including its already chosen key.
@@ -44,11 +45,11 @@ export function openOriginalEditor(song: Song, personal:()=>SongPersonal, apply:
   });
   const abort=()=>{dispose();cancel();};actions.append(button('Avbryt',abort),ok);
   box.append(heading,toolbar,content,error,actions);
-  const reflect=()=>{fields.title=title.value;ok.disabled=!title.value.trim();key.textContent=fields.key || 'Toneart';key.setAttribute('aria-label',`Toneart: ${fields.key || 'ikke angitt'}`);time.textContent=fields.time || 'Taktart (4/4)';time.setAttribute('aria-label',`Taktart: ${fields.time || 'ikke angitt, viser 4/4'}`);error.textContent='';};
+  const reflect=()=>{fields.title=title.value;ok.disabled=!title.value.trim();key.textContent=fields.key || 'Toneart';key.setAttribute('aria-label',`Toneart: ${fields.key || 'ikke angitt'}`);time.textContent=fields.time || 'Takt (4/4)';time.setAttribute('aria-label',`Takt: ${fields.time || 'ikke angitt, viser 4/4'}`);error.textContent='';};
   title.addEventListener('input',reflect);text.addEventListener('input',()=>{error.textContent='';});
   let popup: {box:HTMLDialogElement;anchor:HTMLElement;dirty:()=>boolean;close:()=>void} | undefined;
   function metadata(field:'key'|'time',anchor:HTMLElement) {
-    const name=field==='key'?'Toneart':'Taktart', start=fields[field];
+    const name=field==='key'?'Toneart':'Takt', start=fields[field];
     const small=el('dialog');small.className=`edit-popup original-metadata metadata-${field}`;small.setAttribute('aria-label',name);
     const input=el('input');input.value=start;input.id=`original-${field}-input`;input.setAttribute('aria-label',name);input.autocomplete='off';input.spellcheck=false;
     const locked=field==='key'&&Boolean(start);input.readOnly=locked;
@@ -58,7 +59,7 @@ export function openOriginalEditor(song: Song, personal:()=>SongPersonal, apply:
     const close=()=>{observer.disconnect();popup=undefined;small.close();small.remove();anchor.focus({preventScroll:true});};
     const controls=el('div');controls.className='popup-actions';controls.append(button('Avbryt',close),button('OK',()=>{
       const value=input.value.trim();
-      if(field==='time'&&!validTime(value)){problem.textContent='Skriv en taktart, for eksempel 4/4, 6/8 eller C.';input.setAttribute('aria-invalid','true');return;}
+      if(field==='time'&&!validTime(value)){problem.textContent='Skriv takt, for eksempel 4/4, 6/8 eller C.';input.setAttribute('aria-invalid','true');return;}
       if(field==='key'&&value&&!/^[A-GH](?:#|b|♯|♭)?(?:m|maj|min)?$/.test(value)){problem.textContent='Skriv en toneart, for eksempel D, Bb eller Am.';return;}
       fields[field]=value;reflect();close();
     }));small.append(controls);
@@ -75,7 +76,7 @@ export function openOriginalEditor(song: Song, personal:()=>SongPersonal, apply:
     box.style.left=`${viewport?.offsetLeft ?? 0}px`;box.style.top=`${viewport?.offsetTop ?? 0}px`;box.style.width=`${viewport?.width ?? innerWidth}px`;box.style.height=`${viewport?.height ?? innerHeight}px`;
     if(popup){
       const width=viewport?.width ?? innerWidth,height=viewport?.height ?? innerHeight,x=viewport?.offsetLeft ?? 0,y=viewport?.offsetTop ?? 0;
-      const rect=popup.anchor.getBoundingClientRect(),w=Math.min(popup.box.classList.contains('metadata-key') ? 220 : 240,width-24);
+      const rect=popup.anchor.getBoundingClientRect(),w=Math.min(200,width-24);
       Object.assign(popup.box.style,{margin:'0',left:`${Math.max(x+12,Math.min(rect.left,x+width-w-12))}px`,right:'auto',bottom:'auto',width:`${w}px`,maxHeight:`${Math.max(80,height-24)}px`});
       popup.box.style.top=`${Math.max(y+12,Math.min(rect.bottom+8,y+height-popup.box.offsetHeight-12))}px`;
     }
