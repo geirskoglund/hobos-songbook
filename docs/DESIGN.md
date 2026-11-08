@@ -28,11 +28,11 @@ Tema, skriftstørrelse og av/på for skjema/profil huskes per miljø. Mørkt er 
 - For senere originalredigering: formatert editor som standard og full råtekst ved uttrykkelig valg. Den personlige skjemaeditoren viser aldri rammetagger. Personlige tekstvalg bruker ikonverktøylinjen uten ekstra kontekstpopup. God desktop/tastatur-/markeringsstøtte. Kontroll/godkjenning av konverteringsforslag uten automatisk omskriving av ordlyd.
 - Setliste har tydelig adskilt redigering og fremføring, egne rader for pauser/påminnelser, markeringsrekkefølge ved flervalg og langt trykk/dra for omordning. Ingen egen konsertmodus eller Lagre/Angre-knapp i setlisteeditoren.
 - Sang starter alltid øverst. Sidesveip følger også pauser/påminnelser. Retur viser sist element markert og posisjonert nær naturlig vertikal midtstilling uten synlig scrollanimasjon eller kunstig luft.
-- Konflikter/usikker annoteringsmatching skal kunne utsettes. Varsler er tydelige uten å kreve umiddelbar avklaring før spilling. Manuell synk og diskrete påminnelser gir ingen overraskende bakgrunnsendringer.
+- Konflikter/usikker annoteringsmatching skal kunne utsettes. Varsler er tydelige uten å kreve umiddelbar avklaring før spilling. Manuell synk og diskrete påminnelser gir ingen overraskende bakgrunnsendringer. En særskilt «sist gjennomgått fremføringsversjon» inngår ikke i v1; manuell synk og den spesifiserte håndteringen av usikre annoteringer er tilstrekkelig. Gjenforankring og databevaring følger fortsatt REQUIREMENTS §4.
 
 ## Åpne utformingsoppgaver
 
-Fullverdig bibliotek/kildefilter, setlister, originaleditor/konvertering og nivåkontroller for dynamikk gjenstår å utforme. Detaljert annoteringsgjenforankring ved ny originaltekst og eventuell sist gjennomgåtte fremføringsversjon er fortsatt teknisk/designmessig arbeid; det siste er et åpent produktspørsmål, ikke en vedtatt funksjon.
+Fullverdig bibliotek/kildefilter, setlister, originaleditor/konvertering og nivåkontroller for dynamikk gjenstår å utforme. Detaljert annoteringsgjenforankring ved ny originaltekst er fortsatt teknisk/designmessig arbeid.
 
 Kompakt sangvisning, sticky-høyde, dynamikkprofil og personlig redigering er utformet og implementert gjennom godkjente PR-er #5, #7 og #9. Dette omfatter notatoverlegg, fast verktøylinje, flerlinjemarkering, notatflytting, capo og skjemaeditor. Gjenværende fysisk iPad/Safari-, Android/Chrome- og PWA-verifikasjon av plassbruk, lesbarhet, berøring, skjermtastatur og navigasjon er kontroll av implementert utforming, ikke ustartet designarbeid.
 
