@@ -52,30 +52,50 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      actions: read
     strategy:
       fail-fast: true
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      APP_CHANNEL: ${{ matrix.channel }}
+      APP_SHA: ${{ matrix.sha }}
+      APP_PR: ${{ matrix.pr }}
+      APP_KIND: ${{ matrix.kind }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ needs.plan.outputs.infra }}
           path: infra
           persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Reuse unchanged published channel
+        id: restore
+        if: matrix.reuse
+        run: node infra/scripts/restore-channel.mjs build
+      - name: Download build from exact successful Validate run
+        if: steps.restore.outputs.reused != 'true' && matrix.artifactId != ''
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ matrix.artifactId }}
+          run-id: ${{ matrix.runId }}
+          github-token: ${{ github.token }}
+          merge-multiple: true
+          path: build
       - uses: actions/checkout@v5
+        if: steps.restore.outputs.reused != 'true' && matrix.artifactId == ''
         with:
           ref: ${{ matrix.sha }}
           path: source
           persist-credentials: false
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-      - name: Build exact source without deployment permissions
-        env:
-          APP_CHANNEL: ${{ matrix.channel }}
-          APP_SHA: ${{ matrix.sha }}
-          APP_PR: ${{ matrix.pr }}
-          APP_KIND: ${{ matrix.kind }}
+      - name: Build historical source only when no reusable build exists
+        if: steps.restore.outputs.reused != 'true' && matrix.artifactId == ''
         run: node infra/scripts/build-channel.mjs source build
+      - name: Verify channel identity and file hashes without running app code
+        env:
+          APP_LEGACY: ${{ steps.restore.outputs.reused != 'true' && matrix.artifactId == '' }}
+        run: node infra/scripts/check-channel.mjs build
       - uses: actions/upload-artifact@v4
         with:
           name: pages-${{ matrix.target }}

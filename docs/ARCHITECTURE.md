@@ -51,7 +51,7 @@ Alle oppdateringsstyrte omlastinger bruker samme callback fra appvisningen. `src
 
 ## Publisering
 
-Bare `pages.yml` fra standardbranch styrer Pages. Plan og deploy kjører eksakt validert master-infrastruktur, mens appkildene bygges fra pinnede SHA-er i separate lesende jobber. Tokanal-artifacts valideres som data før ett nettsted settes sammen. Rootens `deployment.json` bevarer kilder/testvalg; `build-info.json` identifiserer hvert appbygg.
+Bare `pages.yml` fra standardbranch styrer Pages. Plan og deploy kjører eksakt validert master-infrastruktur, mens CI validerer hver kildecommit én gang og lagrer ferdige, pinnede miljøbygg. Lesende klargjøringsjobber henter bare data fra riktig valideringskjøring eller gjenbruker uendret publisert kanal. Tokanal-artifacts valideres som data før ett nettsted settes sammen. `build-files.json` i hver kanal lister alle filer med størrelse og SHA-256. Bare en manglende inventarfil (eldre publisering) tillater reserveflyt; korrupt innhold stopper. Eldre kilder uten tilgjengelig CI-artifact eller publisert inventar kan bygges og valideres én gang i en jobb uten deployrettigheter. Rootens `deployment.json` bevarer kilder/testvalg; `build-info.json` identifiserer hvert appbygg.
 
 Ingen direkte push-deploy kan vinne over master-CI. Riktig workflow-ID/-sti, repo/kilderepo, hendelse, SHA og vellykket valideringsjobb kreves. For bevart test etter lukket PR kan GitHub fjerne PR-lenken fra Actions-resultatet; da gjenfinnes kildebindingen fra GitHubs commit/PR-assosiasjon for den lukkede samme-repo-PR-en. Dette gir ingen tillatelse til å velge en ny lukket PR til test.
 
