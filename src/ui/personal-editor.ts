@@ -17,7 +17,7 @@ const icons = {
   grid: 'M3 5h18v14H3zM3 10h18M9 5v14M15 5v14',
 };
 function iconButton(name: string, icon: keyof typeof icons, action: () => void) {
-  const result = button('', action); result.setAttribute('aria-label', name); result.title = name;
+  const result = button('', action); result.setAttribute('aria-label', name); result.dataset.tooltip = name;
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
   const path = document.createElementNS(svg.namespaceURI, 'path'); path.setAttribute('d', icons[icon]); svg.append(path); result.append(svg); return result;
 }
@@ -39,12 +39,19 @@ export function paintAnnotations(root: HTMLElement, song: Song, personal: SongPe
     if (annotation?.note && annotation.anchor.original === song.original) {
       const note = el('aside', annotation.note); note.className = 'personal-note'; note.setAttribute('aria-label', 'Personlig notat');
       if (document.body.classList.contains('editing-active')) {
-        note.tabIndex = 0; note.title = 'Hold inne og dra for å flytte. Alt+pil opp/ned på tastatur.';
+        note.tabIndex = 0; note.dataset.tooltip = 'Hold inne og dra for å flytte. Alt+pil opp/ned på tastatur.';
         const remove = button('×', () => {}); remove.dataset.deleteNote = ''; remove.setAttribute('aria-label','Slett notat'); note.append(remove);
       }
       line.prepend(note);
     }
   }
+}
+function fieldError(control: HTMLInputElement | HTMLTextAreaElement, message = '') {
+  const id=control.id+'-error'; document.getElementById(id)?.remove();
+  control.removeAttribute('aria-invalid');control.removeAttribute('aria-describedby');
+  if(!message)return true;
+  const error=el('p',message);error.id=id;error.className='field-error';error.setAttribute('role','alert');control.after(error);
+  control.setAttribute('aria-invalid','true');control.setAttribute('aria-describedby',id);control.focus({preventScroll:true});return false;
 }
 /** Only OK changes the song draft; only Save writes that draft to storage. */
 export function createPersonalEditor(song: Song, initial: SongPersonal, change: (update: PersonalChange) => void, save: () => void) {
@@ -64,7 +71,7 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
     if (highlighter?.applyNative()) setTool(undefined); else {highlighter?.clear(); setTool(tool === 'highlight' ? undefined : 'highlight');}
   }); pen.setAttribute('aria-pressed', 'false');
   const noteTool = iconButton('Notat', 'note', () => {
-    const range = body ? nativeLyricSpans(body)[0] : undefined; if (range) openNote(range.line); else {highlighter?.clear(); setTool(tool === 'note' ? undefined : 'note');}
+    const range = highlighter?.pending()[0] ?? (body ? nativeLyricSpans(body)[0] : undefined); if (range) openNote(range.line); else {highlighter?.clear(); setTool(tool === 'note' ? undefined : 'note');}
   }); noteTool.setAttribute('aria-pressed', 'false');
   const gridTool = iconButton('Akkordskjema', 'grid', () => openGrid(gridTool));
   toolbar.append(saveButton, pen, noteTool, gridTool); setStatus();
@@ -122,9 +129,9 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
   function openCapo(anchorNode: HTMLElement) {
     const capo = personal.capo ?? 0;
     openPopup(anchorNode,'Capo','capo', content => {
-      const input = el('input'); input.type = 'number'; input.id = 'personal-capo'; input.min = '0'; input.max = '12'; input.step = '1'; input.value = String(capo); input.setAttribute('aria-label','Capo');
-      input.addEventListener('input', () => input.setCustomValidity('')); content.append(input);
-      return {apply:() => {input.setCustomValidity(validCapo(input.valueAsNumber) ? '' : 'Bruk et heltall fra 0 til 12.'); if (!input.reportValidity()) return false; const value = input.valueAsNumber; if (value !== capo) update(current => ({...current,capo:value})); return true;},dirty:() => input.value !== String(capo),focus:input};
+      const input = el('input'); input.type = 'text'; input.inputMode = 'numeric'; input.id = 'personal-capo'; input.value = String(capo); input.setAttribute('aria-label','Capo');
+      input.addEventListener('input', () => fieldError(input)); content.append(input);
+      return {apply:() => {const value=input.value.trim()===''?NaN:Number(input.value); if (!fieldError(input,validCapo(value) ? '' : 'Bruk et heltall fra 0 til 12.')) return false; if (value !== capo) update(current => ({...current,capo:value})); return true;},dirty:() => input.value !== String(capo),focus:input};
     });
   }
   function openTuning(anchorNode: HTMLElement) {
@@ -142,14 +149,14 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
       if (!parts.length) parts = [{header:'{sog}\n',body:shown,footer:'{eog}'}];
       const inputs = parts.map((part,index) => {
         const input = el('textarea'); input.rows = 5; input.value = part.body; input.setAttribute('aria-label',parts.length > 1 ? `Skjematekst ${index+1}` : 'Skjematekst'); if (!index) input.id = 'personal-grid';
-        input.addEventListener('input', () => input.setCustomValidity('')); content.append(input); return input;
+        input.addEventListener('input', () => fieldError(input)); content.append(input); return input;
       });
       const dirty = () => inputs.some((input,index) => input.value !== parts[index].body);
       return {dirty,focus:inputs[0],apply:() => {
         if (!dirty()) return true;
         const nonempty = parts.map((part,index) => ({...part,body:inputs[index].value})).filter(part => part.body.trim());
         const text = nonempty.map(part => part.header+part.body+'\n'+part.footer).join('\n');
-        inputs[0].setCustomValidity(!text || validGrid(text) ? '' : 'Skriv et skjema med taktstreker.'); if (!inputs[0].reportValidity()) return false;
+        if (!fieldError(inputs[0],!text || validGrid(text) ? '' : 'Skriv et skjema med taktstreker.')) return false;
         const chordGrid = text ? shiftGridText(text,capo) : undefined; update(current => ({...current,chordGrid})); return true;
       }};
     });
@@ -166,7 +173,7 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
   function pointerDown(event: PointerEvent) {cancelled = false; if (tool === 'note' && !(event.target as Element).closest('button,.personal-note')) {event.preventDefault();getSelection()?.removeAllRanges();} gesture = {x:event.clientX,y:event.clientY,scroll:scrollY,moved:false};}
   function pointerMove(event: PointerEvent) {
     if (gesture && Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>8) gesture.moved = true;
-    if (tool === 'note' && !popup) {clearCue(); noteTarget(event.clientY)?.setAttribute('data-note-target','');}
+    if (tool === 'note' && !popup && !body.hasAttribute('data-note-moving')) {clearCue(); noteTarget(event.clientY)?.setAttribute('data-note-target','');}
   }
   function focusTarget(event: FocusEvent) {if (tool === 'note') {clearCue(); (event.target as Element).closest('[data-occurrence]')?.setAttribute('data-note-target','');}}
   function pointerCancel() {cancelled = true; gesture = undefined; clearCue();}
@@ -177,7 +184,7 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
     const line = target.closest<HTMLElement>('[data-occurrence]');
     if (target.closest('[data-delete-note]') && line) {annotate(line,{note:''}); return;}
     if (target.closest('button,a,input,textarea,.highlight-controls')) return;
-    if (tool !== 'note' && nativeLyricSpans(body).length) return;
+    if (tool !== 'note' && (highlighter?.pending().length || nativeLyricSpans(body).length)) return;
     if (target.closest('.personal-note') && line) {openNote(line); return;}
     if (tool === 'note') {const row = line ?? noteTarget(event.clientY); if (row) openNote(row); return;}
   }
@@ -197,7 +204,7 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
     selection:() => highlighter?.selection(),
     select(line: HTMLElement, _state: SongPersonal, range?: Highlight) {if (range) restored = {line,range};},
     mount(lyrics: HTMLElement) {
-      body = lyrics; highlighter = createHighlightEditor(body,song,()=>personal,update); if (restored) highlighter.restore(restored.line,restored.range);
+      body = lyrics; highlighter = createHighlightEditor(body,song,()=>personal,update,()=>setTool(undefined)); if (restored) highlighter.restore(restored.line,restored.range);
       disposeNoteDrag = attachNoteDrag(body,song,()=>personal,update,noteTarget,openNote);  body.addEventListener('focusin',focusTarget); body.addEventListener('pointerdown',pointerDown); body.addEventListener('pointermove',pointerMove); body.addEventListener('pointercancel',pointerCancel); body.addEventListener('pointerleave',clearCue); body.addEventListener('click',click);
       document.addEventListener('keydown',keydown);
       observer = new ResizeObserver(() => {document.documentElement.style.setProperty('--edit-toolbar-height',`${toolbar.offsetHeight}px`);}); observer.observe(toolbar); observer.observe(body);

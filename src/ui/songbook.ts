@@ -203,7 +203,7 @@ export function startSongbook() {
       if (chosen) {
         const dock = createChartDock(chosen.grids.map(grid => transposeGrid(grid, capo)), chosen.source, () => query('back').focus({preventScroll:true}), !editing && !chartReleased);
         if (editing) {
-          const edit = element('button','✎'); edit.setAttribute('aria-label','Rediger akkordskjema'); edit.title = 'Rediger akkordskjema'; edit.type = 'button'; edit.className = 'edit-chart';
+          const edit = element('button','✎'); edit.setAttribute('aria-label','Rediger akkordskjema'); edit.dataset.tooltip = 'Rediger akkordskjema'; edit.type = 'button'; edit.className = 'edit-chart';
           edit.addEventListener('click', event => {event.stopPropagation(); editor?.openGrid(dock.element);}); dock.element.append(edit);
         }
         chartArea.append(dock.element); disposeDock = dock.dispose;

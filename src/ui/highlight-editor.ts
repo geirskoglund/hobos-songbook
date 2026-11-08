@@ -37,8 +37,8 @@ export function edgeScroll(y: () => number, moved: () => void) {
   };
   frame = requestAnimationFrame(tick); return () => cancelAnimationFrame(frame);
 }
-export function createHighlightEditor(root: HTMLElement, song: Song, personal: () => SongPersonal, update: (fn: (current: SongPersonal) => SongPersonal) => void) {
-  let active = false, selected: Selection | undefined, ignoreClick = false;
+export function createHighlightEditor(root: HTMLElement, song: Song, personal: () => SongPersonal, update: (fn: (current: SongPersonal) => SongPersonal) => void, applied: () => void) {
+  let active = false, selected: Selection | undefined, ignoreClick = false, pending: TextSpan[] = [];
   const controls = document.createElement('div'); controls.className = 'highlight-controls'; controls.hidden = true;
   const overlay = document.createElement('div'); overlay.className = 'selection-preview'; overlay.setAttribute('aria-hidden','true');
   const make = (text: string, label: string) => {const b = document.createElement('button'); b.type = 'button'; b.textContent = text; b.setAttribute('aria-label',label); return b;};
@@ -102,7 +102,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     for (const rect of rects(parts)) {const span=document.createElement('span');span.style.cssText=`left:${rect.left-origin.left}px;top:${rect.top-origin.top}px;width:${rect.width}px;height:${rect.height}px`;overlay.append(span);}
   }
   function unmute(){root.querySelectorAll('[data-highlight-muted]').forEach(mark=>mark.removeAttribute('data-highlight-muted'));}
-  function clear() {selected=undefined;controls.hidden=true;overlay.replaceChildren();unmute();}
+  function clear() {selected=undefined;pending=[];delete overlay.dataset.pending;controls.hidden=true;overlay.replaceChildren();unmute();}
   function draw() {
     if (!selected || drawGesture) return;
     const boxes=rects(selected.parts),first=boxes[0],last=boxes.at(-1);if(!first||!last){controls.hidden=true;return;}
@@ -129,7 +129,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     });
     selected=next.length?{parts:next,id}:undefined;overlay.replaceChildren();draw();
   }
-  function applyNative() {const parts=nativeLyricSpans(root);if(!parts.length)return false;getSelection()?.removeAllRanges();replace(undefined,parts);return true;}
+  function applyNative() {const parts=pending.length?pending:nativeLyricSpans(root);if(!parts.length)return false;pending=[];delete overlay.dataset.pending;getSelection()?.removeAllRanges();replace(undefined,parts);applied();return true;}
   function selectMark(mark: HTMLElement) {
     const line=mark.closest<HTMLElement>('.song-line')!,lyric=mark.closest<HTMLElement>('.lyric')!,before=document.createRange();before.selectNodeContents(lyric);before.setEndBefore(mark);
     const at=Number(lyric.dataset.offset)+before.toString().length,range=personal().annotations?.[line.dataset.occurrence!]?.highlights.find(range=>at>=range.start&&at<range.end);if(!range)return;
@@ -138,17 +138,18 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
   }
   function removeSelected(){if(selected)replace(selected,[]);clear();}
   remove.addEventListener('click',event=>{event.stopPropagation();removeSelected();});
-  let drawGesture: {pointer:number;start:number;end:number;x:number;y:number;mark?:HTMLElement|null;stop:()=>void} | undefined;
+  let drawGesture: {pointer:number;armed:boolean;start:number;end:number;x:number;y:number;mark?:HTMLElement|null;stop:()=>void} | undefined;
   let handleGesture: {pointer:number;edge:'start'|'end';original:Selection;x:number;y:number;stop:()=>void} | undefined;
   function moveHandle(at: number) {if(!handleGesture||!selected)return;const b=bounds(selected);b[handleGesture.edge]=at;if(b.end<=b.start)return;const parts=spans(b.start,b.end);if(!parts.length)return;selected={...selected,parts};preview(parts);draw();}
   function down(event: PointerEvent) {
     if(event.pointerType==='touch')root.dataset.input='touch';else root.dataset.input='mouse';
     const handle=(event.target as Element).closest<HTMLElement>('.highlight-handle');
     if(handle&&selected){event.preventDefault();event.stopPropagation();getSelection()?.removeAllRanges();const original=selected;for(const part of original.parts){const range=domRange(part);part.line.querySelectorAll('mark').forEach(mark=>{if(range?.intersectsNode(mark))mark.setAttribute('data-highlight-muted','');});}handleGesture={pointer:event.pointerId,edge:handle.dataset.edge as 'start'|'end',original,x:event.clientX,y:event.clientY,stop:()=>{}};handleGesture.stop=edgeScroll(()=>handleGesture?.y ?? innerHeight/2,()=>{if(handleGesture){const at=atPoint(handleGesture.x,handleGesture.y);if(at!==undefined)moveHandle(at);}});root.setPointerCapture(event.pointerId);return;}
-    if(!active || event.button!==0 || (event.target as Element).closest('button,.personal-note,.highlight-controls'))return;
+    if(event.button!==0 || (event.target as Element).closest('button,.personal-note,.highlight-controls') || !active && (event.pointerType==='touch' || !(event.target as Element).closest('.lyric')))return;
     const at=atPoint(event.clientX,event.clientY);if(at===undefined)return;
     event.preventDefault();getSelection()?.removeAllRanges();clear();root.setPointerCapture(event.pointerId);
-    drawGesture={pointer:event.pointerId,start:at,end:at,x:event.clientX,y:event.clientY,mark:(event.target as Element).closest<HTMLElement>('mark'),stop:()=>{}};
+    overlay.toggleAttribute('data-pending',!active);
+    drawGesture={pointer:event.pointerId,armed:active,start:at,end:at,x:event.clientX,y:event.clientY,mark:(event.target as Element).closest<HTMLElement>('mark'),stop:()=>{}};
     drawGesture.stop=edgeScroll(()=>drawGesture?.y ?? innerHeight/2,()=>{if(drawGesture){const at=atPoint(drawGesture.x,drawGesture.y);if(at!==undefined){drawGesture.end=at;preview(spans(Math.min(at,drawGesture.start),Math.max(at,drawGesture.start)));}}});
   }
   function move(event: PointerEvent) {
@@ -156,7 +157,15 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     if(drawGesture?.pointer!==event.pointerId)return;event.preventDefault();drawGesture.x=event.clientX;drawGesture.y=event.clientY;const at=atPoint(event.clientX,event.clientY);if(at===undefined)return;drawGesture.end=at;preview(spans(Math.min(at,drawGesture.start),Math.max(at,drawGesture.start)));
   }
   function finish(event?: PointerEvent, cancel=false) {
-    if(drawGesture&&(!event||event.pointerId===drawGesture.pointer)){const gesture=drawGesture;drawGesture=undefined;gesture.stop();overlay.replaceChildren();if(!cancel&&gesture.end!==gesture.start){replace(undefined,spans(Math.min(gesture.start,gesture.end),Math.max(gesture.start,gesture.end)));ignoreClick=true;}else if(cancel)clear();else if(gesture.mark){selectMark(gesture.mark);ignoreClick=true;}}
+    if(drawGesture&&(!event||event.pointerId===drawGesture.pointer)){
+      const gesture=drawGesture;drawGesture=undefined;gesture.stop();overlay.replaceChildren();
+      if(!cancel&&gesture.end!==gesture.start){
+        const parts=spans(Math.min(gesture.start,gesture.end),Math.max(gesture.start,gesture.end));
+        if(gesture.armed){delete overlay.dataset.pending;replace(undefined,parts);applied();}
+        else{pending=parts;overlay.dataset.pending='';preview(parts);}
+        ignoreClick=true;
+      }else if(cancel)clear();else if(gesture.mark){selectMark(gesture.mark);ignoreClick=true;}
+    }
     if(handleGesture&&(!event||event.pointerId===handleGesture.pointer)){
       const gesture=handleGesture,next=selected;handleGesture=undefined;gesture.stop();overlay.replaceChildren();unmute();
       const changed=next && (next.parts.length!==gesture.original.parts.length || next.parts.some((part,index)=>part.line!==gesture.original.parts[index]?.line||part.start!==gesture.original.parts[index]?.start||part.end!==gesture.original.parts[index]?.end));
@@ -164,7 +173,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     }
     if(event&&root.hasPointerCapture(event.pointerId))root.releasePointerCapture(event.pointerId);
   }
-  function click(event: MouseEvent) {if(ignoreClick){ignoreClick=false;event.preventDefault();event.stopImmediatePropagation();return;}if(controls.contains(event.target as Node))return;if(nativeLyricSpans(root).length)return;const mark=(event.target as Element).closest<HTMLElement>('mark');if(mark){selectMark(mark);return;}if(!(event.target as Element).closest('.personal-note'))clear();}
+  function click(event: MouseEvent) {if(ignoreClick){ignoreClick=false;event.preventDefault();event.stopImmediatePropagation();return;}if(controls.contains(event.target as Node))return;if(pending.length||nativeLyricSpans(root).length)return;const mark=(event.target as Element).closest<HTMLElement>('mark');if(mark){selectMark(mark);return;}if(!(event.target as Element).closest('.personal-note'))clear();}
   function key(event: KeyboardEvent) {
     const handle=(event.target as Element).closest<HTMLElement>('.highlight-handle');
     if(handle&&selected&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){
@@ -179,7 +188,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
   const resetClick=()=>{ignoreClick=false;};root.addEventListener('pointerdown',resetClick,true);
   root.addEventListener('pointerdown',down);root.addEventListener('pointermove',move);root.addEventListener('pointerup',finish);const cancel= (e:PointerEvent)=>finish(e,true);root.addEventListener('pointercancel',cancel);root.addEventListener('click',click);root.addEventListener('contextmenu',context);root.addEventListener('touchstart',touchStart,{passive:false});document.addEventListener('keydown',key);
   const observer=new ResizeObserver(draw);observer.observe(root);
-  return {applyNative,clear,setActive(value:boolean){active=value;if(!value)finish(undefined,true);},
+  return {applyNative,clear,pending:()=>pending,setActive(value:boolean){active=value;if(!value)finish(undefined,true);},
     selection:()=>selected?{occurrence:selected.parts[0].line.dataset.occurrence!,start:selected.parts[0].start,end:selected.parts[0].end}:undefined,
     restore(line:HTMLElement,range:Highlight){const mark=[...line.querySelectorAll<HTMLElement>('mark')].find(mark=>{const lyric=mark.closest<HTMLElement>('.lyric')!,before=document.createRange();before.selectNodeContents(lyric);before.setEndBefore(mark);return Number(lyric.dataset.offset)+before.toString().length===range.start;});if(mark)selectMark(mark);},
     dispose(){finish(undefined,true);observer.disconnect();controls.remove();overlay.remove();root.removeEventListener('pointerdown',resetClick,true);root.removeEventListener('pointerdown',down);root.removeEventListener('pointermove',move);root.removeEventListener('pointerup',finish);root.removeEventListener('pointercancel',cancel);root.removeEventListener('click',click);root.removeEventListener('contextmenu',context);root.removeEventListener('touchstart',touchStart);document.removeEventListener('keydown',key);}

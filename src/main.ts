@@ -1,4 +1,6 @@
 import './style.css';
+import {startAppInteractions} from './ui/app-interactions.ts';
+startAppInteractions();
 import {startSongbook} from './ui/songbook.ts';
 import {startAppUpdates} from './app-updates.ts';
 

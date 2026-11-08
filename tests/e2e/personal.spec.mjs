@@ -154,7 +154,7 @@ test('marker tool accepts a real mouse selection and turns off without adding li
  const line=page.locator(`[data-occurrence="${source}"]`);const start=await line.locator('.lyric').first().boundingBox(),end=await line.locator('.lyric').last().boundingBox();
  await page.getByRole('button',{name:'Markeringspenn'}).click();await expect(page.getByRole('button',{name:'Markeringspenn'})).toHaveAttribute('aria-pressed','true');
  await page.mouse.move(start.x+2,start.y+start.height/2);await page.mouse.down();await page.mouse.move(end.x+end.width-2,end.y+end.height/2,{steps:15});await page.mouse.up();
- await expect(line.locator('mark').first()).toBeVisible();await page.getByRole('button',{name:'Markeringspenn'}).click();await expect(page.getByRole('button',{name:'Markeringspenn'})).toHaveAttribute('aria-pressed','false');
+ await expect(line.locator('mark').first()).toBeVisible();await expect(page.getByRole('button',{name:'Markeringspenn'})).toHaveAttribute('aria-pressed','false');
  await save(page);expect((await personal(page))[0].annotations[source].highlights.length).toBeGreaterThan(0);await expect(page.locator('.annotate-line')).toHaveCount(0);
 });
 

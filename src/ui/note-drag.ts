@@ -10,7 +10,7 @@ export function attachNoteDrag(root: HTMLElement, song: Song, personal: () => So
   function clearTarget(){root.querySelector('[data-note-target]')?.removeAttribute('data-note-target');}
   function locate(){
     if(!hold?.ghost)return;const row=targetAt(hold.y),occupied=row && row!==hold.line && personal().annotations?.[row.dataset.occurrence!]?.note;
-    clearTarget();hold.target=occupied?undefined:row;row?.toggleAttribute('data-note-target',!occupied);hold.ghost.dataset.invalid=String(Boolean(occupied));hold.ghost.style.top=`${hold.y-hold.offset}px`;
+    clearTarget();hold.target=occupied?undefined:row;hold.ghost.dataset.invalid=String(Boolean(occupied));hold.ghost.style.top=`${hold.y-hold.offset}px`;
   }
   function begin(){
     if(!hold||hold.cancelled||!hold.note.isConnected)return;
