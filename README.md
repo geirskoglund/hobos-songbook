@@ -10,7 +10,9 @@ Når brukeren tar i bruk en ny appversjon, gjenopprettes aktiv skjerm, lesested 
 
 [Eksempelfil med akkordskjema og dynamikk](examples/akkordskjema-og-dynamikk.cho) kan lastes ned og leses inn fra filvelgeren.
 
-Fullverdig bibliotek/kildefilter, redigering av originaltekst/konvertering, setlister og Dropbox er vedtatte fremtidskrav. Lokal lagring er ikke en sikkerhetskopi.
+«Original» i redigeringsvisningen åpner en fullskjermsmodal med eget tittelfelt, valgfrie toneart-/taktartpiller og sammenhengende enkel sangtekst med egen scroll. «Ny sang» fra bibliotekmenyen åpner tomt utkast direkte. Tittel kreves, men teksten kan være tom. Første Avbryt avbryter opprettelsen; OK bekrefter bare utkastet. Først Lagre under modalvinduet oppretter eller endrer sangen vedvarende, sammen med eventuelle personendringer. Feil beholder utkastet. Manglende taktart viser 4/4 uten nytt direktiv; første toneart flytter ingen akkorder. Endring av angitt toneart venter på transponering.
+
+Musikalske/ukjente strukturer er foreløpig beskyttet mot tekstendring. Originalendringer som kan skjule notater, gulmarkeringer eller refrengvalg sperres med forklaring, også ved metadataendring. Uendret åpning/lagring bevarer eksakt original; trygg personlig redigering fungerer fortsatt. Musikalske verktøy, full råtekst/felles økthistorikk, transponering, gjenforankring og eksport følger i #15–#21. Fullverdig bibliotek/kildefilter, konvertering, setlister og Dropbox er vedtatte fremtidskrav. Lokal lagring er ikke en sikkerhetskopi.
 
 - [Agentinstruksjoner](AGENTS.md)
 - [Gjeldende produktkrav](docs/REQUIREMENTS.md)

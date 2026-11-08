@@ -2,7 +2,7 @@
 
 ## Leveransegrense og kontroll
 
-Kodebasen har PWA/offline, miljøisolasjon og CI/CD, lokal sanglagring og kompakt ChordPro-visning fra issue #4, generell bevaring av lesested og Android-scrollregel fra #6 samt personlig redigering med utkast/Lagre fra #8. Fullverdig bibliotek, originaleditor/konvertering, setlister og Dropbox er senere arbeid. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
+Kodebasen har PWA/offline, miljøisolasjon og CI/CD, lokal sanglagring og kompakt ChordPro-visning fra issue #4, generell bevaring av lesested og Android-scrollregel fra #6 samt personlig redigering med utkast/Lagre fra #8 og originaleditorens grunnflate/ny lokal sang fra #14. Fullverdig bibliotek, videre originalverktøy/konvertering, setlister og Dropbox er senere arbeid. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
 
 Node.js 24 LTS og låst npm-fil brukes lokalt og i Actions. Eksempel på full kontroll ved behov:
 
@@ -192,6 +192,18 @@ Manuelt: prøv berøringsmarkering og markeringspenn, små lokale felt ved skjer
 Capokontrollen prøves med synlige `<`/`>`-knapper rundt et rent tall, uten input/textarea: alle steg 0–11, deaktiverte grenser, ingen overgang rundt endene, minst 44 px treffområde, fullført touch-trykk, piltaster/Home/End, Avbryt/Escape, OK uten vedvarende skriving og eksplisitt Lagre. Også capo 11 prøves mot faktisk akkordvisning. Domenevalideringen avviser 12, negative tall og desimaltall.
 
 Punktumavstand sammenlignes med samme takt uten punktum. Ett, to og fem punktum først, mellom akkorder og sist gir nøyaktig tilsvarende antall ekstra mellomrom. Vanlig akkordavstand beholdes. Prøves ved 320/1000 px i begge temaer.
+
+## Originaleditorens grunnflate (issue #14)
+
+`tests/original.test.mjs` kontrollerer tapsfri kildebevaring ved no-op og avgrensede endringer, BOM/blandede CRLF/LF/CR, metadatavarianter/fallback, tittelkrav, valgfri taktart, første toneart uten akkordflytting, låst eksisterende toneart og vern av strukturer/annoteringer/refrengidentitet.
+
+`tests/e2e/original.spec.mjs` prøver faktisk IndexedDB før/etter første Avbryt, OK og Lagre, alle utgangsvalg, tittel alene, like titler/ulike ID-er og stabile ID-er ved videre lagring. Samlet original-/personlagring avbrytes med ekte transaksjonsabort både ved opprettelse og oppdatering; begge lag skal være uendrede, og nytt forsøk skal lykkes uten dublett. Videre redigering mens transaksjonen holdes åpen skal forbli dirty. Andre faners personfelt bevares, nyere original avvises, og nylig lagrede annoteringer sperrer utrygg originaloppdatering.
+
+Modal/popup/utkast prøves med Escape/fokusretur, Ctrl/Cmd+S uten lagringslekkasje, Unicode, tekstangre, apptekstmeny og lange sanger ved 320/768/1440 px, begge temaer, 36 px skrift og redusert viewport. En ekte workeroppdatering skal stoppe ved både modalutkast og bekreftet ny sang, avvente samlet lagring og gjenopprette redigeringen etter vellykket lagring. Offline gjenåpning skal bevare lagret original, ID og personvalg. Eksisterende person-, interaksjons-, sang-/arrangements- og oppdateringstester er regresjonsgrunnlag.
+
+Manuelt på testutgaven: Meny → Ny sang → skriv tittel/tekst → OK → kontroller at utkastet ikke finnes i biblioteket før Lagre. Prøv første Avbryt, senere gjenåpning/Avbryt og alle utgangsvalg. Åpne en enkel TXT-sang fra begge Rediger-innganger, endre metadata/tekst, lagre og åpne offline. Åpne en strukturert/annotert sang og kontroller forklaring, bevart innhold og fortsatt fungerende personverktøy.
+
+Fysisk iPad/Safari, Android/Chrome og installert PWA med skjermtastatur, første/siste linje, aktiv markør, langt trykk/utvalg, touch-scroll, zoom og orienteringsendring gjenstår. Redusert Chromium-viewport er kun automatisert layoutbevis. Faktisk kommandoresultat, nettleserversjon, SHA, CI og publisert testidentitet rapporteres i leveranse-PR-en.
 
 ## Avgrensning av kontrollarbeid
 

@@ -54,15 +54,15 @@ function fieldError(control: HTMLInputElement | HTMLTextAreaElement, message = '
   control.setAttribute('aria-invalid','true');control.setAttribute('aria-describedby',id);control.focus({preventScroll:true});return false;
 }
 /** Only OK changes the song draft; only Save writes that draft to storage. */
-export function createPersonalEditor(song: Song, initial: SongPersonal, change: (update: PersonalChange) => void, save: () => void) {
-  let personal = structuredClone(initial), baseline = structuredClone(initial), body: HTMLElement;
+export function createPersonalEditor(song: Song, initial: SongPersonal, change: (update: PersonalChange) => void, save: () => void, savedPersonal = initial, extraDirty = () => false) {
+  let personal = structuredClone(initial), baseline = structuredClone(savedPersonal), body: HTMLElement;
   let highlighter: ReturnType<typeof createHighlightEditor> | undefined, disposeNoteDrag = () => {};
   let restored: {line: HTMLElement; range: Highlight} | undefined;
   let tool: 'highlight' | 'note' | undefined;
   let popup: {box: HTMLDialogElement; dirty: () => boolean; close: () => void} | undefined;
   const toolbar = el('div'); toolbar.className = 'edit-toolbar'; toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', 'Rediger sang');
   const saveButton = iconButton('Lagre', 'save', save); saveButton.id = 'edit-save';
-  const setStatus = () => {saveButton.disabled = !personalChanges(baseline, personal);};
+  const setStatus = () => {saveButton.disabled = !personalChanges(baseline, personal) && !extraDirty();};
   function update(fn: PersonalChange) {personal = fn(personal); change(fn); setStatus();}
   function clearCue() {body?.querySelector('[data-note-target]')?.removeAttribute('data-note-target');}
   function setTool(next: typeof tool) {tool = next; clearCue();
@@ -204,7 +204,7 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
   function keydown(event: KeyboardEvent) {
     if ((event.key === 'Enter' || event.key === ' ') && ((event.target as Element).matches('.personal-note') || tool === 'note' && (event.target as Element).matches('[data-occurrence]'))) {event.preventDefault(); openNote((event.target as Element).closest<HTMLElement>('[data-occurrence]')!);}
     if (event.key === 'Escape' && !popup) {highlighter?.clear(); setTool(undefined);}
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); if (!popup && personalChanges(baseline,personal)) save();}
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); if (!document.querySelector('dialog[open]') && (personalChanges(baseline,personal) || extraDirty())) save();}
   }
   let observer: ResizeObserver | undefined;
   return {

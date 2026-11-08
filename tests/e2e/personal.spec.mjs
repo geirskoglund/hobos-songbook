@@ -189,8 +189,8 @@ test('icon order, semantic save state, popup transactions and source time signat
  await expect(page.locator('.song-metadata')).toHaveText('Em3/4');
  const bars=await page.locator('.grid-measure').evaluateAll(nodes=>nodes.map(node=>({left:node.getBoundingClientRect().left,right:node.getBoundingClientRect().right})));expect(bars.at(-1).right-bars[0].left).toBeLessThan(550);
  await edit(page);
- expect(await page.locator('.edit-toolbar button').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label')))).toEqual(['Lagre','Markeringspenn','Notat','Akkordskjema']);
- await expect(page.locator('.edit-toolbar')).toHaveText('');await expect(page.locator('#edit-save')).toBeDisabled();await expect(page.locator('#tuning-pill')).toHaveText('Standard stemming');
+ expect(await page.locator('.edit-toolbar button').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label')))).toEqual(['Lagre','Markeringspenn','Notat','Akkordskjema','Rediger original']);
+ await expect(page.locator('.edit-toolbar')).toHaveText('Original');await expect(page.locator('#edit-save')).toBeDisabled();await expect(page.locator('#tuning-pill')).toHaveText('Standard stemming');
  const pills=await page.locator('.song-metadata > .song-key').evaluateAll(nodes=>nodes.map(n=>({top:n.getBoundingClientRect().top,height:n.getBoundingClientRect().height})));
  expect(new Set(pills.map(n=>n.top)).size).toBe(1);expect(new Set(pills.map(n=>n.height)).size).toBe(1);
  await page.locator('#capo-pill').click();expect((await page.locator('#personal-capo').boundingBox()).width).toBeLessThan(90);
