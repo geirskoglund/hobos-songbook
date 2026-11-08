@@ -1,7 +1,7 @@
 import {repository, readDeployment, planPages, assertPlanCurrent} from './pages-plan.mjs';
 
 // The workflow's identity and source are checked through Actions, never by a check name alone.
-export async function isValidated(github, repo, sha, pr) {
+export async function validatedRun(github, repo, sha, pr) {
   const {data: workflow} = await github.rest.actions.getWorkflow({...repo, workflow_id: 'ci.yml'});
   if (workflow.path !== '.github/workflows/ci.yml' || workflow.state !== 'active') return false;
   const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
@@ -33,8 +33,10 @@ export async function isValidated(github, repo, sha, pr) {
   const latest = matches.sort((a, b) => b.id - a.id)[0];
   if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success') return false;
   const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {...repo, run_id: latest.id, filter: 'latest', per_page: 100});
-  return jobs.some(job => job.name === 'validate' && job.conclusion === 'success' && job.status === 'completed');
+  return jobs.some(job => job.name === 'validate' && job.conclusion === 'success' && job.status === 'completed') ? latest : null;
 }
+
+export async function isValidated(github, repo, sha, pr) {return Boolean(await validatedRun(github, repo, sha, pr));}
 
 export async function services(github, context, fetchImpl = fetch) {
   const repo = context.repo;
@@ -51,8 +53,14 @@ export async function services(github, context, fetchImpl = fetch) {
     }
     return false;
   }});
-  return {masterSha: master.commit.sha, previous, getPull,
-    isValidated: (sha, pr) => isValidated(github, repo, sha, pr),
+  const validations = new Map();
+  const getValidatedRun = (sha, pr) => {
+    const key = `${sha}/${pr}`;
+    if (!validations.has(key)) validations.set(key, validatedRun(github, repo, sha, pr));
+    return validations.get(key);
+  };
+  return {masterSha: master.commit.sha, previous, getPull, getValidatedRun,
+    isValidated: async (sha, pr) => Boolean(await getValidatedRun(sha, pr)),
     hasApp: async ref => {
       let content;
       try { content = (await github.rest.repos.getContent({...repo, ref, path: 'app-build.json'})).data; }
@@ -81,10 +89,18 @@ export async function createPlan({github, context, core, selection}) {
   if (!plan) return;
   core.setOutput('plan', JSON.stringify(plan));
   core.setOutput('infra', api.masterSha);
-  core.setOutput('matrix', JSON.stringify({include: [
-    {target: 'production', channel: 'production', ...plan.metadata.production},
-    {target: 'preview', channel: 'test', ...plan.metadata.preview},
-  ]}));
+  const include = [];
+  for (const [target,channel] of [['production','production'],['preview','test']]) {
+    const source = plan.metadata[target]; let artifactId = '', runId = '';
+    if (source.kind === 'app') {
+      const run = await api.getValidatedRun(source.sha,source.pr);
+      const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts,{...context.repo,run_id:run.id,per_page:100});
+      const artifact = artifacts.find(item => item.name === `validated-${channel}` && !item.expired);
+      if (artifact) {artifactId = artifact.id; runId = run.id;}
+    }
+    include.push({target,channel,...source,artifactId,runId,reuse:JSON.stringify(plan.previous?.[target]) === JSON.stringify(source)});
+  }
+  core.setOutput('matrix', JSON.stringify({include}));
   await core.summary.addCodeBlock(JSON.stringify(plan.metadata, null, 2), 'json').write();
 }
 

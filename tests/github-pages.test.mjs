@@ -9,9 +9,9 @@ const repo = {owner: 'geirskoglund', repo: 'hobos-songbook'};
 const run = (patch = {}) => ({id: 100, workflow_id: 42, path: workflow.path, status: 'completed', conclusion: 'success',
   head_sha: sha, head_branch: 'master', event: 'push', repository: {full_name: repository},
   head_repository: {full_name: repository}, pull_requests: [], ...patch});
-function client({runs = [run()], jobs = [{name: 'validate', conclusion: 'success', status: 'completed'}], deployments = [], statuses = [], workflowPatch = {}, getContent, getPull, associated = []} = {}) {
+function client({runs = [run()], jobs = [{name: 'validate', conclusion: 'success', status: 'completed'}], deployments = [], statuses = [], workflowPatch = {}, getContent, getPull, associated = [], artifacts = []} = {}) {
   const actions = {getWorkflow: async () => ({data: {...workflow, ...workflowPatch}}),
-    listWorkflowRuns: () => {}, listJobsForWorkflowRun: () => {}};
+    listWorkflowRuns: () => {}, listJobsForWorkflowRun: () => {}, listWorkflowRunArtifacts: () => {}};
   const repos = {getBranch: async () => ({data: {commit: {sha}}}), listDeployments: () => {}, listDeploymentStatuses: () => {}, listPullRequestsAssociatedWithCommit: () => {},
     getContent: getContent || (async () => {throw Object.assign(Error('missing'), {status: 404});})};
   return {rest: {actions, repos, pulls: {get: getPull || (async () => ({data: {state: 'open',
@@ -22,6 +22,7 @@ function client({runs = [run()], jobs = [{name: 'validate', conclusion: 'success
         return runs;
       }
       if (method === actions.listJobsForWorkflowRun) {assert.equal(args.filter, 'latest'); return jobs;}
+      if (method === actions.listWorkflowRunArtifacts) {assert.ok([100,200].includes(args.run_id));return typeof artifacts === 'function' ? artifacts(args.run_id) : artifacts;}
       if (method === repos.listDeployments) return deployments;
       if (method === repos.listDeploymentStatuses) return statuses;
       if (method === repos.listPullRequestsAssociatedWithCommit) {assert.equal(args.commit_sha, sha); return associated;}
@@ -38,6 +39,36 @@ test('source proof requires expected workflow identity, repo, event and exact SH
   assert.equal(await isValidated(client({workflowPatch: {path: '.github/workflows/fake.yml'}}), repo, sha, null), false);
   assert.equal(await isValidated(client({jobs: [{name: 'validate', status: 'completed', conclusion: 'skipped'}]}), repo, sha, null), false);
   assert.equal(await isValidated(client({jobs: [{name: 'other', status: 'completed', conclusion: 'success'}]}), repo, sha, null), false);
+});
+
+test('planner binds channel artifacts to exact validated run and marks only unchanged channel for reuse',async()=>{
+  const previous={version:1,repository,production:{sha,pr:null,kind:'app'},preview:{sha,pr:null,kind:'app'}};
+  const github=client({getContent:async()=>({data:{type:'file',encoding:'base64',content:Buffer.from('{"version":1}').toString('base64')}}),artifacts:[
+    {id:1,name:'validated-production',expired:false},{id:2,name:'validated-test',expired:false},
+  ]}),outputs={};
+  const context={repo,ref:'refs/heads/master',sha,eventName:'workflow_dispatch',payload:{}};
+  const core={setOutput:(key,value)=>outputs[key]=value,summary:{addCodeBlock(){return this;},async write(){}}};
+  const before=globalThis.fetch;globalThis.fetch=async()=>new Response(JSON.stringify(previous));
+  try{
+    await createPlan({github,context,core,selection:'keep'});
+    const matrix=JSON.parse(outputs.matrix).include;
+    assert.deepEqual(matrix.map(item=>[item.target,item.artifactId,item.runId,item.reuse]),[['production',1,100,true],['preview',2,100,true]]);
+    await createPlan({github:client({getContent:async()=>({data:{type:'file',encoding:'base64',content:Buffer.from('{"version":1}').toString('base64')}}),artifacts:[{id:3,name:'validated-test',expired:true}]}),context,core,selection:'master'});
+    assert.equal(JSON.parse(outputs.matrix).include[1].artifactId,'');
+  }finally{globalThis.fetch=before;}
+});
+
+test('new preview uses its own validated artifact while production is reused',async()=>{
+  const previous={version:1,repository,production:{sha,pr:null,kind:'app'},preview:{sha:'c'.repeat(40),pr:7,kind:'app'}};
+  const github=client({getContent:async()=>({data:{type:'file',encoding:'base64',content:Buffer.from('{"version":1}').toString('base64')}}),runs:[run(),run({id:200,head_sha:previewSha,event:'pull_request',head_branch:'feature',pull_requests:[{number:7,head:{sha:previewSha},base:{ref:'master'}}]})],artifacts:id=>[{id:id+1,name:id===100?'validated-production':'validated-test',expired:false}]});
+  const outputs={},core={setOutput:(key,value)=>outputs[key]=value,summary:{addCodeBlock(){return this;},async write(){}}};
+  const before=globalThis.fetch;globalThis.fetch=async()=>new Response(JSON.stringify(previous));
+  try{
+    await createPlan({github,context:{repo,ref:'refs/heads/master',sha,eventName:'workflow_dispatch',payload:{}},core,selection:'7'});
+    const matrix=JSON.parse(outputs.matrix).include;
+    assert.equal(matrix[0].reuse,true);assert.equal(matrix[0].runId,100);
+    assert.equal(matrix[1].reuse,false);assert.equal(matrix[1].runId,200);assert.equal(matrix[1].artifactId,201);assert.equal(matrix[1].sha,previewSha);
+  }finally{globalThis.fetch=before;}
 });
 test('closed PR retains exact source proof when GitHub drops run PR links after merge', async () => {
   const runs = [run({event: 'pull_request', pull_requests: []})];
