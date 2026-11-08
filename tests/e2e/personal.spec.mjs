@@ -75,7 +75,7 @@ test('native selection across chords, highlight resizing and removal stay on the
  await select(page,source,2,17);await page.getByRole('button',{name:'Markeringspenn',exact:true}).click();
  const line=page.locator(`[data-occurrence="${source}"]`);expect((await line.locator('mark').allTextContents()).join('')).toBe('lig øvelse å sy');
  await line.locator('mark').first().click();await expect(page.locator('.highlight-controls:not([hidden]) .highlight-handle')).toHaveCount(2);await page.getByLabel('Dra slutten på markeringen',{exact:true}).focus();for(let index=0;index<5;index++)await page.keyboard.press('ArrowLeft');
- await save(page);expect((await personal(page))[0].annotations[source].highlights).toEqual([{start:2,end:12}]);
+ await save(page);expect((await personal(page))[0].annotations[source].highlights.map(({start,end})=>({start,end}))).toEqual([{start:2,end:12}]);
  await line.locator('mark').first().click();await page.getByRole('button',{name:'Fjern markering',exact:true}).click();await expect(line.locator('mark')).toHaveCount(0);await save(page);
 });
 
@@ -171,7 +171,7 @@ test('icon order, semantic save state, popup transactions and source time signat
  await page.locator('#personal-capo').fill('2');await page.getByRole('button',{name:'Avbryt',exact:true}).click();await expect(page.locator('#capo-pill')).toHaveText('Uten capo');await expect(page.locator('#edit-save')).toBeDisabled();
  await capo(page,2);await expect(page.locator('#edit-save')).toBeEnabled();await capo(page,0);await expect(page.locator('#edit-save')).toBeDisabled();
  await page.getByRole('button',{name:'Akkordskjema',exact:true}).click();const box=await page.locator('.popup-grid').boundingBox();expect(box.width).toBeGreaterThan(700);expect(Math.abs(box.x-(768-box.width)/2)).toBeLessThan(1);
- const cancel=await page.getByRole('button',{name:'Avbryt',exact:true}).boundingBox(),ok=await page.getByRole('button',{name:'OK',exact:true}).boundingBox();expect(cancel.x).toBeLessThan(ok.x);expect(cancel.y).toBe(ok.y);
+ const cancel=await page.getByRole('button',{name:'Avbryt',exact:true}).boundingBox(),ok=await page.getByRole('button',{name:'OK',exact:true}).boundingBox();expect(cancel.x).toBeLessThan(ok.x);expect(cancel.y).toBe(ok.y);expect(ok.x-cancel.x-cancel.width).toBeLessThanOrEqual(12);expect(box.x+box.width-ok.x-ok.width).toBeLessThanOrEqual(20);
  await expect(page.locator('.popup-grid button')).toHaveText(['Avbryt','OK']);await expect(page.locator('#personal-grid')).not.toHaveValue(/\{sog/);
  await page.locator('#personal-grid').fill('| Am |');await page.getByRole('button',{name:'OK',exact:true}).click();await expect(page.locator('#chart-dock')).toContainText('Am');expect((await personal(page))[0]?.chordGrid).toBeUndefined();await save(page);
  await exit(page);await expect(page.locator('.song-metadata')).toHaveText('Em3/4');await expect(page.locator('#chart-dock')).toHaveAttribute('data-source','personal');

@@ -22,27 +22,17 @@ export function renderGrid(block: GridBlock): HTMLElement {
   const figure = node('figure', undefined, 'chord-grid');
   figure.setAttribute('aria-label', block.options.label || 'Akkordskjema');
   if (block.options.label) figure.append(node('figcaption', block.options.label));
-  const rows = block.rows.filter(row => row.kind === 'grid-row');
-  const measures = rows.flatMap(row => row.measures);
-  const columns = Math.min(8, block.options.columns ?? Math.max(1, ...rows.map(row => row.measures.length)));
-  const beats = Math.min(32, block.options.beats ?? Math.max(1, ...measures.map(measure => measure.cells.length)));
-  const cellWidth = Math.min(12, Math.max(2, ...measures.flatMap(measure => measure.cells.map(cell =>
-    Math.max(...cell.split('~').map(part => chordText(part).length)) + .5))));
-  const barWidth = Math.min(6, Math.max(1, ...measures.flatMap(measure => [measure.opening.length, measure.closing.length]))) * .85 + .25;
-  figure.style.setProperty('--grid-bar-width', `${barWidth}ch`);
-  figure.style.setProperty('--measure-min', `${cellWidth * beats + barWidth * 2}ch`);
-  figure.style.setProperty('--grid-columns', String(columns));
-  figure.style.setProperty('--cell-min', `${cellWidth}ch`);
-  figure.style.setProperty('--grid-beats', String(beats));
+  const columns = Math.min(16, block.options.columns ?? Infinity);
   for (const row of block.rows) {
     if (row.kind === 'dynamic') continue;
     if (row.kind !== 'grid-row') {figure.append(node('p', row.text, row.kind)); continue;}
     const line = node('div', undefined, 'grid-row');
     if (row.left) line.append(node('p', row.left, 'grid-note'));
     const bars = node('div', undefined, 'grid-measures');
-    for (const measure of row.measures) {
+    for (const [measureIndex, measure] of row.measures.entries()) {
+      if (measureIndex && measureIndex % columns === 0) bars.append(node('span', undefined, 'grid-break'));
       const bar = node('div', undefined, 'grid-measure');
-      bar.append(node('span', measure.opening, 'grid-barline'));
+      if (measure.opening) bar.append(node('span', measure.opening, 'grid-barline'));
       const cells = node('div', undefined, 'grid-cells');
       for (const [index, value] of measure.cells.entries()) {
         const cell = node('span', undefined, 'grid-cell'); cell.dataset.beat = String(index + 1);
@@ -52,12 +42,12 @@ export function renderGrid(block: GridBlock): HTMLElement {
           chords.forEach(chord => cell.append(node('span', chord, 'grid-chord')));
         } else {
           const text = chordText(value), chord = isChord(text);
-          cell.append(node('span', text === '.' ? '·' : text, chord ? 'grid-chord' : 'grid-symbol'));
+          cell.append(node('span', text === '.' ? '\u00a0' : text, chord ? 'grid-chord' : 'grid-symbol'));
           if (text === '.') cell.setAttribute('aria-label', 'Tom akkordcelle');
         }
         cells.append(cell);
       }
-      bar.append(cells, node('span', measure.closing, 'grid-barline')); bars.append(bar);
+      bar.append(cells); if (measure.closing) bar.append(node('span', measure.closing, 'grid-barline')); bars.append(bar);
     }
     line.append(bars);
     if (row.right) line.append(node('p', row.right, 'grid-note'));

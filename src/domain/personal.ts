@@ -11,7 +11,7 @@ export interface LineAnchor {
   original: string;
 }
 /** Half-open offsets in UTF-16 code units, matching DOM Range and textarea selection. */
-export interface Highlight {start: number; end: number}
+export interface Highlight {start: number; end: number; groupId?: string}
 export interface Annotation {anchor: LineAnchor; note: string; highlights: Highlight[]}
 /** Compare editable values, treating absent defaults and empty annotations alike. */
 export function personalChanges(before: SongPersonal, after: SongPersonal): ((current: SongPersonal) => SongPersonal) | undefined {

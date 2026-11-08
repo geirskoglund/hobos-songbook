@@ -1,3 +1,5 @@
+import {createHighlightEditor, nativeLyricSpans, lyricText} from './highlight-editor.ts';
+import {attachNoteDrag} from './note-drag.ts';
 import {anchorFor, changeAnnotation, personalChanges, sharedGridText, shiftGridText, validCapo, validGrid, type Annotation, type Highlight} from '../domain/personal.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
 
@@ -37,38 +39,18 @@ export function paintAnnotations(root: HTMLElement, song: Song, personal: SongPe
     if (annotation?.note && annotation.anchor.original === song.original) {
       const note = el('aside', annotation.note); note.className = 'personal-note'; note.setAttribute('aria-label', 'Personlig notat');
       if (document.body.classList.contains('editing-active')) {
-        note.tabIndex = 0;
+        note.tabIndex = 0; note.title = 'Hold inne og dra for å flytte. Alt+pil opp/ned på tastatur.';
         const remove = button('×', () => {}); remove.dataset.deleteNote = ''; remove.setAttribute('aria-label','Slett notat'); note.append(remove);
       }
       line.prepend(note);
     }
   }
 }
-function lyricOffset(line: HTMLElement, node: Node, at: number): number | undefined {
-  const parent = node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement;
-  const lyric = parent?.closest<HTMLElement>('.lyric'); if (!lyric || !line.contains(lyric)) return;
-  const local = document.createRange(); local.selectNodeContents(lyric); local.setEnd(node, at);
-  return Number(lyric.dataset.offset) + Math.min(Number(lyric.dataset.length), local.toString().length);
-}
-/** Native DOM selection, excluding chords, note text and accessibility announcements. */
-export function selectedLyricRange(line: HTMLElement): Highlight | undefined {
-  const selection = getSelection(); if (!selection?.rangeCount || selection.isCollapsed) return;
-  const range = selection.getRangeAt(0);
-  const start = lyricOffset(line, range.startContainer, range.startOffset), end = lyricOffset(line, range.endContainer, range.endOffset);
-  return start !== undefined && end !== undefined && end > start ? {start, end} : undefined;
-}
-function mergeRanges(ranges: Highlight[]): Highlight[] {
-  const merged: Highlight[] = [];
-  for (const range of [...ranges].sort((a,b) => a.start - b.start)) {
-    const last = merged.at(-1); if (last && last.end >= range.start) last.end = Math.max(last.end, range.end); else merged.push({start:range.start,end:range.end});
-  }
-  return merged;
-}
-
 /** Only OK changes the song draft; only Save writes that draft to storage. */
 export function createPersonalEditor(song: Song, initial: SongPersonal, change: (update: PersonalChange) => void, save: () => void) {
   let personal = structuredClone(initial), baseline = structuredClone(initial), body: HTMLElement;
-  let selected: {line: HTMLElement; start: number; end: number} | undefined;
+  let highlighter: ReturnType<typeof createHighlightEditor> | undefined, disposeNoteDrag = () => {};
+  let restored: {line: HTMLElement; range: Highlight} | undefined;
   let tool: 'highlight' | 'note' | undefined;
   let popup: {box: HTMLDialogElement; dirty: () => boolean; close: () => void} | undefined;
   const toolbar = el('div'); toolbar.className = 'edit-toolbar'; toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', 'Rediger sang');
@@ -77,38 +59,20 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
   function update(fn: PersonalChange) {personal = fn(personal); change(fn); setStatus();}
   function clearCue() {body?.querySelector('[data-note-target]')?.removeAttribute('data-note-target');}
   function setTool(next: typeof tool) {tool = next; clearCue();
-    body?.querySelectorAll<HTMLElement>('[data-occurrence]').forEach(row => {if (tool === 'note') row.tabIndex = 0; else row.removeAttribute('tabindex');}); pen.setAttribute('aria-pressed', String(tool === 'highlight')); noteTool.setAttribute('aria-pressed', String(tool === 'note')); body?.setAttribute('data-tool', tool ?? '');}
-  function liveSelection() {
-    const selection = getSelection(); if (!selection?.anchorNode || selection.isCollapsed) return;
-    const parent = selection.anchorNode.nodeType === Node.ELEMENT_NODE ? selection.anchorNode as Element : selection.anchorNode.parentElement;
-    const line = parent?.closest<HTMLElement>('.song-line'); if (!line || !body.contains(line)) return;
-    const range = selectedLyricRange(line); return range ? {line, ...range} : undefined;
-  }
+    body?.querySelectorAll<HTMLElement>('[data-occurrence]').forEach(row => {if (tool === 'note') row.tabIndex = 0; else row.removeAttribute('tabindex');}); pen.setAttribute('aria-pressed', String(tool === 'highlight')); noteTool.setAttribute('aria-pressed', String(tool === 'note')); body?.setAttribute('data-tool', tool ?? ''); highlighter?.setActive(tool === 'highlight');}
   const pen = iconButton('Markeringspenn', 'highlight', () => {
-    const range = liveSelection(); if (range) {highlight(range); setTool(undefined);} else {clearHighlight(); setTool(tool === 'highlight' ? undefined : 'highlight');}
+    if (highlighter?.applyNative()) setTool(undefined); else {highlighter?.clear(); setTool(tool === 'highlight' ? undefined : 'highlight');}
   }); pen.setAttribute('aria-pressed', 'false');
   const noteTool = iconButton('Notat', 'note', () => {
-    const range = liveSelection(); if (range) openNote(range.line); else {clearHighlight(); setTool(tool === 'note' ? undefined : 'note');}
+    const range = body ? nativeLyricSpans(body)[0] : undefined; if (range) openNote(range.line); else {highlighter?.clear(); setTool(tool === 'note' ? undefined : 'note');}
   }); noteTool.setAttribute('aria-pressed', 'false');
   const gridTool = iconButton('Akkordskjema', 'grid', () => openGrid(gridTool));
   toolbar.append(saveButton, pen, noteTool, gridTool); setStatus();
   // Prevent toolbar focus from destroying the native selection before its action reads it.
   toolbar.addEventListener('pointerdown', event => {if ((event.target as Element).closest('button')) event.preventDefault();});
-  const controls = el('div'); controls.className = 'highlight-controls'; controls.hidden = true;
-  const remove = button('×', () => {
-    if (!selected) return;
-    annotate(selected.line, {highlights: annotation(selected.line).highlights.filter(range => range.start !== selected!.start || range.end !== selected!.end)}); clearHighlight();
-  }); remove.setAttribute('aria-label','Fjern markering');
-  const startHandle = button('‹', () => {}), endHandle = button('›', () => {});
-  for (const [edge, handle] of [['start',startHandle],['end',endHandle]] as const) {
-    handle.className = `highlight-handle handle-${edge}`; handle.dataset.edge = edge; handle.setAttribute('role', 'slider');
-    handle.setAttribute('aria-label', edge === 'start' ? 'Dra starten på markeringen' : 'Dra slutten på markeringen');
-  }
-  controls.append(startHandle, remove, endHandle);
-  function clearHighlight() {selected = undefined; controls.hidden = true;}
   function closePopup() {popup?.close();}
   function openPopup(anchor: HTMLElement, title: string, kind: string, build: (content: HTMLElement) => {apply: () => boolean; dirty: () => boolean; focus: HTMLElement}) {
-    closePopup(); clearHighlight(); setTool(undefined);
+    closePopup(); highlighter?.clear(); setTool(undefined);
     const box = el('dialog'); box.className = `edit-popup popup-${kind}`; box.setAttribute('aria-label', title);
     const heading = el('h2',title); box.append(heading);
     const content = el('div'); box.append(content);
@@ -142,57 +106,11 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
     window.addEventListener('scroll',place,{passive:true}); window.addEventListener('resize',place); visualViewport?.addEventListener('resize',place);
     place(); draft.focus.focus({preventScroll:true});
   }
-  function lyricText(line: HTMLElement) {return [...line.querySelectorAll<HTMLElement>('.lyric')].map(node => (node.textContent ?? '').slice(0, Number(node.dataset.length))).join('');}
   function anchor(line: HTMLElement) {return anchorFor(song, Number(line.dataset.sourceLine), line.dataset.occurrence!, lyricText(line) || (line.classList.contains('song-space') ? '' : line.dataset.anchorText ?? ''));}
   function annotation(line: HTMLElement): Annotation {return personal.annotations?.[line.dataset.occurrence!] ?? {anchor:anchor(line), note:'', highlights:[]};}
   function annotate(line: HTMLElement, patch: Partial<Pick<Annotation, 'note' | 'highlights'>>) {
     const reference = anchor(line); update(current => changeAnnotation(current, reference, patch));
   }
-  function highlight(range: {line: HTMLElement; start: number; end: number}) {
-    annotate(range.line,{highlights:mergeRanges([...annotation(range.line).highlights, range])}); clearHighlight(); getSelection()?.removeAllRanges();
-  }
-  function points(line: HTMLElement, at: number) {
-    for (const lyric of line.querySelectorAll<HTMLElement>('.lyric')) {
-      const from = Number(lyric.dataset.offset), length = Number(lyric.dataset.length);
-      if (!length || at < from || at > from+length) continue;
-      const walker = document.createTreeWalker(lyric, NodeFilter.SHOW_TEXT); let node: Node | null, offset = at-from;
-      while ((node=walker.nextNode())) {if (offset <= (node.textContent?.length ?? 0)) return {node, offset}; offset -= node.textContent?.length ?? 0;}
-    }
-  }
-  function drawHandles() {
-    if (!selected) return;
-    const start = points(selected.line,selected.start), end = points(selected.line,selected.end); if (!start || !end) return;
-    const range = document.createRange(); range.setStart(start.node,start.offset); range.setEnd(end.node,end.offset);
-    const rects = [...range.getClientRects()].filter(rect => rect.width), first = rects[0], last = rects.at(-1); if (!first || !last) return;
-    const root = body.getBoundingClientRect(); controls.hidden = false;
-    for (const [edge, handle, rect] of [['start',startHandle,first],['end',endHandle,last]] as const) {
-      handle.style.left = `${Math.max(0,Math.min(root.width-28,(edge === 'start' ? rect.left-14 : rect.right-14)-root.left))}px`;
-      handle.style.top = `${rect.bottom-root.top-8}px`;
-      handle.setAttribute('aria-valuemin','0'); handle.setAttribute('aria-valuemax',String(lyricText(selected.line).length)); handle.setAttribute('aria-valuenow',String(selected[edge]));
-    }
-    remove.style.left = `${Math.max(0,Math.min(root.width-28,(first.left+(first.top===last.top?last.right:first.right))/2-root.left-14))}px`;
-    remove.style.top = `${first.top-root.top-24}px`;
-  }
-  function resizeHighlight(edge: 'start' | 'end', at: number) {
-    if (!selected) return;
-    const next = {...selected, [edge]:at}; if (next.start < 0 || next.end > lyricText(next.line).length || next.start >= next.end || selected[edge] === at) return;
-    const ranges = mergeRanges(annotation(next.line).highlights.map(range => range.start === selected!.start && range.end === selected!.end ? {start:next.start,end:next.end} : range));
-    const merged = ranges.find(range => range.start <= next.start && range.end >= next.end)!;
-    selected = {line:next.line,...merged}; annotate(next.line,{highlights:ranges}); drawHandles();
-  }
-  let draggedEdge: 'start' | 'end' | undefined;
-  controls.addEventListener('pointerdown', event => {
-    event.preventDefault(); const handle = (event.target as Element).closest<HTMLElement>('.highlight-handle');
-    if (handle) {draggedEdge = handle.dataset.edge as 'start' | 'end'; handle.setPointerCapture(event.pointerId);}
-  });
-  controls.addEventListener('pointermove', event => {
-    if (!draggedEdge || !selected) return; event.preventDefault();
-    const doc = document as Document & {caretPositionFromPoint?: (x:number,y:number) => {offsetNode:Node;offset:number} | null; caretRangeFromPoint?: (x:number,y:number) => Range | null};
-    const position = doc.caretPositionFromPoint?.(event.clientX,event.clientY), range = doc.caretRangeFromPoint?.(event.clientX,event.clientY);
-    const node = position?.offsetNode ?? range?.startContainer, offset = position?.offset ?? range?.startOffset;
-    if (node && offset !== undefined) {const at = lyricOffset(selected.line,node,offset); if (at !== undefined) resizeHighlight(draggedEdge,at);}
-  });
-  for (const name of ['pointerup','pointercancel','lostpointercapture']) controls.addEventListener(name, () => {draggedEdge = undefined;});
   function openNote(line: HTMLElement) {
     const note = annotation(line).note;
     openPopup(line,'Notat','note', content => {
@@ -245,16 +163,13 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
   }
   let cancelled = false;
   let gesture: {x:number;y:number;scroll:number;moved:boolean} | undefined;
-  function pointerDown(event: PointerEvent) {cancelled = false; if (!(event.target as Element).closest('mark,.highlight-controls,.personal-note')) clearHighlight(); gesture = {x:event.clientX,y:event.clientY,scroll:scrollY,moved:false};}
+  function pointerDown(event: PointerEvent) {cancelled = false; if (tool === 'note' && !(event.target as Element).closest('button,.personal-note')) {event.preventDefault();getSelection()?.removeAllRanges();} gesture = {x:event.clientX,y:event.clientY,scroll:scrollY,moved:false};}
   function pointerMove(event: PointerEvent) {
     if (gesture && Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>8) gesture.moved = true;
     if (tool === 'note' && !popup) {clearCue(); noteTarget(event.clientY)?.setAttribute('data-note-target','');}
   }
   function focusTarget(event: FocusEvent) {if (tool === 'note') {clearCue(); (event.target as Element).closest('[data-occurrence]')?.setAttribute('data-note-target','');}}
   function pointerCancel() {cancelled = true; gesture = undefined; clearCue();}
-  function pointerUp(event: PointerEvent) {
-    if (tool === 'highlight' && !draggedEdge && !(event.target as Element).closest('button,.personal-note')) {const range = liveSelection(); if (range) highlight(range);}
-  }
   function click(event: MouseEvent) {
     const target = event.target as Element;
     if (cancelled && event.detail) return;
@@ -262,27 +177,13 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
     const line = target.closest<HTMLElement>('[data-occurrence]');
     if (target.closest('[data-delete-note]') && line) {annotate(line,{note:''}); return;}
     if (target.closest('button,a,input,textarea,.highlight-controls')) return;
-    if (liveSelection()) return;
+    if (tool !== 'note' && nativeLyricSpans(body).length) return;
     if (target.closest('.personal-note') && line) {openNote(line); return;}
     if (tool === 'note') {const row = line ?? noteTarget(event.clientY); if (row) openNote(row); return;}
-    const mark = target.closest<HTMLElement>('mark');
-    if (mark && line) {
-      const lyric = mark.closest<HTMLElement>('.lyric')!, before = document.createRange(); before.selectNodeContents(lyric); before.setEndBefore(mark);
-      const at = Number(lyric.dataset.offset)+before.toString().length;
-      const range = annotation(line).highlights.find(range => at>=range.start && at<range.end);
-      if (range) {selected = {line,...range}; drawHandles(); return;}
-    }
-    clearHighlight();
   }
   function keydown(event: KeyboardEvent) {
-    const handle = (event.target as Element).closest<HTMLElement>('.highlight-handle');
-    if (handle && selected && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
-      event.preventDefault(); const edge = handle.dataset.edge as 'start' | 'end';
-      const at = event.key === 'Home' ? edge === 'start' ? 0 : selected.start+1 : event.key === 'End' ? edge === 'end' ? lyricText(selected.line).length : selected.end-1 : selected[edge]+(event.key === 'ArrowRight' ? 1 : -1);
-      resizeHighlight(edge,at); return;
-    }
     if ((event.key === 'Enter' || event.key === ' ') && ((event.target as Element).matches('.personal-note') || tool === 'note' && (event.target as Element).matches('[data-occurrence]'))) {event.preventDefault(); openNote((event.target as Element).closest<HTMLElement>('[data-occurrence]')!);}
-    if (event.key === 'Escape' && !popup) {clearHighlight(); setTool(undefined);}
+    if (event.key === 'Escape' && !popup) {highlighter?.clear(); setTool(undefined);}
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); if (!popup && personalChanges(baseline,personal)) save();}
   }
   let observer: ResizeObserver | undefined;
@@ -293,20 +194,21 @@ export function createPersonalEditor(song: Song, initial: SongPersonal, change: 
     pendingChange:() => personalChanges(baseline,personal),
     markSaved(state: SongPersonal) {baseline = state; setStatus();},
     isValid:() => !popup,
-    selection:() => selected ? {occurrence:selected.line.dataset.occurrence!,start:selected.start,end:selected.end} : undefined,
-    select(line: HTMLElement, _state: SongPersonal, range?: Highlight) {if (range) selected = {line,...range};},
+    selection:() => highlighter?.selection(),
+    select(line: HTMLElement, _state: SongPersonal, range?: Highlight) {if (range) restored = {line,range};},
     mount(lyrics: HTMLElement) {
-      body = lyrics; body.append(controls); body.addEventListener('focusin',focusTarget); body.addEventListener('pointerdown',pointerDown); body.addEventListener('pointermove',pointerMove); body.addEventListener('pointerup',pointerUp); body.addEventListener('pointercancel',pointerCancel); body.addEventListener('pointerleave',clearCue); body.addEventListener('click',click);
+      body = lyrics; highlighter = createHighlightEditor(body,song,()=>personal,update); if (restored) highlighter.restore(restored.line,restored.range);
+      disposeNoteDrag = attachNoteDrag(body,song,()=>personal,update,noteTarget,openNote);  body.addEventListener('focusin',focusTarget); body.addEventListener('pointerdown',pointerDown); body.addEventListener('pointermove',pointerMove); body.addEventListener('pointercancel',pointerCancel); body.addEventListener('pointerleave',clearCue); body.addEventListener('click',click);
       document.addEventListener('keydown',keydown);
-      observer = new ResizeObserver(() => {document.documentElement.style.setProperty('--edit-toolbar-height',`${toolbar.offsetHeight}px`); drawHandles();}); observer.observe(toolbar); observer.observe(body); drawHandles();
+      observer = new ResizeObserver(() => {document.documentElement.style.setProperty('--edit-toolbar-height',`${toolbar.offsetHeight}px`);}); observer.observe(toolbar); observer.observe(body);
     },
     metadata(root: HTMLElement) {
       const capo = button(personal.capo ? `Capo ${personal.capo}` : 'Uten capo', () => openCapo(capo)); capo.className = 'song-key'; capo.id = 'capo-pill';
       const tuning = button(personal.tuning || 'Standard stemming', () => openTuning(tuning)); tuning.className = 'song-key'; tuning.id = 'tuning-pill'; root.append(capo,tuning);
     },
     openGrid,
-    dispose() {closePopup(); observer?.disconnect(); controls.remove(); document.documentElement.style.removeProperty('--edit-toolbar-height'); document.removeEventListener('keydown',keydown);
-      body?.removeEventListener('focusin',focusTarget); body?.removeEventListener('pointerdown',pointerDown); body?.removeEventListener('pointermove',pointerMove); body?.removeEventListener('pointerup',pointerUp); body?.removeEventListener('pointercancel',pointerCancel); body?.removeEventListener('pointerleave',clearCue); body?.removeEventListener('click',click);
+    dispose() {closePopup(); observer?.disconnect(); highlighter?.dispose(); disposeNoteDrag(); document.documentElement.style.removeProperty('--edit-toolbar-height'); document.removeEventListener('keydown',keydown);
+      body?.removeEventListener('focusin',focusTarget); body?.removeEventListener('pointerdown',pointerDown); body?.removeEventListener('pointermove',pointerMove); body?.removeEventListener('pointercancel',pointerCancel); body?.removeEventListener('pointerleave',clearCue); body?.removeEventListener('click',click);
     },
   };
 }
