@@ -97,6 +97,10 @@ Før hoved-PR-merge bygges `/app/` som masterens betrodde plassholder og bare `/
 4. Gå online igjen. Appen kontrollerer automatisk ved oppstart, fokus/synlighet, nettilbakekomst og hvert minutt mens den er synlig på nett. En ny versjon skal gi et fast varsel også langt nede i en sang og når appinformasjonen er lukket. «Se etter oppdatering» kontrollerer også manuelt. Når en ny testcommit er publisert, skal «Oppdater appen» ta i bruk den og vise ny commit. Ikke slett nettleserdata ved en eldre utgave; lukk/åpne mens du er på nett og bruk oppdateringskontrollen.
 5. Meld konkret forløp, forventet/faktisk resultat, enhet/OS/nettleser/modus og PR/SHA. Rettelser gjøres i samme PR/testløp. Produktansvarlig gir uttrykkelig mergegodkjenning etter vurdering. Eventuelle uutførte fysiske kontroller skal oppgis, ikke kvitteres ut av CI.
 
+## Etter merge
+
+Som del av merge-jobben skal Codex kontrollere at tilknyttede issues som PR-en løser fullt ut, faktisk er lukket. Bruk GitHubs gjenkjente nøkkelord, for eksempel `Closes #N`, i PR-beskrivelsen når hele issuen løses. Etter bekreftet merge til `master` leses issue-statusen; hvis den fortsatt er åpen, lukkes den via GitHub-integrasjonen med begrunnelsen `completed`. Les statusen på nytt og bekreft PR-/issue-status i sluttrapporten. En delvis løst issue holdes åpen, og gjenstående arbeid oppgis. En PR som bare lukkes uten merge, skal ikke utløse lukking som fullført.
+
 Etter godkjent merge kontrolleres master-CI, Pages-kjøring, produksjonens SHA og uendret test-SHA over HTTPS. Reell produksjonsinstallasjon/offline kan først prøves etter dette. Grunnfunksjoner i fremtidig v1 har egne tester: rekursiv Dropbox-lesing, identitet mellom kontoer, negativ tilgang, parser/konvertering, konflikt/synk/backup og `.setlist`-systemdeling på faktisk iPad/Android. Ingen av disse er utført av skallets tester.
 
 ## Feil og gjenpublisering
