@@ -2,7 +2,7 @@
 
 ## Leveransegrense og kontroll
 
-Kodebasen har PWA/offline, miljøisolasjon og CI/CD samt lokal sanglagring, ChordPro-innlesing og grunnleggende sangvisning fra issue #4. Fullverdig bibliotek, editor/konvertering og Dropbox er senere arbeid. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
+Kodebasen har PWA/offline, miljøisolasjon og CI/CD, lokal sanglagring og kompakt ChordPro-visning fra issue #4, generell bevaring av lesested og Android-scrollregel fra #6 samt personlig redigering med utkast/Lagre fra #8. Fullverdig bibliotek, originaleditor/konvertering, setlister og Dropbox er senere arbeid. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
 
 Node.js 24 LTS og låst npm-fil brukes lokalt og i Actions. Eksempel på full kontroll ved behov:
 
@@ -89,9 +89,9 @@ Rootens versjonerte `deployment.json` lagrer repo, produksjons-/test-SHA, PR, by
 
 Før hoved-PR-merge bygges `/app/` som masterens betrodde plassholder og bare `/test/` som PR-appen. Etter godkjent merge blir `/app/` master-appen, mens valgt eksakt testbygg beholdes. Begge reelle appbygg prøves automatisk sammen med ekte workere, separate lagringsmarkører og offline-gjenåpning. Fysisk installasjon/offline på iPad og en annen tilgjengelig plattform rapporteres separat fra Chromium.
 
-## Brukertest av appskallet før merge
+## Manuell kontroll av PWA-grunnlaget
 
-1. Åpne fast testadresse mens du er på nett. Kontroller «Testversjon», forventet PR og commit i bunnteksten mot PR-leveringen/`build-info.json`. Startsiden skal identifisere Hobo's Songbook, ha lesbar tekst og ingen fungerende sang-/setlistekontroller.
+1. Åpne fast testadresse mens du er på nett. Kontroller «Testversjon», forventet PR og commit i appens meny mot PR-leveringen/`build-info.json`. Startsiden skal identifisere Hobo's Songbook og ha filvalg og oversikt over lokale sanger. Sangflyt og personlig redigering kontrolleres i forløpene nedenfor; setlister er ikke implementert.
 2. Vent på «Klart for bruk uten nett». Installer på hjemskjermen på iPad, åpne den installerte appen online og vent på samme status. Oppgi iPadOS-versjon, Safari/installert modus og commit. Chromium eller en simulert iPad-bredde er ikke fysisk iPad-bevis.
 3. Lukk appen helt, slå på flymodus og åpne den installerte appen igjen. Navn, riktig testmiljø, tekst og oppdateringskontroll skal vises; «Uten nett» er forventet. Prøv også vanlig nettleser og en annen tilgjengelig plattform, og registrer OS/nettleser/installert modus separat.
 4. Gå online igjen. Appen kontrollerer automatisk ved oppstart, fokus/synlighet, nettilbakekomst og hvert minutt mens den er synlig på nett. En ny versjon skal gi et fast varsel også langt nede i en sang og når appinformasjonen er lukket. «Se etter oppdatering» kontrollerer også manuelt. Når en ny testcommit er publisert, skal «Oppdater appen» ta i bruk den og vise ny commit. Ikke slett nettleserdata ved en eldre utgave; lukk/åpne mens du er på nett og bruk oppdateringskontrollen.
@@ -175,7 +175,7 @@ Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontro
 
 `tests/personal.test.mjs` prøver capo, slash-bass, suffikser, B/H, fortegn, grid uten mutasjon og forankring med eksakt original/kontekst. Innskriving med capo prøves frem og tilbake med bevarte direktiver, etiketter, marginer, repetisjon og flere akkorder per celle.
 
-`tests/e2e/personal.spec.mjs` prøver sangen som arbeidsflate, capo 0, eksplisitt lagring uten utgang, utgang med lagre/forkast/fortsett, transaksjonsfeil og nye forsøk. Begge redigeringsinnganger og radmenyens ramme/lukking prøves. Skjematekst skjuler tagger, bevarer form/etiketter, omregner capo én gang og viser felles skjema ved fjerning. Native tekstspenn over akkordnoder, lokal notatplassering uten ordvalg, separate refrengforekomster, endring/fjerning av markering og notater samt flere faner/like titler dekkes. Ekte workeroppdatering blokkeres ved ulagret arbeid og venter på faktisk pågående lagring. Offline gjenåpning kontrollerer bevarte sanger/persondata. Testkode er ikke i seg selv verifikasjon; faktiske resultater og SHA rapporteres i PR-en.
+`tests/e2e/personal.spec.mjs` prøver sangen som arbeidsflate, capo 0, eksplisitt lagring uten utgang, utgang med lagre/forkast/fortsett, transaksjonsfeil og nye forsøk. Begge redigeringsinnganger og radmenyens ramme/lukking prøves. Skjematekst skjuler tagger, bevarer form/etiketter, omregner capo én gang og viser felles skjema ved fjerning. Appstyrte tekstspenn over akkordnoder, lokal notatplassering uten ordvalg, separate refrengforekomster, endring/fjerning av markering og notater samt flere faner/like titler dekkes. Ekte workeroppdatering blokkeres ved ulagret arbeid og venter på faktisk pågående lagring. Offline gjenåpning kontrollerer bevarte sanger/persondata. Testkode er ikke i seg selv verifikasjon; faktiske resultater og SHA rapporteres i PR-en.
 
 Nettlesertestene kontrollerer også ikonrekkefølge, deaktivert lagring ved uendrede/tilbakeførte verdier, OK kontra Avbryt/Escape, bred skjema-popup, smalt capofelt, pillejustering og taktart i begge modi. Plassering i margen og på tom linje, ferskt mål etter tidligere tekstvalg, pekernedtrykk uten åpning, avbrutt berøring, drahåndtak og rene tekstkoordinater prøves særskilt. Tastaturplassering, dialogfokus, utvendig scroll/avbryt og touch-pan via Chromium-protokollen kontrolleres også, samt bevaring/tømming av flere skjemablokker.
 
@@ -195,4 +195,4 @@ Lokalt velges relevante tester, for eksempel `node --test tests/pages-plan.test.
 
 Etter publisering kontrolleres forventet SHA og tilgjengelighet, og berørt funksjon prøves kort. Brede ekstra skript for uendrede funksjoner brukes bare ved konkret regresjonsrisiko. Plattformkrav og fysiske tester beholdes der de er relevante.
 
-Workflowendringen aktiveres først etter godkjent merge til master. Før dette prøves gjenbruk, identitet, korrupte/manglende filer og eldre kilder med kontrakttester; PR-CI prøver selve artifactproduksjonen. Faktisk Pages-kjøring med ny masterinfrastruktur må kontrolleres etter merge.
+Gjenbruk, identitet, korrupte/manglende filer og eldre kilder har kontrakttester; PR-CI kontrollerer artifactproduksjonen. Den aktive publiseringsflytens faktiske master-/Pages-kjøringer og gjenbruk er dokumentert i [godkjent PR #10](https://github.com/geirskoglund/hobos-songbook/pull/10). Nye endringer i flyten må fortsatt kontrolleres mot faktisk master-/Pages-kjøring etter godkjent merge.

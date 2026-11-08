@@ -6,10 +6,10 @@ Statisk HTML/CSS/TypeScript bygges med Vite. Ingen backend, skydatabase, autenti
 
 | Del | Ansvar nå | Grense mot senere arbeid |
 | --- | --- | --- |
-| `index.html`, `src/main.ts`, `src/app-updates.ts`, `src/style.css`, `src/ui/` | Sanginnlesing, enkel oversikt/lesevisning, miljømerking og workerstatus | Fullverdig bibliotek/editor/setlister kommer senere |
-| `src/domain/{song,chordpro,grid,song-grid}.ts` | Sangmodell, UTF-8-validering og avledet ChordPro-tolkning | Ingen DOM- eller leverandøravhengighet |
+| `index.html`, `src/main.ts`, `src/app-updates.ts`, `src/style.css`, `src/ui/` | Sanginnlesing, enkel oversikt, fremføring/personlig redigering, miljømerking og workerstatus | Fullverdig bibliotek, originaleditor/konvertering og setlister kommer senere |
+| `src/domain/{song,chordpro,grid,song-grid,personal}.ts` | Sangmodell, UTF-8-validering, avledet ChordPro-tolkning, capo og personlige utkast/ankere | Ingen DOM- eller leverandøravhengighet |
 | `src/environment.ts` | Én validert miljøkonfigurasjon | ID-er/scopes/navn følger miljø; SHA/PR er bare byggmetadata |
-| `src/storage/{songs,preferences,local-settings}.ts` | IndexedDB-sanger/personlig refrengtilstand og miljøavgrensede visningsvalg | Ingen ekstern lagring; fremtidige skjemaversjoner oppgraderes additivt |
+| `src/storage/{songs,preferences,local-settings}.ts` | IndexedDB-sanger/personlige tilpasninger og miljøavgrensede visningsvalg | Ingen ekstern lagring; fremtidige skjemaversjoner oppgraderes additivt |
 | `vite.config.mjs` | Miljøstier, manifest, lokale ikoner, `build-info.json` og Workbox-worker | Bygget er selvstendig under miljøets sti |
 | `scripts/{pages-plan,github-pages,build-channel,assemble-pages,verify-pages}.mjs` | Betrodd CI/CD-kontrakt | PR-bygg kjøres ikke med deploymentrettigheter |
 | `tests/*.test.mjs`, `tests/e2e` | Kilde-/miljø-/publiseringskontrakter og ekte nettleser/offline | Sanglagring/visning/offline testes; fysisk plattformtest rapporteres separat |
@@ -29,7 +29,7 @@ Nye domenemoduler kan legges under `src/domain/`, lokal vedvarende lagring under
 
 IndexedDB har eksplisitt skjemaversjon 1 med `songs` (keyPath `id`) og `personal` (keyPath `songId`). Hver innlesing oppretter UUID, også for samme fil/tittel. En sang inneholder `id`, autoritativ `original`, avledet `title`/`key` og `origin` med `kind`, `filename`, `importedAt` samt plass til `provider`, `sourceId`, `fileId`, `relativePath`. Originalen beholder BOM, linjeskift og ukjente direktiver. Parseren arbeider med en separat representasjon, som ikke skrives tilbake.
 
-`personal` inneholder `songId`, eventuelt `chordGrid` som separat ChordPro-tekst for personlig skjema, og et kart `chorus` fra deterministisk originallinjereferanse (`line:N`, nullbasert) til boolsk tilstand. Det er separat fra sanginnholdet. Editor/synk må senere håndtere gjenforankring ved tekstendring. localStorage-nøkkelen `<namespace>:display` inneholder globalt `theme`, `fontSize`, `showGrids` og `showDynamics`. Eksisterende innstillinger uten de nye feltene beholder tema/størrelse og får begge visningene på. Appens oppstart bruker miljøets innstillinger før innholdet vises. Ingen lagringsnavn følger SHA/PR.
+`personal` inneholder `songId`, formatversjon 2, capo, stemming, annoteringer, eventuelt `chordGrid` som separat klingende ChordPro-tekst for personlig skjema og et kart `chorus` fra deterministisk originallinjereferanse (`line:N`, nullbasert) til boolsk tilstand. Det er separat fra originalinnholdet. Utkast, transaksjonell lagring og ankere er beskrevet under «Personlige tilpasninger». Gjenforankring ved endret originaltekst gjenstår. localStorage-nøkkelen `<namespace>:display` inneholder globalt `theme`, `fontSize`, `showGrids` og `showDynamics`. Eksisterende innstillinger uten de nye feltene beholder tema/størrelse og får begge visningene på. Appens oppstart bruker miljøets innstillinger før innholdet vises. Ingen lagringsnavn følger SHA/PR.
 
 Databaseoperasjoner lukker forbindelsen etter fullført transaksjon. Innlesing regnes først som lagret ved `oncomplete`; `add` kan ikke overskrive en eksisterende sang. Blokkert/avvist åpning, abort og innstillingsfeil vises uten nullstilling. Ingen database-/brukerdatasletting skjer ved appstart eller oppdatering. Testharness bruker egne `-harness`-databaser; workeroppdatering prøves også med faktiske sanger og personlige valg.
 
@@ -59,7 +59,7 @@ Produksjon bruker bare master; test beholder valgt eksakt commit også etter mer
 
 ## Videre domene og lokal lagring
 
-Intern sangidentitet, originaltekst, opprinnelse og personlig refrengtilstand finnes nå. Private arbeidskopier, setlister og tokenlagring får egne versjonerte utvidelser ved senere funksjonsimplementering.
+Intern sangidentitet, originaltekst, opprinnelse og personlige tilpasninger finnes nå. Private arbeidskopier, setlister og tokenlagring får egne versjonerte utvidelser ved senere funksjonsimplementering.
 
 - Kildesang, privat arbeidskopi og personlig lag er ulike ansvar. Synk overskriver ikke upublisert arbeid. Usikre annoteringer beholder gammel linje-/tekst-/kontekstinformasjon til brukerens avgjørelse.
 - Intern setliste er referanser; selvforsynt `.setlist` inkluderer tekst som transport/reserve. Oppdatert bibliotek er autoritativt, med forskjellige regler for førstegangsimport og senere manglende kilde. Se REQUIREMENTS §6.
@@ -89,7 +89,7 @@ Gjenkjennelige akkordsymboler beholdes i originale stavemåter; `[Solo]`, `[Fele
 
 Gyldig `x_dyn: 1`–`5` gir instruksjonsnoder i den avledede strukturen. Visningen starter på 3 og følger nivået til neste gyldige tagg. Ugyldige verdier gir merknad og beholder forrige nivå. Ved refrenghenvisning gjentas også instruksjonene som faktisk finnes i refrengblokken; uten ny tagg videreføres gjeldende nivå. Dette beregnes uavhengig av om henvisningen er foldet sammen.
 
-`src/domain/song-grid.ts` velger ett innhold til den felles skjemavisningen: `personal.chordGrid` når det finnes, ellers alle originale gridblokker i kilderekkefølge (uten kopier fra refrenghenvisninger), ellers ingen. Personlig innhold er separat og brukes uendret som inngang til samme parser/renderer. Opprettelse/redigering skjer i den felles personlige editoren. Skjema lagres i klingende form og omregnes bare i avledet visning. Ugyldig/tomt utkast erstatter ikke gyldig lagring; fjerning er en egen handling. Inline-grid utelates fra selve tekstflaten, men dynamikkinstruksjoner der beholder sin musikalske virkning i sangen.
+`src/domain/song-grid.ts` velger ett innhold til den felles skjemavisningen: `personal.chordGrid` når det finnes, ellers alle originale gridblokker i kilderekkefølge (uten kopier fra refrenghenvisninger), ellers ingen. Personlig innhold er separat og brukes uendret som inngang til samme parser/renderer. Opprettelse/redigering skjer i den felles personlige editoren. Skjema lagres i klingende form og omregnes bare i avledet visning. Ugyldig utkast erstatter ikke gyldig lagring. Brukeren fjerner personlig skjema ved å tømme feltene, bekrefte med OK og lagre; da brukes felles skjema hvis det finnes, ellers intet skjema. Inline-grid utelates fra selve tekstflaten, men dynamikkinstruksjoner der beholder sin musikalske virkning i sangen.
 
 `chart-dock.ts` gir samme kompakte flate for begge kilder, med sticky i fremføring og ordinær plassering under redigering. × endrer bare panelet fra sticky til ordinær plassering i dokumentet. Innhold og høyde beholdes, og fokus flyttes til tilbakeknappen uten scrolling. Tilstanden lagres ikke; neste åpning har sticky på igjen. ResizeObserver/vindusendring tilpasser høyden ved behov med samlet skalering, uten indre scroll. Observatører og hendelseslyttere fjernes ved bytte/lukking av sang.
 
