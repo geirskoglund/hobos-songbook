@@ -93,3 +93,14 @@ test('one chart prefers personal content, falls back to shared grids, and never 
   assert.equal(selectSongGrid(parseChordPro('{start_of_grid}\n\n{end_of_grid}','T'),personal),null);
   assert.equal(selectSongGrid(shared,{...personal,chordGrid:'{start_of_grid}\n{end_of_grid}'}).source,'shared');
 });
+
+test('time is derived from source, defaults to 4/4, and later changes remain at their position', () => {
+  assert.equal(parseChordPro('Tekst','T').time,'4/4');
+  const original='\uFEFF{time: 3 / 4}\r\nVals\r\n{time: 6/8}\r\nVidere';
+  const song=createSong('takt.cho',new TextEncoder().encode(original)), parsed=parseChordPro(song.original,'T');
+  assert.equal(song.original,original);assert.equal(parsed.time,'3/4');
+  assert.deepEqual(parsed.blocks.map(block=>block.text ?? block.segments?.[0].text),['Vals','6/8','Videre']);
+  assert.equal(parseChordPro('{time: 3+2/8}','T').time,'3+2/8');
+  assert.equal(parseChordPro('{time: C|}','T').time,'C|');
+  const invalid=parseChordPro('{time: feil}\nOrd','T');assert.equal(invalid.time,'4/4');assert.equal(invalid.blocks[0].kind,'unknown');
+});

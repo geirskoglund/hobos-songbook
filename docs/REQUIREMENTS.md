@@ -71,7 +71,7 @@ Ordinær sangvisning er beskyttet fremføring. Scrolling, trykk og langt trykk �
 ### Klingende toneart, capo, stemming og eldre filer
 
 - **[B]** `{key: ...}` er klingende toneart, uavhengig av personlig capo. I sangvisningen vises verdien alene i en diskret pille uten ledetekst. En egen pille ved siden av viser for eksempel «Capo 7: Am». Capo skrives ikke i felles sangfil. Klingende toneart og personlig capo-/grepstoneart er synlige samtidig, også på setlisteraden, slik at musikere kan kommunisere riktig toneart.
-- **[B]** Når filen har akkorder, kan visningen veksle mellom klingende akkorder og omregnede capo-grep. Dette endrer bare visningen, ikke originalakkorder eller klingende toneart.
+- **[B]** Personlig capo bestemmer visningen av både tekstakkorder og akkordskjema, samt innskriving i personlig skjema. Separat akkordvisningsvalg er fjernet etter produktansvarligs presisering. Dette endrer ikke originalakkorder eller sangens toneart.
 - **[B]** Nye filer tolkes som klingende akkorder som standard. Eldre filer med noterte capo-grep må konverteres/tolkes eksplisitt; de antas ikke automatisk å være klingende. Originalen omskrives aldri uten bevisst godkjenning.
 - **[B]** Import må forstå kombinasjoner som `key: D`, `capo: 2`, `relative key: C`: D er klingende, C grepene ved capo 2. Forslag kan normaliseres til klingende akkorder med kontroll/godkjenning før lagring. Ulike eldre notasjoner må kartlegges.
 - **[B]** Eldre akkordlinjer uten klammer, taktstreker `|` og rene akkordskjemaer hjelpes over til standard ChordPro. `{start_of_grid}`/`{end_of_grid}` brukes for rene skjemaer med taktstreker, repetisjon og transponering. Skjemaer er fullverdige sanger uten krav om å flette akkorder inn i tekst. Originalakkorder normaliseres klingende; personlig capo påvirker bare visningen.
@@ -178,4 +178,10 @@ Ved ny beslutning endres berørt krav på plass; motstrid erstattes fremfor å a
 
 ### Presisering av personlig skjema og capo
 
-Capo 0 er standard i redigering og skjules under fremføring. Skjema redigeres som fri tekst i en kompakt boks, med skjulte rammetagger og eksplisitt råvisning. Innskriving kan forutsette valgt capo; C med capo 2 lagres som D. Ved visning regnes D tilbake til C for capo 2. Skjema har én faktisk akkordrepresentasjon, uavhengig av visningsvalg. Senere transponering av hele sangen skal flytte alle lagrede akkorder, inkludert personlige skjemaer; selve toneartsendringen inngår ikke i issue #8.
+Capo 0 er standard, heter «Uten capo» i redigering og skjules under fremføring. Stemming uten avvik heter «Standard stemming». Pillene viser toneart, taktart, capo og stemming i denne rekkefølgen. Taktart leses fra originalens `{time: ...}` og vises uredigerbart i begge modi, med 4/4 som standard; det er ikke personlige data.
+
+Skjema redigeres som fri tekst med taktstreker i en bred popup uten rammetagger eller råvisning. Overskriften følger valgt capo: «Akkordskjema» eller «Akkordskjema, capo N». C med capo 2 blir D i utkastets faktiske akkordrepresentasjon ved OK, og vises igjen som C. Endret capo omregner både skjema og tekstakkorder umiddelbart. Tomt bekreftet skjema gir felles skjema tilbake, ellers ingen skjemavisning. Skjemaflaten kan fylle bredden, men musikalsk innhold vises kompakt.
+
+Ikonverktøylinjen har Lagre til venstre, deretter markeringspenn, notat og skjema. Lagre er aktiv bare ved bekreftede endringer siden sist lagring. Native tekstvalg bruker verktøylinjen uten ekstra app-popup. Valgt gulmarkering har × og direkte endehåndtak. Notat opprettes fra levende tekstvalg eller et uttrykkelig plasseringsvalg, også i marg/tomme linjer; × på notatet sletter. OK bekrefter popupens utkast og lukker; Avbryt/Escape/utvendig trykk forkaster uten spørsmål. Bare Lagre skriver vedvarende. Disse presiseringene erstatter issue #8 F07–F08 og det separate visningsvalget i F13/F15. F22s sticky gjelder fremføringsmodus.
+
+Senere transponering av hele sangen skal flytte alle lagrede akkorder, inkludert personlige skjemaer; selve toneartsendringen inngår ikke i issue #8.

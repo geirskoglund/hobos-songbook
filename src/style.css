@@ -85,10 +85,10 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 .chord-grid + .chord-grid {margin-top: 4px;}
 .chord-grid figcaption {font: 600 11px/1.3 ui-sans-serif, system-ui, sans-serif; color: var(--muted); margin: 0 0 2px; overflow-wrap: anywhere;}
 .grid-row {padding: 0;}
-.grid-measures {display: grid; gap: 2px 4px; grid-template-columns: repeat(auto-fill, minmax(min(100%, max(var(--measure-min), var(--measure-track))), 1fr));}
-.grid-measure {display: grid; grid-template-columns: var(--grid-bar-width) minmax(0, 1fr) var(--grid-bar-width); align-items: stretch; min-width: 0; padding: 1px 0;}
+.grid-measures {display:flex; flex-wrap:wrap; gap:2px 1ch; max-width:min(100%, calc(var(--grid-columns) * (var(--measure-min) + 1ch)));}
+.grid-measure {display: grid; grid-template-columns: var(--grid-bar-width) minmax(0, 1fr) var(--grid-bar-width); align-items: stretch; min-width:0; width:min(100%,var(--measure-min)); padding:1px 0;}
 .grid-barline {white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); align-self: center; font-size: .85em;}
-.grid-cells {display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, max(var(--cell-min), var(--beat-track))), 1fr)); align-items: center; min-width: 0;}
+.grid-cells {display:grid; grid-template-columns:repeat(var(--grid-beats),minmax(0,1fr)); align-items:center; min-width:0;}
 .grid-cell {min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0 .15em; padding: 1px 0;}
 .grid-chord {color: var(--accent); font-weight: 650; overflow-wrap: anywhere; max-width: 100%;}
 .grid-symbol {color: var(--text); overflow-wrap: anywhere; max-width: 100%;}
@@ -121,52 +121,46 @@ body:has(#settings-dialog[open]) {overflow: hidden;}
 .song-actions summary {display:grid; place-items:center; width:48px; min-height:48px; cursor:pointer; list-style:none; font-size:1.4rem}
 .song-actions summary::-webkit-details-marker {display:none}
 .song-actions[open] > button {position:absolute; right:8px; top:100%; z-index:30; min-width:8rem; box-shadow:0 6px 24px #0005}
-.edit-toolbar {position:sticky; top:calc(52px + env(safe-area-inset-top)); z-index:12; display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:6px; margin:-6px -6px 10px; border:1px solid var(--border); border-radius:10px; background:var(--panel); box-shadow:0 3px 12px #0003; font:13px/1.3 system-ui,sans-serif}
-.edit-toolbar button {font:inherit; padding:6px 9px; min-height:40px; text-align:center; background:transparent; border-color:transparent}
+/* The toolbar contains familiar icons; Save precedes editing tools. */
+.edit-toolbar {position:sticky; top:calc(52px + env(safe-area-inset-top)); z-index:12; display:flex; align-items:center; gap:6px; padding:4px; width:fit-content; max-width:100%; margin:0 0 10px; border:1px solid var(--border); border-radius:10px; background:var(--panel); box-shadow:0 3px 12px #0003; font:14px/1.3 system-ui,sans-serif}
+.edit-toolbar button {display:grid; place-items:center; width:44px; height:44px; padding:10px; min-height:44px; background:transparent; border-color:transparent}
+.edit-toolbar svg {width:23px; height:23px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
 .edit-toolbar button[aria-pressed=true] {background:#f1d84b; color:#201b00; border-color:#f1d84b}
-.edit-mode {color:var(--accent); padding:0 4px; font-weight:650}
-.edit-status {color:var(--muted); font-size:11px; margin-left:auto}
-.edit-toolbar #edit-save {border-color:var(--accent); color:var(--accent)}
-.editing-active #chart-dock {top:calc(52px + env(safe-area-inset-top) + var(--edit-toolbar-height,54px) + 10px)}
-.editing-active #chart-dock[data-sticky=false] {top:auto}
-.song-metadata {position:relative}
-button.song-key {min-height:32px; background:transparent; cursor:pointer}
-.edit-chart {position:absolute; right:32px; top:0; font:11px/1.2 system-ui,sans-serif; padding:4px 6px; min-height:30px; border:0; background:var(--bg)}
-.editing-active #chart-dock {cursor:pointer; padding-top:30px}
+.edit-toolbar #edit-save {color:var(--accent); margin-right:6px; border-right-color:var(--border); border-radius:6px 0 0 6px}
+.edit-toolbar button:disabled {opacity:.3; cursor:default}
+.song-metadata {position:relative; align-items:center}
+.song-key {display:inline-flex; align-items:center; justify-content:center; min-height:32px; line-height:1.2; vertical-align:middle}
+button.song-key {font:500 .65em/1.2 ui-sans-serif,system-ui,sans-serif; padding:2px 9px; background:transparent; cursor:pointer}
+.edit-chart {position:absolute; right:0; top:0; font:20px/1 system-ui,sans-serif; padding:4px; width:44px; min-height:44px; text-align:center; border:0; background:var(--bg)}
+.editing-active #chart-dock {padding-right:48px}
 .grid-placeholder {font:13px/1.4 system-ui,sans-serif; width:100%; min-height:44px; border-style:dashed; background:transparent; color:var(--muted); margin:4px 0 10px}
-.edit-popup {position:relative; z-index:16; width:min(100%,440px); max-height:min(380px,55svh); overflow:auto; padding:10px; border:1px solid var(--accent); border-radius:9px; background:var(--panel); box-shadow:0 5px 20px #0005; font:14px/1.4 system-ui,sans-serif; color:var(--text); margin:6px 0}
-.song-metadata > .edit-popup, .edit-toolbar > .edit-popup {position:absolute; top:100%; left:0; width:min(440px,calc(100vw - 32px)); margin-top:4px}
-.song-line + .edit-popup {position:absolute; right:0; margin-left:auto; width:min(100%,360px)}
 .chart-area {display:contents}
-.chart-area > .edit-popup {width:min(100%,440px)}
-.popup-heading {display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px}
-.popup-heading button {min-width:36px; min-height:36px; padding:2px 8px; font-size:20px}
-.edit-popup button {font:inherit; min-height:36px; padding:6px 10px; margin:3px}
-.edit-popup input:not([type=radio]), .edit-popup textarea {display:block; width:100%; min-width:0; border:1px solid var(--border); border-radius:5px; padding:8px; color:var(--text); background:var(--bg); font:inherit}
-.edit-popup textarea {resize:vertical; max-height:180px; font-family:ui-monospace,monospace}
-.edit-popup fieldset {display:flex; flex-wrap:wrap; gap:8px 16px; margin:6px 0; padding:6px 8px; border:1px solid var(--border)}
-.edit-popup label {display:flex; flex-direction:row-reverse; align-items:center; gap:8px; min-height:36px}
-.edit-popup input[type=radio] {width:18px; height:18px; accent-color:var(--accent)}
-.song-line {position:relative; display:flow-root}
+.edit-popup {position:fixed; inset:auto; margin:0; overflow:auto; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--panel); box-shadow:0 8px 32px #0006; font:14px/1.4 system-ui,sans-serif; color:var(--text)}
+.edit-popup::backdrop {background:#0002}
+.edit-popup h2 {margin:0 0 10px; font:600 15px/1.4 system-ui,sans-serif}
+.popup-actions {display:flex; justify-content:space-between; gap:16px; margin-top:14px}
+.popup-actions button {font:inherit; min-height:44px; min-width:72px; padding:8px 14px; text-align:center}
+.popup-actions button:last-child {border-color:var(--accent); color:var(--accent)}
+.edit-popup input, .edit-popup textarea {display:block; width:100%; min-width:0; border:1px solid var(--border); border-radius:6px; padding:8px; color:var(--text); background:var(--bg); font:inherit}
+.edit-popup textarea {resize:vertical; min-height:70px; max-height:40svh}
+.popup-grid textarea {font:16px/1.6 ui-monospace,monospace; white-space:pre; overflow:auto}
+.popup-grid textarea + textarea {margin-top:12px}
+.popup-capo #personal-capo {width:76px; font-size:18px}
+.song-line, .song-space {position:relative; display:flow-root}
+.song-space {display:none}
+.song-space:has(.personal-note) {display:flow-root; min-height:1.2em}
+.editing-active [data-tool=note] .song-space {display:flow-root; min-height:.6em}
+.editing-active [data-note-target] {outline:1px dashed var(--accent); outline-offset:2px; border-radius:3px}
 .personal-note {float:right; position:relative; max-width:48%; margin:0 0 0 .5em; padding:0 .3em; white-space:pre-wrap; overflow-wrap:anywhere; font:.78em/1.2 system-ui,sans-serif; background:color-mix(in srgb,var(--bg) 80%,transparent); color:var(--text); border-radius:.2em}
+.editing-active .personal-note {cursor:pointer}
 .personal-note button {min-height:28px; min-width:28px; padding:0 4px; margin-left:4px; border:0; background:none; color:var(--muted); font:16px system-ui,sans-serif}
 .lyric mark {background:#f1d84b; color:#201b00; border-radius:.1em}
 .editing-active .lyric {user-select:text; -webkit-user-select:text}
 .editing-active .chord {user-select:none; -webkit-user-select:none}
-.selection-tools {position:relative; z-index:9; display:flex; flex-wrap:wrap; gap:3px; padding:4px; margin:4px 0; width:fit-content; max-width:100%; border:1px solid var(--border); border-radius:8px; background:var(--panel); font:12px/1.2 system-ui,sans-serif; user-select:none}
-.selection-tools button {min-height:36px; padding:5px 8px; font:inherit}
-.highlight-handles {display:flex; flex-basis:100%; gap:8px}
-.highlight-handles label {display:flex; align-items:center; gap:4px; min-width:0; flex:1}
-.highlight-handles input {min-width:0; width:100%; min-height:36px; accent-color:var(--accent)}
+.highlight-controls {position:absolute; inset:0; pointer-events:none; z-index:11; user-select:none}
+.highlight-controls button {position:absolute; pointer-events:auto; width:28px; min-height:28px; padding:0; border:1px solid var(--accent); border-radius:50%; background:var(--panel); color:var(--text); font:18px/1 system-ui,sans-serif; text-align:center}
+.highlight-controls .highlight-handle {min-height:36px; border-radius:12px; touch-action:none; cursor:ew-resize}
 .leave-editor {width:min(420px,calc(100% - 32px)); color:var(--text); background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px}
 .leave-editor h2 {margin:0}
 .leave-editor button {width:100%; margin-top:8px}
 .leave-editor::backdrop {background:#0007}
-.editing-active #song-title::after {content:' · Redigering'; font:.55em system-ui,sans-serif; color:var(--muted)}
-@media(max-width:420px) {.edit-mode {display:none}.edit-toolbar {gap:2px}.edit-toolbar button {padding:5px 7px}.edit-status {font-size:10px}}
-
-.editing-active .lyric mark {position:relative}
-.highlight-handle {position:absolute; z-index:11; width:16px; height:30px; top:65%; border:2px solid var(--accent); border-radius:9px; background:var(--panel); touch-action:none; cursor:ew-resize; user-select:none}
-.handle-start {left:-8px}
-.handle-end {right:-8px}
-.highlight-handle:focus-visible {outline:3px solid var(--accent); outline-offset:3px}

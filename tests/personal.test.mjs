@@ -50,3 +50,16 @@ test('grid input capo and display are reversible and preserve directives, labels
   assert.equal(shiftChord('G',-7),'C');
   assert.equal(shiftChord('N.C.',7),'N.C.');
 });
+
+test('draft differences ignore reverted defaults and preserve unedited fields from newer storage', async () => {
+  const {personalChanges} = await import('../src/domain/personal.ts');
+  const initial={songId:'id',chorus:{}};
+  const song={id:'id',original:'Ord'}, anchor=anchorFor(song,0,'source/line:0','Ord');
+  assert.equal(personalChanges(initial,{...initial,capo:0,tuning:'',annotations:{[anchor.occurrence]:{anchor,note:'',highlights:[]}}}),undefined);
+  const after=changeAnnotation({...initial,capo:2},anchor,{highlights:[{start:0,end:2}]});
+  const update=personalChanges(initial,after);
+  const latest=changeAnnotation({...initial,chorus:{'line:8':true},tuning:'Drop D'},anchor,{note:'Fra en annen fane'});
+  const saved=update(latest);
+  assert.equal(saved.capo,2);assert.equal(saved.tuning,'Drop D');assert.equal(saved.annotations[anchor.occurrence].note,'Fra en annen fane');
+  assert.deepEqual(saved.chorus,{'line:8':true});assert.deepEqual(saved.annotations[anchor.occurrence].highlights,[{start:0,end:2}]);
+});

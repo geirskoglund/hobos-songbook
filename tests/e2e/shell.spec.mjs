@@ -93,8 +93,8 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   await context.setOffline(false);
   for (const [channel, page, expectedSha] of [['test', preview, 'c'], ['app', production, 'd']]) {
     await request.post(`/__test__/update?channel=${channel}`);
+    await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
     await openMenu(page);
-    await page.getByRole('button', {name: 'Se etter oppdatering'}).click();
     await expect(page.getByRole('button', {name: 'Oppdater appen'})).toBeVisible();
     await openMenu(page);
     await page.getByRole('button', {name: 'Oppdater appen'}).click();

@@ -31,9 +31,9 @@ export function renderGrid(block: GridBlock): HTMLElement {
   const barWidth = Math.min(6, Math.max(1, ...measures.flatMap(measure => [measure.opening.length, measure.closing.length]))) * .85 + .25;
   figure.style.setProperty('--grid-bar-width', `${barWidth}ch`);
   figure.style.setProperty('--measure-min', `${cellWidth * beats + barWidth * 2}ch`);
-  figure.style.setProperty('--measure-track', `calc(${100 / columns}% - ${(columns - 1) * 4 / columns}px)`);
+  figure.style.setProperty('--grid-columns', String(columns));
   figure.style.setProperty('--cell-min', `${cellWidth}ch`);
-  figure.style.setProperty('--beat-track', `${100 / beats}%`);
+  figure.style.setProperty('--grid-beats', String(beats));
   for (const row of block.rows) {
     if (row.kind === 'dynamic') continue;
     if (row.kind !== 'grid-row') {figure.append(node('p', row.text, row.kind)); continue;}
@@ -68,15 +68,20 @@ export function renderGrid(block: GridBlock): HTMLElement {
 }
 export function renderContent(content: Content[], context: DynamicsContext): DocumentFragment {
   const fragment = document.createDocumentFragment();
+  const identify = (row: HTMLElement, sourceLine?: number) => {
+    if (sourceLine !== undefined) {row.dataset.sourceLine = String(sourceLine); row.dataset.occurrence = `${context.occurrence ?? 'source'}/line:${sourceLine}`;}
+    row.dataset.anchorText = row.textContent ?? '';
+    return row;
+  };
   for (const block of content) {
     if (block.kind === 'dynamic') {instruction(block.level, context); continue;}
     if (block.kind === 'grid') {
       for (const row of block.rows) if (row.kind === 'dynamic') instruction(row.level, context);
       context.spokenLevel = undefined; continue;
     }
-    if (block.kind !== 'line') {fragment.append(decorate(node('p', block.text, block.kind), context)); continue;}
+    if (block.kind !== 'line') {fragment.append(decorate(identify(node('p', block.text, block.kind), block.sourceLine), context)); continue;}
     if (block.segments.every(segment => !segment.chord && !segment.text.trim())) {
-      const space = node('div', undefined, 'song-space'); space.setAttribute('aria-hidden', 'true');
+      const space = node('div', undefined, 'song-space'); identify(space, block.sourceLine);
       fragment.append(space); continue;
     }
     const line = node('div', undefined, 'song-line');
