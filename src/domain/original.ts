@@ -58,7 +58,6 @@ export function originalDocument(song: Song) {
   return {fields,bodyProtected:unsafeBody,protection:protectedText,apply};
 }
 export function originalProtection(song: Song, personal: SongPersonal): string | undefined {
-  if (Object.values(personal.annotations ?? {}).some(item => item.note || item.highlights.length)) return 'Originalen kan ikke endres mens sangen har notater eller gulmarkeringer. Trygg flytting av disse kommer senere. Personlige endringer kan fortsatt lagres.';
   if (Object.keys(personal.chorus).length || /\{(?:soc|eoc|start_of_chorus|end_of_chorus|chorus)\b/i.test(song.original)) return 'Originalen er beskyttet for å bevare refreng og individuelle refrengvalg. Personlige endringer kan fortsatt lagres.';
 }
 export function originalChangeError(before: Song, after: Song, personal: SongPersonal): string | undefined {

@@ -137,7 +137,7 @@ Filvelgeren aksepterer `.cho`, `.chordpro`, `.chopro`, `.crd`, `.pro`, `.chord`,
 
 Kort manuelt forløp på testutgaven:
 
-1. Les inn to ChordPro-filer med samme tittel og samme fil en gang til. Åpne alle tre separat, prøv ren TXT og feil fil. Kontroller forståelig status og uendret oversikt etter feil.
+1. Les inn to ChordPro-filer med samme tittel og samme fil en gang til. Åpne alle tre separat, prøv ren TXT og feil fil. Ved gjentatt filnavn prøves Avbryt og Importer i kopidialogen, også med endret innhold. Kontroller forståelig status og uendret oversikt etter feil.
 2. Prøv kommentarer, lange linjer/ord, midtordakkorder og rene akkordlinjer. Første refreng er helt; åpne bare én senere henvisning. Bytt sang og åpne på nytt.
 3. Bruk tastatur/berøring for filvalg, sangvalg, tilbake, refreng, tema og skriftstørrelse. Kontroller fokus og lesbarhet i begge temaer ved 16–36 px. Les langt ned, åpne sangen igjen og kontroller at den starter øverst.
 4. Vent på offline-klar, lukk nettleser/installert PWA helt, koble fra nettet og gjenåpne. Åpne sangen fra oversikten; kontroller refreng og globale valg.
@@ -177,7 +177,7 @@ Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontro
 
 ## Personlige tilpasninger (issue #8)
 
-`tests/personal.test.mjs` prøver capo, slash-bass, suffikser, B/H, fortegn, grid uten mutasjon og forankring med eksakt original/kontekst. Innskriving med capo prøves frem og tilbake med bevarte direktiver, etiketter, marginer, repetisjon og flere akkorder per celle.
+`tests/personal.test.mjs` prøver capo, slash-bass, suffikser, B/H, fortegn, grid uten mutasjon og lette koordinatankere uten kopiert originaltekst. Innskriving med capo prøves frem og tilbake med bevarte direktiver, etiketter, marginer, repetisjon og flere akkorder per celle.
 
 `tests/e2e/personal.spec.mjs` prøver sangen som arbeidsflate, capo 0, eksplisitt lagring uten utgang, utgang med lagre/forkast/fortsett, transaksjonsfeil og nye forsøk. Begge redigeringsinnganger og radmenyens ramme/lukking prøves. Skjematekst skjuler tagger, bevarer form/etiketter, omregner capo én gang og viser felles skjema ved fjerning. Appstyrte tekstspenn over akkordnoder, lokal notatplassering uten ordvalg, separate refrengforekomster, endring/fjerning av markering og notater samt flere faner/like titler dekkes. Ekte workeroppdatering blokkeres ved ulagret arbeid og venter på faktisk pågående lagring. Offline gjenåpning kontrollerer bevarte sanger/persondata. Testkode er ikke i seg selv verifikasjon; faktiske resultater og SHA rapporteres i PR-en.
 
@@ -195,19 +195,23 @@ Punktumavstand sammenlignes med samme takt uten punktum. Ett, to og fem punktum 
 
 ## Originaleditorens grunnflate (issue #14)
 
-`tests/original.test.mjs` kontrollerer tapsfri kildebevaring ved no-op og avgrensede endringer, BOM/blandede CRLF/LF/CR, metadatavarianter/fallback, tittelkrav, valgfri takt, første toneart uten akkordflytting, låst eksisterende toneart og vern av strukturer/annoteringer/refrengidentitet.
+`tests/original.test.mjs` kontrollerer tapsfri kildebevaring ved no-op og avgrensede endringer, BOM/blandede CRLF/LF/CR, metadatavarianter/fallback, tittelkrav, valgfri takt, første toneart uten akkordflytting, låst eksisterende toneart og vern av strukturer/refrengidentitet. Annoteringer hindrer ikke støttede originalendringer.
 
-`tests/e2e/original.spec.mjs` prøver faktisk IndexedDB før/etter første Avbryt, OK og Lagre, alle utgangsvalg, tittel alene, like titler/ulike ID-er og stabile ID-er ved videre lagring. Samlet original-/personlagring avbrytes med ekte transaksjonsabort både ved opprettelse og oppdatering; begge lag skal være uendrede, og nytt forsøk skal lykkes uten dublett. Videre redigering mens transaksjonen holdes åpen skal forbli dirty. Andre faners personfelt bevares, nyere original avvises, og nylig lagrede annoteringer sperrer utrygg originaloppdatering.
+`tests/e2e/original.spec.mjs` prøver faktisk IndexedDB før/etter første Avbryt, OK og Lagre, alle utgangsvalg, tittel alene, like titler/ulike ID-er og stabile ID-er ved videre lagring. Samlet original-/personlagring avbrytes med ekte transaksjonsabort både ved opprettelse og oppdatering; begge lag skal være uendrede, og nytt forsøk skal lykkes uten dublett. Videre redigering mens transaksjonen holdes åpen skal forbli dirty. Andre faners personfelt bevares, nyere original avvises, og nylig lagrede notater/markeringer fra andre faner bevares gjennom felles tekstoppdatering.
 
 Modal/popup/utkast prøves med Escape/fokusretur, Ctrl/Cmd+S uten lagringslekkasje, Unicode, tekstangre, apptekstmeny og lange sanger ved 320/768/1440 px, begge temaer, 36 px skrift og redusert viewport. En ekte workeroppdatering skal stoppe ved både modalutkast og bekreftet ny sang, avvente samlet lagring og gjenopprette redigeringen etter vellykket lagring. Offline gjenåpning skal bevare lagret original, ID og personvalg. Eksisterende person-, interaksjons-, sang-/arrangements- og oppdateringstester er regresjonsgrunnlag.
 
 Mobilrettelsene prøves også med touch-kontekst ved 320/390/768 px: åpning uten inputfokus, synlig første tekstlinje i beskyttet sang med dynamikk/refreng/grid, fravær av SVG/personverktøy i forhåndsvisning, låste metadatafelt og bevart original/persondata. Kompakte metadatafelt, forankring, avstand fra tittelens fokusramme og redusert viewport inngår. F17 kontrolleres uttrykkelig: originaleditorens tomme verktøylinje er synlig, har målbar høyde og uendret posisjon før/etter tekstscroll både i skrivefelt og beskyttet forhåndsvisning, også ved redusert viewport. Ny sang fra fremføring/redigering prøver alle utgangsvalg og avvist lagring.
 
-`dialog-touch.spec.mjs` bruker faktiske touch-hendelser og etterfølgende tastaturinnskriving uten fill for å prøve korte felttrykk i ny sang og notater i både ny og strukturert eksisterende sang. Den kontrollerer at native tekstaktivering ikke kanselleres. En eksplisitt modell av skjermtastaturets viewportendring ved fokusbytte gjenskaper deaktivert OK og Avbryt som mister målet, og prøver rettelsen med tom og utfylt tittel. Dette er et regresjonsbevis for hendelses-/layoutflyten, ikke en faktisk OS-tastaturtest. Tittel/tekst ved 16/22/36 px og midtstilte kompakte Toneart-/Takt-popuper prøves også.
+`dialog-touch.spec.mjs` bruker faktiske touch-hendelser og etterfølgende tastaturinnskriving uten fill for å prøve korte felttrykk i ny sang og notater i både ny og strukturert eksisterende sang. Den kontrollerer at native tekstaktivering ikke kanselleres. En eksplisitt modell av skjermtastaturets viewportendring ved fokusbytte gjenskaper deaktivert OK og Avbryt som mister målet, og prøver rettelsen med tom og utfylt tittel. Dette er et regresjonsbevis for hendelses-/layoutflyten, ikke en faktisk OS-tastaturtest. Tittel/tekst ved 16/22/36 px og kompakte Toneart-/Takt-popuper med etikett og felt på samme rad prøves også.
 
-Manuelt på testutgaven: Meny → Ny sang → skriv tittel/tekst → OK → kontroller at utkastet ikke finnes i biblioteket før Lagre. Prøv første Avbryt, senere gjenåpning/Avbryt og alle utgangsvalg. Åpne en enkel TXT-sang fra begge Rediger-innganger, endre metadata/tekst, lagre og åpne offline. Åpne en strukturert/annotert sang og kontroller forklaring, bevart innhold og fortsatt fungerende personverktøy.
+Manuelt på testutgaven: Meny → Ny sang → skriv tittel/tekst → OK → kontroller at utkastet ikke finnes i biblioteket før Lagre. Prøv første Avbryt, senere gjenåpning/Avbryt og alle utgangsvalg. Åpne en enkel TXT-sang fra begge Rediger-innganger, endre metadata/tekst, lagre og åpne offline. Åpne en strukturert sang og kontroller forklaring, bevart innhold og fortsatt fungerende personverktøy. Åpne en ellers enkel sang med notater/markeringer og kontroller at originalen fortsatt kan redigeres.
 
 Fysisk iPad/Safari, Android/Chrome og installert PWA med skjermtastatur, første/siste linje, aktiv markør, langt trykk/utvalg, touch-scroll, zoom og orienteringsendring gjenstår. Redusert Chromium-viewport er kun automatisert layoutbevis. Faktisk kommandoresultat, nettleserversjon, SHA, CI og publisert testidentitet rapporteres i leveranse-PR-en.
+
+`tests/annotations.test.mjs` prøver faste notatposisjoner ved forkorting/tom tekst, kollisjonsrekkefølge, separate refrengforekomster, sikre tekst-/metadataskift, usikker gjentatt tekst, gamle/tomme annoteringer og feltvis sammenslåing. Arbeidsøkten prøves med videre redigering etter innsendt lagringsøyeblikksbilde.
+
+`tests/e2e/annotations.spec.mjs` prøver gjentatte notatdialoger, forkorting og tømming av originalen, notater under tomt innhold, lagring/gjenåpning, sikker/usikker gulmarkering, lett lagringsformat, gamle format-2-poster med andre personfelt og opprydding etter sletting. Filnavndialogen prøves med Avbryt og Importer mot forskjellig innhold uten overskriving.
 
 ## Avgrensning av kontrollarbeid
 

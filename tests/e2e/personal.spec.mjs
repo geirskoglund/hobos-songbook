@@ -216,7 +216,7 @@ test('notes use a fresh target in the margin and on a blank line; scrolling or c
  await page.getByRole('button',{name:'Notat',exact:true}).click();await page.locator('[data-occurrence="source/line:1"]').click();await page.locator('#annotation-note').fill('I pausen');await page.getByRole('button',{name:'OK',exact:true}).click();
  await row.locator('.personal-note').click();await page.locator('#annotation-note').fill('Forkastes');await page.getByRole('button',{name:'Avbryt',exact:true}).click();await expect(row.locator('.personal-note')).toContainText('Ved andre linje');
  await save(page);await exit(page);await expect(page.locator('[data-occurrence="source/line:1"] .personal-note')).toHaveText('I pausen');
- const data=(await personal(page))[0];expect(data.annotations['source/line:1'].anchor.sourceLine).toBe(1);expect(data.annotations['source/line:1'].anchor.text).toBe('');
+ const data=(await personal(page))[0];expect(Object.values(data.notes).find(note=>note.text==='I pausen').line).toBe(1);expect(data.annotations).toBeUndefined();
 });
 
 test('highlight end can be dragged directly while lyric offsets remain clean',async({page})=>{

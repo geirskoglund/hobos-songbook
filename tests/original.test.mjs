@@ -33,7 +33,7 @@ test('ambiguous metadata, annotation anchors and chorus occurrence identity are 
   const model=originalDocument(song('{title: A}\n{t: B}\nOrd'));assert.throws(()=>model.apply({...model.fields,title:'C'}),/flere direktiver/);
   const before=song('Ord'),after=withOriginal(before,'{title: Ny}\nOrd'),personal={songId:'stable',chorus:{}};
   assert.equal(originalChangeError(before,after,personal),undefined);
-  assert.match(originalChangeError(before,after,{...personal,annotations:{line:{note:'Husk',highlights:[]}}}),/notater/);
+  assert.equal(originalChangeError(before,after,{...personal,notes:{one:{line:0,text:'Husk'}}}),undefined);
   assert.match(originalChangeError(before,after,{...personal,chorus:{'line:2':true}}),/refreng/);
   assert.equal(originalChangeError(before,before,{...personal,annotations:{line:{note:'Husk',highlights:[]}}}),undefined);
 });

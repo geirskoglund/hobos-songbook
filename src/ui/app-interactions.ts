@@ -67,10 +67,7 @@ export function startAppInteractions() {
   function stopHold() {if(hold)clearTimeout(hold.timer);hold=undefined;}
   function down(event:PointerEvent) {
     pointerType=event.pointerType;hideTooltip();
-    // Keep the keyboard/focus stable until a dialog action completes. Otherwise
-    // blur can resize the viewport and move the button before the release.
-    if((event.target as Element).closest('dialog .popup-actions button'))event.preventDefault();
-    if(!(event.target as Element).closest('input,textarea,.edit-toolbar,.app-text-actions,.highlight-controls'))getSelection()?.removeAllRanges();if(menu?.contains(event.target as Node))return;closeMenu();stopHold();
+    if(!(event.target as Element).closest('input,textarea,.edit-toolbar,.app-text-actions,.highlight-controls,.popup-actions'))getSelection()?.removeAllRanges();if(menu?.contains(event.target as Node))return;closeMenu();stopHold();
     const control=textControl(event.target);if(event.pointerType!=='touch'||!control)return;
     hold={control,pointer:event.pointerId,x:event.clientX,y:event.clientY,lastX:event.clientX,lastY:event.clientY,scrollX:scrollX,scrollY:scrollY,moved:false,opened:false,timer:setTimeout(()=>{
       if(!hold||hold.moved||!control.isConnected)return;hold.opened=true;select(control,caret(control,hold.x,hold.y));tools(control,hold.x,hold.y);
@@ -86,10 +83,6 @@ export function startAppInteractions() {
     if(!hold||event.pointerId!==hold.pointer)return;const current=hold;stopHold();
     suppressTouchEnd=current.moved||current.opened;
   }
-  function touch(event:TouchEvent) {
-    // A disabled action has no default behavior, including keyboard dismissal.
-    if((event.target as Element).closest('dialog .popup-actions button:disabled'))event.preventDefault();
-  }
   function touchEnd(event:TouchEvent) {if(suppressTouchEnd&&textControl(event.target))event.preventDefault();suppressTouchEnd=false;}
   function context(event:MouseEvent) {event.preventDefault();hideTooltip();const control=textControl(event.target);if(control)tools(control,event.clientX,event.clientY);else closeMenu();}
   function tooltipFor(target:HTMLElement) {
@@ -98,7 +91,7 @@ export function startAppInteractions() {
     const rect=target.getBoundingClientRect();box.style.left=`${Math.max(8,Math.min(rect.left,innerWidth-box.offsetWidth-8))}px`;box.style.top=`${Math.max(8,Math.min(rect.bottom+6,innerHeight-box.offsetHeight-8))}px`;
   }
   document.addEventListener('pointerdown',down,true);document.addEventListener('pointermove',move,{capture:true,passive:false});document.addEventListener('pointerup',up,true);document.addEventListener('pointercancel',()=>{stopHold();suppressTouchEnd=false;closeMenu();},true);
-  document.addEventListener('touchstart',touch,{capture:true,passive:false});document.addEventListener('touchend',touchEnd,{capture:true,passive:false});document.addEventListener('contextmenu',context,true);
+  document.addEventListener('touchend',touchEnd,{capture:true,passive:false});document.addEventListener('contextmenu',context,true);
   document.addEventListener('selectstart',event=>{if(!textControl(event.target)||pointerType==='touch'&&hold?.opened)event.preventDefault();},true);
   document.addEventListener('dragstart',event=>event.preventDefault(),true);
   document.addEventListener('invalid',event=>event.preventDefault(),true);

@@ -1,44 +1,26 @@
 import {isChord, parseChordPro, type GridBlock} from './chordpro.ts';
 import type {Song, SongPersonal} from './song.ts';
+import {changeAnnotation, changeNote, type LineAnchor, type Annotation, type Highlight, type PersonalNote} from './annotations.ts';
+export {anchorFor, changeAnnotation} from './annotations.ts';
+export type {LineAnchor, Annotation, Highlight} from './annotations.ts';
 
-export interface LineAnchor {
-  songId: string;
-  occurrence: string;
-  sourceLine: number;
-  text: string;
-  before: string;
-  after: string;
-  original: string;
-}
-/** Half-open offsets in UTF-16 code units, matching DOM Range and textarea selection. */
-export interface Highlight {start: number; end: number; groupId?: string}
-export interface Annotation {anchor: LineAnchor; note: string; highlights: Highlight[]}
 /** Compare editable values, treating absent defaults and empty annotations alike. */
 export function personalChanges(before: SongPersonal, after: SongPersonal): ((current: SongPersonal) => SongPersonal) | undefined {
   const fields: Partial<SongPersonal> = {};
   if ((before.capo ?? 0) !== (after.capo ?? 0)) fields.capo = after.capo ?? 0;
   if ((before.tuning ?? '') !== (after.tuning ?? '')) fields.tuning = after.tuning ?? '';
   if ((before.chordGrid ?? '') !== (after.chordGrid ?? '')) fields.chordGrid = after.chordGrid;
-  const annotations: {anchor: LineAnchor; patch: Partial<Pick<Annotation, 'note' | 'highlights'>>}[] = [];
+  const annotations: {anchor: LineAnchor; patch: Pick<Annotation, 'highlights'>}[] = [];
   for (const key of new Set([...Object.keys(before.annotations ?? {}), ...Object.keys(after.annotations ?? {})])) {
-    const a = before.annotations?.[key], b = after.annotations?.[key], patch: Partial<Pick<Annotation, 'note' | 'highlights'>> = {};
-    if ((a?.note ?? '') !== (b?.note ?? '')) patch.note = b?.note ?? '';
-    if (JSON.stringify(a?.highlights ?? []) !== JSON.stringify(b?.highlights ?? [])) patch.highlights = b?.highlights ?? [];
-    if (Object.keys(patch).length) annotations.push({anchor:(b ?? a)!.anchor, patch});
+    const a = before.annotations?.[key], b = after.annotations?.[key];
+    if (JSON.stringify(a?.highlights ?? []) !== JSON.stringify(b?.highlights ?? [])) annotations.push({anchor:(b ?? a)!.anchor, patch:{highlights:b?.highlights ?? []}});
   }
-  if (!Object.keys(fields).length && !annotations.length) return;
-  return current => annotations.reduce((state, {anchor, patch}) => changeAnnotation(state, anchor, patch), {...current, ...fields});
-}
-/** Patch only the edited annotation field, preserving changes made in another tab. */
-export function changeAnnotation(current: SongPersonal, anchor: LineAnchor, patch: Partial<Pick<Annotation, 'note' | 'highlights'>>): SongPersonal {
-  const existing = current.annotations?.[anchor.occurrence];
-  return {...current, annotations: {...current.annotations, [anchor.occurrence]: {
-    anchor, note: '', highlights: [], ...existing, ...patch,
-  }}};
-}
-export function anchorFor(song: Song, sourceLine: number, occurrence: string, text: string): LineAnchor {
-  const lines = song.original.replace(/^\uFEFF/, '').split(/\r\n|\n|\r/);
-  return {songId: song.id, occurrence, sourceLine, text, before: lines[sourceLine - 1] ?? '', after: lines[sourceLine + 1] ?? '', original: song.original};
+  const notes: {id: string; note: PersonalNote | undefined}[] = [];
+  for (const id of new Set([...Object.keys(before.notes ?? {}), ...Object.keys(after.notes ?? {})])) {
+    if (JSON.stringify(before.notes?.[id]) !== JSON.stringify(after.notes?.[id])) notes.push({id, note:after.notes?.[id]});
+  }
+  if (!Object.keys(fields).length && !annotations.length && !notes.length) return;
+  return current => notes.reduce((state, {id, note}) => changeNote(state, id, note), annotations.reduce((state, {anchor, patch}) => changeAnnotation(state, anchor, patch), {...current, ...fields}));
 }
 export function validCapo(value: number): boolean {return Number.isInteger(value) && value >= 0 && value <= 11;}
 const pitch: Record<string, number> = {C:0,D:2,E:4,F:5,G:7,A:9,B:11,H:11};

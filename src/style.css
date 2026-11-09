@@ -206,9 +206,16 @@ input:not([type=file]), textarea {user-select:text; -webkit-user-select:text; -w
 .original-editor > .field-error {flex:none; margin:0; max-height:20%; overflow:auto;}
 .original-editor > .field-error:empty {display:none;}
 .original-editor > footer {flex:none; margin:0; padding:4px 0 0; font:14px/1.4 system-ui,sans-serif;}
-.original-metadata {inset:auto; width:200px; max-width:calc(100% - 24px); text-align:center;}
-.original-metadata input {width:9ch; max-width:100%; min-height:44px; margin:10px auto 0; font-size:16px; text-align:center;}
-.original-metadata.metadata-time input {width:12ch;}
+.original-metadata {inset:auto; margin:0; width:max-content; max-width:calc(100% - 24px); text-align:left;}
+.metadata-field {display:flex; align-items:center; gap:12px;}
+.metadata-field label {flex:1; font-weight:600;}
+.original-metadata .metadata-field input {width:8ch; min-width:0; min-height:44px; font-size:16px; text-align:center;}
+.original-metadata p:not(:empty) {max-width:24ch;}
+.original-metadata .popup-actions {margin-top:12px;}
+.note-overflow {display:flex; flex-direction:column; gap:8px; margin-top:12px;}
+.note-overflow-row {display:flow-root; min-height:1.2em;}
+.note-overflow-row .personal-note {margin-left:auto;}
+.import-copy {width:min(360px,calc(100% - 24px));}
 .original-metadata input:read-only,.original-editor input:read-only {color:var(--muted);}
 .original-editor .song-metadata button:disabled {cursor:default;}
 body.original-open {overflow:hidden;}
