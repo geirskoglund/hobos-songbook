@@ -189,7 +189,7 @@ test('icon order, semantic save state, popup transactions and source time signat
  await expect(page.locator('.song-metadata')).toHaveText('Em3/4');
  const bars=await page.locator('.grid-measure').evaluateAll(nodes=>nodes.map(node=>({left:node.getBoundingClientRect().left,right:node.getBoundingClientRect().right})));expect(bars.at(-1).right-bars[0].left).toBeLessThan(550);
  await edit(page);
- expect(await page.locator('.edit-toolbar button').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label')))).toEqual(['Lagre','Markeringspenn','Notat','Akkordskjema']);
+ expect(await page.locator('.edit-toolbar button').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label')))).toEqual(['Lagre','Markeringspenn','Notat','Akkordskjema','Rediger sangtekst']);
  await expect(page.locator('.edit-toolbar')).toHaveText('');await expect(page.locator('#edit-save')).toBeDisabled();await expect(page.locator('#tuning-pill')).toHaveText('Standard stemming');
  const pills=await page.locator('.song-metadata > .song-key').evaluateAll(nodes=>nodes.map(n=>({top:n.getBoundingClientRect().top,height:n.getBoundingClientRect().height})));
  expect(new Set(pills.map(n=>n.top)).size).toBe(1);expect(new Set(pills.map(n=>n.height)).size).toBe(1);
@@ -216,7 +216,7 @@ test('notes use a fresh target in the margin and on a blank line; scrolling or c
  await page.getByRole('button',{name:'Notat',exact:true}).click();await page.locator('[data-occurrence="source/line:1"]').click();await page.locator('#annotation-note').fill('I pausen');await page.getByRole('button',{name:'OK',exact:true}).click();
  await row.locator('.personal-note').click();await page.locator('#annotation-note').fill('Forkastes');await page.getByRole('button',{name:'Avbryt',exact:true}).click();await expect(row.locator('.personal-note')).toContainText('Ved andre linje');
  await save(page);await exit(page);await expect(page.locator('[data-occurrence="source/line:1"] .personal-note')).toHaveText('I pausen');
- const data=(await personal(page))[0];expect(data.annotations['source/line:1'].anchor.sourceLine).toBe(1);expect(data.annotations['source/line:1'].anchor.text).toBe('');
+ const data=(await personal(page))[0];expect(Object.values(data.notes).find(note=>note.text==='I pausen').line).toBe(1);expect(data.annotations).toBeUndefined();
 });
 
 test('highlight end can be dragged directly while lyric offsets remain clean',async({page})=>{

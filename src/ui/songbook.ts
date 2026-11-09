@@ -1,4 +1,9 @@
-import {createPersonalEditor, paintAnnotations} from './personal-editor.ts';
+import {confirmImportCopy} from './dialog.ts';
+import {createEditSession, type EditSession} from '../domain/edit-session.ts';
+import {classifyImport} from '../domain/import.ts';
+import {openOriginalEditor} from './original-editor.ts';
+import {newSong} from '../domain/original.ts';
+import {createPersonalEditor, paintAnnotations, iconButton} from './personal-editor.ts';
 import {gripKey, transposeChord, transposeGrid} from '../domain/personal.ts';
 import {attachSongSpacing} from './song-spacing.ts';
 import {saveUpdateView, takeUpdateView, restoreUpdateView, focusUpdateView, type UpdateView} from './update-view.ts';
@@ -27,21 +32,41 @@ export function startSongbook() {
   let disposeView = () => {};
   let editing: UpdateView['editor'] | undefined;
   let editor: ReturnType<typeof createPersonalEditor> | undefined;
-  let currentPersonal: SongPersonal | undefined;
+  let readerPersonal: SongPersonal | undefined;
+  let session: EditSession | undefined;
+  const personalState = () => session?.personal ?? readerPersonal!;
   let saving: Promise<boolean> | undefined;
+  let originalModal: ReturnType<typeof openOriginalEditor> | undefined;
+  const originalDirty = () => Boolean(session?.originalDirty());
+  const dirty = () => Boolean(originalDirty() || editor?.dirty() || originalModal?.dirty());
+  function showOriginal(first = false) {
+    if (!active || !editor || originalModal) return;
+    originalModal = openOriginalEditor(active, () => editor!.snapshot(), next => {
+      originalModal = undefined;
+      const y = scrollY;session!.replaceOriginal(next);
+      void openSong(next, undefined, true).then(() => {window.scrollTo(0,y);query('edit-original').focus({preventScroll:true});});
+    }, () => {
+      originalModal = undefined;
+      if (first) {editing = undefined;back();}
+    }, query('edit-original'), session?.baselineSong ?? {...active,original:'',title:'',key:null});
+  }
   const chorusWrites = new Set<Promise<unknown>>();
   const saveRetry = element('button', 'Prøv lagring igjen'); saveRetry.type = 'button'; saveRetry.hidden = true;
   status.after(saveRetry);
   async function flush(): Promise<boolean> {
-    if (!editor?.isValid()) return false;
+    if (!editor?.isValid() || originalModal || !active) return false;
     if (saving) return saving;
     saving = (async () => {
-      const submitting = editor!, snapshot = submitting.snapshot(), update = submitting.pendingChange();
+      const submitting = session!, snapshot = submitting.snapshot(), update = submitting.pendingChange(), songSnapshot = snapshot.song, base = submitting.baselineSong;
       try {
-        if (update) await storage.updatePersonal(snapshot.songId, update);
-        saveRetry.hidden = true;
+        if (update || originalDirty()) await storage.saveDraft(songSnapshot, base, update);
         submitting.markSaved(snapshot);
-        notify('Personlige endringer er lagret på denne enheten.'); return true;
+        const index = songs.findIndex(song => song.id === songSnapshot.id);
+        if (index < 0) songs.push(songSnapshot); else songs[index] = songSnapshot;
+        drawList();
+        saveRetry.hidden = true;
+        editor?.markSaved();
+        notify('Endringene er lagret på denne enheten.'); return true;
       } catch (error) {
         notify(error instanceof Error ? error.message : 'Kunne ikke lagre. Prøv igjen.', true);
         saveRetry.hidden = false; return false;
@@ -53,8 +78,9 @@ export function startSongbook() {
   const editMenu = element('button', 'Rediger'); editMenu.type = 'button'; editMenu.id = 'edit-song'; editMenu.hidden = true;
   async function beginEdit(song: Song, from: 'reader' | 'library') {
     let returnView: UpdateView | undefined;
-    if (from === 'reader') {saveUpdateView(__APP_ENV__.namespace, song.id, 'menu-button'); returnView = takeUpdateView(__APP_ENV__.namespace) ?? undefined; if (returnView) returnView.menu.open = false;}
-    dialog.close(); editing = {from, returnView}; await openSong(song, returnView);
+    saveUpdateView(__APP_ENV__.namespace, from === 'reader' ? song.id : null, from === 'reader' ? 'menu-button' : null);
+    returnView = takeUpdateView(__APP_ENV__.namespace) ?? undefined; if (returnView) returnView.menu.open = false;
+    dialog.close(); editing = {from, returnView}; await openSong(song, from === 'reader' ? returnView : undefined);
     if (!document.body.classList.contains('editing-active')) editing = undefined;
   }
   let leaving = false;
@@ -71,18 +97,21 @@ export function startSongbook() {
       document.body.append(prompt); prompt.showModal(); prompt.querySelectorAll('button')[2].focus();
     });
   }
+  async function settleDraft(): Promise<boolean> {
+    if (saving) await saving;
+    if (!dirty()) return true;
+    const choice = await confirmLeave();
+    return choice === 'discard' || choice === 'save' && await flush();
+  }
   async function finishEdit() {
     if (!active || leaving || saving) return;
     leaving = true;
     try {
-      if (editor?.dirty()) {
-        const choice = await confirmLeave();
-        if (choice === 'cancel' || choice === 'save' && !await flush()) return;
-      }
-      const song = active, returnTo = editing; editing = undefined;
+      if (!await settleDraft()) return;
+      const song = session?.baselineSong ?? active, returnTo = editing; editing = undefined;
       editor?.dispose(); editor = undefined; saveRetry.hidden = true;
       if (returnTo?.from === 'reader') await openSong(song, returnTo.returnView);
-      else back();
+      else {back();if(returnTo?.returnView)await restoreUpdateView(returnTo.returnView,()=>active===null);}
     } finally {leaving = false;}
   }
   editMenu.addEventListener('click', () => {if (active) void beginEdit(active, 'reader');});
@@ -93,7 +122,19 @@ export function startSongbook() {
   const dialog = query<HTMLDialogElement>('settings-dialog'), menu = query<HTMLButtonElement>('menu-button');
   const exitEdit = element('button', 'Avslutt redigering'); exitEdit.type = 'button'; exitEdit.hidden = true;
   exitEdit.addEventListener('click', () => {dialog.close(); void finishEdit();});
-  dialog.querySelector('.menu-heading')!.after(editMenu, exitEdit);
+  const create = element('button','Ny sang');create.type='button';create.id='new-song';
+  let creating = false;
+  create.addEventListener('click', () => {void beginNewSong();});
+  async function beginNewSong() {
+    if (creating || leaving) return;
+    creating = true; dialog.close();
+    try {
+      if (editing && !await settleDraft()) return;
+      const song=newSong();session=createEditSession(song,{songId:song.id,chorus:{},version:3},null);editing={from:'library'};
+      await openSong(song,undefined,true);showOriginal(true);
+    } finally {creating = false;}
+  }
+  dialog.querySelector('.menu-heading')!.after(create,editMenu,exitEdit);
   menu.addEventListener('click', () => dialog.showModal());
   query('menu-close').addEventListener('click', () => dialog.close());
   dialog.addEventListener('close', () => menu.focus({preventScroll: true}));
@@ -124,7 +165,7 @@ export function startSongbook() {
   };
   document.addEventListener('pointerdown', event => {const actions = (event.target as Element).closest('.song-actions'); closeRowMenus(actions ?? undefined);});
   document.addEventListener('keydown', event => {if (event.key === 'Escape') {const open = list.querySelector<HTMLDetailsElement>('.song-actions[open]'); closeRowMenus(); open?.querySelector('summary')?.focus();}});
-  window.addEventListener('beforeunload', event => {if (editor?.dirty()) {event.preventDefault(); event.returnValue = '';}});
+  window.addEventListener('beforeunload', event => {if (dirty()) {event.preventDefault(); event.returnValue = '';}});
   function drawList() {
     list.replaceChildren();
     songs.sort((a, b) => a.title.localeCompare(b.title, 'nb') || a.origin.importedAt.localeCompare(b.origin.importedAt));
@@ -160,13 +201,15 @@ export function startSongbook() {
     }
   }
   retry.addEventListener('click', () => {void load();});
-  async function openSong(song: Song, resume?: UpdateView) {
+  async function openSong(song: Song, resume?: UpdateView, draft = false) {
     notify('');
-    let personal: SongPersonal;
-    try {personal = await storage.personal(song.id) ?? {songId: song.id, chorus: {}};}
-    catch (error) {notify(error instanceof Error ? error.message : 'Kunne ikke hente personlig tilstand.', true); return;}
-    active = song; currentPersonal = personal;
     if (resume?.editor) editing = resume.editor;
+    let personal: SongPersonal;
+    try {personal = draft && session ? session.personal : await storage.personal(song.id) ?? {songId: song.id, chorus: {},version:3};}
+    catch (error) {notify(error instanceof Error ? error.message : 'Kunne ikke hente personlig tilstand.', true); return;}
+    if (editing) {if (!draft || !session) session=createEditSession(song,personal);}
+    else {session=undefined;readerPersonal=personal;}
+    active = song;
     editMenu.hidden = Boolean(editing); exitEdit.hidden = !editing;
     document.body.classList.toggle('editing-active', Boolean(editing));
     if (resume) reader.style.visibility = 'hidden';
@@ -179,9 +222,9 @@ export function startSongbook() {
       key.setAttribute('aria-label', `Toneart: ${parsed.key}`);
       metadata.append(key);
     }
-    const time = element('span', parsed.time, 'song-key'); time.setAttribute('aria-label', `Taktart: ${parsed.time}`); metadata.append(time); article.append(metadata);
+    const time = element('span', parsed.time, 'song-key'); time.setAttribute('aria-label', `Takt: ${parsed.time}`); metadata.append(time); article.append(metadata);
     const showMetadata = () => {
-      const state = currentPersonal!;
+      const state = personalState();
       if (editing) {
         const capoPill = metadata.querySelector('#capo-pill');
         const key = gripKey(parsed.key, state.capo ?? 0);
@@ -198,7 +241,7 @@ export function startSongbook() {
     const chartArea = element('div'); chartArea.className = 'chart-area'; article.append(chartArea);
     const showChart = () => {
       disposeDock(); chartArea.replaceChildren();
-      const state = currentPersonal!, capo = state.capo ?? 0;
+      const state = personalState(), capo = state.capo ?? 0;
       const chosen = selectSongGrid(parsed, state);
       if (chosen) {
         const dock = createChartDock(chosen.grids.map(grid => transposeGrid(grid, capo)), chosen.source, () => query('back').focus({preventScroll:true}), !editing && !chartReleased);
@@ -212,19 +255,22 @@ export function startSongbook() {
       }
     };
     if (editing) {
-      editor = createPersonalEditor(song, personal, change => {
-        const previous = currentPersonal!; currentPersonal = change(previous);
+      let displayed = session!.personal;
+      editor = createPersonalEditor(song, session!, () => {
+        const previous = displayed;displayed = session!.personal;
         notify('');
-        paintAnnotations(query('song-body'), song, currentPersonal);
+        paintAnnotations(query('song-body'), song, displayed);
         showMetadata();
-        if (previous.capo !== currentPersonal.capo || previous.chordView !== currentPersonal.chordView || previous.chordGrid !== currentPersonal.chordGrid) {
+        if (previous.capo !== displayed.capo || previous.chordGrid !== displayed.chordGrid) {
           const released = chartArea.querySelector<HTMLElement>('#chart-dock')?.dataset.sticky === 'false';
           if (released) chartReleased = true;
           showChart();
-          const capo = currentPersonal.capo ?? 0;
+          const capo = displayed.capo ?? 0;
           query('song-body').querySelectorAll<HTMLElement>('.chord[data-original]').forEach(node => node.textContent = transposeChord(node.dataset.original!,capo));
         }
       }, () => {void flush();});
+      const originalButton=iconButton('Rediger sangtekst','text',()=>showOriginal());originalButton.id='edit-original';
+      editor.element.append(originalButton);
       article.prepend(editor.element); editor.metadata(metadata);
     }
     showMetadata(); showChart();
@@ -254,8 +300,8 @@ export function startSongbook() {
             const write = storage.updatePersonal(song.id, current => ({...current, chorus: {...current.chorus, [block.occurrence]: !expanded}}));
             chorusWrites.add(write);
             try {personal = await write;} finally {chorusWrites.delete(write);}
-            if (currentPersonal) currentPersonal.chorus = personal.chorus;
-            expanded = !expanded; reflect();
+            if (session) session.update(current=>({...current,chorus:personal.chorus}));else readerPersonal=personal;
+            expanded = !expanded; reflect();paintAnnotations(bodyContent,song,personalState());
             if (active?.id === song.id) notify('');
           }
           catch {if (active?.id === song.id) notify('Refrengvalget kunne ikke lagres. Prøv igjen; tidligere valg er beholdt.', true);}
@@ -264,16 +310,16 @@ export function startSongbook() {
         heading.append(button); section.append(heading, body); bodyContent.append(section);
       } else bodyContent.append(renderContent([block], dynamicsContext));
     }
-    paintAnnotations(bodyContent, song, currentPersonal!);
+    paintAnnotations(bodyContent, song, personalState());
     if (editing?.annotation) {
       const selection = editing.annotation;
       const line = [...bodyContent.querySelectorAll<HTMLElement>('.song-line[data-occurrence]')].find(line => line.dataset.occurrence === selection.occurrence);
-      if (line) editor!.select(line, currentPersonal!, selection);
+      if (line) editor!.select(line, personalState(), selection);
     }
     if (editing) editor!.mount(bodyContent);
     library.hidden = true; reader.hidden = false; query('back').hidden = false; document.body.classList.add('reader-active');
     const disposeSpacing = attachSongSpacing(bodyContent);
-    const disposeProfile = attachDynamicsProfile(bodyContent);
+    const disposeProfile = attachDynamicsProfile(bodyContent, parsed.hasDynamics);
     disposeView = () => {disposeSpacing(); disposeProfile(); disposeDock();};
     if (resume) await restoreUpdateView(resume, () => active?.id === song.id);
     else {title.focus({preventScroll: true}); window.scrollTo(0, 0);}
@@ -285,7 +331,7 @@ export function startSongbook() {
     editMenu.hidden = true; exitEdit.hidden = true; document.body.classList.remove('editing-active');
     disposeView(); disposeView = () => {};
     editor?.dispose(); editor = undefined; query('song-content').replaceChildren();
-    active = null; reader.hidden = true; library.hidden = false; query('back').hidden = true; document.body.classList.remove('reader-active'); notify('');
+    session=undefined;readerPersonal=undefined;active = null; reader.hidden = true; library.hidden = false; query('back').hidden = true; document.body.classList.remove('reader-active'); notify('');
     query('library-title').focus({preventScroll: true}); window.scrollTo(0, 0);
   }
   query('back').addEventListener('click', back);
@@ -298,6 +344,8 @@ export function startSongbook() {
       try {bytes = await selected.arrayBuffer();}
       catch {throw new Error('Filen kunne ikke leses. Velg filen på nytt og prøv igjen.');}
       const song = createSong(selected.name, new Uint8Array(bytes));
+      const existing = await storage.list();
+      if (classifyImport({filename:selected.name},existing)==='possible-copy' && !await confirmImportCopy(selected.name,file)) {notify('');return;}
       await storage.add(song);
       songs.push(song); drawList();
       await openSong(song);
@@ -308,7 +356,7 @@ export function startSongbook() {
   void load();
   return {beforeUpdateReload: async (focusId: string | null) => {
     if (saving) await saving;
-    if (editor?.dirty()) throw new Error('Du har ulagrede endringer. Bruk Lagre eller avslutt redigeringen før oppdatering.');
+    if (dirty()) throw new Error('Du har ulagrede endringer. Bruk Lagre eller avslutt redigeringen før oppdatering.');
     await Promise.all(chorusWrites);
     saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId, editing ? {...editing, annotation: editor?.selection()} : undefined);
   }};

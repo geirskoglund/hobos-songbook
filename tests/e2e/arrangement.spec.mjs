@@ -71,31 +71,35 @@ test('personal chart replaces all shared charts using the same presentation; no 
   await expect(page.locator('#chart-dock')).toHaveCount(0);
 });
 
-test('dynamics form one narrow continuous symmetric path with soft joins and five widths', async ({page}) => {
-  const original='{t: Dynamikk}\nNormal\n{x_dyn: 1}\nEn\n\n{x_dyn: 2}\nTo\n{x_dyn: 3}\nTre\n{x_dyn: 4}\nFire\n{x_dyn: 5}\nFem\n{soc}\n{x_dyn: 4}\nRefreng\n{eoc}\n{x_dyn: 1}\nLavt\n{chorus}\nEtter';
-  await page.goto(base); await importSong(page,'dynamikk.cho',original);
+test('dynamics have a straight left edge and exact fixed widths in a 30px margin', async ({page},testInfo) => {
+  const original='{t: Dynamikk}\n{sog}\n| C . | G . |\n{eog}\nNormal\n{x_dyn: 1}\nEn\n\n{x_dyn: 2}\nTo\n{x_dyn: 3}\nTre\n{x_dyn: 4}\nFire\n{x_dyn: 5}\nFem\n{soc}\n{x_dyn: 4}\nRefreng\n{eoc}\n{x_dyn: 1}\nLavt\n{chorus}\nEtter';
+  await page.setViewportSize({width:390,height:844});await page.goto(base); await importSong(page,'dynamikk.cho',original);
   const line=text=>page.locator('.song-line').filter({has:page.locator('.lyric').filter({hasText:new RegExp(`^${text}$`)})});
   for (const [text,level] of [['Normal',3],['En',1],['To',2],['Tre',3],['Fire',4],['Fem',5],['Etter',4]]) await expect(line(text)).toHaveAttribute('data-dynamic-level',String(level));
   await expect(page.locator('#dynamics-profile path')).toHaveCount(1);
   await expect(page.locator('#dynamics-profile path')).toHaveAttribute('d',/C/);
   await expect(page.locator('#dynamics-profile rect')).toHaveCount(0);
-  const widths=[];
-  for (const text of ['En','To','Tre','Fire','Fem']) {
-    const width=await line(text).evaluate(row=>{
-      const svg=document.getElementById('dynamics-profile'), path=svg.querySelector('path');
-      const rect=row.getBoundingClientRect(), box=svg.getBoundingClientRect();
-      const y=rect.y+rect.height/2-box.y, center=svg.viewBox.baseVal.width/2;
-      let left=0,right=center;
-      for(let i=0;i<16;i++) {const mid=(left+right)/2;if(path.isPointInFill(new DOMPoint(center+mid,y)))left=mid;else right=mid;}
-      if (!path.isPointInFill(new DOMPoint(center-left/2,y)) || !path.isPointInFill(new DOMPoint(center+left/2,y))) throw Error('Asymmetric profile');
-      return left*2;
-    }); widths.push(width);
+  for(const theme of ['dark','light'])for(const fontSize of [16,36]){
+    await setDisplay(page,{theme,fontSize});
+    const widths=[];
+    for(const text of ['Normal','En','To','Tre','Fire','Fem']){
+      const width=await line(text).evaluate(row=>{
+        const svg=document.getElementById('dynamics-profile'),path=svg.querySelector('path'),rect=row.getBoundingClientRect(),box=svg.getBoundingClientRect();
+        const y=rect.y+rect.height/2-box.y;
+        if(!path.isPointInFill(new DOMPoint(.01,y))||path.isPointInFill(new DOMPoint(-.01,y)))throw Error('Left edge is not fixed at zero');
+        let left=0,right=30;
+        for(let n=0;n<20;n++){const mid=(left+right)/2;if(path.isPointInFill(new DOMPoint(mid,y)))left=mid;else right=mid;}
+        return left;
+      });widths.push(width);
+    }
+    for(const [index,expected]of [15,5,10,15,20,25].entries())expect(Math.abs(widths[index]-expected)).toBeLessThan(.01);
+    const profile=await page.locator('#dynamics-profile').boundingBox(),body=await page.locator('#song-body').boundingBox(),text=await line('Fem').boundingBox();
+    expect(profile.width).toBe(25);expect(profile.x).toBe(body.x);expect(text.x-profile.x).toBe(30);expect(text.x-profile.x-widths.at(-1)).toBeCloseTo(5,2);
+    expect(Math.abs(profile.height-body.height)).toBeLessThan(1);expect(profile.y).toBeGreaterThanOrEqual((await page.locator('#chart-dock').boundingBox()).y+(await page.locator('#chart-dock').boundingBox()).height);
+    expect((await page.locator('#song-title').boundingBox()).x).toBe(body.x);
+    await page.screenshot({path:testInfo.outputPath(`dynamics-${theme}-${fontSize}.png`),fullPage:true});
   }
-  expect(widths.every((width,index)=>index===0||width>widths[index-1])).toBe(true);
-  const profile=await page.locator('#dynamics-profile').boundingBox(), body=await page.locator('#song-body').boundingBox();
-  expect(profile.width).toBeLessThanOrEqual(112); expect(profile.width).toBeLessThanOrEqual(body.width*.23);
-  expect(Math.abs(profile.x+profile.width/2-body.x-body.width/2)).toBeLessThan(1);
-  expect(Math.abs(profile.height-body.height)).toBeLessThan(1);
+  const profile=await page.locator('#dynamics-profile').boundingBox();
   const beforeHeight=profile.height;
   await page.getByRole('button',{name:'Refreng',exact:true}).click();
   await expect.poll(async()=> (await page.locator('#dynamics-profile').boundingBox()).height).toBeGreaterThan(beforeHeight);
@@ -103,6 +107,20 @@ test('dynamics form one narrow continuous symmetric path with soft joins and fiv
   await expect(page.getByRole('button',{name:'Refreng',exact:true})).toHaveCSS('border-top-width','0px');
   expect(await page.getByRole('button',{name:'Refreng',exact:true}).evaluate(node=>getComputedStyle(node,'::after').content)).toBe('none');
   expect((await savedSongs(page))[0].original).toBe(original);
+});
+
+test('dynamics reserve no margin without valid tags, when switched off, or below 320px',async({page})=>{
+  await page.goto(base);await importSong(page,'uten.txt','{t: Uten dynamikk}\nTekst uten tagger\n{x_dyn: 9}\nUgyldig er ikke et nivå');
+  await expect(page.locator('#dynamics-profile')).toHaveCount(0);await expect(page.locator('#song-body')).toHaveCSS('padding-left','0px');
+  await page.locator('#back').click();await importSong(page,'med.txt','{t: Med dynamikk}\nNormal før første tagg\n{x_dyn: 5}\nSterkt');
+  await expect(page.locator('#dynamics-profile')).toBeVisible();await expect(page.locator('#song-body')).toHaveCSS('padding-left','30px');
+  for(const width of [319,320,390]){
+    await page.setViewportSize({width,height:800});await expect(page.locator('#song-body')).toHaveCSS('padding-left',width<320?'0px':'30px');
+    if(width<320)await expect(page.locator('#dynamics-profile')).not.toBeVisible();else await expect(page.locator('#dynamics-profile')).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  await setDisplay(page,{showDynamics:false});await expect(page.locator('#dynamics-profile')).not.toBeVisible();await expect(page.locator('#song-body')).toHaveCSS('padding-left','0px');
+  await setDisplay(page,{showDynamics:true});await expect(page.locator('#dynamics-profile')).toBeVisible();await expect(page.locator('#song-body')).toHaveCSS('padding-left','30px');
 });
 
 test('settings stay in an accessible menu and persist offline without occupying the reader', async ({page,context})=>{
@@ -133,7 +151,7 @@ test('compact reader and charts fit all widths and both themes at both font limi
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
       const dock=await page.locator('#chart-dock').boundingBox();expect(dock.height).toBeLessThan(800*.34);
       expect(await page.locator('.grid-measure, .grid-cell').evaluateAll(nodes=>nodes.every(node=>node.scrollWidth<=node.clientWidth+1))).toBe(true);
-      const profile=await page.locator('#dynamics-profile').boundingBox(); expect(profile.width).toBeLessThanOrEqual(112);
+      const profile=await page.locator('#dynamics-profile').boundingBox(); expect(profile.width).toBe(25);await expect(page.locator('#song-body')).toHaveCSS('padding-left','30px');
       expect((await page.locator('.topbar').boundingBox()).height).toBeLessThanOrEqual(56);
       await expect(page.locator('.display-settings')).not.toBeVisible();
     }

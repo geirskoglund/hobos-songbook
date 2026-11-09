@@ -60,7 +60,6 @@ export function renderContent(content: Content[], context: DynamicsContext): Doc
   const fragment = document.createDocumentFragment();
   const identify = (row: HTMLElement, sourceLine?: number) => {
     if (sourceLine !== undefined) {row.dataset.sourceLine = String(sourceLine); row.dataset.occurrence = `${context.occurrence ?? 'source'}/line:${sourceLine}`;}
-    row.dataset.anchorText = row.textContent ?? '';
     return row;
   };
   for (const block of content) {

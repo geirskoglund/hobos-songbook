@@ -72,12 +72,18 @@ code {font: inherit; font-family: ui-monospace, monospace;}
 .update-notice button {width: 100%;}
 body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 
-:root {--dynamic-color: #b6caba18;}
-:root[data-theme="light"] {--dynamic-color: #63795c1c;}
+:root {--dynamic-color: color-mix(in srgb,var(--text) 80%,var(--bg));}
 .song-body, #song-body {position: relative; isolation: isolate;}
-#dynamics-profile {position: absolute; z-index: -1; left: 50%; top: 0; transform: translateX(-50%); pointer-events: none; overflow: visible;}
+#song-body[data-has-dynamics="true"] {padding-left:30px;}
+#dynamics-profile {position:absolute; z-index:-1; left:0; top:0; pointer-events:none; overflow:visible;}
 #dynamics-profile path {fill: var(--dynamic-color);}
 :root[data-dynamics="off"] #dynamics-profile, :root[data-dynamics="off"] .dynamic-announce, :root[data-grids="off"] #chart-dock {display: none;}
+:root[data-dynamics="off"] #song-body[data-has-dynamics="true"] {padding-left:0;}
+#song-body[data-has-dynamics="false"] .dynamic-announce {display:none;}
+@media (width < 320px) {
+  #song-body[data-has-dynamics="true"] {padding-left:0;}
+  #dynamics-profile {display:none;}
+}
 .sr-only {position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;}
 .display-settings .check-option {display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer;}
 .check-option input {width: 20px; height: 20px; accent-color: var(--accent); flex: none;}
@@ -187,6 +193,38 @@ button.song-key {font:500 .65em/1.2 ui-sans-serif,system-ui,sans-serif; padding:
 /* Native text/context callouts are replaced consistently across the application. */
 html {user-select:none; -webkit-user-select:none; -webkit-touch-callout:none}
 input:not([type=file]), textarea {user-select:text; -webkit-user-select:text; -webkit-touch-callout:none}
+.original-editor {position:fixed; margin:0; max-width:none; max-height:none; border:0; border-radius:0; padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); background:var(--bg); color:var(--text); overflow:hidden; box-sizing:border-box;}
+.original-editor[open] {display:flex; flex-direction:column; gap:8px;}
+.original-editor header {flex:none; display:grid; gap:12px;}
+.original-editor header:focus {outline:none;}
+.original-editor label {font-size:14px;}
+.original-editor input {width:100%; min-width:0; background:var(--panel); border:1px solid var(--border); padding:8px; border-radius:6px;}
+#original-title {font:var(--song-size)/1.4 system-ui,sans-serif;}
+.original-editor .song-metadata {margin:0;}
+.original-toolbar {flex:none; display:flex; align-items:center; flex-wrap:wrap; gap:6px; min-height:44px; padding:4px; border-block:1px solid var(--border); background:var(--panel);}
+.original-toolbar button {display:flex; flex-direction:column; align-items:center; font-size:13px;}
+.original-content {flex:1; min-height:0; display:flex; flex-direction:column; overflow:auto; overscroll-behavior:contain;}
+#original-text {flex:1; width:100%; min-height:0; resize:none; border:1px solid var(--border); border-radius:6px; padding:12px; color:var(--text); background:var(--panel); font:var(--song-size)/1.4 system-ui,sans-serif; overflow:auto; scroll-padding-block:24px;}
+.original-preview {flex:none; padding:8px 4px; font-size:var(--song-size); line-height:1.2; --reader-line:calc(var(--song-size) * 1.2);}
+.original-preview :is(.song-line,.comment,.unknown,.chorus > h2) {margin:var(--content-gap,0px) 0 0;}
+.original-preview .chord-grid {margin-block:8px;}
+#original-protection {flex:none; margin:0 0 8px; font:14px/1.4 system-ui,sans-serif; color:var(--muted);}
+.original-editor > .field-error {flex:none; margin:0; max-height:20%; overflow:auto;}
+.original-editor > .field-error:empty {display:none;}
+.original-editor > footer {flex:none; margin:0; padding:4px 0 0; font:14px/1.4 system-ui,sans-serif;}
+.original-metadata {inset:auto; margin:0; width:max-content; max-width:calc(100% - 24px); text-align:left;}
+.metadata-field {display:flex; align-items:center; gap:12px;}
+.metadata-field label {flex:1; font-weight:600;}
+.original-metadata .metadata-field input {width:8ch; min-width:0; min-height:44px; font-size:16px; text-align:center;}
+.original-metadata p:not(:empty) {max-width:24ch;}
+.original-metadata .popup-actions {margin-top:12px;}
+.note-overflow {display:flex; flex-direction:column; gap:8px; margin-top:12px;}
+.note-overflow-row {display:flow-root; min-height:1.2em;}
+.note-overflow-row .personal-note {margin-left:auto;}
+.import-copy {width:min(360px,calc(100% - 24px));}
+.original-metadata input:read-only,.original-editor input:read-only {color:var(--muted);}
+.original-editor .song-metadata button:disabled {cursor:default;}
+body.original-open {overflow:hidden;}
 .selection-preview[data-pending] span {background:color-mix(in srgb,Highlight 35%,transparent)}
 .field-error {color:var(--accent); font:13px/1.4 system-ui,sans-serif; margin:6px 0 0}
 .app-text-actions {position:fixed; z-index:50; display:flex; flex-wrap:wrap; gap:2px; padding:4px; border:1px solid var(--border); border-radius:8px; background:var(--panel); color:var(--text); box-shadow:0 4px 20px #0005; max-width:calc(100vw - 16px)}

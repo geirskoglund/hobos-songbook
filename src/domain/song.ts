@@ -1,4 +1,4 @@
-import type {Annotation} from './personal.ts';
+import type {Annotation, PersonalNote} from './annotations.ts';
 import {parseChordPro} from './chordpro.ts';
 export interface SongOrigin {
   kind: 'local' | 'external';
@@ -10,7 +10,7 @@ export interface SongOrigin {
   relativePath?: string;
 }
 export interface Song {id: string; original: string; title: string; key: string | null; origin: SongOrigin}
-export interface SongPersonal {songId: string; chorus: Record<string, boolean>; chordGrid?: string; version?: 2; capo?: number | null; chordView?: 'sounding' | 'grips'; tuning?: string; annotations?: Record<string, Annotation>}
+export interface SongPersonal {songId: string; chorus: Record<string, boolean>; chordGrid?: string; version?: 2 | 3; capo?: number | null; chordView?: 'sounding' | 'grips'; tuning?: string; notes?: Record<string, PersonalNote>; annotations?: Record<string, Annotation>}
 export const acceptedExtensions = '.cho,.chordpro,.chopro,.crd,.pro,.chord,.txt';
 export function decodeSong(bytes: Uint8Array): string {
   let original: string;

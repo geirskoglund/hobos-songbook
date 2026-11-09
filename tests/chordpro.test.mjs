@@ -60,6 +60,9 @@ test('grid bars retain beat cells, repeats, margins and multi-chord cells withou
 
 test('dynamics are ordered instructions, including inside grids and repeated choruses; invalid values leave state alone', () => {
   const parsed = parseChordPro('{x_dyn: 1}\nLavt\n{x_dyn: 2}\n{soc}\n{x_dyn: 4}\nRefreng\n{eoc}\n{chorus}\n{start_of_grid}\n| C . |\n{x_dyn: 5}\n| G . |\n{end_of_grid}\n{x_dyn: 0}\n{x_dyn: 6}\n{x_dyn: feil}\nEtter', 'T');
+  assert.equal(parsed.hasDynamics,true);
+  for(const source of ['Uten tagger','{x_dyn: 0}\nTekst','{x_dyn: feil}\nTekst'])assert.equal(parseChordPro(source,'T').hasDynamics,false);
+  assert.equal(parseChordPro('{sog}\n{x_dyn: 4}\n| C |\n{eog}','T').hasDynamics,true);
   assert.deepEqual(parsed.blocks.slice(0,3).map(block => block.kind), ['dynamic','line','dynamic']);
   const chorus = parsed.blocks.find(block => block.kind === 'chorus');
   const ref = parsed.blocks.find(block => block.kind === 'reference');

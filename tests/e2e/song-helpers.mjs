@@ -3,6 +3,8 @@ export const original = '\uFEFF{title: Samme tittel}\r\n{key: D}\r\n{comment: Ro
 export async function importSong(page, name = 'sang.CHO', content = original) {
   await closeMenu(page);
   await page.locator('#song-file').setInputFiles({name, mimeType: '', buffer: Buffer.from(content)});
+  await expect.poll(async()=>await page.locator('.import-copy').isVisible()||await page.locator('#song-status').textContent()==='Sangen er lagret på denne enheten.').toBe(true);
+  if(await page.locator('.import-copy').isVisible())await page.getByRole('button',{name:'Importer',exact:true}).click();
   await expect(page.locator('#song-title')).toBeVisible();
   await expect(page.locator('#song-status')).toContainText('Sangen er lagret');
 }
