@@ -6,7 +6,7 @@ export type GridContent = GridRow | DynamicDirective | {kind: 'comment' | 'unkno
 export interface GridBlock {kind: 'grid'; options: GridOptions; rows: GridContent[]}
 export type Content = {kind: 'line'; segments: Segment[]; sourceLine?: number} | {kind: 'comment' | 'unknown'; text: string; sourceLine?: number} | DynamicDirective | GridBlock;
 export type Block = Content | {kind: 'chorus'; content: Content[]} | {kind: 'reference'; occurrence: string; content: Content[] | null};
-export interface ParsedSong {title: string; key: string | null; time: string; blocks: Block[]}
+export interface ParsedSong {title: string; key: string | null; time: string; hasDynamics: boolean; blocks: Block[]}
 
 // Deliberately conservative: bracketed prose/legacy markers remain readable text.
 export function isChord(value: string): boolean {
@@ -25,7 +25,7 @@ export function parseLine(line: string): Segment[] {
   return result;
 }
 export function parseChordPro(original: string, fallbackTitle: string): ParsedSong {
-  const song: ParsedSong = {title: fallbackTitle, key: null, time: '4/4', blocks: []};
+  const song: ParsedSong = {title: fallbackTitle, key: null, time: '4/4', hasDynamics: false, blocks: []};
   let chorus: Content[] | null = null, previous: Content[] | null = null;
   let grid: GridBlock | null = null, previousGrid: GridOptions | undefined, timeSeen = false;
   const emit = (block: Content) => {if (chorus) chorus.push(block); else song.blocks.push(block);};
@@ -50,7 +50,7 @@ export function parseChordPro(original: string, fallbackTitle: string): ParsedSo
         break;
       case 'comment': case 'c': emitInstruction({kind: 'comment', text: value, sourceLine: index}); break;
       case 'x_dyn':
-        if (/^[1-5]$/.test(value.trim())) emitInstruction({kind: 'dynamic', level: Number(value.trim()) as DynamicLevel});
+        if (/^[1-5]$/.test(value.trim())) {song.hasDynamics = true;emitInstruction({kind: 'dynamic', level: Number(value.trim()) as DynamicLevel});}
         else emitInstruction({kind: 'comment', text: `Ugyldig dynamikknivå «${value}». Bruk 1–5; forrige nivå beholdes.`});
         break;
       case 'start_of_grid': case 'sog':

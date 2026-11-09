@@ -117,10 +117,10 @@ Notater og gulmarkeringer bruker separate koordinatmodeller uten kopier av origi
 ## 5. Felles dynamikk i v1
 
 - **[B]** Dynamikk er felles arrangementsinformasjon og visuell påminnelse for musikere som kjenner sangen, ikke eksakt tidslinje eller tradisjonell pp–ff-notasjon.
-- **[B]** Fem nivåer 1–5, normalnivå 3. `{x_dyn: N}` lagres direkte i originalfilen. Ny tagg endrer nivå umiddelbart til neste tagg; ingen tagg betyr 3. Visuell innlegging og råtekstredigering inngår i den senere originaleditoren.
-- **[B]** Én sammenhengende, smal og symmetrisk søyle bak sangteksten, med myke lokale breddeoverganger. Også nivå 5 er smalt og betyr ikke full skjermbredde; bredden viser intensitet, og visning kan slås av/på. Avrundede kanter er tillatt, men grafikken fremstiller ikke automatiske crescendoer. Antall tekstlinjer er ikke musikalsk varighet.
+- **[B]** Fem nivåer 1–5, normalnivå 3. `{x_dyn: N}` lagres direkte i originalfilen. Ny tagg endrer nivå umiddelbart til neste tagg. I en sang med gyldige tagger brukes nivå 3 frem til første tagg; uten gyldige tagger vises ingen profil eller marg. Visuell innlegging og råtekstredigering inngår i den senere originaleditoren.
+- **[B]** Én sammenhengende søyle i en fast 30 px venstremarg ved sangteksten, nedenfor tittel og akkordskjema. Venstrekanten er rett og fast; bare høyrekanten varierer inn mot teksten. Nivå 1–5 er henholdsvis 5/10/15/20/25 px brede, med myke lokale overganger og minst 5 px luft til teksten ved nivå 5. Marg og nivåbredder er uavhengige av tekststørrelsen; høyden følger sanginnholdet. Margen fjernes ved global av, manglende gyldige tagger eller skjermbredde under 320 px. Dagens diskrete temafarge beholdes. Grafikken fremstiller ikke automatiske crescendoer, og tekstlinjer er ikke musikalsk varighet.
 - **[B]** Ingen separat `.songbook`-annoteringsfil, personlig dynamikk eller `{dyn:...}` i v1. Avanserte ramper og frihåndstegning er utenfor v1.
-- **[STATUS / DESIGN]** Parser, midtstilt profil og av/på er implementert med utforming beskrevet i [DESIGN](DESIGN.md#implementert-sangflyt). Nivåkontrollene i originaleditoren gjenstår å utforme og implementere. Fysisk lesbarhet/berøring gjenstår å verifisere.
+- **[STATUS / DESIGN]** Parser, venstremargprofil og av/på er implementert med utforming beskrevet i [DESIGN](DESIGN.md#implementert-sangflyt). Nivåkontrollene i originaleditoren gjenstår å utforme og implementere. Fysisk lesbarhet/berøring gjenstår å verifisere.
 
 ## 6. Setlister og .setlist
 

@@ -319,7 +319,7 @@ export function startSongbook() {
     if (editing) editor!.mount(bodyContent);
     library.hidden = true; reader.hidden = false; query('back').hidden = false; document.body.classList.add('reader-active');
     const disposeSpacing = attachSongSpacing(bodyContent);
-    const disposeProfile = attachDynamicsProfile(bodyContent);
+    const disposeProfile = attachDynamicsProfile(bodyContent, parsed.hasDynamics);
     disposeView = () => {disposeSpacing(); disposeProfile(); disposeDock();};
     if (resume) await restoreUpdateView(resume, () => active?.id === song.id);
     else {title.focus({preventScroll: true}); window.scrollTo(0, 0);}
