@@ -23,7 +23,7 @@ h2 {font-size: 1.2rem; font-weight: 600; margin: 28px 0 12px;}
 input[type="file"] {width: 100%; font-size: .88rem;}
 input::file-selector-button {color: var(--text); margin-right: 10px;}
 #song-status {line-height: 1.6; color: var(--accent); overflow-wrap: anywhere;}
-#song-status:empty, #settings-status:empty, #filter-status:empty, #library-status:empty {display: none;}
+#song-status:empty, #settings-status:empty, #filter-status:empty, #library-status:empty, #setlists-status:empty {display: none;}
 #back, #menu-button, #menu-close {min-height: var(--touch-target); width: 40px; padding: 4px; border: 0; background: none; text-align: center; font-size: 1.3rem; flex: none;}
 .nav-right {justify-self:end;justify-content:flex-end;width:100%;}
 .nav-left, .nav-right {display: flex; align-items: center; gap: 8px; min-width: 0;}
@@ -52,7 +52,7 @@ code {font: inherit; font-family: var(--font-chord);}
 
 #song-content h1:focus, #library-title:focus {outline: none;}
 
-.update-notice {position: fixed; z-index: 10; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); width: min(360px, calc(100% - 32px)); padding: 16px; border: 1px solid var(--accent); border-radius: 12px; background: var(--panel); box-shadow: 0 4px 24px #0003;}
+.update-notice {position: fixed; z-index: calc(var(--layer-menu) + 1); right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); width: min(360px, calc(100% - 32px)); padding: 16px; border: 1px solid var(--accent); border-radius: 12px; background: var(--panel); box-shadow: 0 4px 24px #0003;}
 .update-notice p {margin: 0 0 12px; line-height: 1.5; overflow-wrap: anywhere;}
 .update-notice button {width: 100%;}
 body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}

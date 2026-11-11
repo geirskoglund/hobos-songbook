@@ -4,33 +4,37 @@ export interface UpdateView {
   version: 1;
   page?: Page;
   settingsReturn?: UpdateView;
+  setlistId?: string;
+  setlistsReturn?: UpdateView;
   editor?: {from:'reader'|'library';returnView?:UpdateView;annotation?:{occurrence:string;start:number;end:number}};
   songId:string|null; scrollY:number; chartReleased:boolean;
   anchor?:{index:number;offset:number;itemId?:string};
   menu:{open:boolean;scrollTop:number;infoOpen:boolean};focusId:string|null;
 }
 const stateKey=(namespace:string)=>`${namespace}:update-view`;
-const rows=(songId:string|null)=>[...document.querySelectorAll<HTMLElement>(songId?'#song-body .song-line, #song-body .comment, #song-body .unknown, #song-body .chorus > h2':'#song-list .song-choice')];
-export function captureView(songId:string|null,focusId:string|null,editor?:UpdateView['editor'],settingsReturn?:UpdateView):UpdateView {
+const rows=(songId:string|null,page?:Page)=>[...document.querySelectorAll<HTMLElement>(page==='setlists'?'#setlist-list .count-choice':songId?'#song-body .song-line, #song-body .comment, #song-body .unknown, #song-body .chorus > h2':'#song-list .song-choice')];
+export type SetlistView = Pick<UpdateView, 'setlistId' | 'setlistsReturn'>;
+export function captureView(songId:string|null,focusId:string|null,editor?:UpdateView['editor'],settingsReturn?:UpdateView,setlist?:SetlistView):UpdateView {
   const panel=document.getElementById('main-menu')!;
-  const view:UpdateView={version:1,page:currentPage(),songId,scrollY,chartReleased:Boolean(songId&&document.getElementById('chart-dock')?.dataset.sticky==='false'),menu:{open:!panel.hidden,scrollTop:panel.scrollTop,infoOpen:true},focusId,editor,settingsReturn};
-  if(scrollY>0&&['library','reader'].includes(currentPage())) {
-    const content=rows(songId),top=readingTop(),index=content.findIndex(row=>{const r=row.getBoundingClientRect();return r.height>0&&r.bottom>top&&r.top<innerHeight;});
-    if(index>=0)view.anchor={index,offset:content[index].getBoundingClientRect().top-top,itemId:content[index].dataset.songId};
+  const view:UpdateView={version:1,page:currentPage(),songId,scrollY,chartReleased:Boolean(songId&&document.getElementById('chart-dock')?.dataset.sticky==='false'),menu:{open:!panel.hidden,scrollTop:panel.scrollTop,infoOpen:true},focusId,editor,settingsReturn,...setlist};
+  if(scrollY>0&&['library','reader','setlists'].includes(currentPage())) {
+    const content=rows(songId,currentPage()),top=readingTop(),index=content.findIndex(row=>{const r=row.getBoundingClientRect();return r.height>0&&r.bottom>top&&r.top<innerHeight;});
+    if(index>=0)view.anchor={index,offset:content[index].getBoundingClientRect().top-top,itemId:content[index].dataset.songId ?? content[index].dataset.setlistId};
   }
   return view;
 }
-export function saveUpdateView(namespace:string,songId:string|null,focusId:string|null,editor?:UpdateView['editor'],settingsReturn?:UpdateView) {
-  try{history.replaceState({...history.state,[stateKey(namespace)]:captureView(songId,focusId,editor,settingsReturn)},'');}catch{/* Unavailable history must not block an update. */}
+export function saveUpdateView(namespace:string,songId:string|null,focusId:string|null,editor?:UpdateView['editor'],settingsReturn?:UpdateView,setlist?:SetlistView) {
+  try{history.replaceState({...history.state,[stateKey(namespace)]:captureView(songId,focusId,editor,settingsReturn,setlist)},'');}catch{/* Unavailable history must not block an update. */}
 }
 function valid(view:UpdateView,depth=0):boolean {
   const finite=(v:unknown)=>typeof v==='number'&&Number.isFinite(v);
   if(!view||depth>3||view.version!==1||!(view.songId===null||typeof view.songId==='string')||!finite(view.scrollY)||view.scrollY<0||typeof view.chartReleased!=='boolean'||typeof view.menu?.open!=='boolean'||!finite(view.menu.scrollTop)||view.menu.scrollTop<0||typeof view.menu.infoOpen!=='boolean'||!(view.focusId===null||typeof view.focusId==='string'))return false;
   if(view.page!==undefined&&!pages.includes(view.page))return false;
+  if(view.setlistId!==undefined&&typeof view.setlistId!=='string')return false;
   if(view.editor&&(!['reader','library'].includes(view.editor.from)||view.editor.returnView?.editor))return false;
   const a=view.editor?.annotation;if(a&&(typeof a.occurrence!=='string'||!Number.isInteger(a.start)||!Number.isInteger(a.end)||a.start<0||a.end<a.start))return false;
   if(view.anchor&&(!Number.isInteger(view.anchor.index)||view.anchor.index<0||!finite(view.anchor.offset)||!(view.anchor.itemId===undefined||typeof view.anchor.itemId==='string')))return false;
-  return (!view.settingsReturn||valid(view.settingsReturn,depth+1))&&(!view.editor?.returnView||valid(view.editor.returnView,depth+1));
+  return (!view.settingsReturn||valid(view.settingsReturn,depth+1))&&(!view.editor?.returnView||valid(view.editor.returnView,depth+1))&&(!view.setlistsReturn||valid(view.setlistsReturn,depth+1));
 }
 export function takeUpdateView(namespace:string):UpdateView|null {
   try{
@@ -45,12 +49,12 @@ export function takeUpdateView(namespace:string):UpdateView|null {
   }catch{return null;}
 }
 export async function restoreUpdateView(view:UpdateView,isCurrent:()=>boolean) {
-  showPage(view.page??(view.songId?'reader':'library'),Boolean(view.songId||view.settingsReturn));
+  showPage(view.page??(view.songId?'reader':'library'),Boolean(view.songId||view.setlistId||view.settingsReturn));
   await document.fonts.ready;
   await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
   if(!isCurrent())return;
   window.scrollTo(0,view.scrollY);
-  if(view.anchor){const content=rows(view.songId),row=view.anchor.itemId?content.find(r=>r.dataset.songId===view.anchor!.itemId):content[view.anchor.index],rect=row?.getBoundingClientRect();if(rect?.height)window.scrollTo(0,Math.max(0,scrollY+rect.top-readingTop()-view.anchor.offset));}
+  if(view.anchor){const content=rows(view.songId,view.page),row=view.anchor.itemId?content.find(r=>(r.dataset.songId??r.dataset.setlistId)===view.anchor!.itemId):content[view.anchor.index],rect=row?.getBoundingClientRect();if(rect?.height)window.scrollTo(0,Math.max(0,scrollY+rect.top-readingTop()-view.anchor.offset));}
   const menu=document.getElementById('main-menu')!;
   if(view.menu.open&&menu.hidden)document.getElementById('menu-button')!.click();
   menu.scrollTop=view.menu.scrollTop;

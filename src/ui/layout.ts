@@ -1,25 +1,26 @@
 /** Shared viewport and app geometry. Consumers never copy header/toolbar heights. */
-export const pages = ['library', 'reader', 'settings', 'setlists', 'sync', 'files'] as const;
+export const pages = ['library', 'reader', 'settings', 'setlists', 'setlist', 'sync', 'files'] as const;
 export type Page = typeof pages[number];
-export const pageNames: Record<Page, string> = {library:'Sanger', reader:'', settings:'Innstillinger', setlists:'Setlister', sync:'Synkronisering', files:'Filer'};
+export const pageNames: Record<Page, string> = {library:'Sanger', reader:'', settings:'Innstillinger', setlists:'Setlister', setlist:'Setliste', sync:'Synkronisering', files:'Filer'};
 let layoutFrame=0;
 export function flushLayout(){cancelAnimationFrame(layoutFrame);layoutFrame=0;document.dispatchEvent(new Event('app-layout'));}
 export function requestLayout(){if(!layoutFrame)layoutFrame=requestAnimationFrame(flushLayout);}
 export function currentPage(): Page {return (document.documentElement.dataset.page as Page) || 'library';}
-export function showPage(page: Page, canGoBack = page === 'reader') {
+export function showPage(page: Page, canGoBack = page === 'reader' || page === 'setlist') {
   document.documentElement.dataset.page = page;
   document.getElementById('back')!.hidden = !canGoBack;
-  document.getElementById('back')!.setAttribute('aria-label',page==='settings'?'Tilbake':'← Mine sanger');
+  document.getElementById('back')!.setAttribute('aria-label',page==='setlist'?'Tilbake til Setlister':page==='settings'?'Tilbake':'← Mine sanger');
   for (const id of pages) document.getElementById(id)!.hidden = id !== page;
   document.getElementById('page-title')!.textContent = pageNames[page];
   document.body.classList.toggle('reader-active', page === 'reader');
   document.querySelectorAll<HTMLElement>('[data-page-action]').forEach(node => {node.hidden = node.dataset.pageAction !== page;});
   document.querySelectorAll<HTMLElement>('[data-destination]').forEach(node => {
-    const selected = node.dataset.destination === (page === 'reader' ? 'library' : page);
+    const selected = node.dataset.destination === mainDestination(page);
     if (selected) node.setAttribute('aria-current', 'page'); else node.removeAttribute('aria-current');
   });
   flushLayout();
 }
+export function mainDestination(page: Page) {return page === 'reader' ? 'library' : page === 'setlist' ? 'setlists' : page;}
 export function overlayWidth(kind:'grid'|'value'|'note'){return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(kind==='grid'?'--content-width':kind==='value'?'--popup-value-width':'--popup-note-width'));}
 export function viewport() {
   const v = visualViewport;

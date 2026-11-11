@@ -70,6 +70,7 @@ Visuell arbeidsretning: Organisk. Oppdatert etter brukerens kommentarer til ark 
 | `filter.svg` | Filter | Bibliotek / kilde |
 | `innstillinger.svg` | Innstillinger | Appvalg |
 | `kryss.svg` | Lukk | Lukk panel |
+| `avbryt.svg` | Avbryt | Kryss i sirkel fra E03-footeren |
 | `pin-on.svg` | Festet | Sticky på |
 | `pin-off.svg` | Frigjort | Samme pin, tydelig dempet |
 

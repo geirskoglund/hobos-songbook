@@ -31,7 +31,7 @@ async function chooseBook(page, name) {
 
 test('v1 upgrades atomically, preserves every stored field and remains stable offline',async({page,context})=>{
   await seed(page);await page.goto(url);await expect(page.locator('.song-choice')).toHaveCount(1);
-  const state=await snapshot(page);expect(state).toEqual({version:2,songs:[{...legacy,songbookId:'standard'}],personal:[personal],songbooks:[{id:'standard',name:'Standard'}]});
+  const state=await snapshot(page);expect(state).toEqual({version:3,songs:[{...legacy,songbookId:'standard'}],personal:[personal],songbooks:[{id:'standard',name:'Standard'}],setlists:[]});
   await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#mStemming: DADGAD');
   await chooseBook(page,'Standard');await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');
   await page.reload();await expect(page.locator('#songbook-filter')).toHaveText('Standard');expect(await snapshot(page)).toEqual(state);
