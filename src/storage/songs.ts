@@ -2,7 +2,8 @@ import type {Song, SongPersonal} from '../domain/song.ts';
 import {originalChangeError} from '../domain/original.ts';
 import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
 import {standardSongbook, type Songbook} from '../domain/songbook.ts';
-export const schemaVersion = 2;
+import {setlistName, type Setlist} from '../domain/setlist.ts';
+export const schemaVersion = 3;
 export interface LibrarySnapshot {songs: Song[]; songbooks: Songbook[]; personal: Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>[]}
 export function songStorage(namespace: string) {
   if (!['hobos-songbook-production', 'hobos-songbook-test'].includes(namespace)) throw new Error('Ugyldig lagringsmiljø.');
@@ -17,15 +18,18 @@ export function songStorage(namespace: string) {
         // Additive, versioned schema: never reset existing data.
         if (!db.objectStoreNames.contains('songs')) db.createObjectStore('songs', {keyPath: 'id'});
         if (!db.objectStoreNames.contains('personal')) db.createObjectStore('personal', {keyPath: 'songId'});
-        const books = db.createObjectStore('songbooks', {keyPath: 'id'});
-        books.add({...standardSongbook});
-        const cursor = request.transaction!.objectStore('songs').openCursor();
-        cursor.onsuccess = () => {
-          const entry = cursor.result;
-          if (!entry) return;
-          if (!entry.value.songbookId) entry.update({...entry.value, songbookId: standardSongbook.id});
-          entry.continue();
-        };
+        if (!db.objectStoreNames.contains('songbooks')) {
+          const books = db.createObjectStore('songbooks', {keyPath: 'id'});
+          books.add({...standardSongbook});
+          const cursor = request.transaction!.objectStore('songs').openCursor();
+          cursor.onsuccess = () => {
+            const entry = cursor.result;
+            if (!entry) return;
+            if (!entry.value.songbookId) entry.update({...entry.value, songbookId: standardSongbook.id});
+            entry.continue();
+          };
+        }
+        if (!db.objectStoreNames.contains('setlists')) db.createObjectStore('setlists', {keyPath: 'id'});
       };
       request.onblocked = () => {failed = true; reject(new Error('Sanglageret er blokkert. Lukk andre faner med appen og prøv igjen.'));};
       request.onerror = () => reject(new Error('Kunne ikke åpne sanglageret. Kontroller at nettleseren tillater lokal lagring, og prøv igjen.'));
@@ -44,7 +48,7 @@ export function songStorage(namespace: string) {
         tx = db.transaction(store, mode);
         const request = operation(tx.objectStore(store));
         tx.oncomplete = () => {db.close(); resolve(request.result);};
-        tx.onabort = tx.onerror = () => {db.close(); reject(new Error('Kunne ikke lese eller lagre sangdata. Lagringen kan være full eller utilgjengelig. Prøv igjen; tidligere sanger er beholdt.'));};
+        tx.onabort = tx.onerror = () => {db.close(); reject(new Error(store === 'setlists' ? 'Kunne ikke lese setlistene. Prøv igjen; lagrede data er beholdt.' : 'Kunne ikke lese eller lagre sangdata. Lagringen kan være full eller utilgjengelig. Prøv igjen; tidligere sanger er beholdt.'));};
       } catch {db.close(); reject(new Error('Sanglageret er utilgjengelig. Prøv igjen uten å slette nettleserdata.'));}
     });
   }
@@ -78,7 +82,40 @@ export function songStorage(namespace: string) {
       tx.onerror = tx.onabort = () => {db.close();reject(new Error('Kunne ikke lese personlige data. Prøv igjen.'));};
     });
   }
+  async function writeSetlist(id: string, name?: string, create = false): Promise<Setlist | undefined> {
+    const normalized = name === undefined ? undefined : setlistName(name);
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      let result: Setlist | undefined;
+      let problem = 'Kunne ikke lagre setlisten. Prøv igjen; tidligere data og navneutkastet er beholdt.';
+      try {
+        const tx = db.transaction('setlists', 'readwrite'), store = tx.objectStore('setlists');
+        const request = create ? store.getAll() : store.get(id);
+        request.onsuccess = () => {
+          try {
+            if (create) {
+              const existing = request.result as Setlist[];
+              // Monotonic creation order also covers two saves in the same millisecond.
+              result = {id, name: normalized!, createdAt: existing.reduce((time, item) => Math.max(time, item.createdAt + 1), Date.now()), songIds: []};
+              store.add(result);
+            } else if (normalized === undefined) store.delete(id);
+            else {
+              const current = request.result as Setlist | undefined;
+              if (!current) {problem = 'Setlisten finnes ikke lenger. Avbryt og åpne oversikten på nytt.'; tx.abort(); return;}
+              result = {...current, name: normalized}; store.put(result);
+            }
+          } catch {tx.abort();}
+        };
+        tx.oncomplete = () => {db.close(); resolve(result);};
+        tx.onabort = tx.onerror = () => {db.close(); reject(new Error(problem));};
+      } catch {db.close(); reject(new Error(problem));}
+    });
+  }
   return {
+    setlists: () => transaction<Setlist[]>('setlists', 'readonly', store => store.getAll()),
+    createSetlist: (id: string, name: string) => writeSetlist(id, name, true),
+    renameSetlist: (id: string, name: string) => writeSetlist(id, name),
+    deleteSetlist: (id: string) => writeSetlist(id),
     updatePersonal,
     async library(): Promise<LibrarySnapshot> {
       const db = await open();

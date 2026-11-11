@@ -21,6 +21,7 @@ import {applyPreferences, defaultPreferences, readPreferences, savePreferences} 
 import {readSongbookFilter, saveSongbookFilter} from '../storage/songbook-filter.ts';
 import type {Songbook} from '../domain/songbook.ts';
 import {choicePicker, contextMenu, floatingAction, metadataRow} from './list-controls.ts';
+import {startSetlists} from './setlists.ts';
 
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) => {
   const node = document.createElement(tag);
@@ -31,6 +32,7 @@ const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, c
 export function startSongbook() {
   const query = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const storage = songStorage(__APP_ENV__.namespace);
+  const setlists = startSetlists(storage);
   const library = query('library'), reader = query('reader'), list = query('song-list');
   const status = query('song-status'), libraryStatus = query('library-status');
   const retry = query<HTMLButtonElement>('retry-storage'), file = query<HTMLInputElement>('song-file');
@@ -157,15 +159,16 @@ export function startSongbook() {
   async function navigate(page:Page){
     if(leaving||creating)return;
     if(page==='settings'){
-      if(currentPage()!=='settings')settingsReturn=captureView(active?.id??null,document.activeElement?.id??null,editing);
+      if(currentPage()!=='settings')settingsReturn=captureView(active?.id??null,document.activeElement?.id??null,editing,undefined,setlists.context());
       showPage(page,Boolean(settingsReturn));editMenu.hidden=true;query('settings-heading').focus({preventScroll:true});window.scrollTo(0,0);return;
     }
     if(page===currentPage()){nav.close(false);return;}
     leaving=true;
     try{
       if(editing&&!await settleDraft())return;
-      editing=undefined;settingsReturn=undefined;resetSong();showPage(page);editMenu.hidden=true;
+      editing=undefined;settingsReturn=undefined;resetSong();setlists.reset();showPage(page);editMenu.hidden=true;
       if(page==='library')void refreshLibrary();
+      if(page==='setlists')void setlists.refresh();
       query(page==='library'?'library-title':`${page}-title`).focus({preventScroll:true});window.scrollTo(0,0);
     }finally{leaving=false;}
   }
@@ -187,7 +190,7 @@ export function startSongbook() {
     try{savePreferences(__APP_ENV__.namespace,preferences);query('settings-status').textContent='';}
     catch{query('settings-status').textContent='Visningen er endret, men valget kunne ikke lagres til neste oppstart.';}
   };
-  window.addEventListener('beforeunload', event => {if (dirty()) {event.preventDefault(); event.returnValue = '';}});
+  window.addEventListener('beforeunload', event => {if (dirty() || setlists.dirty()) {event.preventDefault(); event.returnValue = '';}});
   function drawList() {
     list.replaceChildren();
     const bookName = songbooks.find(book => book.id === selectedBook)?.name ?? 'Alle';
@@ -232,7 +235,13 @@ export function startSongbook() {
       if (resume?.songId) {
         const song = songs.find(song => song.id === resume.songId);
         if (song) await openSong(song, resume);
-      } else if (resume){settingsReturn=resume.settingsReturn;await restoreUpdateView(resume, () => active === null);}
+      } else if (resume){
+        settingsReturn=resume.settingsReturn;
+        if (['setlists','setlist'].includes(resume.page ?? '') || resume.setlistId || resume.settingsReturn?.page === 'setlists') {
+          if (!await setlists.restore(resume)) {showPage('setlists'); return;}
+        }
+        await restoreUpdateView(resume, () => active === null);
+      }
     } catch (error) {
       libraryStatus.textContent = error instanceof Error ? error.message : 'Kunne ikke åpne sanglageret.'; retry.hidden = false;
     } finally {
@@ -373,6 +382,7 @@ export function startSongbook() {
   }
   function back(){
     if(currentPage()==='settings'&&settingsReturn){const view=settingsReturn;settingsReturn=undefined;void restoreUpdateView(view,()=>true).then(()=>{editMenu.hidden=Boolean(editing)||!active;focusUpdateView(view);});return;}
+    if(currentPage()==='setlist'){void setlists.back();return;}
     if(editing){void finishEdit();return;}
     resetSong();showPage('library');void refreshLibrary();query('library-title').focus({preventScroll:true});window.scrollTo(0,0);
   }
@@ -397,9 +407,10 @@ export function startSongbook() {
   showPage('library');
   void load();
   return {beforeUpdateReload: async (focusId: string | null) => {
+    await setlists.beforeUpdate();
     if (saving) await saving;
     if (dirty()) throw new Error('Du har ulagrede endringer. Bruk Lagre eller avslutt redigeringen før oppdatering.');
     await Promise.all(chorusWrites);
-    saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId, editing ? {...editing, annotation: editor?.selection()} : undefined, settingsReturn);
+    saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId, editing ? {...editing, annotation: editor?.selection()} : undefined, settingsReturn, setlists.context());
   }};
 }

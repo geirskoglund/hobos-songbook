@@ -2,7 +2,7 @@
 
 ## Leveransegrense og kontroll
 
-Kodebasen har PWA/offline, miljøisolasjon og CI/CD, lokal sanglagring og kompakt ChordPro-visning fra issue #4, generell bevaring av lesested og Android-scrollregel fra #6 samt personlig redigering med utkast/Lagre fra #8 og originaleditorens grunnflate/ny lokal sang fra #14. Fullverdig bibliotek, videre originalverktøy/konvertering, setlister og Dropbox er senere arbeid. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
+Kodebasen har PWA/offline, miljøisolasjon og CI/CD, lokal sanglagring og kompakt ChordPro-visning fra issue #4, generell bevaring av lesested og Android-scrollregel fra #6 samt personlig redigering med utkast/Lagre fra #8 og originaleditorens grunnflate/ny lokal sang fra #14. Sangbokfilter og setlisteoversikt med lokal navneadministrasjon/tom detaljside er også implementert. Sangbokadministrasjon, videre originalverktøy/konvertering, setlisteinnhold og Dropbox er senere arbeid. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
 
 Node.js 24 LTS og låst npm-fil brukes lokalt og i Actions. Eksempel på full kontroll ved behov:
 
@@ -91,11 +91,20 @@ Før hoved-PR-merge bygges `/app/` som masterens betrodde plassholder og bare `/
 
 ## Manuell kontroll av PWA-grunnlaget
 
-1. Åpne fast testadresse mens du er på nett. Kontroller «Testversjon», forventet PR og commit i appens meny mot PR-leveringen/`build-info.json`. Startsiden skal identifisere Hobo's Songbook og ha filvalg og oversikt over lokale sanger. Sangflyt og personlig redigering kontrolleres i forløpene nedenfor; setlister er ikke implementert.
+1. Åpne fast testadresse mens du er på nett. Kontroller «Testversjon», forventet PR og commit i appens meny mot PR-leveringen/`build-info.json`. Startsiden skal identifisere Hobo's Songbook og ha filvalg og oversikt over lokale sanger. Sangflyt og personlig redigering kontrolleres i forløpene nedenfor; setlisteoversikt/navneadministrasjon kontrolleres også som beskrevet nedenfor.
 2. Vent på «Klart for bruk uten nett». Installer på hjemskjermen på iPad, åpne den installerte appen online og vent på samme status. Oppgi iPadOS-versjon, Safari/installert modus og commit. Chromium eller en simulert iPad-bredde er ikke fysisk iPad-bevis.
 3. Lukk appen helt, slå på flymodus og åpne den installerte appen igjen. Navn, riktig testmiljø, tekst og oppdateringskontroll skal vises; «Uten nett» er forventet. Prøv også vanlig nettleser og en annen tilgjengelig plattform, og registrer OS/nettleser/installert modus separat.
 4. Gå online igjen. Appen kontrollerer automatisk ved oppstart, fokus/synlighet, nettilbakekomst og hvert minutt mens den er synlig på nett. En ny versjon skal gi et fast varsel også langt nede i en sang og når appinformasjonen er lukket. «Se etter oppdatering» kontrollerer også manuelt. Når en ny testcommit er publisert, skal «Oppdater appen» ta i bruk den og vise ny commit. Ikke slett nettleserdata ved en eldre utgave; lukk/åpne mens du er på nett og bruk oppdateringskontrollen.
 5. Meld konkret forløp, forventet/faktisk resultat, enhet/OS/nettleser/modus og PR/SHA. Rettelser gjøres i samme PR/testløp. Produktansvarlig gir uttrykkelig mergegodkjenning etter vurdering. Eventuelle uutførte fysiske kontroller skal oppgis, ikke kvitteres ut av CI.
+
+## Kontroll av setlisteoversikt og navn (#28)
+
+1. Opprett to setlister, også med samme navn. Kontroller at Lagre åpner den nyopprettede setlisten direkte med Setliste, tilbakepil og tom body, og at Tilbake viser riktig ny rad øverst med 0 sanger. Avbryt/tomt navn skal ikke opprette eller åpne en setliste. Start appen på nytt og prøv offline etter fullført caching.
+2. Endre ett navn fra radmenyen, avbryt en ny endring og prøv Slett med både Avbryt og bekreftelse. Sang-/person-/sangbokdata skal være uendret.
+3. Åpne en rad: Setliste, tilbakepil, hamburger og tomt innhold. Prøv Innstillinger-retur og Tilbake til riktig rad/posisjon. En reell appoppdatering skal bevare oversikt/detalj, valgt ID, posisjon og hovedmeny; ulagret navn må lagres/avbrytes før omlasting.
+4. Prøv tastatur/Escape, navnefeltets appmeny, lange navn, siste rad og skjermtastatur ved 320 px, nettbrett og desktop. Registrer fysisk iPad/Safari, Android/Chrome og installert PWA separat.
+
+`tests/e2e/setlists.spec.mjs` dekker lagring, v1-/v2-migrering, transaksjonsabort/nytt forsøk, offline/miljøskille, navigasjon, workeroppdatering og tilgjengelig betjening. Faktiske kjøreresultater rapporteres i PR-en. Eksisterende migreringstest dekker blokkert og avbrutt v1-oppgradering til gjeldende skjema.
 
 ## Etter merge
 

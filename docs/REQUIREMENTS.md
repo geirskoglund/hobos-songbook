@@ -16,7 +16,7 @@ Opprinnelig grunnlag er den daterte spesifikasjonen 5. november 2026 i [issue #1
 - **[B]** Skriftstørrelse i sangvisning justeres og huskes som personlig innstilling på tvers av sanger. V1 bruker fast mørkt Organisk-tema uavhengig av OS; lysmodus og temavelger inngår ikke. Eldre lagret lysmodus normaliseres uten å slette andre innstillinger.
 - **[B]** Appen styrer tekst- og kontekstbetjening på alle skjermer, også i skrivefelt. Nettleserens tekst-/lenkemenyer, native verktøytips og valideringsballonger erstattes av appens egne utvalg, feltmenyer, verktøytips og feilvisning. Merk alt, klipp/kopier, innliming, angre og vanlig tekstinnskriving beholdes. Innliming bruker eksisterende utklippstavletilgang eller tastaturet uten ny tilgangsforespørsel. Nettleserens hovedmenyer og nødvendige OS-funksjoner som filvalg/skjermtastatur er utenfor denne kontrollen. Se [DESIGN](DESIGN.md#felles-interaksjonsprinsipp).
 
-- **[B] Felles designsystem (#23):** Organisk brukes i alle eksisterende flater. Hovedmenyen er et høyre sidepanel under synlig header med hamburger; Innstillinger er egen side. Setlister, Synkronisering og Filer har foreløpig bare tittel/navigasjon. Dialoger gjenbruker ramme/footer for 1/2/3 handlinger uten endret lagringsbetydning. Kontroller implementeres én gang og kalles fra flere steder; overordnet layout vedlikeholdes ett sted.
+- **[B] Felles designsystem (#23):** Organisk brukes i alle eksisterende flater. Hovedmenyen er et høyre sidepanel under synlig header med hamburger; Innstillinger er egen side. Setlister har oversikt/navneadministrasjon og tom detaljside; Synkronisering og Filer har foreløpig bare tittel/navigasjon. Dialoger gjenbruker ramme/footer for 1/2/3 handlinger uten endret lagringsbetydning. Kontroller implementeres én gang og kalles fra flere steder; overordnet layout vedlikeholdes ett sted.
 
 ## 2. Domenemodell, bibliotek og sletting
 
@@ -127,12 +127,16 @@ Notater og gulmarkeringer bruker separate koordinatmodeller uten kopier av origi
 
 ## 6. Setlister og .setlist
 
-### Bygging, redigering og navigasjon
+### Levert del: oversikt og navn (#28)
 
-- **[B]** Sanger velges på tvers av kilder, med én/flere kildefiltre. Setlisterader viser alltid tittel, klingende toneart og personlig capo/grep, samt relevante kommentarer. Alternativ stemming vises bare ved avvik fra standard.
+- **[IMPLEMENTERT]** Setlister opprettes og navngis lokalt via navnedialog med Avbryt/Lagre. Oversikten viser navn og sangantall, nyeste først. Nye lister er tomme og viser 0 sanger. Etter vellykket opprettelse lukkes navnedialogen og den nye setlisten åpnes direkte i detaljsiden; Tilbake viser den nye raden i oversikten. Endre info bevarer intern ID og opprettelsesrekkefølge; like navn tillates. Slett krever bekreftelse og berører bare setlisten. Radtrykk åpner en tom side med Setliste, tilbakepil og hovedmeny. Oversiktsposisjon og valgt setliste bevares ved Innstillinger-retur og appoppdatering; ulagret navn beskyttes. Vanlig oppstart gjenåpner ikke setlisten.
+
+### Senere innholdseditor, redigering og navigasjon
+
+- **[B]** Sanger velges på tvers av kilder, med én/flere kildefiltre. Sangrader inne i en setliste viser alltid tittel, klingende toneart og personlig capo/grep, samt relevante kommentarer. Alternativ stemming vises bare ved avvik fra standard.
 - **[B]** Egen redigeringsmodus viser legg til/fjern/flytt-kontroller, med langt trykk/dra for rekkefølge. Vanlig bruk/fremføring skjuler dem for å hindre utilsiktede endringer. Ingen separat «Konsertmodus» i v1: manuell synk og eksplisitte redigeringsmodi gir vernet.
 - **[B]** Nye sanger legges nederst i markeringsrekkefølgen, også ved flervalg i én operasjon, ikke alfabetisk. Deretter kan elementene flyttes fritt.
-- **[B]** Ny tom setliste åpner direkte i redigering; eksisterende åpner vanlig visning. Alle endringer autospares. Ingen egen Lagre- eller Angre-knapp i setlisteeditoren.
+- **[B]** Når innholdseditoren leveres, åpner ny tom setliste direkte i redigering; eksisterende åpner vanlig visning. Alle endringer autospares. Ingen egen Lagre- eller Angre-knapp i setlisteeditoren.
 - **[B]** Sangreferanse kan fjernes uten å slette sang/kildefil. Hele setlisten slettes fra oversikten etter eksplisitt bekreftelse, aldri med sletting av refererte sanger.
 - **[B]** Pauser og fritekstpåminnelser har egne visuelt ulike rader og flyttes som sanger. Pauser kan ha valgfri varighet, eksempelvis 15 minutter; varighet er ikke obligatorisk.
 - **[B]** Trykk åpner detalj-/fremføringsvisning; sidesveip følger neste/forrige element i setlisterekkefølge, også pauser/påminnelser. Sangvisning starter alltid øverst ved valg/sveip, også tilbake til tidligere åpnet sang. Scrollposisjon gjenopprettes ikke ved slik navigasjon. Ved en appoppdatering beholdes derimot den aktive appvisningen og posisjonen; det er ikke et nytt sangvalg.
@@ -201,8 +205,8 @@ Se [AGENTS](../AGENTS.md) og [TESTING](TESTING.md) for full rolle- og publiserin
 
 ## 10. Gjenstående før funksjonell v1
 
-**[Å / DESIGN]** Administrasjon av sangbøker og eksterne kilder, setlister, originaleditorens musikalske verktøy/konvertering og nivåkontroller for dynamikk gjenstår å utforme. Originaleditorens grunnflate, sangvisning, sticky-høyde, dynamikkprofil og personlig redigering er utformet og implementert; de skal ikke omtales som ustartet designarbeid. Fysisk mobil-/nettbrettkontroll av lesbarhet, plassbruk, berøring og navigasjon gjenstår. Se [DESIGN](DESIGN.md#åpne-utformingsoppgaver).
+**[Å / DESIGN]** Administrasjon av sangbøker og eksterne kilder, setlistenes innholdseditor/fremføring, originaleditorens musikalske verktøy/konvertering og nivåkontroller for dynamikk gjenstår å utforme. Originaleditorens grunnflate, sangvisning, sticky-høyde, dynamikkprofil og personlig redigering er utformet og implementert; de skal ikke omtales som ustartet designarbeid. Fysisk mobil-/nettbrettkontroll av lesbarhet, plassbruk, berøring og navigasjon gjenstår. Se [DESIGN](DESIGN.md#åpne-utformingsoppgaver).
 
-**[TEKNISK]** Administrasjon av sangbøker og eksterne kilder, originaleditorens videre verktøy/konvertering, transponering av hele sangen, setlister, Dropbox-tilkobling, eksport/backup, skjermvåkenhet, full formatstøtte, ekstern identitetsmatching, konfliktsikker synk, `.setlist`-transport/publiseringsstatus og backup-manifest gjenstår. Codex velger implementeringsdetaljer innenfor vedtatte regler og løfter reelle produktmotstrid. Levert sangvisning og personlig redigering er del-leveranser; funksjonell v1 er ikke ferdig.
+**[TEKNISK]** Administrasjon av sangbøker og eksterne kilder, originaleditorens videre verktøy/konvertering, transponering av hele sangen, setlisteinnhold, Dropbox-tilkobling, eksport/backup, skjermvåkenhet, full formatstøtte, ekstern identitetsmatching, konfliktsikker synk, `.setlist`-transport/publiseringsstatus og backup-manifest gjenstår. Codex velger implementeringsdetaljer innenfor vedtatte regler og løfter reelle produktmotstrid. Levert sangvisning og personlig redigering er del-leveranser; funksjonell v1 er ikke ferdig.
 
 **[TEST]** Før v1 må rekursiv lesing fra eksterne delte mapper, fil-/kildeidentitet mellom Dropbox-kontoer, negativ tilgangstest, offline på iPad og systemdeling av `.setlist` til Dropbox fra mobil/nettbrett verifiseres. Se [TESTING](TESTING.md). Produktkravene er i hovedsak avklart; ingen nye serieintervjuer om hypotetiske unntak kreves.

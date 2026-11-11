@@ -48,7 +48,7 @@ export function floatingAction(name: string, choose: () => void) {
 }
 
 /** H04: shared placement, focus and dismissal; actions supply only their meaning. */
-export function contextMenu(opener: HTMLButtonElement, actions: {name: string; icon: string; run: () => void}[]) {
+export function contextMenu(opener: HTMLButtonElement, actions: {name: string; icon: string; run: () => void}[], side: 'above' | 'below' = 'above') {
   const name = opener.getAttribute('aria-label') || opener.textContent || 'Handlinger';
   const box = dialogFrame(name, 'context-menu');
   const menu = document.createElement('div'); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', name);
@@ -60,9 +60,21 @@ export function contextMenu(opener: HTMLButtonElement, actions: {name: string; i
   box.append(menu); arrowNavigation(menu, buttons);
   opener.setAttribute('aria-expanded', 'true');
   const lifecycle = openDialog(box, {opener, focus: buttons[0], outside: true,
-    place: () => placeOverlay(box, opener, {align: 'end', side: 'above'}),
+    place: () => placeOverlay(box, opener, {align: 'end', side}),
     closed: () => opener.setAttribute('aria-expanded', 'false')});
   return lifecycle;
+}
+
+/** L02: shared title/count row, with an independent menu target. */
+export function countRow(name: string, count: number, choose: () => void, menu: (opener: HTMLButtonElement) => void) {
+  const row = document.createElement('li'); row.className = 'count-row';
+  const button = actionButton('', choose); button.className = 'count-choice';
+  const title = document.createElement('span'); title.className = 'song-name'; title.textContent = name;
+  const detail = document.createElement('span'); detail.className = 'row-metadata'; detail.textContent = `${count} ${count === 1 ? 'sang' : 'sanger'}`;
+  button.setAttribute('aria-label', `${name}, ${detail.textContent}`); button.append(title, detail);
+  const more = actionButton('', () => menu(more), 'meny'); more.className = 'row-menu';
+  more.setAttribute('aria-label', `Handlinger for ${name}`); more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');
+  row.append(button, more); return {row, button, more};
 }
 
 /** D09 composes L05. No creation action or confirmation footer. */
