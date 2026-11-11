@@ -56,7 +56,7 @@ for(const mode of ['oversikt','innstillinger'])test(`worker update preserves ${m
  if(mode==='innstillinger'){await page.locator('.count-choice').last().click();await openSettings(page);}
  await request.post('/__test__/update?channel=test');await page.evaluate(async()=>{await(await navigator.serviceWorker.getRegistration()).update();});await page.getByRole('button',{name:'Oppdater nå',exact:true}).click();await expect(page.locator('.build')).toContainText('ccccccc');
  if(mode==='innstillinger'){await expect(page.locator('#settings')).toBeVisible();await closeSettings(page);await expect(page.locator('#setlist')).toBeVisible();await page.locator('#back').click();}
- await expect(page.locator('#setlists')).toBeVisible();expect(Math.abs(await page.evaluate(()=>scrollY)-y)).toBeLessThan(2);
+ await expect(page.locator('#setlists')).toBeVisible();await expect.poll(async()=>Math.abs(await page.evaluate(()=>scrollY)-y)).toBeLessThan(2);
 });
 
 test('unsaved names block update reload and pending save prevents cancel/double submission',async({page,request})=>{
