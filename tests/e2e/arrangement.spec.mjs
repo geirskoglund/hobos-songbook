@@ -21,7 +21,7 @@ test('one compact chart keeps musical content without generic heading or inline 
   await expect(page.locator('#song-body')).toContainText('Før'); await expect(page.locator('#song-body')).toContainText('Etter');
 });
 
-test('chart sticks, releases into its original position, and sticks again on reopening', async ({page}) => {
+test('chart pin toggles both ways, keeps its icons and resets on reopening', async ({page}) => {
   await page.setViewportSize({width:320,height:568}); await page.goto(base);
   const original='{t: Lang sang}\n{start_of_grid}\n'+('| C . . . | G . . . |\n').repeat(16)+'{end_of_grid}\n'+('Lang sangtekst\n').repeat(90);
   await importSong(page,'lang.cho',original); const before=await savedSongs(page);
@@ -35,11 +35,23 @@ test('chart sticks, releases into its original position, and sticks again on reo
   const scrollBefore=await page.evaluate(()=>scrollY);
   await page.getByRole('button',{name:'Frigjør akkordskjema'}).click();
   await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','false');
+  const pin=page.locator('#chart-close');
+  await expect(pin).toBeEnabled();await expect(pin).toBeFocused();
+  await expect(pin).toHaveAttribute('aria-label','Fest akkordskjema');await expect(pin).toHaveAttribute('aria-pressed','false');
+  await expect(pin.locator('svg > g')).toHaveAttribute('opacity','.20');
   await expect(page.locator('#chart-dock')).toBeVisible();
   await expect(page.locator('#chart-dock')).not.toBeInViewport();
   expect(await page.evaluate(()=>scrollY)).toBe(scrollBefore);
   await page.evaluate(()=>scrollTo(0,0)); await expect(page.locator('#chart-dock')).toBeInViewport();
+  await expect(pin).toBeVisible();const pinSize=await pin.boundingBox();expect(pinSize.width).toBeGreaterThanOrEqual(44);expect(pinSize.height).toBeGreaterThanOrEqual(44);
   await expect(page.locator('#chart-dock .grid-chord').first()).toHaveText('C');
+  await pin.focus();await page.keyboard.press('Enter');
+  await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','true');await expect(pin).toHaveAttribute('aria-pressed','true');
+  await expect(pin).toHaveAttribute('aria-label','Frigjør akkordskjema');await expect(pin.locator('svg > g')).toHaveAttribute('opacity','1');
+  await expect(pin).toBeFocused();
+  await page.evaluate(()=>scrollTo(0,800));
+  await expect.poll(async()=>Math.abs((await page.locator('#chart-dock').boundingBox()).y-(await page.locator('.topbar').boundingBox()).height)).toBeLessThan(1);
+  await pin.click();await expect(pin).toHaveAttribute('aria-pressed','false');
   await page.evaluate(()=>scrollTo(0,800)); await expect(page.locator('#chart-dock')).not.toBeInViewport();
   await page.getByRole('button',{name:'← Mine sanger'}).click(); await page.getByRole('button',{name:/Lang sang/}).click();
   await expect(page.locator('#chart-dock')).toBeVisible(); await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','true');
@@ -52,7 +64,7 @@ test('personal chart replaces all shared charts using the same presentation; no 
   const before=await savedSongs(page); const song=before[0];
   await page.evaluate(async songId => {
     await new Promise((resolve,reject)=>{
-      const request=indexedDB.open('hobos-songbook-test',1);
+      const request=indexedDB.open('hobos-songbook-test');
       request.onsuccess=()=>{const db=request.result, tx=db.transaction('personal','readwrite');
         tx.objectStore('personal').put({songId,chorus:{},chordGrid:'| F#m . | E . |'});
         tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);
@@ -69,6 +81,22 @@ test('personal chart replaces all shared charts using the same presentation; no 
   await expect(page.locator('#chart-dock .grid-chord')).toHaveText(['F#m','E']);
   await page.getByRole('button',{name:'← Mine sanger'}).click(); await importSong(page,'ren.txt','Ren tekst');
   await expect(page.locator('#chart-dock')).toHaveCount(0);
+});
+
+test('touch pin changes on release, remains usable when off and survives an editor visit',async({browser})=>{
+  const context=await browser.newContext({viewport:{width:390,height:800},isMobile:true,hasTouch:true}),page=await context.newPage();
+  try {
+    await page.goto('http://127.0.0.1:4173'+base);await importSong(page,'pin.cho','{t: Berøringspinne}\n{sog}\n| D . | A . |\n{eog}\nTekst');
+    const before=await savedSongs(page),pin=page.locator('#chart-close'),cdp=await context.newCDPSession(page);
+    const bounds=await pin.boundingBox(),point={x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2};
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});await expect(pin).toHaveAttribute('aria-pressed','true');
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await expect(pin).toHaveAttribute('aria-pressed','false');
+    await expect(pin).toBeVisible();await expect(pin).toBeEnabled();await expect(pin.locator('svg > g')).toHaveAttribute('opacity','.20');
+    await page.locator('#edit-song').tap();await expect(pin).toBeHidden();await page.locator('#back').tap();
+    await expect(pin).toBeVisible();await expect(pin).toHaveAttribute('aria-pressed','false');await pin.tap();await expect(pin).toHaveAttribute('aria-pressed','true');
+    const current=await pin.boundingBox();await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:current.x+current.width/2,y:current.y+current.height/2}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+    await expect(pin).toHaveAttribute('aria-pressed','true');await expect(pin.locator('svg > g')).toHaveAttribute('opacity','1');expect(await savedSongs(page)).toEqual(before);
+  } finally {await context.close();}
 });
 
 test('dynamics have a straight left edge and exact fixed widths in a 30px margin', async ({page},testInfo) => {

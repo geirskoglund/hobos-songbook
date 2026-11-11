@@ -1,7 +1,9 @@
 import type {Song, SongPersonal} from '../domain/song.ts';
 import {originalChangeError} from '../domain/original.ts';
 import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
-export const schemaVersion = 1;
+import {standardSongbook, type Songbook} from '../domain/songbook.ts';
+export const schemaVersion = 2;
+export interface LibrarySnapshot {songs: Song[]; songbooks: Songbook[]; personal: Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>[]}
 export function songStorage(namespace: string) {
   if (!['hobos-songbook-production', 'hobos-songbook-test'].includes(namespace)) throw new Error('Ugyldig lagringsmiljø.');
   async function open(): Promise<IDBDatabase> {
@@ -15,6 +17,15 @@ export function songStorage(namespace: string) {
         // Additive, versioned schema: never reset existing data.
         if (!db.objectStoreNames.contains('songs')) db.createObjectStore('songs', {keyPath: 'id'});
         if (!db.objectStoreNames.contains('personal')) db.createObjectStore('personal', {keyPath: 'songId'});
+        const books = db.createObjectStore('songbooks', {keyPath: 'id'});
+        books.add({...standardSongbook});
+        const cursor = request.transaction!.objectStore('songs').openCursor();
+        cursor.onsuccess = () => {
+          const entry = cursor.result;
+          if (!entry) return;
+          if (!entry.value.songbookId) entry.update({...entry.value, songbookId: standardSongbook.id});
+          entry.continue();
+        };
       };
       request.onblocked = () => {failed = true; reject(new Error('Sanglageret er blokkert. Lukk andre faner med appen og prøv igjen.'));};
       request.onerror = () => reject(new Error('Kunne ikke åpne sanglageret. Kontroller at nettleseren tillater lokal lagring, og prøv igjen.'));
@@ -69,6 +80,23 @@ export function songStorage(namespace: string) {
   }
   return {
     updatePersonal,
+    async library(): Promise<LibrarySnapshot> {
+      const db = await open();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(['songs', 'songbooks', 'personal'], 'readonly');
+        const songs = tx.objectStore('songs').getAll(), books = tx.objectStore('songbooks').getAll();
+        const metadata: LibrarySnapshot['personal'] = [];
+        const cursor = tx.objectStore('personal').openCursor();
+        cursor.onsuccess = () => {
+          const entry = cursor.result;
+          if (!entry) return;
+          const {songId, capo, tuning} = entry.value as SongPersonal;
+          metadata.push({songId, capo, tuning}); entry.continue();
+        };
+        tx.oncomplete = () => {db.close(); resolve({songs: songs.result, songbooks: books.result, personal: metadata});};
+        tx.onabort = tx.onerror = () => {db.close(); reject(new Error('Kunne ikke lese sanglisten og metadata. Prøv igjen; lagrede data er beholdt.'));};
+      });
+    },
     async saveDraft(song: Song, baseline: Song | null, change?: (current: SongPersonal) => SongPersonal): Promise<void> {
       const db = await open();
       return new Promise((resolve,reject) => {

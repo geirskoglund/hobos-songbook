@@ -43,7 +43,7 @@ test('mobile, tablet and desktop show real environment, local resources and sepa
     await page.setViewportSize({width, height});
     for (const channel of ['app', 'test']) {
       await page.goto(`${base}${channel}/`); await ready(page);
-      await expect(page.getByRole('heading', {level: 1})).toHaveText("Hobo's Songbook");
+      await expect(page.getByRole('heading', {level: 1})).toHaveText('Sanger');
       await expect(page.locator('.environment')).toHaveText(channel === 'test' ? 'Testversjon' : 'Produksjon');
       await expect(page.locator('.build')).toContainText(channel === 'test' ? 'PR #7' : 'master');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

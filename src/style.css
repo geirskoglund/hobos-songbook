@@ -1,4 +1,5 @@
 @import "./theme.css";
+@import "./ui/list-controls.css";
 * {box-sizing: border-box;}
 body {margin: 0; min-width: 280px;}
 [hidden] {display: none !important;}
@@ -11,27 +12,22 @@ button:hover, summary:hover {border-color: var(--accent);}
 button:disabled, input:disabled {opacity: .65; cursor: wait;}
 :where(button, a, input, select, summary):focus-visible {outline: 3px solid var(--accent); outline-offset: 4px;}
 #app {max-width: var(--frame-width); min-height: 100svh; margin: auto; display: flex; flex-direction: column; padding: 0 0 env(safe-area-inset-bottom);}
-.topbar {position: sticky;top: 0;z-index: var(--layer-header);display: flex;align-items: center;justify-content: space-between;gap: 8px;min-height: calc(var(--header-min-height) + env(safe-area-inset-top));padding: env(safe-area-inset-top) var(--gutter) 0;background: var(--header);border-bottom: 1px solid color-mix(in srgb,var(--border) 45%,transparent);}
+.topbar {position: sticky;top: 0;z-index: var(--layer-header);display: grid;grid-template-columns: repeat(3,minmax(0,1fr));align-items: center;gap: 8px;min-height: calc(var(--header-min-height) + env(safe-area-inset-top));padding: env(safe-area-inset-top) var(--gutter) 0;background: var(--header);border-bottom: 1px solid color-mix(in srgb,var(--border) 45%,transparent);}
 .wordmark {text-decoration: none; font-size: .8rem; letter-spacing: .12em; font-weight: 750;}
 .wordmark span {font-weight: 400; color: var(--muted);}
 [data-channel="test"] .environment {color: var(--accent); border-color: var(--accent);}
 h1 {font-size: clamp(1.8rem, 5vw, 2.7rem); letter-spacing: -.035em; line-height: 1.2; margin: 0; font-weight: 600; overflow-wrap: anywhere;}
 h2 {font-size: 1.2rem; font-weight: 600; margin: 28px 0 12px;}
-.eyebrow {font-size: .67rem; letter-spacing: .2em; color: var(--accent); margin: 0 0 14px;}
-.intro {color: var(--muted); margin: 16px 0 28px; line-height: 1.6;}
-.import-panel, .display-settings {border: 1px solid var(--border); border-radius: 12px; padding: 18px; background: var(--panel);}
-.import-panel label {font-weight: 650;}
+.display-settings {border: 1px solid var(--border); border-radius: 12px; padding: 18px; background: var(--panel);}
 .hint {font-size: .82rem; color: var(--muted); line-height: 1.6; overflow-wrap: anywhere;}
 input[type="file"] {width: 100%; font-size: .88rem;}
 input::file-selector-button {color: var(--text); margin-right: 10px;}
-.song-list {list-style: none; margin: 0; padding: 0; display: grid; gap: 10px;}
-.song-name {font-size: 1.1rem; font-weight: 600;}
-.song-choice small {font-size: .8rem; color: var(--muted);}
 #song-status {line-height: 1.6; color: var(--accent); overflow-wrap: anywhere;}
-#song-status:empty, #settings-status:empty {display: none;}
+#song-status:empty, #settings-status:empty, #filter-status:empty, #library-status:empty {display: none;}
 #back, #menu-button, #menu-close {min-height: var(--touch-target); width: 40px; padding: 4px; border: 0; background: none; text-align: center; font-size: 1.3rem; flex: none;}
+.nav-right {justify-self:end;justify-content:flex-end;width:100%;}
 .nav-left, .nav-right {display: flex; align-items: center; gap: 8px; min-width: 0;}
-.environment {font-size: .75rem; border: 1px solid var(--border);padding: 4px 8px; border-radius: 20px;}
+.environment {min-width:0;overflow-wrap:anywhere;font-size: .75rem; border: 1px solid var(--border);padding: 4px 8px; border-radius: 20px;}
 #song-content {font-size: var(--song-size); line-height: 1.2; min-width: 0;}
 #song-content h1 {font-size: clamp(28px,1.15em,32px); margin-bottom: .15em;}
 .song-line {min-height: 1.2em; font-family: var(--font-song); overflow-wrap: anywhere;}
@@ -72,7 +68,7 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
   #dynamics-profile {display:none;}
 }
 .sr-only {position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;}
-.chord-grid {margin: 0; padding: 0; font: 14px/1.25 var(--font-chord); min-width: 0;}
+.chord-grid {margin: 0; padding: 0; font: 16px/1.25 var(--font-chord); min-width: 0;}
 .chord-grid + .chord-grid {margin-top: 4px;}
 .chord-grid figcaption {font: 600 11px/1.3 var(--font-ui); color: var(--muted); margin: 0 0 2px; overflow-wrap: anywhere;}
 .grid-row {padding: 0;}
@@ -84,12 +80,12 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 .grid-cell {min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: center; justify-content:flex-start; gap:0 .3ch; padding:1px 0;}
 .grid-cell[aria-label="Tom akkordcelle"] {flex:none; width:1ch;}
 .grid-cell:not([aria-label="Tom akkordcelle"]) ~ .grid-cell:not([aria-label="Tom akkordcelle"]) {margin-inline-start:2ch;}
-.grid-chord {color: var(--chord); font-weight: 650; overflow-wrap: anywhere; max-width: 100%;}
+.grid-chord {color: var(--chord); font-size: 18px; font-weight: 650; overflow-wrap: anywhere; max-width: 100%;}
 .grid-symbol {color: var(--text); overflow-wrap: anywhere; max-width: 100%;}
 .grid-note {color: var(--comment); font: italic 11px/1.3 var(--font-ui); margin: 1px 0; white-space: pre-wrap; overflow-wrap: anywhere;}
 .grid-blank {min-height: 3px;}
-#chart-dock {position: sticky; z-index: 5; top: var(--header-height); margin: 4px 0 10px; padding: 6px 34px 6px 6px; border-bottom: 1px solid var(--border); background: var(--bg);}
-#chart-close {position: absolute; top: 0; right: -4px; width: 34px; min-height: 34px; padding: 0; text-align: center; font-size: 1.25rem; border: 0; background: none; color: var(--muted);}
+#chart-dock {position: sticky; z-index: 5; top: var(--header-height); min-height: var(--touch-target); margin: 4px 0 10px; padding: 6px 48px 6px 6px; border-bottom: 1px solid var(--border); background: var(--bg);}
+#chart-close {position: absolute; top: 0; right: 0; width: var(--touch-target); min-height: var(--touch-target); padding: 0; text-align: center; font-size: 1.25rem; border: 0; background: none; color: var(--muted);}
 .chart-fit {overflow: clip;}
 .chart-natural {transform-origin: top center;}
 .menu-heading {display: flex; justify-content: space-between; align-items: center;}
@@ -104,12 +100,6 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 .song-space, .grid-blank + .grid-blank {display: none;}
 
 /* Editing shares the performance surface; only the compact toolbar stays visible. */
-.song-list > li {display:flex; align-items:stretch; position:relative; border:1px solid var(--border); border-radius:8px; background:var(--panel)}
-.song-choice {width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 16px 18px;flex:1; min-width:0; border:0; background:none}
-.song-actions {position:relative; flex:none; align-self:center}
-.song-actions summary {display:grid; place-items:center; width:48px; min-height:48px; cursor:pointer; list-style:none; font-size:1.4rem}
-.song-actions summary::-webkit-details-marker {display:none}
-.song-actions[open] > button {position:absolute; right:8px; top:100%; z-index:30; min-width:8rem; box-shadow:0 6px 24px #0005}
 /* The toolbar contains familiar icons; Save precedes editing tools. */
 .edit-toolbar {position:fixed; left:0; right:0; top:var(--header-height); z-index:12; display:flex; align-items:center; gap:6px; padding:4px var(--content-gutter); width:100%; margin:0; border:1px solid var(--border); border-radius:0; border-inline:0; background:var(--panel); box-shadow:0 3px 12px #0003; font:14px/1.3 var(--font-ui)}
 :root[data-page="reader"] .editing-active main {padding-top:calc(18px + var(--toolbar-height));}
@@ -234,7 +224,7 @@ body.menu-open {overflow:hidden}
 #settings > footer .build {overflow-wrap:anywhere}
 /* All dialogs use one frame and one action footer, including the fullscreen editor. */
 .dialog-frame {color:var(--text);background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-panel);overflow:auto}
-.dialog-frame:not(.original-editor) {padding:16px 16px 0}
+.dialog-frame:has(> .dialog-footer):not(.original-editor) {padding:16px 16px 0}
 .dialog-footer {flex:none;display:flex;gap:0;margin:16px -16px 0;padding:0;border-top:1px solid var(--border);background:var(--panel);font:inherit;justify-content:stretch}
 .dialog-footer button {display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-width:0;min-height:64px;margin:0;padding:12px 8px;border:0;border-radius:0;background:none;color:var(--muted);font:500 clamp(13px,2vw,18px)/1.35 var(--font-ui);text-align:center;overflow-wrap:anywhere;cursor:pointer}
 .dialog-footer button .icon {width:20px;height:20px}
@@ -246,8 +236,8 @@ body.menu-open {overflow:hidden}
 main {flex: 1; width: min(100%, var(--content-width)); padding: 18px var(--gutter); margin: 0 auto; min-width: 0;display:flex;flex-direction:column}
 main > section {flex:1;min-width:0}
 #back, #menu-button {width:var(--touch-target);min-width:var(--touch-target)}
-.dialog-frame:not(.original-editor)[open] {display:flex;flex-direction:column}
-.dialog-frame:not(.original-editor) > :not(.dialog-footer) {min-height:0;overflow:auto}
+.dialog-frame:has(> .dialog-footer):not(.original-editor)[open] {display:flex;flex-direction:column}
+.dialog-frame:has(> .dialog-footer):not(.original-editor) > :not(.dialog-footer) {min-height:0;overflow:auto}
 .dialog-frame > h2 {margin:0 0 16px;font-size:22px;flex:none}
 .original-editor {position:fixed; margin:0; max-width:none; max-height:none;border:0;border-radius:0;padding:max(12px,env(safe-area-inset-top)) 0 0; background:var(--bg); color:var(--text); overflow:hidden; box-sizing:border-box}
 .original-editor > :not(.dialog-footer) {margin-left:max(12px,env(safe-area-inset-left));margin-right:max(12px,env(safe-area-inset-right))}

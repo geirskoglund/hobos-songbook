@@ -11,7 +11,7 @@ export async function importSong(page, name = 'sang.CHO', content = original) {
 export async function savedSongs(page) {
   return page.evaluate(() => new Promise((resolve, reject) => {
     const namespace = `hobos-songbook-${location.pathname.includes('/app/') ? 'production' : 'test'}`;
-    const request = indexedDB.open(namespace, 1);
+    const request = indexedDB.open(namespace);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const db = request.result, get = db.transaction('songs').objectStore('songs').getAll();

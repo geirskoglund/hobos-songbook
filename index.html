@@ -21,15 +21,9 @@
       <nav id="main-menu" aria-label="Hovedmeny" hidden></nav>
       <main>
         <section id="library" aria-labelledby="library-title">
-          <p class="eyebrow">FOR ØVING OG SCENE</p>
-          <h1 id="library-title" tabindex="-1">Hobo's Songbook</h1>
-          <p class="intro">Sangene dine, klare når du trenger dem.</p>
-          <div class="import-panel">
-            <label for="song-file">Legg til en sang</label>
-            <p id="file-help" class="hint">Velg én UTF-8-tekstfil: .cho, .chordpro, .chopro, .crd, .pro, .chord eller .txt. Filen beholdes uendret.</p>
-            <input id="song-file" type="file" accept=".cho,.chordpro,.chopro,.crd,.pro,.chord,.txt" aria-describedby="file-help" />
-          </div>
-          <h2>Mine sanger</h2>
+          <h1 id="library-title" class="sr-only" tabindex="-1">Sanger</h1>
+          <input id="song-file" type="file" accept=".cho,.chordpro,.chopro,.crd,.pro,.chord,.txt" aria-label="Importer sangfil" hidden />
+          <p id="filter-status" class="hint" role="status"></p>
           <p id="library-status" role="status">Åpner sanglageret…</p>
           <button id="retry-storage" type="button" hidden>Prøv sanglageret igjen</button>
           <ul id="song-list" class="song-list"></ul>

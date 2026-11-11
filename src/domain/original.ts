@@ -1,5 +1,6 @@
 import {parseChordPro, parseLine} from './chordpro.ts';
 import type {Song, SongPersonal} from './song.ts';
+import {standardSongbook} from './songbook.ts';
 
 export const validTime = (value: string) => !value || /^(?:[1-9]\d*(?:\s*\+\s*[1-9]\d*)*\s*\/\s*[1-9]\d*|C\|?)$/.test(value);
 export interface OriginalFields {title: string; key: string; time: string; text: string}
@@ -69,5 +70,5 @@ export function withOriginal(song: Song, original: string): Song {
   return {...song,original,title:parsed.title,key:parsed.key};
 }
 export function newSong(): Song {
-  return {id:crypto.randomUUID(),original:'',title:'',key:null,origin:{kind:'local',filename:'',importedAt:new Date().toISOString()}};
+  return {id:crypto.randomUUID(),songbookId:standardSongbook.id,original:'',title:'',key:null,origin:{kind:'local',filename:'',importedAt:new Date().toISOString()}};
 }
