@@ -1,14 +1,14 @@
 import {test,expect} from '@playwright/test';
-import {importSong,openMenu} from './song-helpers.mjs';
+import {importSong,openMenu,openSettings,closeSettings} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
-const edit=async page=>{await openMenu(page);await page.getByRole('button',{name:'Rediger',exact:true}).click();await expect(page.locator('.edit-toolbar')).toBeVisible();};
+const edit=async page=>{await page.getByRole('button',{name:'Rediger',exact:true}).click();await expect(page.locator('.edit-toolbar')).toBeVisible();};
 const contextBlocked=async locator=>expect(await locator.evaluate(node=>!node.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true})))).toBe(true);
 const hold=async(page,context,locator)=>{const r=await locator.boundingBox(),cdp=await context.newCDPSession(page);await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:r.x+15,y:r.y+15}]});await page.waitForTimeout(550);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});};
 test.beforeEach(async({request})=>{await request.post('/__test__/reset');});
 
 test('context menus are blocked throughout library, settings, performance and editing; app controls work',async({page})=>{
- await page.goto(url);for(const selector of ['#library-title','.wordmark','#song-file','#menu-button'])await contextBlocked(page.locator(selector));
- await openMenu(page);for(const selector of ['#settings-heading','#theme','#font-size','#show-grids','.build'])await contextBlocked(page.locator(selector));await page.locator('#theme').selectOption('light');await page.locator('#menu-close').click();
+ await page.goto(url);for(const selector of ['#library-title','#page-title','#song-file','#menu-button'])await contextBlocked(page.locator(selector));
+ await openSettings(page);for(const selector of ['#settings-heading','#font-size','#show-grids','.build'])await contextBlocked(page.locator(selector));await closeSettings(page);
  await importSong(page,'test.cho','{t: Sang}\n{sog}\n| C . |\n{eog}\n[C]Første linje\nAndre linje');
  for(const selector of ['#song-title','#chart-dock','.lyric'])await contextBlocked(page.locator(selector).first());
  await edit(page);await contextBlocked(page.locator('#capo-pill'));await page.locator('#capo-pill').click();await contextBlocked(page.locator('#personal-capo'));await expect(page.getByRole('menu',{name:'Tekstvalg'})).toHaveCount(0);await expect(page.locator('.popup-capo input')).toHaveCount(0);await page.getByRole('button',{name:'Avbryt',exact:true}).click();

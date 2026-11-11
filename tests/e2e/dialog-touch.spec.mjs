@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {importSong,openMenu,savedSongs,setDisplay} from './song-helpers.mjs';
 const url='http://127.0.0.1:4173/hobos-songbook/test/';
 const modal=page=>page.getByRole('dialog',{name:'Rediger sangtekst',exact:true});
-const fresh=async page=>{await openMenu(page);await page.getByRole('button',{name:'Ny sang',exact:true}).tap();await expect(modal(page)).toBeVisible();};
+const fresh=async page=>{await page.getByRole('button',{name:'Ny sang',exact:true}).tap();await expect(modal(page)).toBeVisible();};
 const tap=async(page,locator)=>{const r=await locator.boundingBox();await page.touchscreen.tap(r.x+r.width/2,r.y+r.height/2);};
 
 test.beforeEach(async({request})=>{await request.post('/__test__/reset');});
@@ -18,7 +18,7 @@ test('short touches preserve native text activation in new songs and note fields
   await modal(page).getByRole('button',{name:'OK',exact:true}).tap();await page.getByRole('button',{name:'Notat',exact:true}).tap();await page.locator('.song-line').first().tap();
   await page.locator('#annotation-note').tap();await expect(page.locator('#annotation-note')).toBeFocused();await page.keyboard.insertText('Notat i ny sang');await page.getByRole('dialog',{name:'Notat',exact:true}).getByRole('button',{name:'OK',exact:true}).tap();await expect(page.locator('.personal-note')).toContainText('Notat i ny sang');
   await page.locator('#back').tap();await page.getByRole('button',{name:'Forkast endringer',exact:true}).tap();
-  await importSong(page,'struktur.cho','{t: Eksisterende}\n{soc}\n[D]Samme tekst\n{eoc}\n{chorus}');await openMenu(page);await page.getByRole('button',{name:'Rediger',exact:true}).tap();await page.getByRole('button',{name:'Notat',exact:true}).tap();await page.locator('.song-line').first().tap();
+  await importSong(page,'struktur.cho','{t: Eksisterende}\n{soc}\n[D]Samme tekst\n{eoc}\n{chorus}');await page.getByRole('button',{name:'Rediger',exact:true}).tap();await page.getByRole('button',{name:'Notat',exact:true}).tap();await page.locator('.song-line').first().tap();
   await page.locator('#annotation-note').tap();await page.keyboard.insertText('Notat i eksisterende sang');await page.getByRole('dialog',{name:'Notat',exact:true}).getByRole('button',{name:'OK',exact:true}).tap();await expect(page.locator('.personal-note')).toContainText('Notat i eksisterende sang');
   for(let n=0;n<5;n++){await page.locator('.personal-note').tap();await page.locator('#annotation-note').tap();await page.keyboard.press('ControlOrMeta+a');await page.keyboard.insertText(`Ny kommentar ${n}`);await page.getByRole('dialog',{name:'Notat',exact:true}).getByRole('button',{name:'OK',exact:true}).tap();await expect(page.locator('.personal-note')).toContainText(`Ny kommentar ${n}`);}
   await page.locator('#edit-save').tap();await expect(page.locator('#edit-save')).toBeDisabled();await page.locator('#back').tap();await expect(page.locator('.personal-note')).toHaveText('Ny kommentar 4');

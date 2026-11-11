@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="690" height="151" viewBox="0 0 690 151">
+  <title>Fanevelger – Filinnhold og Egentilpasning</title>
+  <desc>To godkjente tilstander, kopiert fra sangeditorens verktøylinje.</desc>
+  <rect x="0" y="0" width="690" height="151" fill="#272421" rx="0"/>
+  <g id="tabrow-0" transform="translate(0 -58)">
+    <rect x="0" y="58" width="690" height="58" fill="#211F1D" rx="0"/>
+    <text x="31" y="89" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="16.5" font-weight="600" text-anchor="start">Filinnhold</text>
+    <line x1="31" y1="108" x2="137" y2="108" stroke="#E5BD8D" stroke-width="2.5"/>
+    <text x="177" y="89" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="16.5" font-weight="400" text-anchor="start">Egentilpasning</text>
+    <line x1="19" y1="116" x2="671" y2="116" stroke="#8F7B69" stroke-width="0.8"/>
+  </g>
+  <g id="tabrow-78" transform="translate(0 20)">
+    <rect x="0" y="58" width="690" height="58" fill="#211F1D" rx="0"/>
+    <text x="31" y="89" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="16.5" font-weight="400" text-anchor="start">Filinnhold</text>
+    <text x="177" y="89" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="16.5" font-weight="600" text-anchor="start">Egentilpasning</text>
+    <line x1="177" y1="108" x2="322" y2="108" stroke="#E5BD8D" stroke-width="2.5"/>
+    <line x1="19" y1="116" x2="671" y2="116" stroke="#8F7B69" stroke-width="0.8"/>
+  </g>
+</svg>

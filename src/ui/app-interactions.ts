@@ -1,3 +1,4 @@
+import {placeOverlay} from './layout.ts';
 type TextControl = HTMLInputElement | HTMLTextAreaElement;
 const textControl = (target: EventTarget | null): TextControl | undefined => {
   if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) || target.disabled || target.readOnly) return;
@@ -55,10 +56,7 @@ export function startAppInteractions() {
     parent(control).append(box);menu=box;menuControl=control;
     const initial=control.getBoundingClientRect(),dx=x-initial.left,dy=y-initial.top;
     const place=()=>{
-      const viewport=visualViewport,left=viewport?.offsetLeft ?? 0,top=viewport?.offsetTop ?? 0,width=viewport?.width ?? innerWidth,height=viewport?.height ?? innerHeight,rect=control.getBoundingClientRect();
-      box.style.maxHeight=`${Math.max(60,height-16)}px`;
-      box.style.left=`${Math.max(left+8,Math.min(rect.left+dx,left+width-box.offsetWidth-8))}px`;
-      box.style.top=`${Math.max(top+8,Math.min(rect.top+dy+10,top+height-box.offsetHeight-8))}px`;
+      const rect=control.getBoundingClientRect();placeOverlay(box,undefined,{point:{x:rect.left+dx,y:rect.top+dy+10}});
     };
     const observer=new ResizeObserver(place);observer.observe(box);visualViewport?.addEventListener('resize',place);window.addEventListener('resize',place);
     disposeMenu=()=>{observer.disconnect();visualViewport?.removeEventListener('resize',place);window.removeEventListener('resize',place);};place();
@@ -88,7 +86,7 @@ export function startAppInteractions() {
   function tooltipFor(target:HTMLElement) {
     hideTooltip();const text=target.dataset.tooltip;if(!text)return;
     const box=document.createElement('div');box.className='app-tooltip';box.setAttribute('role','tooltip');box.textContent=text;parent(target).append(box);tooltip=box;
-    const rect=target.getBoundingClientRect();box.style.left=`${Math.max(8,Math.min(rect.left,innerWidth-box.offsetWidth-8))}px`;box.style.top=`${Math.max(8,Math.min(rect.bottom+6,innerHeight-box.offsetHeight-8))}px`;
+    placeOverlay(box,target);
   }
   document.addEventListener('pointerdown',down,true);document.addEventListener('pointermove',move,{capture:true,passive:false});document.addEventListener('pointerup',up,true);document.addEventListener('pointercancel',()=>{stopHold();suppressTouchEnd=false;closeMenu();},true);
   document.addEventListener('touchend',touchEnd,{capture:true,passive:false});document.addEventListener('contextmenu',context,true);

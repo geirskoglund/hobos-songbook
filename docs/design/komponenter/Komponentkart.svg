@@ -1,0 +1,1428 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1872" height="8463" viewBox="0 0 1872 8463">
+  <rect x="0" y="0" width="1872" height="8463" fill="#272421"/>
+  <rect x="0" y="0" width="1872" height="222" fill="#211F1D"/>
+  <text x="57" y="52" fill="#E2C097" font-size="17" font-family="Inter,Arial,sans-serif" font-weight="600">HOBO’S SONGBOOK    /    DESIGNSYSTEM</text>
+  <text x="57" y="109" fill="#F4EDE3" font-size="52" font-family="Inter,Arial,sans-serif" font-weight="600">Komponentkart</text>
+  <text x="57" y="145" fill="#C7BAA9" font-size="20" font-family="Inter,Arial,sans-serif" font-weight="400">Generelle UI-konsepter  ·  varianter og eksempler definerer ikke brukssteder</text>
+  <text x="57" y="179" fill="#C7BAA9" font-size="18" font-family="Inter,Arial,sans-serif" font-weight="400">Individuelle SVG-filer er visuell fasit. Dette kartet er samlet referanse og indeks.</text>
+  <rect x="1460" y="37" width="355" height="119" fill="#322E2A" stroke="#8F7B69" rx="14" stroke-width="1"/>
+  <text x="1482" y="68" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">32 KOMPONENTTYPER</text>
+  <text x="1482" y="101" fill="#C7BAA9" font-size="18" font-family="Inter,Arial,sans-serif" font-weight="400">6 komponentfamilier</text>
+  <text x="1482" y="126" fill="#C7BAA9" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">12 godkjente fargeroller</text>
+  <g id="section_10"><rect x="56" y="245" width="6" height="30" fill="#E2C097" rx="3"/>
+  <text x="79" y="268" fill="#F4EDE3" font-size="27" font-family="Inter,Arial,sans-serif" font-weight="600">Navigasjon</text>
+  <text x="1814" y="266" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">2 komponenter</text>
+  <rect x="56.0" y="297" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="329" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Toppfelt</text>
+  <text x="904.0" y="326" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">N01_Toppfelt</text>
+  <line x1="78.0" y1="344" x2="900.0" y2="344" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="368" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="411.86290322580646" width="398.0" height="157.2741935483871" viewBox="0 0 620 245"><rect x="0" y="0" width="620" height="245" fill="#272421"/>
+  <rect x="17" y="18" width="586" height="81" fill="#211F1D" rx="5"/>
+  <g transform="translate(28 46) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="m12 19-7-7 7-7M19 12H5"/>
+    </g>
+  </g>
+  <g transform="translate(236 46) scale(0.9166666666666666)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497zM15 5l4 4"/>
+    </g>
+  </g>
+  <text x="269" y="63" fill="#F4EDE3" font-size="18" font-weight="400" font-family="Inter,Arial,sans-serif">Rediger</text>
+  <rect x="481" y="43" width="66" height="29" fill="#211F1D" stroke="#8F7B69" stroke-width="1" rx="13"/>
+  <text x="514" y="61" fill="#C7BAA9" font-size="11" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="middle">TEST</text>
+  <g transform="translate(566 47) scale(0.9166666666666666)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="5" cy="12" r="1.3"/>
+      <circle cx="12" cy="12" r="1.3"/>
+      <circle cx="19" cy="12" r="1.3"/>
+    </g>
+  </g>
+  <text x="42" y="32" fill="#F4EDE3" font-size="10" font-weight="400" font-family="Inter,Arial,sans-serif"/>
+  <rect x="17" y="123" width="586" height="81" fill="#211F1D" rx="5"/>
+  <g transform="translate(28 151) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="m12 19-7-7 7-7M19 12H5"/>
+    </g>
+  </g>
+  <g transform="translate(236 151) scale(0.9166666666666666)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M2 12a10.75 10.75 0 0 1 20 0 10.75 10.75 0 0 1-20 0"/>
+      <circle cx="12" cy="12" r="3"/>
+    </g>
+  </g>
+  <text x="269" y="168" fill="#F4EDE3" font-size="18" font-weight="400" font-family="Inter,Arial,sans-serif">Visning</text>
+  <rect x="481" y="148" width="66" height="29" fill="#211F1D" stroke="#8F7B69" stroke-width="1" rx="13"/>
+  <text x="514" y="166" fill="#C7BAA9" font-size="11" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="middle">TEST</text>
+  <g transform="translate(566 152) scale(0.9166666666666666)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="5" cy="12" r="1.3"/>
+      <circle cx="12" cy="12" r="1.3"/>
+      <circle cx="19" cy="12" r="1.3"/>
+    </g>
+  </g>
+  <text x="42" y="137" fill="#F4EDE3" font-size="10" font-weight="400" font-family="Inter,Arial,sans-serif"/>
+</svg>
+  <text x="497.0" y="385" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="409" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Tilbake til venstre; midtstilt</text>
+  <text x="497.0" y="429" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">modushandling; miljømerking og meny til</text>
+  <text x="497.0" y="449" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">høyre. Uten appnavn.</text>
+  <text x="497.0" y="481" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="503" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Visning → Rediger / Redigering →</text>
+  <text x="497.0" y="522" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Visning</text>
+  <text x="497.0" y="552" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="574" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Rediger / Visning</text>
+  <line x1="78.0" y1="637" x2="900.0" y2="637" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="647" width="12" height="12" fill="#211F1D" rx="2"/>
+  <text x="97.0" y="658" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Toppfelt (#211F1D)</text>
+  <rect x="79.0" y="666" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="677" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="685" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="696" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="647" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="509.0" y="658" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="666" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="677" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="297" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="329" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Navigasjonspanel</text>
+  <text x="1798.0" y="326" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">N02_Navigasjonspanel</text>
+  <line x1="972.0" y1="344" x2="1794.0" y2="344" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="368" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="995.4578313253012" y="373.0" width="351.08433734939763" height="235.00000000000003" viewBox="0 0 620 415"><rect x="0" y="0" width="620" height="415" fill="#272421"/><rect x="0" y="0" width="620" height="61" fill="#211F1D"/><text x="24" y="38" fill="#F4EDE3" font-size="21" font-weight="500" font-family="Inter,Arial,sans-serif">Sanger</text><rect x="482" y="17" width="76" height="29" fill="#211F1D" rx="14" stroke="#8F7B69" stroke-width="1"/><text x="520" y="36" fill="#F4EDE3" font-size="11" font-weight="500" font-family="Inter,Arial,sans-serif" text-anchor="middle">TEST</text><circle cx="576" cy="31" r="2.3" fill="#F4EDE3"/><circle cx="587" cy="31" r="2.3" fill="#F4EDE3"/><circle cx="598" cy="31" r="2.3" fill="#F4EDE3"/><line x1="0" y1="61" x2="620" y2="61" stroke="#8F7B69" stroke-width="1" opacity="0.55"/><text x="22" y="100" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif" opacity=".42">Banner of Heaven</text><line x1="24" y1="112" x2="255" y2="112" stroke="#8F7B69" stroke-width="1" opacity=".2"/><text x="22" y="150" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif" opacity=".42">In the Shadows</text><line x1="24" y1="162" x2="255" y2="162" stroke="#8F7B69" stroke-width="1" opacity=".2"/><text x="22" y="200" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif" opacity=".42">Cause and Effect</text><line x1="24" y1="212" x2="255" y2="212" stroke="#8F7B69" stroke-width="1" opacity=".2"/><rect x="270" y="61" width="350" height="354" fill="#211F1D"/><line x1="270" y1="61" x2="270" y2="415" stroke="#8F7B69" stroke-width="1" opacity=".88"/><rect x="270" y="69" width="350" height="52" fill="#403831"/><g transform="translate(294 83) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M3 5h12M3 12h9M3 19h9M21 16V5"/>
+      <circle cx="18" cy="16" r="3"/>
+    </g>
+  </g>
+  <text x="338" y="104" fill="#F4EDE3" font-size="19" font-weight="600" font-family="Inter,Arial,sans-serif">Sanger</text><g transform="translate(294 137) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M11 5h10M11 12h10M11 19h10M4 4h1v5M4 9h2M6.5 20H3.4c0-1 2.6-1.925 2.6-3.5a1.5 1.5 0 0 0-2.6-1.02"/>
+    </g>
+  </g>
+  <text x="338" y="158" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Inter,Arial,sans-serif">Setlister</text><line x1="286" y1="182" x2="604" y2="182" stroke="#8F7B69" stroke-width="1" opacity=".42"/><g transform="translate(294 193) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M3 12a9 9 0 0 1 15.75-6.1L21 8M21 3v5h-5"/>
+      <path d="M21 12a9 9 0 0 1-15.75 6.1L3 16M3 21v-5h5"/>
+    </g>
+  </g>
+  <text x="338" y="214" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Inter,Arial,sans-serif">Synkronisering</text><g transform="translate(294 247) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M5 2h10l5 5v13c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2z"/>
+      <path d="M15 2v5h5"/>
+      <g transform="translate(4.7 7.4) scale(.52)">
+        <path d="M12 22c-3.5 0-5.7-2.2-5.7-5 0-2.8 2.3-4.9 5.4-4.9 2.6 0 4.6 1.6 4.6 3.6 0 1.8-1.3 3.2-3.1 3.2-1.5 0-2.4-1-2.4-2.2"/>
+        <path d="M12 21V6.2c0-2.9 1.3-4.7 2.4-4.7 1.1 0 1.7 1.6 1.1 3.2-.7 2-4.7 4.2-5.2 7.3"/>
+      </g>
+    </g>
+  </g>
+  <text x="338" y="268" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Inter,Arial,sans-serif">Filer</text><line x1="286" y1="343" x2="604" y2="343" stroke="#8F7B69" stroke-width="1" opacity=".42"/><g transform="translate(294 363) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/>
+      <circle cx="12" cy="12" r="3"/>
+    </g>
+  </g>
+  <text x="338" y="384" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Inter,Arial,sans-serif">Innstillinger</text></svg>
+  <text x="1391.0" y="385" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="409" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Fra høyre, under headeren til skjermbunn.</text>
+  <text x="1391.0" y="429" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Header og menyknapp forblir synlige.</text>
+  <text x="1391.0" y="481" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="503" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Åpen/lukket • aktivt/ordinært valg</text>
+  <text x="1391.0" y="552" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="574" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Sanger / Innstillinger</text>
+  <line x1="972.0" y1="637" x2="1794.0" y2="637" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="647" width="12" height="12" fill="#211F1D" rx="2"/>
+  <text x="991.0" y="658" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Toppfelt (#211F1D)</text>
+  <rect x="973.0" y="666" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="677" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="685" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="991.0" y="696" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="1385.0" y="647" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="1403.0" y="658" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="666" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="677" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <text x="1391.0" y="449" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Menyknappen åpner/lukker panelet.</text></g><g id="section_11" transform="translate(0,453.00)"><rect x="56" y="352" width="6" height="30" fill="#E2C097" rx="3"/>
+  <text x="79" y="375" fill="#F4EDE3" font-size="27" font-family="Inter,Arial,sans-serif" font-weight="600">Handlinger og menyer</text>
+  <text x="1814" y="373" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">4 komponenter</text>
+  <rect x="56.0" y="404" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="436" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Flytende handling</text>
+  <text x="904.0" y="433" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">H01_Flytende_handling</text>
+  <line x1="78.0" y1="451" x2="900.0" y2="451" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="475" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="159.5" y="480.0" width="235.0" height="235.0" viewBox="0 0 96 96"><title>Flytende plussknapp</title>
+  <desc>Isolert FAB fra Sangliste_plussmeny.svg. Ingen endring av figur, størrelser eller transparens.</desc>
+  <defs>
+    <filter id="H01_Flytende_handling__floating-shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="6" stdDeviation="9" flood-color="#211F1D" flood-opacity=".34"/>
+    </filter>
+    <linearGradient id="H01_Flytende_handling__glass-color" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F4EDE3" stop-opacity=".26"/>
+      <stop offset="70%" stop-color="#C7BAA9" stop-opacity=".10"/>
+      <stop offset="100%" stop-color="#F4EDE3" stop-opacity=".17"/>
+    </linearGradient>
+  </defs>
+  <g id="H01_Flytende_handling__flytende-plussknapp" transform="translate(-610 -1035)">
+    <g id="H01_Flytende_handling__floating-add-button">
+      <circle cx="658" cy="1083" r="31" fill="url(#H01_Flytende_handling__glass-color)" stroke="#E2C097" stroke-width="1.15" stroke-opacity=".60" filter="url(#H01_Flytende_handling__floating-shadow)"/>
+      <circle cx="658" cy="1083" r="29" fill="none" stroke="#F4EDE3" stroke-width=".85" stroke-opacity=".18"/>
+      <g id="H01_Flytende_handling__icon-ny-646-1071" transform="translate(646 1071) scale(1.0)" stroke="#F4EDE3" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <g opacity="1">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <line x1="12" y1="5" x2="12" y2="19"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
+  <text x="497.0" y="492" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="516" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Flytende transparent pluss; plassering må</text>
+  <text x="497.0" y="536" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">ikke dekke viktig innhold.</text>
+  <text x="497.0" y="588" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="610" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Normal; åpen handlingsmeny vises</text>
+  <text x="497.0" y="629" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">separat</text>
+  <text x="497.0" y="659" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="681" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Plussknapp</text>
+  <line x1="78.0" y1="744" x2="900.0" y2="744" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="754" width="12" height="12" fill="#211F1D" rx="2"/>
+  <text x="97.0" y="765" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Toppfelt (#211F1D)</text>
+  <rect x="79.0" y="773" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="97.0" y="784" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="754" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="509.0" y="765" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="491.0" y="773" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="784" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="404" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="436" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Verktøyknapp</text>
+  <text x="1798.0" y="433" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">H02_Verktoyknapp</text>
+  <line x1="972.0" y1="451" x2="1794.0" y2="451" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="475" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="529.125641025641" width="398.0" height="136.74871794871794" viewBox="0 0 390 134"><title>Verktøyknapp – vanlig og aktiv</title>
+  <desc>Verktøyknapper fra godkjent redigerings-SVG: ikon over kort tekst. Aktiv tilstand fra Fjern-modus.</desc>
+  <rect x="0" y="0" width="390" height="134" fill="#272421" rx="0"/>
+  <g id="H02_Verktoyknapp__vanlig" transform="translate(30 44)">
+    <g transform="translate(30 7) scale(1.0833333333333333)" stroke="#F4EDE3" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" data-icon="akkord">
+      <g opacity="1" stroke="#F4EDE3"><ellipse cx="8.1" cy="17.3" rx="6.2" ry="3.55" transform="rotate(-14 8.1 17.3)"/>
+             <path d="M14.2 17.1V2.5"/></g>
+    </g>
+    <text x="43" y="57" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" text-anchor="middle">Akkorder</text>
+  </g>
+  <g id="H02_Verktoyknapp__aktiv" transform="translate(170 44)">
+    <rect x="0" y="0" width="86" height="68" fill="#403831" rx="9"/>
+    <g transform="translate(30 7) scale(1.0833333333333333)" stroke="#E5BD8D" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" data-icon="viskelaer">
+      <g opacity="1" stroke="#E5BD8D"><path d="M20.5 20.5h-12a2 2 0 0 1-1.4-.6l-4.7-4.7a2 2 0 0 1 0-2.8l9.9-9.9a2 2 0 0 1 2.8 0l5.4 5.4a2 2 0 0 1 0 2.8l-9.8 9.8"/>
+               <path d="m6.6 8.3 9 9"/></g>
+    </g>
+    <text x="43" y="57" fill="#E5BD8D" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" text-anchor="middle">Fjern</text>
+  </g>
+  <text x="42" y="30" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400">Vanlig</text>
+  <text x="185" y="30" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400">Aktiv</text>
+</svg>
+  <text x="1391.0" y="492" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="516" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Ikon over tekst; tydelig valgt tilstand;</text>
+  <text x="1391.0" y="536" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">samme ikon for samme handling.</text>
+  <text x="1391.0" y="588" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="610" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Normal / aktiv</text>
+  <text x="1391.0" y="659" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="681" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Fjern</text>
+  <line x1="972.0" y1="744" x2="1794.0" y2="744" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="754" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="765" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="773" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="991.0" y="784" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="973.0" y="792" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="991.0" y="803" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="754" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="1403.0" y="765" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="1385.0" y="773" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="784" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="56.0" y="888" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="920" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Fanevelger</text>
+  <text x="904.0" y="917" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">H03_Fanevelger</text>
+  <line x1="78.0" y1="935" x2="900.0" y2="935" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="959" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="1037.950724637681" width="398.0" height="87.09855072463768" viewBox="0 0 690 151"><title>Fanevelger – Filinnhold og Egentilpasning</title>
+  <desc>To godkjente tilstander, kopiert fra sangeditorens verktøylinje.</desc>
+  <rect x="0" y="0" width="690" height="151" fill="#272421" rx="0"/>
+  <g id="H03_Fanevelger__tabrow-0" transform="translate(0 -58)">
+    <rect x="0" y="58" width="690" height="58" fill="#211F1D" rx="0"/>
+    <text x="31" y="89" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="16.5" font-weight="600" text-anchor="start">Filinnhold</text>
+    <line x1="31" y1="108" x2="137" y2="108" stroke="#E5BD8D" stroke-width="2.5"/>
+    <text x="177" y="89" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="16.5" font-weight="400" text-anchor="start">Egentilpasning</text>
+    <line x1="19" y1="116" x2="671" y2="116" stroke="#8F7B69" stroke-width="0.8"/>
+  </g>
+  <g id="H03_Fanevelger__tabrow-78" transform="translate(0 20)">
+    <rect x="0" y="58" width="690" height="58" fill="#211F1D" rx="0"/>
+    <text x="31" y="89" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="16.5" font-weight="400" text-anchor="start">Filinnhold</text>
+    <text x="177" y="89" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="16.5" font-weight="600" text-anchor="start">Egentilpasning</text>
+    <line x1="177" y1="108" x2="322" y2="108" stroke="#E5BD8D" stroke-width="2.5"/>
+    <line x1="19" y1="116" x2="671" y2="116" stroke="#8F7B69" stroke-width="0.8"/>
+  </g>
+</svg>
+  <text x="497.0" y="976" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="1000" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Bytter innholdet i samme verktøyområde;</text>
+  <text x="497.0" y="1020" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">valgt fane har understrek.</text>
+  <text x="497.0" y="1072" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="1094" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Filinnhold / Egentilpasning</text>
+  <text x="497.0" y="1143" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="1165" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Editorfaner</text>
+  <line x1="78.0" y1="1228" x2="900.0" y2="1228" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="1238" width="12" height="12" fill="#211F1D" rx="2"/>
+  <text x="97.0" y="1249" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Toppfelt (#211F1D)</text>
+  <rect x="79.0" y="1257" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="1268" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="1276" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="1287" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="1238" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="509.0" y="1249" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="1257" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="509.0" y="1268" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="491.0" y="1276" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="1287" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="888" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="920" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Kontekstmeny</text>
+  <text x="1798.0" y="917" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">H04_Kontekstmeny</text>
+  <line x1="972.0" y1="935" x2="1794.0" y2="935" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="959" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="967.5942760942761" width="397.99999999999994" height="227.8114478114478" viewBox="0 0 297 170"><title>Kontekstmeny – Opprett / Importer</title>
+  <desc>Kontekstmeny løftet uendret geometrisk fra Sangliste_plussmeny.svg.</desc>
+  <rect x="0" y="0" width="297" height="170" fill="#272421" rx="0"/>
+  <defs>
+    <filter id="H04_Kontekstmeny__panel-shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="9" stdDeviation="12" flood-color="#211F1D" flood-opacity=".52"/>
+    </filter>
+  </defs>
+  <g id="H04_Kontekstmeny__kontekstmeny" transform="translate(-409 -877)">
+    <g id="H04_Kontekstmeny__add-song-panel">
+      <rect x="425" y="893" width="265" height="139" rx="16" fill="#403831" stroke="#8F7B69" stroke-width="0.9" filter="url(#H04_Kontekstmeny__panel-shadow)"/>
+      <line x1="445" y1="894" x2="669" y2="894" stroke="#C7BAA9" stroke-width="0.7" opacity=".13"/>
+      <g id="H04_Kontekstmeny__icon-ny-449-911" transform="translate(449 911) scale(1.0)" stroke="#F4EDE3" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <g opacity="1">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <line x1="12" y1="5" x2="12" y2="19"/>
+        </g>
+      </g>
+      <text x="490" y="930" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="400">Opprett</text>
+      <line x1="444" y1="960" x2="671" y2="960" stroke="#8F7B69" stroke-width="0.9" opacity="0.8"/>
+      <g id="H04_Kontekstmeny__icon-importer-449-982" transform="translate(449 982) scale(1.0)" stroke="#F4EDE3" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <g opacity="1">
+          <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2zM14 2v6h6"/>
+          <path d="M12 18v-6m-3 3 3-3 3 3"/>
+        </g>
+      </g>
+      <text x="490" y="1001" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="400">Importer</text>
+    </g>
+  </g>
+</svg>
+  <text x="1391.0" y="976" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="1000" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Kompakt meny med ikon og kort</text>
+  <text x="1391.0" y="1020" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">handlingsnavn; innhold kontekstavhengig.</text>
+  <text x="1391.0" y="1072" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="1094" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Åpen/lukket</text>
+  <text x="1391.0" y="1143" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="1165" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Opprett / Importer</text>
+  <line x1="972.0" y1="1228" x2="1794.0" y2="1228" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="1238" width="12" height="12" fill="#211F1D" rx="2"/>
+  <text x="991.0" y="1249" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Toppfelt (#211F1D)</text>
+  <rect x="973.0" y="1257" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="1268" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="1276" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="991.0" y="1287" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="1385.0" y="1238" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="1403.0" y="1249" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="1257" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="1403.0" y="1268" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="1276" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="1287" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  </g><g id="section_12" transform="translate(0,-62.00)"><rect x="56" y="1911" width="6" height="30" fill="#E2C097" rx="3"/>
+  <text x="79" y="1934" fill="#F4EDE3" font-size="27" font-family="Inter,Arial,sans-serif" font-weight="600">Listerader</text>
+  <text x="1814" y="1932" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">6 komponenter</text>
+  <rect x="56.0" y="1963" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="1995" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Listerad – tittel og metadata</text>
+  <text x="904.0" y="1992" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">L01_Listerad_tittel_metadata</text>
+  <line x1="78.0" y1="2010" x2="900.0" y2="2010" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="2034" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="2076.9" width="398.0" height="159.20000000000002" viewBox="0 0 620 248"><rect x="0" y="0" width="620" height="248" fill="#272421"/>
+  <text x="25" y="41" fill="#F4EDE3" font-size="22" font-weight="400" font-family="Inter,Arial,sans-serif">Banner of Heaven</text>
+  <text x="25" y="72" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">Em  ·  4/4</text>
+  <text x="25" y="98" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">Intro – gitar alene</text>
+  <line x1="25" y1="117" x2="595" y2="117" stroke="#8F7B69" stroke-width="1" opacity="0.5"/>
+  <text x="25" y="155" fill="#F4EDE3" font-size="22" font-weight="400" font-family="Inter,Arial,sans-serif">In the Shadows</text>
+  <text x="25" y="186" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">Am  ·  3/4  ·  Capo 3: F#m</text>
+  <text x="25" y="212" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">Stemming: DADGAD</text>
+  <line x1="25" y1="231" x2="595" y2="231" stroke="#8F7B69" stroke-width="1" opacity="0.5"/>
+</svg>
+  <text x="497.0" y="2051" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="2075" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Stor primærtittel; liten sekundærlinje;</text>
+  <text x="497.0" y="2095" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">valgfri ekstra informasjonslinje.</text>
+  <text x="497.0" y="2147" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="2169" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Med/uten ekstra informasjonslinje</text>
+  <text x="497.0" y="2218" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="2240" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Sang</text>
+  <line x1="78.0" y1="2303" x2="900.0" y2="2303" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="2313" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="2324" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="2332" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="2343" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="2313" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="509.0" y="2324" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="2332" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="2343" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="1963" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="1995" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Listerad – tittel og antall</text>
+  <text x="1798.0" y="1992" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">L02_Listerad_tittel_antall</text>
+  <line x1="972.0" y1="2010" x2="1794.0" y2="2010" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="2034" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="2077.2209677419355" width="398.0" height="158.55806451612904" viewBox="0 0 620 247"><rect x="0" y="0" width="620" height="247" fill="#272421"/>
+  <text x="25" y="44" fill="#F4EDE3" font-size="22" font-weight="400" font-family="Inter,Arial,sans-serif">Hobo Sapiens – konsert</text>
+  <text x="25" y="75" fill="#C7BAA9" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif">18 sanger</text>
+  <circle cx="541" cy="42" r="2.8" fill="#C7BAA9"/>
+  <circle cx="553" cy="42" r="2.8" fill="#C7BAA9"/>
+  <circle cx="565" cy="42" r="2.8" fill="#C7BAA9"/>
+  <line x1="25" y1="109" x2="595" y2="109" stroke="#8F7B69" stroke-width="1" opacity="0.48"/>
+  <text x="25" y="159" fill="#F4EDE3" font-size="22" font-weight="400" font-family="Inter,Arial,sans-serif">Øving i Bua</text>
+  <text x="25" y="190" fill="#C7BAA9" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif">12 sanger</text>
+  <circle cx="541" cy="157" r="2.8" fill="#C7BAA9"/>
+  <circle cx="553" cy="157" r="2.8" fill="#C7BAA9"/>
+  <circle cx="565" cy="157" r="2.8" fill="#C7BAA9"/>
+  <line x1="25" y1="224" x2="595" y2="224" stroke="#8F7B69" stroke-width="1" opacity="0.48"/>
+</svg>
+  <text x="1391.0" y="2051" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="2075" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Tittel og sekundært antall, uten</text>
+  <text x="1391.0" y="2095" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">unødvendige metadata eller leading-ikon.</text>
+  <text x="1391.0" y="2147" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="2169" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Med valgfri radmeny som separat</text>
+  <text x="1391.0" y="2188" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">betjening</text>
+  <text x="1391.0" y="2218" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="2240" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Setlisteoversikt</text>
+  <line x1="972.0" y1="2303" x2="1794.0" y2="2303" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="2313" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="2324" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="2332" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="2343" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="2313" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="1403.0" y="2324" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="2332" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="2343" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="56.0" y="2447" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="2479" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Listerad – nummerert</text>
+  <text x="904.0" y="2476" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">L03_Listerad_nummerert</text>
+  <line x1="78.0" y1="2494" x2="900.0" y2="2494" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="2518" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="2560.258064516129" width="398.0" height="160.48387096774195" viewBox="0 0 620 250"><rect x="0" y="0" width="620" height="250" fill="#272421"/>
+  <text x="29" y="51" fill="#C7BAA9" font-size="16" font-weight="400" font-family="Inter,Arial,sans-serif">4</text>
+  <text x="91" y="50" fill="#F4EDE3" font-size="22" font-weight="400" font-family="Inter,Arial,sans-serif">In the Shadows</text>
+  <text x="91" y="82" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">Am  ·  3/4  ·  Capo 3: F#</text>
+  <line x1="28" y1="112" x2="595" y2="112" stroke="#8F7B69" stroke-width="1" opacity="0.48"/>
+  <text x="29" y="165" fill="#C7BAA9" font-size="16" font-weight="400" font-family="Inter,Arial,sans-serif">6</text>
+  <text x="91" y="164" fill="#F4EDE3" font-size="22" font-weight="400" font-family="Inter,Arial,sans-serif">Valley of the Lord</text>
+  <text x="91" y="196" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">D  ·  4/4  ·  Capo 2: C</text>
+  <line x1="28" y1="226" x2="595" y2="226" stroke="#8F7B69" stroke-width="1" opacity="0.48"/>
+</svg>
+  <text x="497.0" y="2535" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="2559" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Sekvensnummer i egen smal kolonne;</text>
+  <text x="497.0" y="2579" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">primærtekst og metadata til høyre. Ingen</text>
+  <text x="497.0" y="2599" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">flyttehåndtak.</text>
+  <text x="497.0" y="2631" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="2653" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Enlinjet/tolinjet innhold</text>
+  <text x="497.0" y="2702" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="2724" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Nummerert sang</text>
+  <line x1="78.0" y1="2787" x2="900.0" y2="2787" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="2797" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="2808" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="2816" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="2827" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="2797" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="509.0" y="2808" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="2816" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="2827" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="2447" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="2479" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Listerad – spesialelement</text>
+  <text x="1798.0" y="2476" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">L04_Listerad_spesial</text>
+  <line x1="972.0" y1="2494" x2="1794.0" y2="2494" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="2518" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="2561.8629032258063" width="398.0" height="157.2741935483871" viewBox="0 0 620 245"><rect x="0" y="0" width="620" height="245" fill="#272421"/>
+  <text x="29" y="54" fill="#C7BAA9" font-size="16" font-weight="400" font-family="Inter,Arial,sans-serif">3</text>
+  <g transform="translate(91 32) scale(1.125)" fill="none" stroke="#E5BD8D" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M4 7h12v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>
+      <path d="M16 9h3a2.5 2.5 0 0 1 0 7h-3"/>
+      <path d="M4 7c-2.6-1.7-.3-4.3 1.5-3.4 1.3-2.1 3.4-2 4.5-.7 1.7-1.3 4-.2 4.2 1.5C16 2.5 19 5.2 16 7"/>
+      <path d="M8 11v6M12 11v6"/>
+    </g>
+  </g>
+  <text x="137" y="53" fill="#E5BD8D" font-size="22" font-weight="400" font-family="Inter,Arial,sans-serif">Pause</text>
+  <line x1="26" y1="113" x2="593" y2="113" stroke="#8F7B69" stroke-width="1" opacity="0.5"/>
+  <text x="29" y="170" fill="#C7BAA9" font-size="16" font-weight="400" font-family="Inter,Arial,sans-serif">5</text>
+  <text x="91" y="169" fill="#E5BD8D" font-size="21" font-weight="500" font-family="Inter,Arial,sans-serif">NB!</text>
+  <text x="145" y="169" fill="#E5BD8D" font-size="20" font-weight="400" font-family="Inter,Arial,sans-serif">Husk å stemme ned før neste låt</text>
+  <line x1="26" y1="229" x2="593" y2="229" stroke="#8F7B69" stroke-width="1" opacity="0.5"/>
+</svg>
+  <text x="1391.0" y="2535" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="2559" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Alternativt innhold i nummerert liste;</text>
+  <text x="1391.0" y="2579" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">markør og innhold har samme godkjente varme</text>
+  <text x="1391.0" y="2599" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">aksent.</text>
+  <text x="1391.0" y="2631" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="2653" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Pause / Påminnelse</text>
+  <text x="1391.0" y="2702" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="2724" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Pause og NB!</text>
+  <line x1="972.0" y1="2787" x2="1794.0" y2="2787" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="2797" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="2808" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="2816" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="2827" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="2797" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="1403.0" y="2808" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="2816" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="1403.0" y="2827" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="56.0" y="2931" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="2963" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Listerad – valgbar</text>
+  <text x="904.0" y="2960" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">L05_Listerad_valgbar</text>
+  <line x1="78.0" y1="2978" x2="900.0" y2="2978" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="3002" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="3042.011290322581" width="398.0" height="164.97741935483873" viewBox="0 0 620 257"><rect x="0" y="0" width="620" height="257" fill="#272421"/>
+  <text x="35" y="55" fill="#F4EDE3" font-size="21" font-weight="400" font-family="Inter,Arial,sans-serif">Bronco Billy</text>
+  <line x1="16" y1="82" x2="604" y2="82" stroke="#8F7B69" stroke-width="1" opacity="0.45"/>
+  <rect x="14" y="90" width="592" height="68" fill="#403831" rx="4"/>
+  <text x="35" y="133" fill="#F4EDE3" font-size="21" font-weight="400" font-family="Inter,Arial,sans-serif">Dust in the Corner</text>
+  <g transform="translate(554 108) scale(1.125)" fill="none" stroke="#E2C097" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="12" cy="12" r="9.5"/>
+      <path d="m8 12 3 3 5-6"/>
+    </g>
+  </g>
+  <line x1="16" y1="160" x2="604" y2="160" stroke="#8F7B69" stroke-width="1" opacity="0.45"/>
+  <text x="35" y="211" fill="#F4EDE3" font-size="21" font-weight="400" font-family="Inter,Arial,sans-serif">Hold On</text>
+  <line x1="16" y1="238" x2="604" y2="238" stroke="#8F7B69" stroke-width="1" opacity="0.45"/>
+</svg>
+  <text x="497.0" y="3019" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="3043" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Kompakt tittelrad; utvalg markeres med</text>
+  <text x="497.0" y="3063" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">flate og sjekkmerke.</text>
+  <text x="497.0" y="3115" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="3137" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Valgt / ikke valgt</text>
+  <text x="497.0" y="3186" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="3208" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Sangvalg</text>
+  <line x1="78.0" y1="3271" x2="900.0" y2="3271" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="3281" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="3292" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="3300" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="97.0" y="3311" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="79.0" y="3319" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="3330" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="3281" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="509.0" y="3292" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="491.0" y="3300" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="3311" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="2931" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="2963" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Listerad – separat handling</text>
+  <text x="1798.0" y="2960" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">L06_Listerad_separat_handling</text>
+  <line x1="972.0" y1="2978" x2="1794.0" y2="2978" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="3002" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="3046.1838709677418" width="398.0" height="156.63225806451612" viewBox="0 0 620 244"><rect x="0" y="0" width="620" height="244" fill="#272421"/>
+  <text x="25" y="40" fill="#F4EDE3" font-size="21" font-weight="400" font-family="Inter,Arial,sans-serif">Hobo Sapiens</text>
+  <text x="25" y="69" fill="#C7BAA9" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif">Hobos · I dag, 08:32</text>
+  <g transform="translate(554 36) scale(1.0416666666666667)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M3 12a9 9 0 0 1 15.75-6.1L21 8M21 3v5h-5"/>
+      <path d="M21 12a9 9 0 0 1-15.75 6.1L3 16M3 21v-5h5"/>
+    </g>
+  </g>
+  <line x1="25" y1="111" x2="601" y2="111" stroke="#8F7B69" stroke-width="1" opacity="0.45"/>
+  <text x="25" y="157" fill="#F4EDE3" font-size="21" font-weight="400" font-family="Inter,Arial,sans-serif">Getinghonung</text>
+  <text x="25" y="186" fill="#C7BAA9" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif">Getinghonung · 8. november</text>
+  <g transform="translate(554 153) scale(1.0416666666666667)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M3 12a9 9 0 0 1 15.75-6.1L21 8M21 3v5h-5"/>
+      <path d="M21 12a9 9 0 0 1-15.75 6.1L3 16M3 21v-5h5"/>
+    </g>
+  </g>
+  <line x1="25" y1="228" x2="601" y2="228" stroke="#8F7B69" stroke-width="1" opacity="0.45"/>
+</svg>
+  <text x="1391.0" y="3019" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="3043" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Radens informasjonsflate og en egen</text>
+  <text x="1391.0" y="3063" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">høyrestilt handlingsknapp har separate</text>
+  <text x="1391.0" y="3083" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">treffområder.</text>
+  <text x="1391.0" y="3115" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="3137" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Ulike handlinger via ikon i raden</text>
+  <text x="1391.0" y="3186" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="3208" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Synkroniser kilde</text>
+  <line x1="972.0" y1="3271" x2="1794.0" y2="3271" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="3281" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="3292" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="3300" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="3311" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="3281" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="1403.0" y="3292" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="3300" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="3311" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  </g><g id="section_13" transform="translate(0,1359.00)"><rect x="56" y="2018" width="6" height="30" fill="#E2C097" rx="3"/>
+  <text x="79" y="2041" fill="#F4EDE3" font-size="27" font-family="Inter,Arial,sans-serif" font-weight="600">Verdier og inndata</text>
+  <text x="1814" y="2039" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">10 komponenter</text>
+  <rect x="56.0" y="2070" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="2102" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Visningspille</text>
+  <text x="904.0" y="2099" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">D01_Visningspille</text>
+  <line x1="78.0" y1="2117" x2="900.0" y2="2117" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="2141" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="2198.3435483870967" width="398.0" height="130.31290322580645" viewBox="0 0 620 203"><rect x="0" y="0" width="620" height="203" fill="#272421"/>
+  <text x="20" y="18" fill="#C7BAA9" font-size="13" font-weight="600" font-family="Inter,Arial,sans-serif" letter-spacing=".4">KOMPAKTE VERDIER</text>
+  <rect x="25" y="60" width="78" height="32" fill="#211F1D" stroke="#8F7B69" stroke-width="1" rx="16"/>
+  <text x="64.0" y="82" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="middle">Em</text>
+  <rect x="117" y="60" width="78" height="32" fill="#211F1D" stroke="#8F7B69" stroke-width="1" rx="16"/>
+  <text x="156.0" y="82" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="middle">4/4</text>
+  <rect x="208" y="60" width="172" height="32" fill="#211F1D" stroke="#8F7B69" stroke-width="1" rx="16"/>
+  <text x="294.0" y="82" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="middle">Capo 2: Dm</text>
+  <text x="25" y="134" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">Viser eksisterende verdier; ikke en åpen redigeringskontroll.</text>
+</svg>
+  <text x="497.0" y="2158" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="2182" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Kompakt, avrundet verdiindikator. Må ikke</text>
+  <text x="497.0" y="2202" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">forveksles med kontrollen som endrer</text>
+  <text x="497.0" y="2222" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">verdien.</text>
+  <text x="497.0" y="2254" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="2276" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Toneart / takt / capo</text>
+  <text x="497.0" y="2325" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="2347" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Em · 4/4</text>
+  <line x1="78.0" y1="2410" x2="900.0" y2="2410" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="2420" width="12" height="12" fill="#211F1D" rx="2"/>
+  <text x="97.0" y="2431" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Toppfelt (#211F1D)</text>
+  <rect x="79.0" y="2439" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="2450" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="2458" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="2469" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="2420" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="509.0" y="2431" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="2439" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="509.0" y="2450" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="491.0" y="2458" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="2469" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="2070" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="2102" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Liten verdikontroll – numerisk</text>
+  <text x="1798.0" y="2099" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">D07_Liten_verdikontroll_numerisk</text>
+  <line x1="972.0" y1="2117" x2="1794.0" y2="2117" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="2141" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="2158.7936046511627" width="398.0" height="209.41279069767444" viewBox="0 0 344 181"><title>Liten verdikontroll – Capo</title>
+  <desc>Capokontroll: godkjent capoikon fra Ikonbibliotek.zip, med eksisterende minus-, verdi- og plussbetjening. Ikonet er midtstilt i ikonkolonnen.</desc>
+  <rect x="0" y="0" width="344" height="181" fill="#272421" rx="0"/>
+  <text x="22" y="30" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="500">Capo</text>
+  <rect x="22" y="43" width="155" height="33" fill="#403831" stroke="#8F7B69" stroke-width="0.8" rx="17"/>
+  <text x="102" y="65" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400" text-anchor="middle">Capo 2: Dm</text>
+  <g id="D07_Liten_verdikontroll_numerisk__kontroll" transform="translate(-779 -506)">
+    <rect fill="#403831" height="67" opacity="1" rx="14" stroke="#8F7B69" stroke-width="0.9" width="206" x="801" y="610"/>
+    <g id="D07_Liten_verdikontroll_numerisk__ikon-capo" transform="translate(815.5 631.5)" fill="none" stroke="#E5BD8D" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g opacity="1"><path d="M3.1 6.2c3-1.5 7.5-2 14.9-1.4l2.3.3v3.3H3.1z"/><path d="M5.6 8.4c0 6 1.6 10.5 7.2 11.3"/><path d="M12.8 19.7 18 14.5l3.2 3.4"/><path d="M16.2 9.5c1.7 1.2 2.7 2.9 2.7 4.6"/><path d="M14.7 13.5a2.1 2.1 0 1 0 4.2 0"/></g></g><rect fill="#403831" height="44" opacity="1" rx="8" stroke="none" stroke-width="0" width="44" x="855" y="621"/>
+    <rect fill="#403831" height="44" opacity="1" rx="8" stroke="none" stroke-width="0" width="44" x="899" y="621"/>
+    <rect fill="#403831" height="44" opacity="1" rx="8" stroke="none" stroke-width="0" width="44" x="943" y="621"/>
+    <text fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="400" text-anchor="middle" x="877" y="650">−</text>
+    <text fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="500" text-anchor="middle" x="921" y="650">2</text>
+    <text fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="400" text-anchor="middle" x="965" y="650">+</text>
+    <line stroke="#8F7B69" stroke-width="0.65" x1="854" x2="854" y1="626" y2="661"/>
+  </g>
+</svg>
+  <text x="1391.0" y="2158" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="2182" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Kompakt kontroll med ikon og trinnvis</text>
+  <text x="1391.0" y="2202" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">verdi. Ingen OK/Avbryt.</text>
+  <text x="1391.0" y="2254" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="2276" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Lav/høy verdi, piler deaktiveres ved</text>
+  <text x="1391.0" y="2295" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">grenser</text>
+  <text x="1391.0" y="2325" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="2347" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Capo</text>
+  <line x1="972.0" y1="2410" x2="1794.0" y2="2410" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="2420" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="2431" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="2439" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="991.0" y="2450" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="973.0" y="2458" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="2469" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="2420" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="1403.0" y="2431" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="1385.0" y="2439" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="2450" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="56.0" y="2554" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="2586" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Liten verdikontroll – tekstlig</text>
+  <text x="904.0" y="2583" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">D08_Liten_verdikontroll_tekstlig</text>
+  <line x1="78.0" y1="2601" x2="900.0" y2="2601" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="2625" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="2642.7936046511627" width="398.0" height="209.41279069767444" viewBox="0 0 344 181"><title>Liten verdikontroll – Toneart</title>
+  <desc>Toneart: samme kontrollbredde og høyde som capo; godkjent toneartikon sentrert i ikonkolonnen. Verdien angis i lite tekstfelt, uten minus-/plussknapper.</desc>
+  <rect x="0" y="0" width="344" height="181" fill="#272421" rx="0"/>
+  <text x="22" y="30" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="500">Toneart</text>
+  <rect x="22" y="43" width="140" height="33" fill="#403831" stroke="#8F7B69" stroke-width="0.8" rx="17"/>
+  <text x="98" y="65" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400" text-anchor="middle">Em</text>
+  <g id="D08_Liten_verdikontroll_tekstlig__kontroll" transform="translate(-779 -506)">
+    <rect fill="#403831" height="67" opacity="1" rx="14" stroke="#8F7B69" stroke-width="0.9" width="206" x="801" y="610"/>
+    <g id="D08_Liten_verdikontroll_tekstlig__ikon-key" transform="translate(815.5 631.5)" fill="none" stroke="#E5BD8D" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g opacity="1"><g transform="translate(2.4 0.5) scale(.96)"><path d="M12 22c-3.5 0-5.7-2.2-5.7-5 0-2.8 2.3-4.9 5.4-4.9 2.6 0 4.6 1.6 4.6 3.6 0 1.8-1.3 3.2-3.1 3.2-1.5 0-2.4-1-2.4-2.2"/><path d="M12 21V6.2c0-2.9 1.3-4.7 2.4-4.7 1.1 0 1.7 1.6 1.1 3.2-.7 2-4.7 4.2-5.2 7.3"/></g></g></g><line x1="854" y1="626" x2="854" y2="661" stroke="#8F7B69" stroke-width="0.65"/><rect x="864" y="626" width="130" height="35" rx="7" fill="#272421" stroke="#8F7B69" stroke-width="0.85"/><text x="929" y="648.5" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="500" text-anchor="middle">Em</text></g>
+</svg>
+  <text x="497.0" y="2642" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="2666" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Kompakt kontroll med ikon og kort</text>
+  <text x="497.0" y="2686" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">tekstfelt. Ingen OK/Avbryt.</text>
+  <text x="497.0" y="2738" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="2760" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Tekstlig verdi</text>
+  <text x="497.0" y="2809" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="2831" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Toneart / Takt</text>
+  <line x1="78.0" y1="2894" x2="900.0" y2="2894" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="2904" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="2915" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="2923" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="97.0" y="2934" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="79.0" y="2942" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="2953" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="2904" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="509.0" y="2915" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="491.0" y="2923" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="2934" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="2554" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="2586" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Tekstfelt – enlinjet</text>
+  <text x="1798.0" y="2583" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">D02_Tekstfelt_enlinjet</text>
+  <line x1="972.0" y1="2601" x2="1794.0" y2="2601" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="2625" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="2684.590322580645" width="398.0" height="125.81935483870969" viewBox="0 0 620 196"><rect x="0" y="0" width="620" height="196" fill="#272421"/>
+  <text x="27" y="37" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Navn</text>
+  <rect x="27" y="54" width="564" height="59" fill="#322E2A" stroke="#8F7B69" stroke-width="1" rx="8"/>
+  <text x="46" y="90" fill="#F4EDE3" font-size="18" font-weight="400" font-family="Inter,Arial,sans-serif">Banner of Heaven</text>
+  <text x="27" y="153" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">Enlinjet input, tydelig navn og god trefflate.</text>
+</svg>
+  <text x="1391.0" y="2642" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="2666" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Etikett og enlinjet felt med samme kontur-</text>
+  <text x="1391.0" y="2686" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">og bakgrunnssystem som andre input.</text>
+  <text x="1391.0" y="2738" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="2760" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Tekst / kort verdi</text>
+  <text x="1391.0" y="2809" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="2831" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Tittel / navn</text>
+  <line x1="972.0" y1="2894" x2="1794.0" y2="2894" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="2904" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="2915" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="2923" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="991.0" y="2934" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="973.0" y="2942" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="2953" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="2904" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="1403.0" y="2915" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="2923" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="2934" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="56.0" y="3038" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="3070" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Tekstfelt – flerlinjet</text>
+  <text x="904.0" y="3067" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">D03_Tekstfelt_flerlinjet</text>
+  <line x1="78.0" y1="3085" x2="900.0" y2="3085" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="3109" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="3152.8629032258063" width="398.0" height="157.2741935483871" viewBox="0 0 620 245"><rect x="0" y="0" width="620" height="245" fill="#272421"/>
+  <text x="27" y="37" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Notat</text>
+  <rect x="27" y="54" width="564" height="122" fill="#322E2A" stroke="#8F7B69" stroke-width="1" rx="8"/>
+  <text x="45" y="89" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Siste refreng – roligere</text>
+  <text x="45" y="122" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Og la fela avslutte</text>
+</svg>
+  <text x="497.0" y="3126" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="3150" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Flerlinjet fri tekst i større</text>
+  <text x="497.0" y="3170" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">redigeringsflate. Ikke en liten</text>
+  <text x="497.0" y="3190" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">verdikontroll.</text>
+  <text x="497.0" y="3222" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="3244" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Vanlig tekstinnhold over flere linjer</text>
+  <text x="497.0" y="3293" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="3315" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Notattekst</text>
+  <line x1="78.0" y1="3378" x2="900.0" y2="3378" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="3388" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="3399" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="3407" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="97.0" y="3418" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="491.0" y="3388" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="509.0" y="3399" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="3407" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="3418" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="3038" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="3070" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Valgkontroll – ett valg</text>
+  <text x="1798.0" y="3067" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">D04_Valgkontroll_radio</text>
+  <line x1="972.0" y1="3085" x2="1794.0" y2="3085" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="3109" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="3162.1709677419353" width="398.0" height="138.65806451612903" viewBox="0 0 620 216"><rect x="0" y="0" width="620" height="216" fill="#272421"/>
+  <text x="20" y="18" fill="#C7BAA9" font-size="13" font-weight="600" font-family="Inter,Arial,sans-serif" letter-spacing=".4">VELG ETT ALTERNATIV</text>
+  <circle cx="49" cy="73" r="14" fill="#322E2A" stroke="#8F7B69" stroke-width="1.8"/>
+  <circle cx="49" cy="73" r="6" fill="#E2C097"/>
+  <text x="82" y="80" fill="#F4EDE3" font-size="20" font-weight="400" font-family="Inter,Arial,sans-serif">Kun ned</text>
+  <circle cx="49" cy="143" r="14" fill="#322E2A" stroke="#8F7B69" stroke-width="1.8"/>
+  <text x="82" y="150" fill="#F4EDE3" font-size="20" font-weight="400" font-family="Inter,Arial,sans-serif">Opp og ned</text>
+</svg>
+  <text x="1391.0" y="3126" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="3150" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Radiovalg: ett alternativ om gangen.</text>
+  <text x="1391.0" y="3170" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Fokus/aktivt valg kan vises med</text>
+  <text x="1391.0" y="3190" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Handling/fokus.</text>
+  <text x="1391.0" y="3222" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="3244" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Valgt / ikke valgt</text>
+  <text x="1391.0" y="3293" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="3315" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Kun ned / Opp og ned</text>
+  <line x1="972.0" y1="3378" x2="1794.0" y2="3378" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="3388" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="3399" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="3407" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="991.0" y="3418" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="973.0" y="3426" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="3437" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="3388" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="1403.0" y="3399" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="3407" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="1403.0" y="3418" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="1385.0" y="3426" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="3437" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="56.0" y="3522" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="3554" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Valgkontroll – av/på</text>
+  <text x="904.0" y="3551" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">D05_Valgkontroll_bryter</text>
+  <line x1="78.0" y1="3569" x2="900.0" y2="3569" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="3593" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="3654.8370967741935" width="398.0" height="121.3258064516129" viewBox="0 0 620 189"><rect x="0" y="0" width="620" height="189" fill="#272421"/>
+  <text x="26" y="36" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Inter,Arial,sans-serif">Vis akkordskjema</text>
+  <rect x="497" y="17" width="93" height="46" fill="#403831" stroke="#8F7B69" stroke-width="1" rx="23"/>
+  <rect x="540" y="22" width="44" height="36" fill="#E2C097" rx="18"/>
+  <text x="26" y="123" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Inter,Arial,sans-serif">Vis dynamikkprofil</text>
+  <rect x="497" y="102" width="93" height="46" fill="#322E2A" stroke="#8F7B69" stroke-width="1" rx="23"/>
+  <rect x="502" y="107" width="44" height="36" fill="#C7BAA9" rx="18"/>
+</svg>
+  <text x="497.0" y="3610" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="3634" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">To tilstander i kontroll knyttet til en</text>
+  <text x="497.0" y="3654" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">innstilling; ikke navigasjon mellom</text>
+  <text x="497.0" y="3674" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">appmoduser.</text>
+  <text x="497.0" y="3706" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="3728" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">På / av</text>
+  <text x="497.0" y="3777" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="3799" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Vis akkordskjema</text>
+  <line x1="78.0" y1="3862" x2="900.0" y2="3862" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="3872" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="3883" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="3891" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="97.0" y="3902" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="79.0" y="3910" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="97.0" y="3921" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="79.0" y="3929" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="3940" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="3872" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="509.0" y="3883" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="3891" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="509.0" y="3902" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="491.0" y="3910" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="3921" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="3522" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="3554" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Valgkontroll – skyver</text>
+  <text x="1798.0" y="3551" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">D06_Valgkontroll_skyver</text>
+  <line x1="972.0" y1="3569" x2="1794.0" y2="3569" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="3593" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="3659.009677419355" width="398.0" height="112.98064516129033" viewBox="0 0 620 176"><rect x="0" y="0" width="620" height="176" fill="#272421"/>
+  <text x="25" y="45" fill="#F4EDE3" font-size="18" font-weight="400" font-family="Inter,Arial,sans-serif">Skriftstørrelse</text>
+  <text x="583" y="45" fill="#C7BAA9" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="end">16 px</text>
+  <rect x="27" y="91" width="563" height="6" fill="#211F1D" rx="3"/>
+  <rect x="27" y="91" width="195" height="6" fill="#E2C097" rx="3"/>
+  <circle cx="222" cy="94" r="15" fill="#E2C097" stroke="#211F1D" stroke-width="2"/>
+</svg>
+  <text x="1391.0" y="3610" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="3634" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Trinnløs eller trinnvis verdi på én akse,</text>
+  <text x="1391.0" y="3654" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">med synlig aktuell verdi.</text>
+  <text x="1391.0" y="3706" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="3728" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Aktiv posisjon</text>
+  <text x="1391.0" y="3777" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="3799" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Skriftstørrelse</text>
+  <line x1="972.0" y1="3862" x2="1794.0" y2="3862" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="3872" width="12" height="12" fill="#211F1D" rx="2"/>
+  <text x="991.0" y="3883" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Toppfelt (#211F1D)</text>
+  <rect x="973.0" y="3891" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="3902" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="3910" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="991.0" y="3921" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="3872" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="1403.0" y="3883" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="1385.0" y="3891" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="3902" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="56.0" y="4006" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="4038" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Sangbokvelger – kun valg</text>
+  <text x="904.0" y="4035" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">D09_Sangbokvelger_kun_valg</text>
+  <line x1="78.0" y1="4053" x2="900.0" y2="4053" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="4077" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="98.88264058679707" y="4082.0" width="356.23471882640587" height="235.00000000000003" viewBox="0 0 620 409"><title>Sangbokvelger – kun valg</title>
+  <desc>Samme nedtrekkskontroll som den utvidede sangbokvelgeren, men uten separator og Ny sangbok. Tre eksisterende sangbøker kan velges.</desc>
+  <rect x="0" y="0" width="620" height="409" fill="#272421" rx="0"/>
+  <g id="D09_Sangbokvelger_kun_valg__sangbokvelger" transform="translate(-50 -60)">
+    <g id="D09_Sangbokvelger_kun_valg__sangbokvelger__2">
+      <text x="74" y="91" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="500" text-anchor="start">Sangbok</text>
+      <rect x="74" y="115" width="572" height="68" rx="16" fill="#322E2A" stroke="#8F7B69" stroke-width="1.15"/>
+      <text x="103" y="159" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="400" text-anchor="start">Hobo Sapiens</text>
+      <path d="m 604 143 10 10 10 -10" stroke="#C7BAA9" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </g>
+    <g id="D09_Sangbokvelger_kun_valg__sangbokliste">
+      <rect x="74" y="196" width="572" height="220" rx="17" fill="#322E2A" stroke="#8F7B69" stroke-width="1.15"/>
+      <rect x="83" y="205" width="554" height="65" rx="12" fill="#403831"/>
+      <text x="105" y="244" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" text-anchor="start">Hobo Sapiens</text>
+      <text x="105" y="316" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" text-anchor="start">Getinghonung</text>
+      <text x="105" y="388" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" text-anchor="start">Privat</text>
+      <path d="m 597 235 8 8 15 -18" stroke="#E5BD8D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </g>
+  </g>
+</svg>
+  <text x="497.0" y="4094" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="4118" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Åpen liste med valgte og tilgjengelige</text>
+  <text x="497.0" y="4138" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">elementer. Ingen opprettelseshandling.</text>
+  <text x="497.0" y="4190" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="4212" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Valgt/ikke valgt</text>
+  <text x="497.0" y="4261" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="4283" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Velg sangbok</text>
+  <line x1="78.0" y1="4346" x2="900.0" y2="4346" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="4356" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="4367" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="4375" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="97.0" y="4386" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="79.0" y="4394" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="97.0" y="4405" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="79.0" y="4413" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="4424" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="4356" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="509.0" y="4367" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="4375" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="509.0" y="4386" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="491.0" y="4394" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="4405" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="4006" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="4038" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Sangbokvelger – med handling</text>
+  <text x="1798.0" y="4035" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">D10_Sangbokvelger_med_handling</text>
+  <line x1="972.0" y1="4053" x2="1794.0" y2="4053" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="4077" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="1023.5303643724696" y="4082.0" width="294.9392712550607" height="235.0" viewBox="0 0 620 494"><title>Sangbokvelger – valgt og meny åpen</title>
+  <desc>Velger, valgt sangbok, sjekkhake og Ny sangbok løftet fra godkjent Sangbokvelger/Ny sangbok-skisse.</desc>
+  <rect x="0" y="0" width="620" height="494" fill="#272421" rx="0"/>
+  <g id="D10_Sangbokvelger_med_handling__sangbokvelger" transform="translate(-50 -60)">
+    <g id="D10_Sangbokvelger_med_handling__sangbokvelger__2">
+      <text x="74" y="91" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="500" text-anchor="start">Sangbok</text>
+      <rect x="74" y="115" width="572" height="68" rx="16" fill="#322E2A" stroke="#8F7B69" stroke-width="1.15"/>
+      <text x="103" y="159" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="400" text-anchor="start">Hobo Sapiens</text>
+      <path d="m 604 143 10 10 10 -10" stroke="#C7BAA9" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </g>
+    <g id="D10_Sangbokvelger_med_handling__sangbokliste">
+      <rect x="74" y="196" width="572" height="310" rx="17" fill="#322E2A" stroke="#8F7B69" stroke-width="1.15"/>
+      <rect x="83" y="205" width="554" height="65" rx="12" fill="#403831"/>
+      <text x="105" y="244" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" text-anchor="start">Hobo Sapiens</text>
+      <text x="105" y="316" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" text-anchor="start">Getinghonung</text>
+      <text x="105" y="388" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" text-anchor="start">Privat</text>
+      <path d="m 597 235 8 8 15 -18" stroke="#E5BD8D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <line x1="96" y1="420" x2="624" y2="420" stroke="#8F7B69" stroke-width="1"/>
+      <path d="M 107 458 h 19 M 116.5 448.5 v 19" stroke="#E2C097" stroke-width="2.2" stroke-linecap="round"/>
+      <text x="150" y="467" fill="#E2C097" font-family="Inter, Arial, sans-serif" font-size="21" font-weight="500" text-anchor="start">Ny sangbok</text>
+    </g>
+  </g>
+</svg>
+  <text x="1391.0" y="4094" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="4118" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Samme valgkontroll med separat</text>
+  <text x="1391.0" y="4138" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">tillegghandling nederst.</text>
+  <text x="1391.0" y="4190" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="4212" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Valg + opprettelse</text>
+  <text x="1391.0" y="4261" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="4283" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Ny sangbok</text>
+  <line x1="972.0" y1="4346" x2="1794.0" y2="4346" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="4356" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="4367" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="4375" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="991.0" y="4386" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="973.0" y="4394" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="991.0" y="4405" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="973.0" y="4413" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="4424" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="4356" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="1403.0" y="4367" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="4375" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="1403.0" y="4386" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="1385.0" y="4394" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="1403.0" y="4405" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="1385.0" y="4413" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="4424" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  </g><g id="section_14" transform="translate(0,3264.00)"><rect x="56" y="2609" width="6" height="30" fill="#E2C097" rx="3"/>
+  <text x="79" y="2632" fill="#F4EDE3" font-size="27" font-family="Inter,Arial,sans-serif" font-weight="600">Dialoger</text>
+  <text x="1814" y="2630" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">4 komponenter</text>
+  <rect x="56.0" y="2661" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="2693" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Dialog – én handling</text>
+  <text x="904.0" y="2690" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">E02_Dialog_en_handling</text>
+  <line x1="78.0" y1="2708" x2="900.0" y2="2708" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="2732" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="82.18840579710144" y="2737.0" width="389.6231884057971" height="235.0" viewBox="0 0 572 345"><title>Dialog med 1 footerhandling</title>
+  <desc>Utsnitt fra Ny_sangbok: header, skillelinje, innholdsfelt og integrert 80px footer. Kun sekundære handlinger med lik vekting skilles vertikalt.</desc>
+  <defs>
+    <clipPath id="E02_Dialog_en_handling__dialogklipp">
+      <rect x="0" y="0" width="572" height="345" rx="24"/>
+    </clipPath>
+  </defs>
+  <g id="E02_Dialog_en_handling__dialogkropp" clip-path="url(#E02_Dialog_en_handling__dialogklipp)">
+    <rect x="0" y="0" width="572" height="345" fill="#322E2A" rx="0"/>
+    <text x="32" y="56" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="500">Eksempel</text>
+    <line x1="32" y1="75" x2="540" y2="75" stroke="#8F7B69" stroke-width="0.85"/>
+    <text x="32" y="116" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="500">Navn</text>
+    <rect x="32" y="133" width="508" height="57" fill="#272421" stroke="#8F7B69" stroke-width="0.85" rx="13"/>
+    <text x="52" y="170" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="400">Lorem ipsum</text>
+    <rect x="0.0" y="265" width="572.03" height="80" fill="#E2C097" rx="0"/>
+    <line x1="0" y1="265" x2="572" y2="265" stroke="#8F7B69" stroke-width="1.0"/>
+    <g id="E02_Dialog_en_handling__handling-1" role="button">
+      <g id="E02_Dialog_en_handling__ikon-lagre" transform="translate(243.0 292) scale(1.00000)" stroke="#272421" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <g opacity="1">
+          <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+          <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+          <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+        </g>
+      </g>
+      <text x="296.0" y="315" fill="#272421" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" text-anchor="middle">Lagre</text>
+    </g>
+  </g>
+  <rect x="0" y="0" width="572" height="345" fill="none" stroke="#8F7B69" stroke-width="1.15" rx="24"/>
+</svg>
+  <text x="497.0" y="2749" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="2773" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Header, kropp og helbredde-integrert footer</text>
+  <text x="497.0" y="2793" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">med én primærhandling.</text>
+  <text x="497.0" y="2845" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="2867" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Én handling</text>
+  <text x="497.0" y="2916" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="2938" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Lagre</text>
+  <line x1="78.0" y1="3001" x2="900.0" y2="3001" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="3011" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="3022" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="3030" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="97.0" y="3041" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="79.0" y="3049" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="3060" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="3011" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="509.0" y="3022" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="3030" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="509.0" y="3041" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="491.0" y="3049" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="3060" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="2661" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="2693" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Dialog – to handlinger</text>
+  <text x="1798.0" y="2690" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">E03_Dialog_to_handlinger</text>
+  <line x1="972.0" y1="2708" x2="1794.0" y2="2708" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="2732" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="976.1884057971015" y="2737.0" width="389.6231884057971" height="235.0" viewBox="0 0 572 345"><title>Dialog med 2 footerhandlinger</title>
+  <desc>Utsnitt fra Ny_sangbok: header, skillelinje, innholdsfelt og integrert 80px footer. Kun sekundære handlinger med lik vekting skilles vertikalt.</desc>
+  <defs>
+    <clipPath id="E03_Dialog_to_handlinger__dialogklipp">
+      <rect x="0" y="0" width="572" height="345" rx="24"/>
+    </clipPath>
+  </defs>
+  <g id="E03_Dialog_to_handlinger__dialogkropp" clip-path="url(#E03_Dialog_to_handlinger__dialogklipp)">
+    <rect x="0" y="0" width="572" height="345" fill="#322E2A" rx="0"/>
+    <text x="32" y="56" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="500">Eksempel</text>
+    <line x1="32" y1="75" x2="540" y2="75" stroke="#8F7B69" stroke-width="0.85"/>
+    <text x="32" y="116" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="500">Navn</text>
+    <rect x="32" y="133" width="508" height="57" fill="#272421" stroke="#8F7B69" stroke-width="0.85" rx="13"/>
+    <text x="52" y="170" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="400">Lorem ipsum</text>
+    <rect x="0.0" y="265" width="286.03" height="80" fill="#322E2A" rx="0"/>
+    <rect x="286.0" y="265" width="286.03" height="80" fill="#E2C097" rx="0"/>
+    <line x1="0" y1="265" x2="572" y2="265" stroke="#8F7B69" stroke-width="1.0"/>
+    <g id="E03_Dialog_to_handlinger__handling-1" role="button">
+      <g id="E03_Dialog_to_handlinger__avbryt-symbol" transform="translate(96.0 294)" fill="none" stroke="#C7BAA9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="10" cy="10" r="9"/>
+        <path d="M7 7l6 6 M13 7l-6 6"/>
+      </g>
+      <text x="153.0" y="315" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="500" text-anchor="middle">Avbryt</text>
+    </g>
+    <g id="E03_Dialog_to_handlinger__handling-2" role="button">
+      <g id="E03_Dialog_to_handlinger__ikon-lagre" transform="translate(386.0 292) scale(1.00000)" stroke="#272421" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <g opacity="1">
+          <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+          <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+          <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+        </g>
+      </g>
+      <text x="439.0" y="315" fill="#272421" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" text-anchor="middle">Lagre</text>
+    </g>
+  </g>
+  <rect x="0" y="0" width="572" height="345" fill="none" stroke="#8F7B69" stroke-width="1.15" rx="24"/>
+</svg>
+  <text x="1391.0" y="2749" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="2773" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Én primær og én sekundær handling, uten</text>
+  <text x="1391.0" y="2793" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">vertikal skillelinje imellom.</text>
+  <text x="1391.0" y="2845" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="2867" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Primær / sekundær</text>
+  <text x="1391.0" y="2916" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="2938" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Avbryt / Lagre</text>
+  <line x1="972.0" y1="3001" x2="1794.0" y2="3001" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="3011" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="3022" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="3030" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="991.0" y="3041" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="973.0" y="3049" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="3060" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="3011" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="1403.0" y="3022" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="3030" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="1403.0" y="3041" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="1385.0" y="3049" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="3060" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="56.0" y="3145" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="3177" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Dialog – tre handlinger</text>
+  <text x="904.0" y="3174" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">E04_Dialog_tre_handlinger</text>
+  <line x1="78.0" y1="3192" x2="900.0" y2="3192" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="3216" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="82.18840579710144" y="3221.0" width="389.6231884057971" height="235.0" viewBox="0 0 572 345"><title>Dialog med 3 footerhandlinger</title>
+  <desc>Utsnitt fra Ny_sangbok: header, skillelinje, innholdsfelt og integrert 80px footer. Kun sekundære handlinger med lik vekting skilles vertikalt.</desc>
+  <defs>
+    <clipPath id="E04_Dialog_tre_handlinger__dialogklipp">
+      <rect x="0" y="0" width="572" height="345" rx="24"/>
+    </clipPath>
+  </defs>
+  <g id="E04_Dialog_tre_handlinger__dialogkropp" clip-path="url(#E04_Dialog_tre_handlinger__dialogklipp)">
+    <rect x="0" y="0" width="572" height="345" fill="#322E2A" rx="0"/>
+    <text x="32" y="56" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="500">Eksempel</text>
+    <line x1="32" y1="75" x2="540" y2="75" stroke="#8F7B69" stroke-width="0.85"/>
+    <text x="32" y="116" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="500">Navn</text>
+    <rect x="32" y="133" width="508" height="57" fill="#272421" stroke="#8F7B69" stroke-width="0.85" rx="13"/>
+    <text x="52" y="170" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="400">Lorem ipsum</text>
+    <rect x="0.0" y="265" width="190.69666666666666" height="80" fill="#322E2A" rx="0"/>
+    <rect x="190.66666666666666" y="265" width="190.69666666666666" height="80" fill="#322E2A" rx="0"/>
+    <rect x="381.3333333333333" y="265" width="190.69666666666666" height="80" fill="#E2C097" rx="0"/>
+    <line x1="0" y1="265" x2="572" y2="265" stroke="#8F7B69" stroke-width="1.0"/>
+    <line x1="190.66666666666666" y1="277" x2="190.66666666666666" y2="333" stroke="#8F7B69" stroke-width="0.8"/>
+    <g id="E04_Dialog_tre_handlinger__handling-1" role="button">
+      <g id="E04_Dialog_tre_handlinger__avbryt-symbol" transform="translate(48.33333333333333 294)" fill="none" stroke="#C7BAA9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="10" cy="10" r="9"/>
+        <path d="M7 7l6 6 M13 7l-6 6"/>
+      </g>
+      <text x="105.33333333333333" y="315" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="500" text-anchor="middle">Avbryt</text>
+    </g>
+    <g id="E04_Dialog_tre_handlinger__handling-2" role="button">
+      <text x="286.0" y="315" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="500" text-anchor="middle">Tilbake</text>
+    </g>
+    <g id="E04_Dialog_tre_handlinger__handling-3" role="button">
+      <g id="E04_Dialog_tre_handlinger__ikon-lagre" transform="translate(433.66666666666663 292) scale(1.00000)" stroke="#272421" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <g opacity="1">
+          <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+          <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+          <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+        </g>
+      </g>
+      <text x="486.66666666666663" y="315" fill="#272421" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" text-anchor="middle">Lagre</text>
+    </g>
+  </g>
+  <rect x="0" y="0" width="572" height="345" fill="none" stroke="#8F7B69" stroke-width="1.15" rx="24"/>
+</svg>
+  <text x="497.0" y="3233" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="3257" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Vertikal skillelinje bare mellom likestilte</text>
+  <text x="497.0" y="3277" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">sekundærhandlinger.</text>
+  <text x="497.0" y="3329" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="3351" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">To sekundære + én primær</text>
+  <text x="497.0" y="3400" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="3422" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Avbryt / Tilbake / Lagre (illustrasjon)</text>
+  <line x1="78.0" y1="3485" x2="900.0" y2="3485" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="3495" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="3506" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="3514" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="97.0" y="3525" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="79.0" y="3533" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="3544" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="3495" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="509.0" y="3506" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="3514" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="509.0" y="3525" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="491.0" y="3533" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="3544" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="3145" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="3177" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Dialog – fullskjerm</text>
+  <text x="1798.0" y="3174" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">E01_Dialog_fullskjerm</text>
+  <line x1="972.0" y1="3192" x2="1794.0" y2="3192" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="3216" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="1058.0542635658915" y="3221.0" width="225.89147286821705" height="235.0" viewBox="0 0 620 645"><rect x="0" y="0" width="620" height="645" fill="#272421"/>
+  <rect x="0" y="0" width="620" height="66" fill="#211F1D"/>
+  <g transform="translate(23 22) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="m8 6-5 6 5 6M16 6l5 6-5 6M14 4l-4 16"/>
+    </g>
+  </g>
+  <text x="59" y="44" fill="#F4EDE3" font-size="23" font-weight="400" font-family="Inter,Arial,sans-serif">Råtekst</text>
+  <line x1="0" y1="66" x2="620" y2="66" stroke="#8F7B69" stroke-width="1"/>
+  <rect x="18" y="86" width="584" height="466" fill="#322E2A" stroke="#8F7B69" stroke-width="1" rx="8"/>
+  <text x="37" y="118" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{title: Banner of Heaven}</text>
+  <text x="37" y="149" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{key: Em}</text>
+  <text x="37" y="180" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{time: 4/4}</text>
+  <text x="37" y="211" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Cousine,monospace"/>
+  <text x="37" y="242" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{x_dyn: 2}</text>
+  <text x="37" y="273" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">[Em]He came to town last summer</text>
+  <text x="37" y="304" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">[G]In a dirty beat-up [D]Ford</text>
+  <text x="37" y="335" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Cousine,monospace"/>
+  <text x="37" y="366" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{soc}</text>
+  <text x="37" y="397" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Cousine,monospace">Under the banner of Heaven</text>
+  <text x="37" y="428" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{eoc}</text>
+  <text x="37" y="459" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Cousine,monospace"/>
+  <text x="37" y="490" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{comment: Fele – mellomspill}</text>
+  <line x1="0" y1="560" x2="620" y2="560" stroke="#8F7B69" stroke-width="1"/>
+  <rect x="0" y="561" width="310" height="84" fill="#211F1D"/>
+  <rect x="310" y="561" width="310" height="84" fill="#E2C097"/>
+  <g transform="translate(83 590) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M18 6 6 18M6 6l12 12"/>
+    </g>
+  </g>
+  <text x="119" y="613" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Inter,Arial,sans-serif">Avbryt</text>
+  <g transform="translate(407 590) scale(1.0)" fill="none" stroke="#272421" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+      <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+      <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+    </g>
+  </g>
+  <text x="445" y="613" fill="#272421" font-size="19" font-weight="600" font-family="Inter,Arial,sans-serif">Lagre</text>
+</svg>
+  <text x="1391.0" y="3233" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="3257" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Hele visningsflaten, rette ytterhjørner;</text>
+  <text x="1391.0" y="3277" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">overskrift; scrollbart tekstfelt; integrert</text>
+  <text x="1391.0" y="3297" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">footer.</text>
+  <text x="1391.0" y="3329" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="3351" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Avbryt / Lagre</text>
+  <text x="1391.0" y="3400" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="3422" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Råtekst</text>
+  <line x1="972.0" y1="3485" x2="1794.0" y2="3485" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="3495" width="12" height="12" fill="#211F1D" rx="2"/>
+  <text x="991.0" y="3506" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Toppfelt (#211F1D)</text>
+  <rect x="973.0" y="3514" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="3525" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="3533" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="991.0" y="3544" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="973.0" y="3552" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="3563" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="1385.0" y="3495" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="1403.0" y="3506" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="1385.0" y="3514" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="1403.0" y="3525" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="1385.0" y="3533" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="3544" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  </g><g id="section_15" transform="translate(0,4201.00)"><rect x="56" y="2716" width="6" height="30" fill="#E2C097" rx="3"/>
+  <text x="79" y="2739" fill="#F4EDE3" font-size="27" font-family="Inter,Arial,sans-serif" font-weight="600">Sanginnhold</text>
+  <text x="1814" y="2737" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">6 komponenter</text>
+  <rect x="56.0" y="2768" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="2800" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Akkordskjema</text>
+  <text x="904.0" y="2797" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">F01_Akkordskjema</text>
+  <line x1="78.0" y1="2815" x2="900.0" y2="2815" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="2839" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="2895.701612903226" width="398.0" height="131.59677419354838" viewBox="0 0 620 205"><rect x="0" y="0" width="620" height="205" fill="#272421"/>
+  <rect x="23" y="22" width="573" height="147" fill="#322E2A" stroke="#8F7B69" stroke-width="1" rx="12"/>
+  <text x="52" y="66" fill="#E5BD8D" font-size="21" font-weight="400" font-family="Cousine,monospace">|: Em | C | G | D :|</text>
+  <text x="52" y="110" fill="#E5BD8D" font-size="20" font-weight="400" font-family="Cousine,monospace">| Em C | G D | C D | Em |</text>
+  <g transform="translate(550 30) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <g transform="rotate(-27 12 12)">
+        <path d="M8.3 3.1h7.4l-1.5 5.3 2.5 3.1H7.3l2.5-3.1Z"/>
+        <path d="M12 11.5v10"/>
+      </g>
+    </g>
+  </g>
+</svg>
+  <text x="497.0" y="2856" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="2880" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Felles visningsflate for ett skjema;</text>
+  <text x="497.0" y="2900" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">godkjent skråstilt pin viser</text>
+  <text x="497.0" y="2920" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">sticky-tilstand.</text>
+  <text x="497.0" y="2952" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="2974" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Sticky av/på; ett skjema om gangen</text>
+  <text x="497.0" y="3023" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="3045" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Akkordprogresjon</text>
+  <line x1="78.0" y1="3108" x2="900.0" y2="3108" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="3118" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="3129" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="3137" width="12" height="12" fill="#322E2A" rx="2"/>
+  <text x="97.0" y="3148" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Overflate (#322E2A)</text>
+  <rect x="79.0" y="3156" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="3167" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="491.0" y="3118" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="509.0" y="3129" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="491.0" y="3137" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="3148" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="2768" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="2800" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Refrengstruktur</text>
+  <text x="1798.0" y="2797" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">F02_Refreng</text>
+  <line x1="972.0" y1="2815" x2="1794.0" y2="2815" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="2839" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="2866.493548387097" width="398.0" height="190.01290322580647" viewBox="0 0 620 296"><rect x="0" y="0" width="620" height="296" fill="#272421"/>
+  <text x="40" y="37" fill="#D9A385" font-size="20" font-weight="600" font-family="Inter,Arial,sans-serif">Refreng</text>
+  <line x1="29" y1="51" x2="29" y2="183" stroke="#D9A385" stroke-width="4"/>
+  <text x="50" y="80" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Under the banner of Heaven</text>
+  <text x="50" y="108" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">It is hard to see the sky</text>
+  <text x="50" y="136" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">When you’ve tasted all Seven</text>
+  <text x="50" y="164" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Embrace your lullaby</text>
+  <text x="34" y="242" fill="#D9A385" font-size="20" font-weight="400" font-family="Inter,Arial,sans-serif">Refreng</text>
+  <text x="135" y="242" fill="#C7BAA9" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif">(gjentatt henvisning)</text>
+</svg>
+  <text x="1391.0" y="2856" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="2880" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Blokk med overskrift, innrykk og</text>
+  <text x="1391.0" y="2900" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">venstrestrek; senere henvisninger som</text>
+  <text x="1391.0" y="2920" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">diskret tekstkontroll.</text>
+  <text x="1391.0" y="2952" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="2974" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Første blokk / senere henvisning</text>
+  <text x="1391.0" y="3023" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="3045" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Refreng</text>
+  <line x1="972.0" y1="3108" x2="1794.0" y2="3108" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="3118" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="3129" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="3137" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="991.0" y="3148" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="3118" width="12" height="12" fill="#D9A385" rx="2"/>
+  <text x="1403.0" y="3129" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Refreng (#D9A385)</text>
+  <rect x="1385.0" y="3137" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="3148" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="56.0" y="3252" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="3284" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Akkord og anvisning</text>
+  <text x="904.0" y="3281" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">F03_Akkord_og_anvisning</text>
+  <line x1="78.0" y1="3299" x2="900.0" y2="3299" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="3323" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="3372.31935483871" width="398.0" height="146.36129032258066" viewBox="0 0 620 228"><rect x="0" y="0" width="620" height="228" fill="#272421"/>
+  <text x="45" y="49" fill="#E5BD8D" font-size="20" font-weight="400" font-family="Cousine,monospace">Em</text>
+  <text x="224" y="49" fill="#E5BD8D" font-size="20" font-weight="400" font-family="Cousine,monospace">C</text>
+  <text x="45" y="89" fill="#F4EDE3" font-size="22" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">He came to town last summer</text>
+  <line x1="25" y1="122" x2="592" y2="122" stroke="#8F7B69" stroke-width="1" opacity="0.6"/>
+  <text x="45" y="165" fill="#C7BAA9" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif" font-style="italic">Intro – gitar alene</text>
+</svg>
+  <text x="497.0" y="3340" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="3364" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Inline akkord vises over riktig</text>
+  <text x="497.0" y="3384" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">tekstposisjon; anvisning er eget formatert</text>
+  <text x="497.0" y="3404" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">tekstelement.</text>
+  <text x="497.0" y="3436" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="3458" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Akkord / anvisning</text>
+  <text x="497.0" y="3507" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="3529" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Em / Intro</text>
+  <line x1="78.0" y1="3592" x2="900.0" y2="3592" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="3602" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="3613" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="3621" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="97.0" y="3632" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="79.0" y="3640" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="97.0" y="3651" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="3602" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="509.0" y="3613" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="491.0" y="3621" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="3632" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="3252" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="3284" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Dynamikk</text>
+  <text x="1798.0" y="3281" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">F04_Dynamikk</text>
+  <line x1="972.0" y1="3299" x2="1794.0" y2="3299" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="3323" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="3346.0" width="398.0" height="199.0" viewBox="0 0 620 310"><rect x="0" y="0" width="620" height="310" fill="#272421"/>
+  <text x="20" y="28" fill="#C7BAA9" font-size="14" font-weight="600" font-family="Inter,Arial,sans-serif">VISNING</text>
+  <rect x="45" y="54" width="10" height="45.2" fill="#9B8573"/>
+  <text x="92" y="81" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje én</text>
+  <rect x="45" y="99" width="18" height="45.2" fill="#9B8573"/>
+  <text x="92" y="126" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje to</text>
+  <rect x="45" y="144" width="25" height="45.2" fill="#9B8573"/>
+  <text x="92" y="171" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje tre</text>
+  <rect x="45" y="189" width="15" height="45.2" fill="#9B8573"/>
+  <text x="92" y="216" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje fire</text>
+  <text x="322" y="28" fill="#C7BAA9" font-size="14" font-weight="600" font-family="Inter,Arial,sans-serif">REDIGERING</text>
+  <rect x="345" y="62" width="37" height="39" fill="#403831" stroke="#8F7B69" stroke-width="1" rx="6"/>
+  <text x="363.5" y="88" fill="#E2C097" font-size="16" font-weight="600" font-family="Inter,Arial,sans-serif" text-anchor="middle">1</text>
+  <text x="401" y="88" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje én</text>
+  <rect x="345" y="135" width="37" height="39" fill="#403831" stroke="#8F7B69" stroke-width="1" rx="6"/>
+  <text x="363.5" y="161" fill="#E2C097" font-size="16" font-weight="600" font-family="Inter,Arial,sans-serif" text-anchor="middle">3</text>
+  <text x="401" y="161" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje to</text>
+  <rect x="345" y="208" width="37" height="39" fill="#403831" stroke="#8F7B69" stroke-width="1" rx="6"/>
+  <text x="363.5" y="234" fill="#E2C097" font-size="16" font-weight="600" font-family="Inter,Arial,sans-serif" text-anchor="middle">5</text>
+  <text x="401" y="234" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje tre</text>
+</svg>
+  <text x="1391.0" y="3340" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="3364" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Visningsprofil i fast venstremarg; under</text>
+  <text x="1391.0" y="3384" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">redigering bare separate nummererte</text>
+  <text x="1391.0" y="3404" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">nivåmarkører.</text>
+  <text x="1391.0" y="3436" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="3458" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Visning / redigering</text>
+  <text x="1391.0" y="3507" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="3529" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Nivå 1–5</text>
+  <line x1="972.0" y1="3592" x2="1794.0" y2="3592" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="3602" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="3613" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="3621" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="991.0" y="3632" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="973.0" y="3640" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="3651" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="973.0" y="3659" width="12" height="12" fill="#9B8573" rx="2"/>
+  <text x="991.0" y="3670" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Dynamikk (#9B8573)</text>
+  <rect x="1385.0" y="3602" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="1403.0" y="3613" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="1385.0" y="3621" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="1403.0" y="3632" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="1385.0" y="3640" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="3651" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="56.0" y="3736" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="77.0" y="3768" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Personlig annotering</text>
+  <text x="904.0" y="3765" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">F05_Annotering</text>
+  <line x1="78.0" y1="3783" x2="900.0" y2="3783" stroke="#8F7B69" opacity=".40"/>
+  <rect x="74.0" y="3807" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="78.0" y="3847.974193548387" width="398.0" height="163.05161290322582" viewBox="0 0 620 254"><rect x="0" y="0" width="620" height="254" fill="#272421"/>
+  <rect x="27" y="47" width="281" height="33" fill="#D6B77C" rx="5"/>
+  <text x="39" y="69" fill="#272421" font-size="22" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Suitcase on the floor</text>
+  <line x1="308" y1="103" x2="394" y2="103" stroke="#C7BAA9" stroke-width="1.4" stroke-dasharray="2 6"/>
+  <rect x="394" y="87" width="196" height="70" fill="#403831" rx="10"/>
+  <text x="408" y="126" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Her er et notat</text>
+  <text x="27" y="212" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">Ingen notatoverskrift eller × i normalvisningen.</text>
+</svg>
+  <text x="497.0" y="3824" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="497.0" y="3848" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Notat i egen hevet flate, uten overskrift;</text>
+  <text x="497.0" y="3868" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">valgfri stiplet forankring. Gulmarkering</text>
+  <text x="497.0" y="3888" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">uten tekstendring.</text>
+  <text x="497.0" y="3920" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="497.0" y="3942" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Notat / gulmarkering</text>
+  <text x="497.0" y="3991" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="497.0" y="4013" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Personlig påminnelse</text>
+  <line x1="78.0" y1="4076" x2="900.0" y2="4076" stroke="#8F7B69" opacity=".55"/>
+  <rect x="79.0" y="4086" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="97.0" y="4097" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="79.0" y="4105" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="97.0" y="4116" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="79.0" y="4124" width="12" height="12" fill="#C7BAA9" rx="2"/>
+  <text x="97.0" y="4135" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Sekundærtekst (#C7BAA9)</text>
+  <rect x="491.0" y="4086" width="12" height="12" fill="#D6B77C" rx="2"/>
+  <text x="509.0" y="4097" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Gulmarkering (#D6B77C)</text>
+  <rect x="491.0" y="4105" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="509.0" y="4116" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+  <rect x="950.0" y="3736" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
+  <text x="971.0" y="3768" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Fjerningskontroll</text>
+  <text x="1798.0" y="3765" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">F06_Fjerningskontroll</text>
+  <line x1="972.0" y1="3783" x2="1794.0" y2="3783" stroke="#8F7B69" opacity=".40"/>
+  <rect x="968.0" y="3807" width="406" height="245" fill="#272421" rx="10"/>
+  <svg x="972.0" y="3852.467741935484" width="398.0" height="154.06451612903226" viewBox="0 0 620 240"><rect x="0" y="0" width="620" height="240" fill="#272421"/>
+  <text x="23" y="35" fill="#E2C097" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Aktiv Fjern-modus</text>
+  <text x="43" y="96" fill="#E5BD8D" font-size="19" font-weight="400" font-family="Cousine,monospace">Em</text>
+  <g transform="translate(90 73) scale(1.0)" fill="none" stroke="#E2C097" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="12" cy="12" r="9.4"/>
+      <path d="m8 8 8 8m0-8-8 8"/>
+    </g>
+  </g>
+  <line x1="23" y1="119" x2="23" y2="185" stroke="#D9A385" stroke-width="4"/>
+  <g transform="translate(12 123) scale(1.0)" fill="none" stroke="#E2C097" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="12" cy="12" r="9.4"/>
+      <path d="m8 8 8 8m0-8-8 8"/>
+    </g>
+  </g>
+  <text x="57" y="149" fill="#D9A385" font-size="18" font-weight="400" font-family="Inter,Arial,sans-serif">Refreng</text>
+  <rect x="341" y="69" width="245" height="79" fill="#403831" rx="10"/>
+  <text x="356" y="104" fill="#F4EDE3" font-size="16" font-weight="400" font-family="Inter,Arial,sans-serif">Her er et notat</text>
+  <g transform="translate(550 93) scale(1.0)" fill="none" stroke="#E2C097" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="12" cy="12" r="9.4"/>
+      <path d="m8 8 8 8m0-8-8 8"/>
+    </g>
+  </g>
+  <rect x="340" y="169" width="34" height="37" fill="#403831" stroke="#8F7B69" stroke-width="1" rx="6"/>
+  <text x="357" y="193" fill="#E2C097" font-size="16" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="middle">3</text>
+  <g transform="translate(386 174) scale(1.0)" fill="none" stroke="#E2C097" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="12" cy="12" r="9.4"/>
+      <path d="m8 8 8 8m0-8-8 8"/>
+    </g>
+  </g>
+</svg>
+  <text x="1391.0" y="3824" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">KOMPONENT</text>
+  <text x="1391.0" y="3848" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">Global Fjern-modus gjør × synlig ved hvert</text>
+  <text x="1391.0" y="3868" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">fjernbart element; underliggende sangtekst</text>
+  <text x="1391.0" y="3888" fill="#F4EDE3" font-size="16" font-family="Inter,Arial,sans-serif" font-weight="400">berøres ikke.</text>
+  <text x="1391.0" y="3920" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">VARIANT</text>
+  <text x="1391.0" y="3942" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Ved akkord / refreng / notat / dynamikk</text>
+  <text x="1391.0" y="3991" fill="#E2C097" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="600">EKSEMPEL</text>
+  <text x="1391.0" y="4013" fill="#F4EDE3" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400">Fjern</text>
+  <line x1="972.0" y1="4076" x2="1794.0" y2="4076" stroke="#8F7B69" opacity=".55"/>
+  <rect x="973.0" y="4086" width="12" height="12" fill="#272421" rx="2"/>
+  <text x="991.0" y="4097" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Appbakgrunn (#272421)</text>
+  <rect x="973.0" y="4105" width="12" height="12" fill="#403831" rx="2"/>
+  <text x="991.0" y="4116" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Hevet flate (#403831)</text>
+  <rect x="973.0" y="4124" width="12" height="12" fill="#8F7B69" rx="2"/>
+  <text x="991.0" y="4135" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Kontur (#8F7B69)</text>
+  <rect x="973.0" y="4143" width="12" height="12" fill="#D9A385" rx="2"/>
+  <text x="991.0" y="4154" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Refreng (#D9A385)</text>
+  <rect x="1385.0" y="4086" width="12" height="12" fill="#E2C097" rx="2"/>
+  <text x="1403.0" y="4097" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Handling / fokus (#E2C097)</text>
+  <rect x="1385.0" y="4105" width="12" height="12" fill="#E5BD8D" rx="2"/>
+  <text x="1403.0" y="4116" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Akkorder (#E5BD8D)</text>
+  <rect x="1385.0" y="4124" width="12" height="12" fill="#F4EDE3" rx="2"/>
+  <text x="1403.0" y="4135" fill="#C7BAA9" font-size="12.3" font-family="Inter,Arial,sans-serif" font-weight="400">Primærtekst (#F4EDE3)</text>
+</g></svg>

@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="620" height="240" viewBox="0 0 620 240" role="img">
+  <rect x="0" y="0" width="620" height="240" fill="#272421"/>
+  <text x="23" y="35" fill="#E2C097" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Aktiv Fjern-modus</text>
+  <text x="43" y="96" fill="#E5BD8D" font-size="19" font-weight="400" font-family="Cousine,monospace">Em</text>
+  <g transform="translate(90 73) scale(1.0)" fill="none" stroke="#E2C097" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="12" cy="12" r="9.4"/>
+      <path d="m8 8 8 8m0-8-8 8"/>
+    </g>
+  </g>
+  <line x1="23" y1="119" x2="23" y2="185" stroke="#D9A385" stroke-width="4"/>
+  <g transform="translate(12 123) scale(1.0)" fill="none" stroke="#E2C097" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="12" cy="12" r="9.4"/>
+      <path d="m8 8 8 8m0-8-8 8"/>
+    </g>
+  </g>
+  <text x="57" y="149" fill="#D9A385" font-size="18" font-weight="400" font-family="Inter,Arial,sans-serif">Refreng</text>
+  <rect x="341" y="69" width="245" height="79" fill="#403831" rx="10"/>
+  <text x="356" y="104" fill="#F4EDE3" font-size="16" font-weight="400" font-family="Inter,Arial,sans-serif">Her er et notat</text>
+  <g transform="translate(550 93) scale(1.0)" fill="none" stroke="#E2C097" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="12" cy="12" r="9.4"/>
+      <path d="m8 8 8 8m0-8-8 8"/>
+    </g>
+  </g>
+  <rect x="340" y="169" width="34" height="37" fill="#403831" stroke="#8F7B69" stroke-width="1" rx="6"/>
+  <text x="357" y="193" fill="#E2C097" font-size="16" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="middle">3</text>
+  <g transform="translate(386 174) scale(1.0)" fill="none" stroke="#E2C097" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="12" cy="12" r="9.4"/>
+      <path d="m8 8 8 8m0-8-8 8"/>
+    </g>
+  </g>
+</svg>

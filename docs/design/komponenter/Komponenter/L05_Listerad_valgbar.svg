@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="620" height="257" viewBox="0 0 620 257" role="img">
+  <rect x="0" y="0" width="620" height="257" fill="#272421"/>
+  <text x="35" y="55" fill="#F4EDE3" font-size="21" font-weight="400" font-family="Inter,Arial,sans-serif">Bronco Billy</text>
+  <line x1="16" y1="82" x2="604" y2="82" stroke="#8F7B69" stroke-width="1" opacity="0.45"/>
+  <rect x="14" y="90" width="592" height="68" fill="#403831" rx="4"/>
+  <text x="35" y="133" fill="#F4EDE3" font-size="21" font-weight="400" font-family="Inter,Arial,sans-serif">Dust in the Corner</text>
+  <g transform="translate(554 108) scale(1.125)" fill="none" stroke="#E2C097" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <circle cx="12" cy="12" r="9.5"/>
+      <path d="m8 12 3 3 5-6"/>
+    </g>
+  </g>
+  <line x1="16" y1="160" x2="604" y2="160" stroke="#8F7B69" stroke-width="1" opacity="0.45"/>
+  <text x="35" y="211" fill="#F4EDE3" font-size="21" font-weight="400" font-family="Inter,Arial,sans-serif">Hold On</text>
+  <line x1="16" y1="238" x2="604" y2="238" stroke="#8F7B69" stroke-width="1" opacity="0.45"/>
+</svg>

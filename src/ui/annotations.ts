@@ -1,3 +1,4 @@
+import {actionButton} from './controls.ts';
 import {logicalLines, notePlacements} from '../domain/annotations.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
 
@@ -31,7 +32,7 @@ export function paintAnnotations(root: HTMLElement, song: Song, personal: SongPe
     const note = document.createElement('aside');note.className = 'personal-note';note.dataset.noteId = placement.id;note.textContent = placement.note.text;note.setAttribute('aria-label', 'Personlig notat');
     if (document.body.classList.contains('editing-active')) {
       note.tabIndex = 0;note.dataset.tooltip = 'Hold inne og dra for å flytte. Alt+pil opp/ned på tastatur.';
-      const remove = document.createElement('button');remove.type = 'button';remove.textContent = '×';remove.dataset.deleteNote = '';remove.setAttribute('aria-label', 'Slett notat');note.append(remove);
+      const remove = actionButton('',undefined,'slett');remove.dataset.deleteNote = '';remove.setAttribute('aria-label', 'Slett notat');note.append(remove);
     }
     row.prepend(note);
   }

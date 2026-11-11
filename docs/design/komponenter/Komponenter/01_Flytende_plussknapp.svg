@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <title>Flytende plussknapp</title>
+  <desc>Isolert FAB fra Sangliste_plussmeny.svg. Ingen endring av figur, størrelser eller transparens.</desc>
+  <defs>
+    <filter id="floating-shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="6" stdDeviation="9" flood-color="#211F1D" flood-opacity=".34"/>
+    </filter>
+    <linearGradient id="glass-color" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F4EDE3" stop-opacity=".26"/>
+      <stop offset="70%" stop-color="#C7BAA9" stop-opacity=".10"/>
+      <stop offset="100%" stop-color="#F4EDE3" stop-opacity=".17"/>
+    </linearGradient>
+  </defs>
+  <g id="flytende-plussknapp" transform="translate(-610 -1035)">
+    <g id="floating-add-button">
+      <circle cx="658" cy="1083" r="31" fill="url(#glass-color)" stroke="#E2C097" stroke-width="1.15" stroke-opacity=".60" filter="url(#floating-shadow)"/>
+      <circle cx="658" cy="1083" r="29" fill="none" stroke="#F4EDE3" stroke-width=".85" stroke-opacity=".18"/>
+      <g id="icon-ny-646-1071" transform="translate(646 1071) scale(1.0)" stroke="#F4EDE3" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <g opacity="1">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <line x1="12" y1="5" x2="12" y2="19"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {importSong,savedSongs,openMenu} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
 const original=page=>page.getByRole('dialog',{name:'Rediger sangtekst',exact:true});
-const edit=async page=>{await openMenu(page);await page.getByRole('button',{name:'Rediger',exact:true}).click();};
+const edit=async page=>{await page.getByRole('button',{name:'Rediger',exact:true}).click();};
 const save=async page=>{await page.locator('#edit-save').click();await expect(page.locator('#edit-save')).toBeDisabled();};
 const state=page=>page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test',1);r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal'),get=tx.objectStore('personal').getAll();tx.oncomplete=()=>{db.close();resolve(get.result);};};}));
 async function note(page,index,text){

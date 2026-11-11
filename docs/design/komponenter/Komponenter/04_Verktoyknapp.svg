@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="134" viewBox="0 0 390 134">
+  <title>Verktøyknapp – vanlig og aktiv</title>
+  <desc>Verktøyknapper fra godkjent redigerings-SVG: ikon over kort tekst. Aktiv tilstand fra Fjern-modus.</desc>
+  <rect x="0" y="0" width="390" height="134" fill="#272421" rx="0"/>
+  <g id="vanlig" transform="translate(30 44)">
+    <g transform="translate(30 7) scale(1.0833333333333333)" stroke="#F4EDE3" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" data-icon="akkord">
+      <g opacity="1" stroke="#F4EDE3"><ellipse cx="8.1" cy="17.3" rx="6.2" ry="3.55" transform="rotate(-14 8.1 17.3)"/>
+             <path d="M14.2 17.1V2.5"/></g>
+    </g>
+    <text x="43" y="57" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" text-anchor="middle">Akkorder</text>
+  </g>
+  <g id="aktiv" transform="translate(170 44)">
+    <rect x="0" y="0" width="86" height="68" fill="#403831" rx="9"/>
+    <g transform="translate(30 7) scale(1.0833333333333333)" stroke="#E5BD8D" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" data-icon="viskelaer">
+      <g opacity="1" stroke="#E5BD8D"><path d="M20.5 20.5h-12a2 2 0 0 1-1.4-.6l-4.7-4.7a2 2 0 0 1 0-2.8l9.9-9.9a2 2 0 0 1 2.8 0l5.4 5.4a2 2 0 0 1 0 2.8l-9.8 9.8"/>
+               <path d="m6.6 8.3 9 9"/></g>
+    </g>
+    <text x="43" y="57" fill="#E5BD8D" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400" text-anchor="middle">Fjern</text>
+  </g>
+  <text x="42" y="30" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400">Vanlig</text>
+  <text x="185" y="30" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400">Aktiv</text>
+</svg>

@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, original, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
+import {importSong, savedSongs, original, openSettings, closeSettings, setDisplay} from './song-helpers.mjs';
 
 const base = '/hobos-songbook/';
 const ready = page => expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
@@ -71,7 +71,7 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   await importSong(preview, 'test.cho');
   await preview.getByRole('button', {name: 'Refreng', exact: true}).nth(1).click();
   await expect(preview.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
-  await setDisplay(preview, {theme:'light'});
+
   await setDisplay(preview, {fontSize:'30'});
   const productionSongs = await savedSongs(production), previewSongs = await savedSongs(preview);
   expect(productionSongs[0].id).not.toBe(previewSongs[0].id);
@@ -84,7 +84,7 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   await context.setOffline(true);
   production = await context.newPage(); preview = await context.newPage();
   await production.goto(`${base}app/`); await preview.goto(`${base}test/`);
-  await expect(production.locator('h1')).toBeVisible(); await expect(preview.locator('h1')).toBeVisible();
+  await expect(production.locator('#library-title')).toBeVisible(); await expect(preview.locator('#library-title')).toBeVisible();
   await expect(preview.locator('#connection')).toHaveText('Uten nett');
   expect(await savedSongs(production)).toEqual(productionSongs);
   expect(await savedSongs(preview)).toEqual(previewSongs);
@@ -94,9 +94,9 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   for (const [channel, page, expectedSha] of [['test', preview, 'c'], ['app', production, 'd']]) {
     await request.post(`/__test__/update?channel=${channel}`);
     await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
-    await openMenu(page);
+    await openSettings(page);
     await expect(page.getByRole('button', {name: 'Oppdater appen'})).toBeVisible();
-    await openMenu(page);
+    await openSettings(page);
     await page.getByRole('button', {name: 'Oppdater appen'}).click();
     await expect(page.locator('.build')).toContainText(expectedSha.repeat(7));
     await ready(page);
@@ -119,8 +119,8 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   expect(await savedSongs(preview)).toEqual(previewSongs);
   expect(await markers(production)).toEqual({local: 'production-marker', database: 'production-marker'});
   expect(await markers(preview)).toEqual({local: 'test-marker', database: 'test-marker'});
-  await expect(production.locator('#theme')).toHaveValue('dark');
-  await expect(preview.locator('#theme')).toHaveValue('light');
+  await expect(production.locator('html')).toHaveAttribute('data-theme','dark');
+  await expect(preview.locator('html')).toHaveAttribute('data-theme','dark');
   await expect(preview.locator('#font-size')).toHaveValue('30');
   await preview.getByRole('button', {name: /Samme tittel/}).click();
   await expect(preview.getByRole('button', {name: 'Refreng', exact: true}).nth(0)).toHaveAttribute('aria-expanded', 'false');
@@ -130,7 +130,7 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
 test('failed worker registration gives a truthful status and leaves the shell readable', async ({browser}) => {
   const context = await browser.newContext({serviceWorkers: 'block'}), page = await context.newPage();
   await page.goto(`http://127.0.0.1:4173${base}test/`);
-  await expect(page.locator('h1')).toBeVisible();
+  await expect(page.locator('#library-title')).toBeVisible();
   await expect(page.locator('#offline-status')).toContainText('kunne ikke fullføres');
   await expect(page.locator('#offline-status')).not.toHaveAttribute('data-ready', 'true');
   await context.close();

@@ -28,11 +28,11 @@ export default defineConfig({
   }, VitePWA({
     registerType: 'prompt', injectRegister: false, scope: env.base,
     manifest: {name: env.name, short_name: env.name, lang: 'nb', id: './', start_url: './', scope: './',
-      display: 'standalone', theme_color: '#171b20', background_color: '#171b20',
+      display: 'standalone', theme_color: '#272421', background_color: '#272421',
       icons: [{src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any'},
         {src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable'}]},
     workbox: {importScripts: [workerBuildFile], cacheId: env.namespace, cleanupOutdatedCaches: false, clientsClaim: true, skipWaiting: false,
-      globPatterns: ['**/*.{html,js,css,png,json,webmanifest}'],
+      globPatterns: ['**/*.{html,js,css,png,json,webmanifest,woff2,svg}'],
       navigateFallback: 'index.html', navigateFallbackAllowlist: [new RegExp(`^${env.base}`)],
     },
   })],

@@ -10,21 +10,10 @@ export type PersonalChange = (current: SongPersonal) => SongPersonal;
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string) => {
   const result = document.createElement(tag); if (text !== undefined) result.textContent = text; return result;
 };
-function button(text: string, action: () => void) {
-  const result = el('button', text); result.type = 'button'; result.addEventListener('click', action); return result;
-}
-const icons = {
-  save: 'M4 3h13l4 4v14H3V3zM7 3v6h10V3M7 21v-8h10v8',
-  highlight: 'm15 3 6 6-9 9-6-6zM6 12l-3 6 3 3 6-3M3 22h12',
-  note: 'M4 3h16v13l-5 5H4zM15 21v-6h5M8 8h8M8 12h5',
-  grid: 'M3 5h18v14H3zM3 10h18M9 5v14M15 5v14',
-  text: 'M4 3h11l5 5v5M14 3v6h6M4 3v18h6M8 8h3M8 12h5m1 7 6-6 2 2-6 6-3 1z',
-};
-export function iconButton(name: string, icon: keyof typeof icons, action: () => void) {
-  const result = button('', action); result.setAttribute('aria-label', name); result.dataset.tooltip = name;
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS(svg.namespaceURI, 'path'); path.setAttribute('d', icons[icon]); svg.append(path); result.append(svg); return result;
-}
+const button = actionButton;
+export {iconButton} from './controls.ts';
+import {actionButton, textInput, textArea, iconButton, dialogFooter, dialogFrame} from './controls.ts';
+import {placeOverlay, overlayWidth, currentPage} from './layout.ts';
 export {paintAnnotations} from './annotations.ts';
 function fieldError(control: HTMLInputElement | HTMLTextAreaElement, message = '') {
   const id=control.id+'-error'; document.getElementById(id)?.remove();
@@ -60,22 +49,12 @@ export function createPersonalEditor(song: Song, session: EditSession, change: (
   function closePopup() {popup?.close();}
   function openPopup(anchor: HTMLElement, title: string, kind: string, build: (content: HTMLElement) => {apply: () => boolean; dirty: () => boolean; focus: HTMLElement}) {
     closePopup(); highlighter?.clear(); setTool(undefined);
-    const box = el('dialog'); box.className = `edit-popup popup-${kind}`; box.setAttribute('aria-label', title);
+    const box = dialogFrame(title, `edit-popup popup-${kind}`);
     const heading = el('h2',title); box.append(heading);
     const content = el('div'); box.append(content);
     const draft = build(content);
-    const actions = el('div'); actions.className = 'popup-actions';
-    const cancel = button('Avbryt', () => close()), ok = button('OK', () => {if (draft.apply()) close();}); actions.append(cancel, ok); box.append(actions);
-    const place = () => {
-      const viewport = visualViewport, width = viewport?.width ?? innerWidth, height = viewport?.height ?? innerHeight;
-      const x = viewport?.offsetLeft ?? 0, y = viewport?.offsetTop ?? 0, rect = anchor.getBoundingClientRect();
-      const gutter = width < 600 ? 12 : 24;
-      box.style.width = `${Math.min(kind === 'grid' ? 1000 : kind === 'capo' ? 220 : 360, width - 2*gutter)}px`;
-      box.style.maxHeight = `${Math.max(120,height * (kind === 'grid' ? .7 : .55))}px`;
-      const left = kind === 'grid' ? x + (width-box.offsetWidth)/2 : kind === 'note' ? rect.right-box.offsetWidth : rect.left;
-      box.style.left = `${Math.max(x+gutter,Math.min(left,x+width-box.offsetWidth-gutter))}px`;
-      box.style.top = `${Math.max(y+12,Math.min(rect.bottom+8,y+height-box.offsetHeight-12))}px`;
-    };
+    const actions=dialogFooter([{id:'cancel',label:'Avbryt',run:()=>close(),icon:'kryss'}, {id:'confirm',label:'OK',primary:true,icon:'ok',run:()=>{if(draft.apply())close();}}]);box.append(actions);
+    const place=()=>placeOverlay(box,anchor,{width:overlayWidth(kind==='grid'?'grid':kind==='capo'?'value':'note'),align:kind==='grid'?'center':kind==='note'?'end':'start',height:kind==='grid'?.7:.55});
     const lifecycle = openDialog(box, {opener:anchor, focus:draft.focus, place, outside:true, closed:()=>{popup=undefined;}});
     const close = lifecycle.close;
     popup = {box, dirty:draft.dirty, close};
@@ -88,7 +67,7 @@ export function createPersonalEditor(song: Song, session: EditSession, change: (
       ? [element.dataset.noteId, session.personal.notes?.[element.dataset.noteId]] as const : noteAt(session.personal, line);
     const id = existing?.[0] ?? crypto.randomUUID(), note = existing?.[1]?.text ?? '';
     openPopup(row,'Notat','note', content => {
-      const input = el('textarea'); input.id = 'annotation-note'; input.rows = 2; input.value = note; input.setAttribute('aria-label','Notat'); content.append(input);
+      const input = textArea('annotation-note',note,'Notat',2); content.append(input);
       return {apply:() => {if (input.value !== note) update(current => changeNote(current,id,{line:existing?.[1]?.line ?? line,text:input.value})); return true;},dirty:() => input.value !== note,focus:input};
     });
   }
@@ -116,7 +95,7 @@ export function createPersonalEditor(song: Song, session: EditSession, change: (
   function openTuning(anchorNode: HTMLElement) {
     const tuning = session.personal.tuning ?? '';
     openPopup(anchorNode,'Stemming','tuning', content => {
-      const input = el('input'); input.id = 'personal-tuning'; input.value = tuning; input.placeholder = 'Standard stemming'; input.setAttribute('aria-label','Stemming'); content.append(input);
+      const input = textInput('personal-tuning',tuning,'Stemming'); input.placeholder = 'Standard stemming'; content.append(input);
       return {apply:() => {const value = input.value.trim(); if (value !== tuning) update(current => ({...current,tuning:value})); return true;},dirty:() => input.value !== tuning,focus:input};
     });
   }
@@ -127,7 +106,7 @@ export function createPersonalEditor(song: Song, session: EditSession, change: (
       let parts = [...shown.matchAll(/(^\s*\{(?:sog|start_of_grid)[^\r\n]*\}\s*\r?\n)([\s\S]*?)(^\s*\{(?:eog|end_of_grid)\}[^\r\n]*)/gmi)].map(match => ({header:match[1],body:match[2].replace(/\r?\n$/, ''),footer:match[3]}));
       if (!parts.length) parts = [{header:'{sog}\n',body:shown,footer:'{eog}'}];
       const inputs = parts.map((part,index) => {
-        const input = el('textarea'); input.rows = 5; input.value = part.body; input.setAttribute('aria-label',parts.length > 1 ? `Skjematekst ${index+1}` : 'Skjematekst'); if (!index) input.id = 'personal-grid';
+        const input = textArea(index ? `personal-grid-${index}` : 'personal-grid',part.body,parts.length > 1 ? `Skjematekst ${index+1}` : 'Skjematekst');
         input.addEventListener('input', () => fieldError(input)); content.append(input); return input;
       });
       const dirty = () => inputs.some((input,index) => input.value !== parts[index].body);
@@ -170,9 +149,8 @@ export function createPersonalEditor(song: Song, session: EditSession, change: (
   function keydown(event: KeyboardEvent) {
     if ((event.key === 'Enter' || event.key === ' ') && ((event.target as Element).matches('.personal-note') || tool === 'note' && (event.target as Element).matches('[data-note-line]'))) {event.preventDefault(); openNote(event.target as HTMLElement);}
     if (event.key === 'Escape' && !popup) {highlighter?.clear(); setTool(undefined);}
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); if (!document.querySelector('dialog[open]') && (session.dirty())) save();}
+    if (currentPage() === 'reader' && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); if (!document.querySelector('dialog[open]') && (session.dirty())) save();}
   }
-  let observer: ResizeObserver | undefined;
   return {
     element:toolbar,
     dirty:() => Boolean(session.dirty() || popup?.dirty()),
@@ -186,14 +164,13 @@ export function createPersonalEditor(song: Song, session: EditSession, change: (
       body = lyrics; highlighter = createHighlightEditor(body,song,()=>session.personal,update,()=>setTool(undefined)); if (restored) highlighter.restore(restored.line,restored.range);
       disposeNoteDrag = attachNoteDrag(body,update,noteTarget,openNote);  body.addEventListener('focusin',focusTarget); body.addEventListener('pointerdown',pointerDown); body.addEventListener('pointermove',pointerMove); body.addEventListener('pointercancel',pointerCancel); body.addEventListener('pointerleave',clearCue); body.addEventListener('click',click);
       document.addEventListener('keydown',keydown);
-      observer = new ResizeObserver(() => {document.documentElement.style.setProperty('--edit-toolbar-height',`${toolbar.offsetHeight}px`);}); observer.observe(toolbar); observer.observe(body);
     },
     metadata(root: HTMLElement) {
       const capo = button(session.personal.capo ? `Capo ${session.personal.capo}` : 'Uten capo', () => openCapo(capo)); capo.className = 'song-key'; capo.id = 'capo-pill';
       const tuning = button(session.personal.tuning || 'Standard stemming', () => openTuning(tuning)); tuning.className = 'song-key'; tuning.id = 'tuning-pill'; root.append(capo,tuning);
     },
     openGrid,
-    dispose() {closePopup(); observer?.disconnect(); highlighter?.dispose(); disposeNoteDrag(); document.documentElement.style.removeProperty('--edit-toolbar-height'); document.removeEventListener('keydown',keydown);
+    dispose() {closePopup(); highlighter?.dispose(); disposeNoteDrag(); document.removeEventListener('keydown',keydown);
       body?.removeEventListener('focusin',focusTarget); body?.removeEventListener('pointerdown',pointerDown); body?.removeEventListener('pointermove',pointerMove); body?.removeEventListener('pointercancel',pointerCancel); body?.removeEventListener('pointerleave',clearCue); body?.removeEventListener('click',click);
     },
   };

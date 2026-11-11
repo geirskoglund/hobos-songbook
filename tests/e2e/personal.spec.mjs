@@ -1,8 +1,8 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, openMenu, setCapo} from './song-helpers.mjs';
+import {importSong, savedSongs, openMenu, openSettings, closeSettings, setCapo} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
 const original='\uFEFF{t: Personlig}\r\n{key: D}\r\n{sog: shape="2x4" label="Intro"}\r\n| D . D/F# . | Bm7 . A . |\r\n{eog}\r\n[D]Ærlig [D/F#]øvelse å [Bm7]synge\r\n{soc}\r\n[D]Samme tekst\r\n{eoc}\r\n{chorus}\r\n{chorus}\r\n'+('Lang leselinje\r\n').repeat(60);
-const edit=async page=>{await openMenu(page);await page.getByRole('button',{name:'Rediger',exact:true}).click();await expect(page.locator('.edit-toolbar')).toBeVisible();};
+const edit=async page=>{await page.getByRole('button',{name:'Rediger',exact:true}).click();await expect(page.locator('.edit-toolbar')).toBeVisible();};
 const save=async page=>{await page.locator('#edit-save').click();await expect(page.locator('#edit-save')).toBeDisabled();};
 const exit=async page=>{await page.locator('#back').click();await expect(page.locator('.edit-toolbar')).toHaveCount(0);await expect(page.locator('#reader:not([hidden]),#library:not([hidden])')).toBeVisible();};
 const personal=page=>page.evaluate(()=>new Promise((resolve,reject)=>{
@@ -139,16 +139,16 @@ test('actual pending save delays worker reload and preserves note and capo offli
  await page.evaluate(()=>window.releaseWrite=true);await expect(page.locator('.build')).toContainText('ccccccc');await exit(page);await context.setOffline(true);await page.reload();await page.locator('.song-choice').click();await expect(page.locator('.song-metadata')).toContainText('Capo 2');expect(await savedSongs(page)).toEqual(before);await context.setOffline(false);
 });
 
-test('no-key song supports a new chart, capo changes, whole-line highlight and both themes',async({page})=>{
+test('no-key song supports a new chart, capo changes, whole-line highlight and the dark theme',async({page})=>{
  await page.goto(url);await importSong(page,'uten.txt','Ærlig øvelse å synge\nSamme linje');await edit(page);await capo(page,2);
  await page.locator('.grid-placeholder').click();await page.locator('#personal-grid').fill('| C . C/E . |');await page.getByRole('button',{name:'OK',exact:true}).click();await save(page);
  expect((await personal(page))[0].chordGrid).toContain('D/F#');await expect(page.locator('#chart-dock')).toContainText('C/E');await expect(page.locator('#capo-pill')).toHaveText('Capo 2');
  await capo(page,0);
  await select(page,'source/line:0',0,20);await page.getByRole('button',{name:'Markeringspenn',exact:true}).click();await save(page);await exit(page);
  const line=page.locator('.song-line').first();expect((await line.locator('mark').allTextContents()).join('')).toBe('Ærlig øvelse å synge');
- for(const theme of ['dark','light']) {
-   await openMenu(page);await page.locator('#theme').selectOption(theme);await page.locator('#font-size').evaluate(node=>{node.value='36';node.dispatchEvent(new Event('input',{bubbles:true}));});await page.locator('#menu-close').click();await page.setViewportSize({width:320,height:800});
-   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await expect(line.locator('mark').first()).toHaveCSS('background-color','rgb(241, 216, 75)');
+ for(const theme of ['dark']) {
+   await openSettings(page);await page.locator('#font-size').evaluate(node=>{node.value='36';node.dispatchEvent(new Event('input',{bubbles:true}));});await closeSettings(page);await page.setViewportSize({width:320,height:800});
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await expect(line.locator('mark').first()).toHaveCSS('background-color','rgb(214, 183, 124)');
  }
  await expect(page.locator('.song-metadata')).toHaveText('4/4');
 });
