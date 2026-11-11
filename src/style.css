@@ -204,6 +204,7 @@ body.original-open {overflow:hidden;}
 #menu-button svg {width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
 #menu-backdrop {position:fixed;inset:var(--header-height) 0 0;z-index:var(--layer-backdrop);background:#0008}
 #main-menu {position:fixed;right:0;top:var(--header-height);bottom:0;z-index:var(--layer-menu);width:min(350px,calc(100vw - 16px));padding:8px 0 max(12px,env(safe-area-inset-bottom));background:var(--header);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:auto}
+.menu-open #main-menu {bottom:var(--update-notice-space,0px)}
 #main-menu button {display:flex;align-items:center;gap:20px;width:100%;min-height:54px;padding:12px 24px;border:0;border-radius:0;background:none;flex:none}
 #main-menu button[aria-current=page] {background:var(--raised);font-weight:600}
 #main-menu [data-destination=sync] {border-top:1px solid color-mix(in srgb,var(--border) 40%,transparent);margin-top:8px}

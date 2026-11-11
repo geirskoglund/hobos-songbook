@@ -49,13 +49,14 @@ export function readingTop() {
   return top;
 }
 export function startLayout() {
-  const root=document.documentElement, header=document.querySelector<HTMLElement>('.topbar')!;
+  const root=document.documentElement, header=document.querySelector<HTMLElement>('.topbar')!, notice=document.getElementById('update-notice')!;
   let toolbar:HTMLElement|null=null;
   const measure=()=>{
     root.style.setProperty('--header-height',`${header.getBoundingClientRect().height}px`);
     root.style.setProperty('--toolbar-height',`${toolbar?.getBoundingClientRect().height ?? 0}px`);
+    root.style.setProperty('--update-notice-space',`${notice.hidden ? 0 : innerHeight-notice.getBoundingClientRect().top+16}px`);
   };
-  const sizes=new ResizeObserver(measure);sizes.observe(header);
+  const sizes=new ResizeObserver(measure);sizes.observe(header);sizes.observe(notice);
   const sync=()=>{
     const next=document.querySelector<HTMLElement>('.edit-toolbar');
     if(next!==toolbar){if(toolbar)sizes.unobserve(toolbar);toolbar=next;if(toolbar)sizes.observe(toolbar);}
