@@ -80,7 +80,7 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 .grid-cell {min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: center; justify-content:flex-start; gap:0 .3ch; padding:1px 0;}
 .grid-cell[aria-label="Tom akkordcelle"] {flex:none; width:1ch;}
 .grid-cell:not([aria-label="Tom akkordcelle"]) ~ .grid-cell:not([aria-label="Tom akkordcelle"]) {margin-inline-start:2ch;}
-.grid-chord {color: var(--chord); font-weight: 650; overflow-wrap: anywhere; max-width: 100%;}
+.grid-chord {color: var(--chord); font-size: 18px; font-weight: 650; overflow-wrap: anywhere; max-width: 100%;}
 .grid-symbol {color: var(--text); overflow-wrap: anywhere; max-width: 100%;}
 .grid-note {color: var(--comment); font: italic 11px/1.3 var(--font-ui); margin: 1px 0; white-space: pre-wrap; overflow-wrap: anywhere;}
 .grid-blank {min-height: 3px;}
