@@ -11,7 +11,7 @@ Visuell arbeidsretning: Organisk. Oppdatert etter brukerens kommentarer til ark 
 - Langtrykk og dra for å flytte setlisteelementer. Ingen permanent flytteknapp.
 - Lagre = diskett. Synkroniser = sirkelpil. Publiser = systemdeling. Eksporter = fil med nedoverpil.
 - Flytende pluss er en komponent med transparent glassflate og subtil kant; selve ikonformen er et vanlig pluss.
-- Sticky bruker ett pin-symbol med aktiv/dempet tilstand. Nøyaktig betjening av dagens × er ikke endret.
+- Sticky bruker pin-on for aktiv og pin-off for frigjort tilstand. Knappen er synlig og betjenbar i begge tilstander og veksler sticky av/på. Den dempede pinnen betyr ikke at knappen er deaktivert.
 - «Upublisert» har ikke eget ikon. Vis aktuell status med tekst der det gir verdi, og skille fra ulagret og usynkronisert.
 
 ## Status

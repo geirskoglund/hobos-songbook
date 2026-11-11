@@ -1,16 +1,25 @@
-import {actionButton} from './controls.ts';
+import {actionButton, icon} from './controls.ts';
 import type {GridBlock} from '../domain/chordpro.ts';
 import {renderGrid} from './song-content.ts';
-export function createChartDock(grids: GridBlock[], source: string, onRelease: () => void, sticky = true) {
-  const dock = document.createElement('section'); dock.id = 'chart-dock'; dock.dataset.source = source; dock.dataset.sticky = String(sticky);
+export function createChartDock(grids: GridBlock[], source: string, options: {sticky?: boolean; interactive?: boolean; change?: (sticky: boolean) => void} = {}) {
+  let sticky = options.sticky ?? true;
+  const dock = document.createElement('section'); dock.id = 'chart-dock'; dock.dataset.source = source;
   dock.setAttribute('aria-label', 'Akkordskjema');
-  const close = actionButton('',undefined,'pin-on'); close.id = 'chart-close'; close.setAttribute('aria-label', 'Frigjør akkordskjema');
-  close.hidden = !sticky;
-  close.addEventListener('click', () => {dock.dataset.sticky = 'false'; close.hidden = true; onRelease();});
+  const toggle = actionButton('', undefined); toggle.id = 'chart-close';
+  toggle.hidden = options.interactive === false;
+  const reflect = () => {
+    dock.dataset.sticky = String(sticky);
+    const action = sticky ? 'Frigjør akkordskjema' : 'Fest akkordskjema';
+    toggle.setAttribute('aria-label', action); toggle.setAttribute('aria-pressed', String(sticky));
+    toggle.dataset.tooltip = action;
+    toggle.replaceChildren(icon(sticky ? 'pin-on' : 'pin-off'));
+  };
+  toggle.addEventListener('click', () => {sticky = !sticky; reflect(); options.change?.(sticky);});
+  reflect();
   const fit = document.createElement('div'); fit.className = 'chart-fit';
   const natural = document.createElement('div'); natural.className = 'chart-natural';
   grids.forEach(grid => natural.append(renderGrid(grid)));
-  fit.append(natural); dock.append(close, fit);
+  fit.append(natural); dock.append(toggle, fit);
   let frame = 0;
   const fitChart = () => {
     cancelAnimationFrame(frame);

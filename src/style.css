@@ -84,8 +84,8 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 .grid-symbol {color: var(--text); overflow-wrap: anywhere; max-width: 100%;}
 .grid-note {color: var(--comment); font: italic 11px/1.3 var(--font-ui); margin: 1px 0; white-space: pre-wrap; overflow-wrap: anywhere;}
 .grid-blank {min-height: 3px;}
-#chart-dock {position: sticky; z-index: 5; top: var(--header-height); margin: 4px 0 10px; padding: 6px 34px 6px 6px; border-bottom: 1px solid var(--border); background: var(--bg);}
-#chart-close {position: absolute; top: 0; right: -4px; width: 34px; min-height: 34px; padding: 0; text-align: center; font-size: 1.25rem; border: 0; background: none; color: var(--muted);}
+#chart-dock {position: sticky; z-index: 5; top: var(--header-height); min-height: var(--touch-target); margin: 4px 0 10px; padding: 6px 48px 6px 6px; border-bottom: 1px solid var(--border); background: var(--bg);}
+#chart-close {position: absolute; top: 0; right: 0; width: var(--touch-target); min-height: var(--touch-target); padding: 0; text-align: center; font-size: 1.25rem; border: 0; background: none; color: var(--muted);}
 .chart-fit {overflow: clip;}
 .chart-natural {transform-origin: top center;}
 .menu-heading {display: flex; justify-content: space-between; align-items: center;}

@@ -128,7 +128,7 @@ test('update restores library scroll, settings dialog and its scroll position', 
   expect(await page.evaluate(()=>scrollY)).toBe(0);
 });
 
-test('update restores the selected song, expanded chorus and released chart', async ({page,request})=>{
+for(const sticky of [false,true])test(`update restores the selected song, expanded chorus and sticky ${sticky}`, async ({page,request})=>{
   await page.goto(url);await ready(page);
   const original='{t: Samme navn}\n{start_of_grid}\n| C . | G . |\n{end_of_grid}\n{soc}\nRefrengtekst\n{eoc}\n{chorus}\n'+('Sangtekst\n').repeat(120);
   await importSong(page,'første.cho',original);
@@ -138,6 +138,7 @@ test('update restores the selected song, expanded chorus and released chart', as
   await page.getByRole('button',{name:'Refreng',exact:true}).click();
   await expect(page.getByRole('button',{name:'Refreng',exact:true})).toHaveAttribute('aria-expanded','true');
   await page.getByRole('button',{name:'Frigjør akkordskjema'}).click();
+  if(sticky)await page.getByRole('button',{name:'Fest akkordskjema'}).click();
   await page.evaluate(()=>scrollTo(0,700));
   await request.post('/__test__/update?channel=test');
   await page.evaluate(async()=>(await navigator.serviceWorker.getRegistration()).update());
@@ -146,7 +147,10 @@ test('update restores the selected song, expanded chorus and released chart', as
   await expect(page.locator('#reader')).toBeVisible();
   await expect(page.locator('#song-content')).toContainText('Valgt refrengtekst');
   await expect(page.getByRole('button',{name:'Refreng',exact:true})).toHaveAttribute('aria-expanded','true');
-  await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','false');
+  await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky',String(sticky));
+  await expect(page.locator('#chart-close')).toBeVisible();await expect(page.locator('#chart-close')).toBeEnabled();
+  await expect(page.locator('#chart-close')).toHaveAttribute('aria-pressed',String(sticky));
+  await expect(page.locator('#chart-close svg > g')).toHaveAttribute('opacity',sticky?'1':'.20');
   await expect.poll(()=>page.evaluate(()=>Math.abs(scrollY-700))).toBeLessThanOrEqual(1);
   expect(await savedSongs(page)).toEqual(before);
   await page.getByRole('button',{name:'← Mine sanger'}).click();

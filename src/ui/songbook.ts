@@ -287,7 +287,9 @@ export function startSongbook() {
       const state = personalState(), capo = state.capo ?? 0;
       const chosen = selectSongGrid(parsed, state);
       if (chosen) {
-        const dock = createChartDock(chosen.grids.map(grid => transposeGrid(grid, capo)), chosen.source, () => query('back').focus({preventScroll:true}), !editing && !chartReleased);
+        const dock = createChartDock(chosen.grids.map(grid => transposeGrid(grid, capo)), chosen.source, {
+          sticky: !editing && !chartReleased, interactive: !editing, change: sticky => {chartReleased = !sticky;},
+        });
         if (editing) {
           const edit = actionButton('',undefined,'rediger'); edit.setAttribute('aria-label','Rediger akkordskjema'); edit.dataset.tooltip = 'Rediger akkordskjema'; edit.type = 'button'; edit.className = 'edit-chart';
           edit.addEventListener('click', event => {event.stopPropagation(); editor?.openGrid(dock.element);}); dock.element.append(edit);
@@ -305,8 +307,6 @@ export function startSongbook() {
         paintAnnotations(query('song-body'), song, displayed);
         showMetadata();
         if (previous.capo !== displayed.capo || previous.chordGrid !== displayed.chordGrid) {
-          const released = chartArea.querySelector<HTMLElement>('#chart-dock')?.dataset.sticky === 'false';
-          if (released) chartReleased = true;
           showChart();
           const capo = displayed.capo ?? 0;
           query('song-body').querySelectorAll<HTMLElement>('.chord[data-original]').forEach(node => node.textContent = transposeChord(node.dataset.original!,capo));

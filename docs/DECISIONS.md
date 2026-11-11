@@ -19,6 +19,8 @@ Dette er gjeldende beslutninger, ikke en kronologisk arbeidslogg. Produktgrunnla
 
 - **D23 – Sangbok og sangliste.** Sangbok har navn og stabil ID og er gruppering uavhengig av ekstern kildeidentitet. Hver sang tilhører én bok; Standard brukes for gamle og nye/importerte sanger. Én bok eller Alle velges på forsiden og huskes per miljø. IndexedDB oppgraderes additivt til versjon 2; bokopprettelse og tilordning av gamle sanger skjer i samme oppgraderingstransaksjon. Original/persondata og ID-er beholdes. Sangraden åpner fremføring; redigering starter i sangvisningen. Opprett/Importer ligger i flytende plussmeny. Sangbokadministrasjon og kobling fra Dropbox-integrasjoner kommer senere.
 
+- **D24 – Sticky kan løsnes og festes igjen.** Samme pin-knapp veksler begge veier i fremføring. pin-on viser sticky på; pin-off viser sticky av og er fortsatt klikkbar. Fokus beholdes på knappen. Tilstanden gjelder aktuell åpning og bevares ved appoppdatering, men lagres ikke som persondata. Neste ordinære sangåpning starter med sticky på; under redigering er sticky av og pinnen skjult.
+
 ## Appskall og levering – tekniske valg
 
 - **D11 – Lite TypeScript/Vite-skall.** Direkte HTML/CSS/TypeScript, uten UI-rammeverk. Vite 8, TypeScript 7 og kompatibelt PWA-verktøy er låst i npm-filen. Node 24 LTS brukes. Dette holder oppstarten liten uten å forhåndsimplementere domene eller et generelt adapterrammeverk.
