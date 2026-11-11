@@ -4,7 +4,7 @@ const url='/hobos-songbook/test/';
 const original=page=>page.getByRole('dialog',{name:'Rediger sangtekst',exact:true});
 const edit=async page=>{await page.getByRole('button',{name:'Rediger',exact:true}).click();};
 const save=async page=>{await page.locator('#edit-save').click();await expect(page.locator('#edit-save')).toBeDisabled();};
-const state=page=>page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test',1);r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal'),get=tx.objectStore('personal').getAll();tx.oncomplete=()=>{db.close();resolve(get.result);};};}));
+const state=page=>page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal'),get=tx.objectStore('personal').getAll();tx.oncomplete=()=>{db.close();resolve(get.result);};};}));
 async function note(page,index,text){
  await page.getByRole('button',{name:'Notat',exact:true}).click();const row=page.locator(`.song-line[data-note-line="${index}"]`),box=await row.boundingBox();await row.click({position:{x:box.width-4,y:box.height/2}});
  await page.locator('#annotation-note').fill(text);await page.getByRole('dialog',{name:'Notat',exact:true}).getByRole('button',{name:'OK',exact:true}).click();
@@ -40,7 +40,7 @@ test('original editing shifts safe highlights, removes unsafe ones and preserves
 
 test('legacy test annotations are removed before use while songs and other personal settings survive',async({page})=>{
  await importSong(page,'gammel.txt','{t: Gammel}\nEn gammel linje');const song=(await savedSongs(page))[0];
- await page.evaluate(song=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test',1);r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal','readwrite');tx.objectStore('personal').put({songId:song.id,version:2,chorus:{},capo:2,tuning:'Drop D',chordGrid:'| D |',annotations:{'source/line:1':{anchor:{songId:song.id,sourceLine:1,occurrence:'source/line:1',original:song.original,text:'En gammel linje',before:'',after:''},note:'Gammelt notat',highlights:[{start:0,end:2}]}}});tx.oncomplete=()=>{db.close();resolve();};};}),song);
+ await page.evaluate(song=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal','readwrite');tx.objectStore('personal').put({songId:song.id,version:2,chorus:{},capo:2,tuning:'Drop D',chordGrid:'| D |',annotations:{'source/line:1':{anchor:{songId:song.id,sourceLine:1,occurrence:'source/line:1',original:song.original,text:'En gammel linje',before:'',after:''},note:'Gammelt notat',highlights:[{start:0,end:2}]}}});tx.oncomplete=()=>{db.close();resolve();};};}),song);
  await page.reload();await page.locator('.song-choice').filter({hasText:'Gammel'}).click();await expect(page.locator('.personal-note,mark')).toHaveCount(0);const data=(await state(page))[0];expect(data.version).toBe(3);expect(data.annotations).toBeUndefined();expect(data.capo).toBe(2);expect(data.tuning).toBe('Drop D');expect(data.chordGrid).toBe('| D |');expect((await savedSongs(page))[0]).toEqual(song);
  await edit(page);await note(page,0,'Nytt notat');await save(page);await page.reload();await page.locator('.song-choice').filter({hasText:'Gammel'}).click();await expect(page.locator('.personal-note')).toContainText('Nytt notat');
 });

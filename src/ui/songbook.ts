@@ -18,6 +18,9 @@ import {parseChordPro} from '../domain/chordpro.ts';
 import {createSong, type Song, type SongPersonal} from '../domain/song.ts';
 import {songStorage} from '../storage/songs.ts';
 import {applyPreferences, defaultPreferences, readPreferences, savePreferences} from '../storage/preferences.ts';
+import {readSongbookFilter, saveSongbookFilter} from '../storage/songbook-filter.ts';
+import type {Songbook} from '../domain/songbook.ts';
+import {choicePicker, contextMenu, floatingAction, metadataRow} from './list-controls.ts';
 
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) => {
   const node = document.createElement(tag);
@@ -32,6 +35,11 @@ export function startSongbook() {
   const status = query('song-status'), libraryStatus = query('library-status');
   const retry = query<HTMLButtonElement>('retry-storage'), file = query<HTMLInputElement>('song-file');
   let songs: Song[] = [], importing = false, active: Song | null = null;
+  let songbooks: Songbook[] = [], listPersonal = new Map<string, Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>>();
+  let selectedBook: string | null = null, libraryReady = false, readGeneration = 0;
+  const filterStatus = query('filter-status');
+  try {selectedBook = readSongbookFilter(__APP_ENV__.namespace);}
+  catch {filterStatus.textContent = 'Sangbokvalget kunne ikke hentes. Viser alle sanger.';}
   let disposeView = () => {};
   let editing: UpdateView['editor'] | undefined;
   let editor: ReturnType<typeof createPersonalEditor> | undefined;
@@ -66,6 +74,7 @@ export function startSongbook() {
         submitting.markSaved(snapshot);
         const index = songs.findIndex(song => song.id === songSnapshot.id);
         if (index < 0) songs.push(songSnapshot); else songs[index] = songSnapshot;
+        listPersonal.set(songSnapshot.id, snapshot.personal);
         drawList();
         saveRetry.hidden = true;
         editor?.markSaved();
@@ -117,8 +126,28 @@ export function startSongbook() {
   if (pendingUpdateView) {history.scrollRestoration = 'manual'; app.style.visibility = 'hidden';}
   let settingsReturn:UpdateView|undefined;
   const nav=navigation(page=>{void navigate(page);});
-  const create=actionButton('Ny sang',()=>{void beginNewSong();},'ny');create.id='new-song';create.dataset.pageAction='library';
-  query('header-actions').append(create,editMenu);
+  const filter = actionButton('Alle', () => {
+    const name = songbooks.find(book => book.id === selectedBook)?.name ?? 'Alle';
+    choicePicker({opener: filter, name: 'Sangbok', value: name, selected: selectedBook,
+      choices: [{id: null, name: 'Alle'}, ...[...songbooks].sort((a, b) => a.name.localeCompare(b.name, 'nb'))],
+      choose: id => {
+        selectedBook = id;
+        try {saveSongbookFilter(__APP_ENV__.namespace, id); filterStatus.textContent = '';}
+        catch {filterStatus.textContent = 'Filteret er endret, men sangbokvalget kunne ikke lagres til neste oppstart.';}
+        drawList();
+      }});
+  }, 'filter');
+  filter.id = 'songbook-filter'; filter.dataset.pageAction = 'library'; filter.disabled = true;
+  filter.setAttribute('aria-haspopup', 'dialog'); filter.setAttribute('aria-expanded', 'false');
+  const add = floatingAction('Legg til sang', () => {
+    contextMenu(add, [
+      {name: 'Opprett', icon: 'ny', run: () => {void beginNewSong();}},
+      {name: 'Importer', icon: 'importer', run: () => file.click()},
+    ]);
+  });
+  add.id = 'add-song'; add.disabled = true; add.setAttribute('aria-haspopup', 'menu'); add.setAttribute('aria-expanded', 'false');
+  library.append(add);
+  query('header-actions').append(filter,editMenu);
   query('back').replaceChildren(icon('tilbake'));
   let creating=false;
   async function beginNewSong(){
@@ -136,6 +165,7 @@ export function startSongbook() {
     try{
       if(editing&&!await settleDraft())return;
       editing=undefined;settingsReturn=undefined;resetSong();showPage(page);editMenu.hidden=true;
+      if(page==='library')void refreshLibrary();
       query(page==='library'?'library-title':`${page}-title`).focus({preventScroll:true});window.scrollTo(0,0);
     }finally{leaving=false;}
   }
@@ -157,33 +187,48 @@ export function startSongbook() {
     try{savePreferences(__APP_ENV__.namespace,preferences);query('settings-status').textContent='';}
     catch{query('settings-status').textContent='Visningen er endret, men valget kunne ikke lagres til neste oppstart.';}
   };
-  const closeRowMenus = (except?: Element) => {
-    list.querySelectorAll<HTMLDetailsElement>('.song-actions[open]').forEach(action => {if (action !== except) action.open = false;});
-  };
-  document.addEventListener('pointerdown', event => {const actions = (event.target as Element).closest('.song-actions'); closeRowMenus(actions ?? undefined);});
-  document.addEventListener('keydown', event => {if (event.key === 'Escape') {const open = list.querySelector<HTMLDetailsElement>('.song-actions[open]'); closeRowMenus(); open?.querySelector('summary')?.focus();}});
   window.addEventListener('beforeunload', event => {if (dirty()) {event.preventDefault(); event.returnValue = '';}});
   function drawList() {
     list.replaceChildren();
+    const bookName = songbooks.find(book => book.id === selectedBook)?.name ?? 'Alle';
+    filter.querySelector('span')!.textContent = bookName; filter.setAttribute('aria-label', `Sangbok: ${bookName}`);
     songs.sort((a, b) => a.title.localeCompare(b.title, 'nb') || a.origin.importedAt.localeCompare(b.origin.importedAt));
-    for (const [index, song] of songs.entries()) {
-      const button = element('button', undefined, 'song-choice'); button.type = 'button'; button.dataset.songId = song.id;
-      button.append(element('span', song.title, 'song-name'));
-      button.append(element('small', `${song.origin.filename} · ${index + 1}${song.key ? ` · ${song.key}` : ''}`));
-      button.addEventListener('click', () => {closeRowMenus(); void openSong(song);});
-      const row = element('li'); row.append(button);
-      const actions = element('details', undefined, 'song-actions'), summary = element('summary'); summary.append(icon('meny')); summary.setAttribute('aria-label', `Meny for ${song.title}`);
-      const edit = element('button', 'Rediger'); edit.type = 'button'; edit.addEventListener('click', () => {actions.open = false; void beginEdit(song, 'library');});
-      summary.addEventListener('click', () => closeRowMenus(actions));
-      actions.append(summary, edit); row.append(actions); list.append(row);
+    const visible = songs.filter(song => selectedBook === null || song.songbookId === selectedBook);
+    for (const song of visible) {
+      const parsed = parseChordPro(song.original, song.title), personal = listPersonal.get(song.id);
+      const metadata = [...(parsed.key ? [parsed.key] : []), parsed.time];
+      if (personal?.capo) {const key = gripKey(parsed.key, personal.capo); metadata.push(`Capo ${personal.capo}${key ? `: ${key}` : ''}`);}
+      if (personal?.tuning) metadata.push(`Stemming: ${personal.tuning}`);
+      const {row, button} = metadataRow(song.title, metadata, () => {void openSong(song);});
+      button.dataset.songId = song.id; list.append(row);
     }
-    libraryStatus.textContent = songs.length ? `${songs.length} ${songs.length === 1 ? 'sang lagret' : 'sanger lagret'} på denne enheten.` : 'Ingen sanger ennå. Legg til din første sang fra en fil.';
+    libraryStatus.textContent = visible.length ? '' : songs.length ? `Ingen sanger i ${bookName}. Velg en annen sangbok, eller bruk Legg til sang for å opprette eller importere til Standard.` : 'Ingen sanger ennå. Bruk Legg til sang for å opprette eller importere din første sang.';
+    libraryStatus.classList.toggle('empty-library', !visible.length);
+  }
+  async function refreshLibrary(): Promise<boolean> {
+    const generation = ++readGeneration;
+    retry.hidden = true;
+    try {
+      const snapshot = await storage.library();
+      if (generation !== readGeneration) return false;
+      songs = snapshot.songs; songbooks = snapshot.songbooks;
+      listPersonal = new Map(snapshot.personal.map(state => [state.songId, state]));
+      if (selectedBook && !songbooks.some(book => book.id === selectedBook)) selectedBook = null;
+      libraryReady = true; filter.disabled = false; add.disabled = importing;
+      drawList(); return true;
+    } catch (error) {
+      if (generation !== readGeneration) return false;
+      libraryReady = false; filter.disabled = add.disabled = true; list.replaceChildren();
+      libraryStatus.classList.remove('empty-library');
+      libraryStatus.textContent = error instanceof Error ? error.message : 'Kunne ikke åpne sanglageret.'; retry.hidden = false;
+      return false;
+    }
   }
   async function load() {
     retry.hidden = true;
     const resume = pendingUpdateView; pendingUpdateView = null;
     try {
-      songs = await storage.list(); drawList();
+      if (!await refreshLibrary()) return;
       if (resume?.songId) {
         const song = songs.find(song => song.id === resume.songId);
         if (song) await openSong(song, resume);
@@ -329,25 +374,25 @@ export function startSongbook() {
   function back(){
     if(currentPage()==='settings'&&settingsReturn){const view=settingsReturn;settingsReturn=undefined;void restoreUpdateView(view,()=>true).then(()=>{editMenu.hidden=Boolean(editing)||!active;focusUpdateView(view);});return;}
     if(editing){void finishEdit();return;}
-    resetSong();showPage('library');query('library-title').focus({preventScroll:true});window.scrollTo(0,0);
+    resetSong();showPage('library');void refreshLibrary();query('library-title').focus({preventScroll:true});window.scrollTo(0,0);
   }
   query('back').addEventListener('click',back);
   file.addEventListener('change', async () => {
     const selected = file.files?.[0]; if (!selected || importing) return;
-    importing = true; file.disabled = true; notify('Leser og lagrer sangen…');
+    importing = true; file.disabled = add.disabled = true; notify('Leser og lagrer sangen…');
     try {
       let bytes: ArrayBuffer;
       try {bytes = await selected.arrayBuffer();}
       catch {throw new Error('Filen kunne ikke leses. Velg filen på nytt og prøv igjen.');}
       const song = createSong(selected.name, new Uint8Array(bytes));
       const existing = await storage.list();
-      if (classifyImport({filename:selected.name},existing)==='possible-copy' && !await confirmImportCopy(selected.name,file)) {notify('');return;}
+      if (classifyImport({filename:selected.name},existing)==='possible-copy' && !await confirmImportCopy(selected.name,add)) {notify('');return;}
       await storage.add(song);
       songs.push(song); drawList();
       await openSong(song);
       if (active?.id === song.id) notify('Sangen er lagret på denne enheten.');
     } catch (error) {notify(error instanceof Error ? error.message : 'Filen kunne ikke leses eller lagres. Prøv igjen.', true);}
-    finally {importing = false; file.disabled = false; file.value = '';}
+    finally {importing = false; file.disabled = false; add.disabled = !libraryReady; file.value = '';}
   });
   showPage('library');
   void load();

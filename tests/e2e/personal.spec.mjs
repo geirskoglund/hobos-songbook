@@ -6,7 +6,7 @@ const edit=async page=>{await page.getByRole('button',{name:'Rediger',exact:true
 const save=async page=>{await page.locator('#edit-save').click();await expect(page.locator('#edit-save')).toBeDisabled();};
 const exit=async page=>{await page.locator('#back').click();await expect(page.locator('.edit-toolbar')).toHaveCount(0);await expect(page.locator('#reader:not([hidden]),#library:not([hidden])')).toBeVisible();};
 const personal=page=>page.evaluate(()=>new Promise((resolve,reject)=>{
- const request=indexedDB.open('hobos-songbook-test',1);request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result,tx=db.transaction('personal'),get=tx.objectStore('personal').getAll();tx.oncomplete=()=>{db.close();resolve(get.result);};};
+ const request=indexedDB.open('hobos-songbook-test');request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result,tx=db.transaction('personal'),get=tx.objectStore('personal').getAll();tx.oncomplete=()=>{db.close();resolve(get.result);};};
 }));
 const capo = setCapo;
 
@@ -58,13 +58,11 @@ test('song stays in view; capo zero is edit-only; save keeps editing and preserv
  await edit(page);await capo(page,0);await save(page);await exit(page);await expect(page.locator('.song-metadata')).not.toContainText('Capo');
 });
 
-test('one full-width song row and menu dismiss with outside, Escape and edit; library return',async({page})=>{
+test('song row opens its song and editing starts only in the reader',async({page})=>{
  await page.goto(url);await importSong(page,'personlig.cho',original);await page.locator('#back').click();
- const row=page.locator('.song-list > li'),menu=page.locator('.song-actions');
- const bounds=await row.boundingBox(), summary=await menu.locator('summary').boundingBox();expect(summary.x+summary.width).toBeLessThanOrEqual(bounds.x+bounds.width);
- await menu.locator('summary').click();await page.locator('#library-title').click();await expect(menu).not.toHaveAttribute('open');
- await menu.locator('summary').click();await page.keyboard.press('Escape');await expect(menu).not.toHaveAttribute('open');
- await menu.locator('summary').click();await menu.getByRole('button',{name:'Rediger'}).click();await expect(menu).not.toHaveAttribute('open');await expect(page.locator('.edit-toolbar')).toBeVisible();await exit(page);await expect(page.locator('#library')).toBeVisible();
+ await expect(page.locator('.song-actions')).toHaveCount(0);await expect(page.locator('#library button', {hasText:'Rediger'})).toHaveCount(0);
+ await page.locator('.song-choice').click();await expect(page.locator('#song-title')).toHaveText('Personlig');
+ await edit(page);await exit(page);await expect(page.locator('#reader')).toBeVisible();await page.locator('#back').click();await expect(page.locator('#library')).toBeVisible();
 });
 
 test('unsaved exit supports cancel, discard and save; save failure retains draft',async({page})=>{

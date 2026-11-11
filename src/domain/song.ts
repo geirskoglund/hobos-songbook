@@ -1,5 +1,6 @@
 import type {Annotation, PersonalNote} from './annotations.ts';
 import {parseChordPro} from './chordpro.ts';
+import {standardSongbook} from './songbook.ts';
 export interface SongOrigin {
   kind: 'local' | 'external';
   filename: string;
@@ -9,7 +10,7 @@ export interface SongOrigin {
   fileId?: string;
   relativePath?: string;
 }
-export interface Song {id: string; original: string; title: string; key: string | null; origin: SongOrigin}
+export interface Song {id: string; songbookId: string; original: string; title: string; key: string | null; origin: SongOrigin}
 export interface SongPersonal {songId: string; chorus: Record<string, boolean>; chordGrid?: string; version?: 2 | 3; capo?: number | null; chordView?: 'sounding' | 'grips'; tuning?: string; notes?: Record<string, PersonalNote>; annotations?: Record<string, Annotation>}
 export const acceptedExtensions = '.cho,.chordpro,.chopro,.crd,.pro,.chord,.txt';
 export function decodeSong(bytes: Uint8Array): string {
@@ -24,6 +25,6 @@ export function createSong(filename: string, bytes: Uint8Array): Song {
   if (!acceptedExtensions.split(',').some(extension => filename.toLowerCase().endsWith(extension))) throw new Error('Velg en ChordPro-fil (.cho, .chordpro, .chopro, .crd, .pro, .chord) eller .txt.');
   const original = decodeSong(bytes);
   const parsed = parseChordPro(original, filename.replace(/\.[^.]+$/, '') || filename);
-  return {id: crypto.randomUUID(), original, title: parsed.title, key: parsed.key,
+  return {id: crypto.randomUUID(), songbookId: standardSongbook.id, original, title: parsed.title, key: parsed.key,
     origin: {kind: 'local', filename, importedAt: new Date().toISOString()}};
 }

@@ -25,7 +25,7 @@ export function viewport() {
   const v = visualViewport;
   return {x:v?.offsetLeft ?? 0, y:v?.offsetTop ?? 0, width:v?.width ?? innerWidth, height:v?.height ?? innerHeight};
 }
-export function placeOverlay(box: HTMLElement, anchor?: HTMLElement, options: {width?:number; align?:'start'|'end'|'center'; height?:number; fullscreen?:boolean; point?:{x:number;y:number}} = {}) {
+export function placeOverlay(box: HTMLElement, anchor?: HTMLElement, options: {width?:number; align?:'start'|'end'|'center'; side?:'above'|'below'; height?:number; fullscreen?:boolean; point?:{x:number;y:number}} = {}) {
   const v=viewport(), styles=getComputedStyle(document.documentElement);
   const unit=(name:string,fallback=0)=>parseFloat(styles.getPropertyValue(name))||fallback;
   const gap=unit('--space-3',12),leftGap=Math.max(gap,unit('--safe-left')),rightGap=Math.max(gap,unit('--safe-right')),topGap=Math.max(gap,unit('--safe-top')),bottomGap=Math.max(gap,unit('--safe-bottom'));
@@ -36,7 +36,8 @@ export function placeOverlay(box: HTMLElement, anchor?: HTMLElement, options: {w
   const rect=anchor?.getBoundingClientRect();
   const left=options.point?.x ?? (options.align==='center'||!rect?v.x+(v.width-box.offsetWidth)/2:options.align==='end'?rect.right-box.offsetWidth:rect.left);
   box.style.left=`${Math.max(v.x+leftGap,Math.min(left,v.x+v.width-box.offsetWidth-rightGap))}px`;
-  box.style.top=`${Math.max(v.y+topGap,Math.min(options.point?.y ?? (rect?rect.bottom+8:v.y+(v.height-box.offsetHeight)/2),v.y+v.height-box.offsetHeight-bottomGap))}px`;
+  const top=rect ? options.side==='above' ? rect.top-gap-box.offsetHeight : rect.bottom+8 : v.y+(v.height-box.offsetHeight)/2;
+  box.style.top=`${Math.max(v.y+topGap,Math.min(options.point?.y ?? top,v.y+v.height-box.offsetHeight-bottomGap))}px`;
 }
 export function readingTop() {
   let top=document.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 0;

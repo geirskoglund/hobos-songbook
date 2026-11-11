@@ -52,7 +52,7 @@ test('personal chart replaces all shared charts using the same presentation; no 
   const before=await savedSongs(page); const song=before[0];
   await page.evaluate(async songId => {
     await new Promise((resolve,reject)=>{
-      const request=indexedDB.open('hobos-songbook-test',1);
+      const request=indexedDB.open('hobos-songbook-test');
       request.onsuccess=()=>{const db=request.result, tx=db.transaction('personal','readwrite');
         tx.objectStore('personal').put({songId,chorus:{},chordGrid:'| F#m . | E . |'});
         tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);
