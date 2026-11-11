@@ -150,7 +150,8 @@ test('update restores the selected song, expanded chorus and released chart', as
   await expect.poll(()=>page.evaluate(()=>Math.abs(scrollY-700))).toBeLessThanOrEqual(1);
   expect(await savedSongs(page)).toEqual(before);
   await page.getByRole('button',{name:'← Mine sanger'}).click();
-  await page.getByRole('button',{name:/valgt.cho/}).click();
+  const selected=before.find(song=>song.origin.filename==='valgt.cho');
+  await page.locator(`[data-song-id="${selected.id}"]`).click();
   await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','true');
   expect(await page.evaluate(()=>scrollY)).toBe(0);
 });
