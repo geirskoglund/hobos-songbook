@@ -6,6 +6,8 @@ Les denne delen ved UI-arbeid. [Designkatalogen](design/README.md) har en navnei
 
 Slå opp komponentens definisjon og variant før utforming. Designgrunnlaget styrer farger/typografi, og enkelt-SVG-en er geometrisk referanse. Ikke be om en ny beskrivelse når referansen dekker behovet. Bevar navn og ID-er. Oppgaven bestemmer innhold og handling; eksempeltekst i designet er ikke en funksjonsbestilling.
 
+De vedtatte designdokumentene i repoet er gjeldende referanser. Skjermbildeskisser kan inneholde komponenter, farger eller menyknapper som avviker fra det vedtatte designet. Slike avvik er ikke bestillinger på nye komponenter eller designendringer, og skal ikke overstyre repoets vedtatte design.
+
 Samme kontrolltype har én felles implementasjon som gjenbrukes med parametere/varianter, og overordnet layout vedlikeholdes ett sted. Se [arkitekturen](ARCHITECTURE.md#felles-ui-og-layout) for runtime-komponentenes ansvar. Katalogen inneholder også planlagte kontroller; et kjent navn betyr ikke at funksjonen allerede er implementert. Avklar reell tvetydighet eller manglende design fremfor å finne opp en ny variant.
 
 ## Implementert sangflyt
