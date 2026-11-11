@@ -1,5 +1,13 @@
 # Designprinsipper
 
+## Bruk av designsystemet
+
+Les denne delen ved UI-arbeid. [Designkatalogen](design/README.md) har en navneindeks over alle 32 komponentene, med stabile ID-er og lenker til enkelt-SVG-ene. Brukeren kan referere til navn som «Dialog – tre handlinger» eller «Visningspille»; ID, for eksempel `E04_Dialog_tre_handlinger`, er bare nødvendig ved tvetydighet.
+
+Slå opp komponentens definisjon og variant før utforming. Designgrunnlaget styrer farger/typografi, og enkelt-SVG-en er geometrisk referanse. Ikke be om en ny beskrivelse når referansen dekker behovet. Bevar navn og ID-er. Oppgaven bestemmer innhold og handling; eksempeltekst i designet er ikke en funksjonsbestilling.
+
+Samme kontrolltype har én felles implementasjon som gjenbrukes med parametere/varianter, og overordnet layout vedlikeholdes ett sted. Se [arkitekturen](ARCHITECTURE.md#felles-ui-og-layout) for runtime-komponentenes ansvar. Katalogen inneholder også planlagte kontroller; et kjent navn betyr ikke at funksjonen allerede er implementert. Avklar reell tvetydighet eller manglende design fremfor å finne opp en ny variant.
+
 ## Implementert sangflyt
 
 Startsiden gir filvalg og én alfabetisk oversikt over lokale sanger. Alle hovedsider bruker samme toppfelt uten branding, med sidetittel/handling, miljømerking og hamburger. Ny sang ligger i sanglistens header, Rediger i sangvisningens. Hovedmenyen er et høyre sidepanel under headeren til skjermbunnen, med Sanger, Setlister, Synkronisering, Filer og bunnforankret Innstillinger. Headerens hamburger åpner/lukker panelet; underlaget er beskyttet, Escape og fokusretur støttes. Setlister, Synkronisering og Filer er foreløpig tomme navigasjonssider.
