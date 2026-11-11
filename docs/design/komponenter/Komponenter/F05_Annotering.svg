@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="620" height="254" viewBox="0 0 620 254" role="img">
+  <rect x="0" y="0" width="620" height="254" fill="#272421"/>
+  <rect x="27" y="47" width="281" height="33" fill="#D6B77C" rx="5"/>
+  <text x="39" y="69" fill="#272421" font-size="22" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Suitcase on the floor</text>
+  <line x1="308" y1="103" x2="394" y2="103" stroke="#C7BAA9" stroke-width="1.4" stroke-dasharray="2 6"/>
+  <rect x="394" y="87" width="196" height="70" fill="#403831" rx="10"/>
+  <text x="408" y="126" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Her er et notat</text>
+  <text x="27" y="212" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">Ingen notatoverskrift eller × i normalvisningen.</text>
+</svg>

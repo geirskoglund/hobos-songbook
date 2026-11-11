@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="620" height="645" viewBox="0 0 620 645" role="img">
+  <rect x="0" y="0" width="620" height="645" fill="#272421"/>
+  <rect x="0" y="0" width="620" height="66" fill="#211F1D"/>
+  <g transform="translate(23 22) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="m8 6-5 6 5 6M16 6l5 6-5 6M14 4l-4 16"/>
+    </g>
+  </g>
+  <text x="59" y="44" fill="#F4EDE3" font-size="23" font-weight="400" font-family="Inter,Arial,sans-serif">Råtekst</text>
+  <line x1="0" y1="66" x2="620" y2="66" stroke="#8F7B69" stroke-width="1"/>
+  <rect x="18" y="86" width="584" height="466" fill="#322E2A" stroke="#8F7B69" stroke-width="1" rx="8"/>
+  <text x="37" y="118" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{title: Banner of Heaven}</text>
+  <text x="37" y="149" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{key: Em}</text>
+  <text x="37" y="180" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{time: 4/4}</text>
+  <text x="37" y="211" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Cousine,monospace"></text>
+  <text x="37" y="242" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{x_dyn: 2}</text>
+  <text x="37" y="273" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">[Em]He came to town last summer</text>
+  <text x="37" y="304" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">[G]In a dirty beat-up [D]Ford</text>
+  <text x="37" y="335" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Cousine,monospace"></text>
+  <text x="37" y="366" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{soc}</text>
+  <text x="37" y="397" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Cousine,monospace">Under the banner of Heaven</text>
+  <text x="37" y="428" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{eoc}</text>
+  <text x="37" y="459" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Cousine,monospace"></text>
+  <text x="37" y="490" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Cousine,monospace">{comment: Fele – mellomspill}</text>
+  <line x1="0" y1="560" x2="620" y2="560" stroke="#8F7B69" stroke-width="1"/>
+  <rect x="0" y="561" width="310" height="84" fill="#211F1D"/>
+  <rect x="310" y="561" width="310" height="84" fill="#E2C097"/>
+  <g transform="translate(83 590) scale(1.0)" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M18 6 6 18M6 6l12 12"/>
+    </g>
+  </g>
+  <text x="119" y="613" fill="#F4EDE3" font-size="19" font-weight="400" font-family="Inter,Arial,sans-serif">Avbryt</text>
+  <g transform="translate(407 590) scale(1.0)" fill="none" stroke="#272421" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g opacity="1">
+      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+      <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+      <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+    </g>
+  </g>
+  <text x="445" y="613" fill="#272421" font-size="19" font-weight="600" font-family="Inter,Arial,sans-serif">Lagre</text>
+</svg>

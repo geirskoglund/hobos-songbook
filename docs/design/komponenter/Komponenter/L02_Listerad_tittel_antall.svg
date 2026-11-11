@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="620" height="247" viewBox="0 0 620 247" role="img">
+  <rect x="0" y="0" width="620" height="247" fill="#272421"/>
+  <text x="25" y="44" fill="#F4EDE3" font-size="22" font-weight="400" font-family="Inter,Arial,sans-serif">Hobo Sapiens – konsert</text>
+  <text x="25" y="75" fill="#C7BAA9" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif">18 sanger</text>
+  <circle cx="541" cy="42" r="2.8" fill="#C7BAA9"/>
+  <circle cx="553" cy="42" r="2.8" fill="#C7BAA9"/>
+  <circle cx="565" cy="42" r="2.8" fill="#C7BAA9"/>
+  <line x1="25" y1="109" x2="595" y2="109" stroke="#8F7B69" stroke-width="1" opacity="0.48"/>
+  <text x="25" y="159" fill="#F4EDE3" font-size="22" font-weight="400" font-family="Inter,Arial,sans-serif">Øving i Bua</text>
+  <text x="25" y="190" fill="#C7BAA9" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif">12 sanger</text>
+  <circle cx="541" cy="157" r="2.8" fill="#C7BAA9"/>
+  <circle cx="553" cy="157" r="2.8" fill="#C7BAA9"/>
+  <circle cx="565" cy="157" r="2.8" fill="#C7BAA9"/>
+  <line x1="25" y1="224" x2="595" y2="224" stroke="#8F7B69" stroke-width="1" opacity="0.48"/>
+</svg>

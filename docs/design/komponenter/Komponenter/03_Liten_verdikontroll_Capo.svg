@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="344" height="181" viewBox="0 0 344 181">
+  <title>Liten verdikontroll – Capo</title>
+  <desc>Capokontroll: godkjent capoikon fra Ikonbibliotek.zip, med eksisterende minus-, verdi- og plussbetjening. Ikonet er midtstilt i ikonkolonnen.</desc>
+  <rect x="0" y="0" width="344" height="181" fill="#272421" rx="0"/>
+  <text x="22" y="30" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="500">Capo</text>
+  <rect x="22" y="43" width="155" height="33" fill="#403831" stroke="#8F7B69" stroke-width="0.8" rx="17"/>
+  <text x="102" y="65" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400" text-anchor="middle">Capo 2: Dm</text>
+  <g id="kontroll" transform="translate(-779 -506)">
+    <rect fill="#403831" height="67" opacity="1" rx="14" stroke="#8F7B69" stroke-width="0.9" width="206" x="801" y="610"/>
+    <g id="ikon-capo" transform="translate(815.5 631.5)" fill="none" stroke="#E5BD8D" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><g opacity="1"><path d="M3.1 6.2c3-1.5 7.5-2 14.9-1.4l2.3.3v3.3H3.1z"/><path d="M5.6 8.4c0 6 1.6 10.5 7.2 11.3"/><path d="M12.8 19.7 18 14.5l3.2 3.4"/><path d="M16.2 9.5c1.7 1.2 2.7 2.9 2.7 4.6"/><path d="M14.7 13.5a2.1 2.1 0 1 0 4.2 0"/></g></g><rect fill="#403831" height="44" opacity="1" rx="8" stroke="none" stroke-width="0" width="44" x="855" y="621"/>
+    <rect fill="#403831" height="44" opacity="1" rx="8" stroke="none" stroke-width="0" width="44" x="899" y="621"/>
+    <rect fill="#403831" height="44" opacity="1" rx="8" stroke="none" stroke-width="0" width="44" x="943" y="621"/>
+    <text fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="400" text-anchor="middle" x="877" y="650">−</text>
+    <text fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="500" text-anchor="middle" x="921" y="650">2</text>
+    <text fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="400" text-anchor="middle" x="965" y="650">+</text>
+    <line stroke="#8F7B69" stroke-width="0.65" x1="854" x2="854" y1="626" y2="661"/>
+  </g>
+</svg>

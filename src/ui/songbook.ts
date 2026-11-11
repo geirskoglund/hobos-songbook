@@ -1,4 +1,7 @@
-import {confirmImportCopy} from './dialog.ts';
+import {confirmImportCopy, openDialog, dialogFrame, dialogFooter} from './dialog.ts';
+import {actionButton, icon} from './controls.ts';
+import {navigation} from './navigation.ts';
+import {currentPage, showPage, type Page} from './layout.ts';
 import {createEditSession, type EditSession} from '../domain/edit-session.ts';
 import {classifyImport} from '../domain/import.ts';
 import {openOriginalEditor} from './original-editor.ts';
@@ -6,7 +9,7 @@ import {newSong} from '../domain/original.ts';
 import {createPersonalEditor, paintAnnotations, iconButton} from './personal-editor.ts';
 import {gripKey, transposeChord, transposeGrid} from '../domain/personal.ts';
 import {attachSongSpacing} from './song-spacing.ts';
-import {saveUpdateView, takeUpdateView, restoreUpdateView, focusUpdateView, type UpdateView} from './update-view.ts';
+import {captureView, saveUpdateView, takeUpdateView, restoreUpdateView, focusUpdateView, type UpdateView} from './update-view.ts';
 import {selectSongGrid} from '../domain/song-grid.ts';
 import {createChartDock} from './chart-dock.ts';
 import {attachDynamicsProfile} from './dynamics-profile.ts';
@@ -75,26 +78,20 @@ export function startSongbook() {
     try {return await saving;} finally {saving = undefined;}
   }
   saveRetry.addEventListener('click', () => {void flush();});
-  const editMenu = element('button', 'Rediger'); editMenu.type = 'button'; editMenu.id = 'edit-song'; editMenu.hidden = true;
+  const editMenu = actionButton('Rediger',()=>{if(active)void beginEdit(active,'reader');},'rediger'); editMenu.id='edit-song'; editMenu.hidden=true;
   async function beginEdit(song: Song, from: 'reader' | 'library') {
-    let returnView: UpdateView | undefined;
-    saveUpdateView(__APP_ENV__.namespace, from === 'reader' ? song.id : null, from === 'reader' ? 'menu-button' : null);
-    returnView = takeUpdateView(__APP_ENV__.namespace) ?? undefined; if (returnView) returnView.menu.open = false;
-    dialog.close(); editing = {from, returnView}; await openSong(song, from === 'reader' ? returnView : undefined);
+    const returnView=captureView(from==='reader'?song.id:null,from==='reader'?'edit-song':null);returnView.menu.open=false;
+    nav.close(false);editing={from,returnView};await openSong(song,from==='reader'?returnView:undefined);
     if (!document.body.classList.contains('editing-active')) editing = undefined;
   }
   let leaving = false;
   async function confirmLeave(): Promise<'save' | 'discard' | 'cancel'> {
     return new Promise(resolve => {
-      const prompt = element('dialog', undefined, 'leave-editor');
-      prompt.setAttribute('aria-label', 'Ulagrede endringer');
-      prompt.append(element('h2', 'Ulagrede endringer'), element('p', 'Vil du lagre før du går ut?'));
-      const finish = (value: 'save' | 'discard' | 'cancel') => {prompt.close(); prompt.remove(); resolve(value);};
-      for (const [value, text] of [['save','Lagre og gå ut'],['discard','Forkast endringer'],['cancel','Fortsett redigering']] as const) {
-        const action = element('button', text); action.type = 'button'; action.addEventListener('click', () => finish(value)); prompt.append(action);
-      }
-      prompt.addEventListener('cancel', event => {event.preventDefault(); finish('cancel');});
-      document.body.append(prompt); prompt.showModal(); prompt.querySelectorAll('button')[2].focus();
+      const prompt=dialogFrame('Ulagrede endringer','leave-editor');
+      prompt.append(element('h2','Ulagrede endringer'),element('p','Vil du lagre før du går ut?'));
+      const finish=(value:'save'|'discard'|'cancel')=>{lifecycle.close();resolve(value);};
+      const actions=dialogFooter([{id:'cancel',label:'Fortsett redigering',icon:'kryss',run:()=>finish('cancel')},{id:'discard',label:'Forkast endringer',run:()=>finish('discard')},{id:'save',label:'Lagre og gå ut',icon:'lagre',primary:true,run:()=>finish('save')}]);prompt.append(actions);
+      const lifecycle=openDialog(prompt,{opener:document.activeElement as HTMLElement,focus:actions.querySelector('[data-action=cancel]') as HTMLElement,cancel:()=>finish('cancel')});
     });
   }
   async function settleDraft(): Promise<boolean> {
@@ -114,52 +111,52 @@ export function startSongbook() {
       else {back();if(returnTo?.returnView)await restoreUpdateView(returnTo.returnView,()=>active===null);}
     } finally {leaving = false;}
   }
-  editMenu.addEventListener('click', () => {if (active) void beginEdit(active, 'reader');});
   let pendingUpdateView = takeUpdateView(__APP_ENV__.namespace);
   const originalScrollRestoration = history.scrollRestoration;
   const app = query('app');
   if (pendingUpdateView) {history.scrollRestoration = 'manual'; app.style.visibility = 'hidden';}
-  const dialog = query<HTMLDialogElement>('settings-dialog'), menu = query<HTMLButtonElement>('menu-button');
-  const exitEdit = element('button', 'Avslutt redigering'); exitEdit.type = 'button'; exitEdit.hidden = true;
-  exitEdit.addEventListener('click', () => {dialog.close(); void finishEdit();});
-  const create = element('button','Ny sang');create.type='button';create.id='new-song';
-  let creating = false;
-  create.addEventListener('click', () => {void beginNewSong();});
-  async function beginNewSong() {
-    if (creating || leaving) return;
-    creating = true; dialog.close();
-    try {
-      if (editing && !await settleDraft()) return;
-      const song=newSong();session=createEditSession(song,{songId:song.id,chorus:{},version:3},null);editing={from:'library'};
-      await openSong(song,undefined,true);showOriginal(true);
-    } finally {creating = false;}
+  let settingsReturn:UpdateView|undefined;
+  const nav=navigation(page=>{void navigate(page);});
+  const create=actionButton('Ny sang',()=>{void beginNewSong();},'ny');create.id='new-song';create.dataset.pageAction='library';
+  query('header-actions').append(create,editMenu);
+  query('back').replaceChildren(icon('tilbake'));
+  let creating=false;
+  async function beginNewSong(){
+    if(creating||leaving)return;creating=true;nav.close(false);
+    try{if(editing&&!await settleDraft())return;const song=newSong();session=createEditSession(song,{songId:song.id,chorus:{},version:3},null);editing={from:'library'};await openSong(song,undefined,true);showOriginal(true);}finally{creating=false;}
   }
-  dialog.querySelector('.menu-heading')!.after(create,editMenu,exitEdit);
-  menu.addEventListener('click', () => dialog.showModal());
-  query('menu-close').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('close', () => menu.focus({preventScroll: true}));
-  dialog.addEventListener('click', event => {
-    const rect = dialog.getBoundingClientRect();
-    if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
-  });
+  async function navigate(page:Page){
+    if(leaving||creating)return;
+    if(page==='settings'){
+      if(currentPage()!=='settings')settingsReturn=captureView(active?.id??null,document.activeElement?.id??null,editing);
+      showPage(page,Boolean(settingsReturn));editMenu.hidden=true;query('settings-heading').focus({preventScroll:true});window.scrollTo(0,0);return;
+    }
+    if(page===currentPage()){nav.close(false);return;}
+    leaving=true;
+    try{
+      if(editing&&!await settleDraft())return;
+      editing=undefined;settingsReturn=undefined;resetSong();showPage(page);editMenu.hidden=true;
+      query(page==='library'?'library-title':`${page}-title`).focus({preventScroll:true});window.scrollTo(0,0);
+    }finally{leaving=false;}
+  }
   const notify = (message: string, error = false) => {status.textContent = message; status.dataset.error = String(error);};
   let preferences = {...defaultPreferences};
   try {preferences = readPreferences(__APP_ENV__.namespace);}
   catch {query('settings-status').textContent = 'Visningsvalg kunne ikke hentes. Endringer gjelder nå, men kan ikke loves husket.';}
   applyPreferences(preferences);
-  const theme = query<HTMLSelectElement>('theme'), size = query<HTMLInputElement>('font-size');
+  const size = query<HTMLInputElement>('font-size');
   const dynamics = query<HTMLInputElement>('show-dynamics'), grids = query<HTMLInputElement>('show-grids');
   dynamics.checked = preferences.showDynamics; grids.checked = preferences.showGrids;
-  theme.value = preferences.theme; size.value = String(preferences.fontSize);
+  size.value = String(preferences.fontSize);
   const updatePreferences = () => {
-    preferences = {theme: theme.value === 'light' ? 'light' : 'dark', fontSize: Number(size.value), showDynamics: dynamics.checked, showGrids: grids.checked};
+    preferences = {theme: 'dark', fontSize: Number(size.value), showDynamics: dynamics.checked, showGrids: grids.checked};
     applyPreferences(preferences); query('font-value').textContent = `${preferences.fontSize} px`;
     try {savePreferences(__APP_ENV__.namespace, preferences); query('settings-status').textContent = '';}
     catch {query('settings-status').textContent = 'Visningen er endret, men valget kunne ikke lagres til neste oppstart.';}
   };
   query('font-value').textContent = `${preferences.fontSize} px`;
   dynamics.addEventListener('change', updatePreferences); grids.addEventListener('change', updatePreferences);
-  theme.addEventListener('change', updatePreferences); size.addEventListener('input', updatePreferences);
+  size.addEventListener('input', updatePreferences);
   const closeRowMenus = (except?: Element) => {
     list.querySelectorAll<HTMLDetailsElement>('.song-actions[open]').forEach(action => {if (action !== except) action.open = false;});
   };
@@ -190,7 +187,8 @@ export function startSongbook() {
       if (resume?.songId) {
         const song = songs.find(song => song.id === resume.songId);
         if (song) await openSong(song, resume);
-      } else if (resume) await restoreUpdateView(resume, () => active === null);
+      } else if (resume){settingsReturn=resume.settingsReturn;await restoreUpdateView(resume, () => active === null);}
+      if(!resume)showPage('library');
     } catch (error) {
       libraryStatus.textContent = error instanceof Error ? error.message : 'Kunne ikke åpne sanglageret.'; retry.hidden = false;
     } finally {
@@ -204,13 +202,14 @@ export function startSongbook() {
   async function openSong(song: Song, resume?: UpdateView, draft = false) {
     notify('');
     if (resume?.editor) editing = resume.editor;
+    if(resume?.settingsReturn)settingsReturn=resume.settingsReturn;
     let personal: SongPersonal;
     try {personal = draft && session ? session.personal : await storage.personal(song.id) ?? {songId: song.id, chorus: {},version:3};}
     catch (error) {notify(error instanceof Error ? error.message : 'Kunne ikke hente personlig tilstand.', true); return;}
     if (editing) {if (!draft || !session) session=createEditSession(song,personal);}
     else {session=undefined;readerPersonal=personal;}
     active = song;
-    editMenu.hidden = Boolean(editing); exitEdit.hidden = !editing;
+    editMenu.hidden = Boolean(editing);
     document.body.classList.toggle('editing-active', Boolean(editing));
     if (resume) reader.style.visibility = 'hidden';
     const parsed = parseChordPro(song.original, song.title), article = query('song-content');
@@ -317,7 +316,7 @@ export function startSongbook() {
       if (line) editor!.select(line, personalState(), selection);
     }
     if (editing) editor!.mount(bodyContent);
-    library.hidden = true; reader.hidden = false; query('back').hidden = false; document.body.classList.add('reader-active');
+    showPage('reader');
     const disposeSpacing = attachSongSpacing(bodyContent);
     const disposeProfile = attachDynamicsProfile(bodyContent, parsed.hasDynamics);
     disposeView = () => {disposeSpacing(); disposeProfile(); disposeDock();};
@@ -325,17 +324,15 @@ export function startSongbook() {
     else {title.focus({preventScroll: true}); window.scrollTo(0, 0);}
     reader.style.removeProperty('visibility');
   }
-  function back() {
-    if (editing) {void finishEdit(); return;}
-
-    editMenu.hidden = true; exitEdit.hidden = true; document.body.classList.remove('editing-active');
-    disposeView(); disposeView = () => {};
-    editor?.dispose(); editor = undefined; query('song-content').replaceChildren();
-    session=undefined;readerPersonal=undefined;active = null; reader.hidden = true; library.hidden = false; query('back').hidden = true; document.body.classList.remove('reader-active'); notify('');
-    query('library-title').focus({preventScroll: true}); window.scrollTo(0, 0);
+  function resetSong(){
+    editMenu.hidden=true;document.body.classList.remove('editing-active');disposeView();disposeView=()=>{};editor?.dispose();editor=undefined;query('song-content').replaceChildren();session=undefined;readerPersonal=undefined;active=null;notify('');saveRetry.hidden=true;
   }
-  query('back').addEventListener('click', back);
-  document.querySelector('.wordmark')!.addEventListener('click', event => {event.preventDefault(); back();});
+  function back(){
+    if(currentPage()==='settings'&&settingsReturn){const view=settingsReturn;settingsReturn=undefined;void restoreUpdateView(view,()=>true).then(()=>{editMenu.hidden=Boolean(editing)||!active;focusUpdateView(view);});return;}
+    if(editing){void finishEdit();return;}
+    resetSong();showPage('library');query('library-title').focus({preventScroll:true});window.scrollTo(0,0);
+  }
+  query('back').addEventListener('click',back);
   file.addEventListener('change', async () => {
     const selected = file.files?.[0]; if (!selected || importing) return;
     importing = true; file.disabled = true; notify('Leser og lagrer sangen…');
@@ -358,6 +355,6 @@ export function startSongbook() {
     if (saving) await saving;
     if (dirty()) throw new Error('Du har ulagrede endringer. Bruk Lagre eller avslutt redigeringen før oppdatering.');
     await Promise.all(chorusWrites);
-    saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId, editing ? {...editing, annotation: editor?.selection()} : undefined);
+    saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId, editing ? {...editing, annotation: editor?.selection()} : undefined, settingsReturn);
   }};
 }

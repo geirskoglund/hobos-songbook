@@ -79,7 +79,7 @@ test('dynamics have a straight left edge and exact fixed widths in a 30px margin
   await expect(page.locator('#dynamics-profile path')).toHaveCount(1);
   await expect(page.locator('#dynamics-profile path')).toHaveAttribute('d',/C/);
   await expect(page.locator('#dynamics-profile rect')).toHaveCount(0);
-  for(const theme of ['dark','light'])for(const fontSize of [16,36]){
+  for(const theme of ['dark'])for(const fontSize of [16,36]){
     await setDisplay(page,{theme,fontSize});
     const widths=[];
     for(const text of ['Normal','En','To','Tre','Fire','Fem']){
@@ -126,25 +126,25 @@ test('dynamics reserve no margin without valid tags, when switched off, or below
 test('settings stay in an accessible menu and persist offline without occupying the reader', async ({page,context})=>{
   await page.goto(base); await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');
   await importSong(page,'prøve.cho',await readFile('examples/akkordskjema-og-dynamikk.cho','utf8'));
-  await expect(page.locator('#settings-dialog')).not.toBeVisible();
+  await expect(page.locator('#main-menu')).not.toBeVisible();
   await expect(page.locator('.display-settings')).not.toBeVisible();
-  await openMenu(page); await expect(page.getByRole('dialog',{name:'Innstillinger'})).toBeVisible();
-  await page.keyboard.press('Escape'); await expect(page.locator('#settings-dialog')).not.toBeVisible();
-  await setDisplay(page,{theme:'light',fontSize:28,showGrids:false,showDynamics:false});
+  await openMenu(page); await expect(page.getByRole('navigation',{name:'Hovedmeny'})).toBeVisible();
+  await page.keyboard.press('Escape'); await expect(page.locator('#main-menu')).not.toBeVisible();
+  await setDisplay(page,{theme:'dark',fontSize:28,showGrids:false,showDynamics:false});
   await expect(page.locator('#chart-dock')).not.toBeVisible(); await expect(page.locator('#dynamics-profile')).not.toBeVisible();
   await context.setOffline(true); await page.reload(); await page.getByRole('button',{name:/Akkordskjema og dynamikk/}).click();
-  await expect(page.locator('#theme')).toHaveValue('light'); await expect(page.locator('#font-size')).toHaveValue('28');
+  await expect(page.locator('html')).toHaveAttribute('data-theme','dark'); await expect(page.locator('#font-size')).toHaveValue('28');
   await expect(page.locator('#show-grids')).not.toBeChecked(); await expect(page.locator('#show-dynamics')).not.toBeChecked();
-  await expect(page.locator('#settings-dialog')).not.toBeVisible();
+  await expect(page.locator('#main-menu')).not.toBeVisible();
   await setDisplay(page,{showDynamics:true}); await expect(page.locator('#dynamics-profile')).toBeVisible();
   await expect(page.locator('#chart-dock')).not.toBeVisible();
 });
 
-test('compact reader and charts fit all widths and both themes at both font limits', async ({page})=>{
+test('compact reader and charts fit all widths and the dark theme at both font limits', async ({page})=>{
   await page.goto(base); await importSong(page,'prøve.cho',await readFile('examples/akkordskjema-og-dynamikk.cho','utf8'));
   for(const width of [320,768,1440]) {
     await page.setViewportSize({width,height:800});
-    for(const theme of ['dark','light']) for(const fontSize of [16,36]) {
+    for(const theme of ['dark']) for(const fontSize of [16,36]) {
       await setDisplay(page,{theme,fontSize});
       const chorusColor=await page.locator('.chorus:not(.reference) > h2').first().evaluate(node=>getComputedStyle(node).color);
       await expect(page.getByRole('button',{name:'Refreng',exact:true})).toHaveCSS('color',chorusColor);
@@ -152,7 +152,7 @@ test('compact reader and charts fit all widths and both themes at both font limi
       const dock=await page.locator('#chart-dock').boundingBox();expect(dock.height).toBeLessThan(800*.34);
       expect(await page.locator('.grid-measure, .grid-cell').evaluateAll(nodes=>nodes.every(node=>node.scrollWidth<=node.clientWidth+1))).toBe(true);
       const profile=await page.locator('#dynamics-profile').boundingBox(); expect(profile.width).toBe(25);await expect(page.locator('#song-body')).toHaveCSS('padding-left','30px');
-      expect((await page.locator('.topbar').boundingBox()).height).toBeLessThanOrEqual(56);
+      expect((await page.locator('.topbar').boundingBox()).height).toBe(await page.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height'))));
       await expect(page.locator('.display-settings')).not.toBeVisible();
     }
   }

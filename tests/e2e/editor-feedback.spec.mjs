@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {importSong,openMenu,savedSongs} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
-const edit=async page=>{await openMenu(page);await page.getByRole('button',{name:'Rediger',exact:true}).click();await expect(page.locator('.edit-toolbar')).toBeVisible();};
+const edit=async page=>{await page.getByRole('button',{name:'Rediger',exact:true}).click();await expect(page.locator('.edit-toolbar')).toBeVisible();};
 const save=async page=>{await page.locator('#edit-save').click();await expect(page.locator('#edit-save')).toBeDisabled();};
 const state=page=>page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,t=db.transaction('personal'),get=t.objectStore('personal').getAll();t.oncomplete=()=>{db.close();resolve(get.result);};};}));
 const line=(page,index)=>page.locator(`[data-occurrence="source/line:${index}"]`);
@@ -81,8 +81,8 @@ test('chart uses content width and explicit empty cells; no inferred beats, repe
 test('dots add one space each while ordinary chord spacing stays unchanged',async({page})=>{
  const text=[0,1,2,5].map(n=>'| '+'. '.repeat(n)+'G D | G '+'. '.repeat(n)+'D | G D '+'. '.repeat(n)+'|').join('\n');
  await page.goto(url);await importSong(page,'punktum.cho','{sog}\n'+text+'\n{eog}\nTekst');
- for(const width of [1000,320])for(const theme of ['dark','light']){
-  await page.setViewportSize({width,height:900});await page.locator('#menu-button').click();await page.locator('#theme').selectOption(theme);await page.locator('#menu-close').click();
+ for(const width of [1000,320])for(const theme of ['dark']){
+  await page.setViewportSize({width,height:900});
   const rows=await page.locator('.grid-row').evaluateAll(rows=>rows.map(row=>[...row.querySelectorAll('.grid-measure')].map(bar=>{
    const cells=bar.querySelector('.grid-cells'),box=cells.getBoundingClientRect(),chords=[...cells.querySelectorAll('.grid-chord')].map(n=>n.getBoundingClientRect());
    return{width:box.width,start:chords[0].left-box.left,gap:chords[1].left-chords[0].right,space:bar.querySelector('[aria-label="Tom akkordcelle"]')?.getBoundingClientRect().width};

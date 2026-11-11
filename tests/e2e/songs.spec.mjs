@@ -38,7 +38,7 @@ test('lyrics and chord anchors wrap at mobile/tablet/desktop at both font limits
   await importSong(page, 'lang.txt', '{t: Lang sang}\n'+('En [D]vanlig linje med [Am]akkorder midt i lan[G]ge ord. '+ 'Veldiglangtord'.repeat(12)+'\n[C][D][Em]\n').repeat(30));
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({width, height: 800});
-    for (const theme of ['light', 'dark']) {
+    for (const theme of ['dark']) {
       await setDisplay(page, {theme:theme});
       for (const fontSize of ['16', '36']) {
         await setDisplay(page, {fontSize:fontSize});
@@ -51,14 +51,14 @@ test('lyrics and chord anchors wrap at mobile/tablet/desktop at both font limits
       }
     }
   }
-  await setDisplay(page, {theme:'light'});
+
   await page.getByRole('button', {name: '← Mine sanger'}).click();
   await importSong(page, 'ren.txt', 'Bare sangtekst\nuten akkorder');
   await expect(page.locator('.song-metadata')).toHaveText('4/4');
   await expect(page.locator('.chord')).toHaveCount(0);
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
-  await expect(page.locator('#font-size')).toHaveValue('36'); await expect(page.locator('#theme')).toHaveValue('light');
+  await expect(page.locator('#font-size')).toHaveValue('36'); await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
   await page.getByRole('button', {name: /Lang sang/}).click();
   await expect(page.locator('#song-title')).toHaveText('Lang sang');
   await page.evaluate(() => window.scrollTo(0, 1400)); expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
@@ -100,7 +100,7 @@ test('invalid files, transaction abort, unavailable database and unavailable pre
   });
   await page.reload();
   await expect(page.locator('#settings-status')).toContainText('kunne ikke hentes');
-  await setDisplay(page, {theme:'light'}); await expect(page.locator('#settings-status')).toContainText('kunne ikke lagres');
+  await setDisplay(page, {fontSize:27}); await expect(page.locator('#settings-status')).toContainText('kunne ikke lagres');
   await expect(page.locator('.song-choice')).toHaveCount(2);
   await page.addInitScript(() => {indexedDB.open = () => {throw new Error('Denied');};});
   await page.reload(); await expect(page.locator('#library-status')).not.toContainText('Ingen sanger');
@@ -127,11 +127,11 @@ test('closing the browser and reopening the same persistent profile offline pres
     context = await launch(); let page = context.pages()[0];
     await page.goto('http://127.0.0.1:4173/hobos-songbook/test/');
     await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
-    await expect(page.locator('#theme')).toHaveValue('dark');
+    await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
     await importSong(page);
     await page.getByRole('button', {name: 'Refreng', exact: true}).nth(1).click();
     await expect(page.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
-    await setDisplay(page, {theme:'light'});
+
     await setDisplay(page, {fontSize:'28'});
     const before = await savedSongs(page);
     await context.close(); context = await launch(); await context.setOffline(true);
@@ -140,7 +140,7 @@ test('closing the browser and reopening the same persistent profile offline pres
     await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
     await page.getByRole('button', {name: /Samme tittel/}).click();
     await expect(page.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.locator('#theme')).toHaveValue('light'); await expect(page.locator('#font-size')).toHaveValue('28');
+    await expect(page.locator('html')).toHaveAttribute('data-theme','dark'); await expect(page.locator('#font-size')).toHaveValue('28');
     expect(await savedSongs(page)).toEqual(before);
   } finally {await context?.close(); await rm(profile, {recursive: true, force: true});}
 });

@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="620" height="228" viewBox="0 0 620 228" role="img">
+  <rect x="0" y="0" width="620" height="228" fill="#272421"/>
+  <text x="45" y="49" fill="#E5BD8D" font-size="20" font-weight="400" font-family="Cousine,monospace">Em</text>
+  <text x="224" y="49" fill="#E5BD8D" font-size="20" font-weight="400" font-family="Cousine,monospace">C</text>
+  <text x="45" y="89" fill="#F4EDE3" font-size="22" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">He came to town last summer</text>
+  <line x1="25" y1="122" x2="592" y2="122" stroke="#8F7B69" stroke-width="1" opacity="0.6"/>
+  <text x="45" y="165" fill="#C7BAA9" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif" font-style="italic">Intro – gitar alene</text>
+</svg>

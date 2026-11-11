@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
+import {importSong, savedSongs, openSettings, closeSettings, setDisplay} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const ready = page => expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
 test.beforeEach(async ({request}) => {await request.post('/__test__/reset');});
@@ -10,20 +10,20 @@ test('update on first visit activates and reloads without requiring an earlier p
   const before = await savedSongs(page);
   await request.post('/__test__/update?channel=test');
   await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
-  await openMenu(page);
+  await openSettings(page);
   await page.getByRole('button', {name:'Oppdater appen', exact:true}).click();
   await expect(page.locator('.build')).toContainText('ccccccc');
-  await expect(page.locator('#reader')).toBeVisible();
+  await expect(page.locator('#settings')).toBeVisible();
   await expect(page.locator('#song-title')).toHaveText('Samme tittel');
-  await expect(page.locator('#settings-dialog')).toBeVisible();
+  await expect(page.locator('#settings')).toBeVisible();
   await expect(page.locator('#update')).toBeFocused();
   expect(await savedSongs(page)).toEqual(before);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await openMenu(page);
+  await openSettings(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
-  await closeMenu(page); await page.reload();
+  await closeSettings(page); await page.reload();
   await expect(page.locator('#library')).toBeVisible();
   await expect(page.locator('#reader')).toBeHidden();
 });
@@ -34,7 +34,7 @@ test('long reading session gets an automatic visible notice; update still needs 
   await page.goto(url); await ready(page);
   await importSong(page, 'lang.txt', '{title: Lang sang}\n'+Array.from({length:100},(_,index)=>`Linje ${index+1}\n`).join(''));
   const before = await savedSongs(page);
-  await page.locator('.app-info').evaluate(details => {details.open = false;});
+
   await page.addStyleTag({content:'.song-line {line-height:1.8; min-height:1.8em}'});
   await page.evaluate(() => scrollTo(0, 1000));
   const navigations = []; page.on('framenavigated', frame => {if (frame === page.mainFrame()) navigations.push(frame.url());});
@@ -59,7 +59,7 @@ test('long reading session gets an automatic visible notice; update still needs 
   const restored=page.locator('.song-line').filter({hasText:new RegExp(`^${anchor.text}$`)});
   await expect.poll(async()=>Math.abs((await restored.boundingBox()).y-anchor.y)).toBeLessThan(1);
   expect(await page.evaluate(()=>scrollY)).toBeLessThan(anchor.scroll);
-  expect(await page.locator('.app-info').evaluate(details=>details.open)).toBe(false);
+  await expect(page.locator('#settings')).toBeHidden();
   expect(await savedSongs(page)).toEqual(before);
 });
 
@@ -114,17 +114,16 @@ test('update restores library scroll, settings dialog and its scroll position', 
   await request.post('/__test__/update?channel=test');
   await page.evaluate(async()=>(await navigator.serviceWorker.getRegistration()).update());
   await expect(page.locator('#update-notice')).toBeVisible();
-  await openMenu(page);
-  await page.locator('#settings-dialog').evaluate(dialog=>{dialog.scrollTop=200;});
-  const position=await page.evaluate(()=>({page:scrollY,menu:document.getElementById('settings-dialog').scrollTop}));
+  await openSettings(page);
+  await page.locator('#update').scrollIntoViewIfNeeded();
+  const position=await page.evaluate(()=>({page:scrollY}));
   await page.getByRole('button',{name:'Oppdater appen',exact:true}).click();
   await expect(page.locator('.build')).toContainText('ccccccc');
-  await expect(page.locator('#library')).toBeVisible();
-  await expect(page.locator('#settings-dialog')).toBeVisible();
+  await expect(page.locator('#library')).toBeHidden();
+  await expect(page.locator('#settings')).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(position.page);
-  await expect.poll(()=>page.locator('#settings-dialog').evaluate(dialog=>dialog.scrollTop)).toBe(position.menu);
   expect(await savedSongs(page)).toEqual(before);
-  await closeMenu(page); await page.getByRole('button',{name:'Sang 2',exact:false}).click();
+  await closeSettings(page); await page.getByRole('button',{name:'Sang 2',exact:false}).click();
   await expect(page.locator('#song-title')).toHaveText('Sang 2');
   expect(await page.evaluate(()=>scrollY)).toBe(0);
 });
@@ -177,7 +176,7 @@ test('same app build never announces a new version when its worker is repacked o
   await request.post('/__test__/update?channel=test&variant=same');
   await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
   await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true);
-  await openMenu(page);
+  await openSettings(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
@@ -188,7 +187,7 @@ test('same app build never announces a new version when its worker is repacked o
     });
   });
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await openMenu(page);
+  await openSettings(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
@@ -207,7 +206,7 @@ test('fresh page already on latest build does not announce its older controller 
   await session.send('Network.setBypassServiceWorker', {bypass:true});
   await page.reload(); await expect(page.locator('.build')).toContainText('ccccccc');
   await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true);
-  await openMenu(page);
+  await openSettings(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
@@ -218,7 +217,7 @@ test('fresh page already on latest build does not announce its older controller 
       navigator.serviceWorker.getRegistration().then(reg => reg.waiting.postMessage({type:'SKIP_WAITING'}));
     });
   });
-  await openMenu(page);
+  await openSettings(page);
   await page.getByRole('button', {name:'Se etter oppdatering',exact:true}).click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await expect(page.locator('#update-notice')).toBeHidden();
@@ -228,7 +227,7 @@ test('fresh page already on latest build does not announce its older controller 
 
 test('manual check joins a background check and its result survives subsequent automatic checks', async ({page}) => {
   await page.goto(url); await ready(page);
-  await openMenu(page);
+  await openSettings(page);
   await page.locator('#update').click();
   await expect(page.locator('#update-status')).toHaveText('Du har siste tilgjengelige versjon.');
   await page.evaluate(() => {
@@ -242,7 +241,7 @@ test('manual check joins a background check and its result survives subsequent a
     window.dispatchEvent(new Event('focus'));
   });
   await expect.poll(() => page.evaluate(() => window.updateChecksStarted)).toBe(1);
-  await openMenu(page);
+  await openSettings(page);
   await page.locator('#update').click();
   await expect(page.locator('#update-status')).toHaveText('Ser etter oppdatering…');
   await page.evaluate(() => window.releaseUpdateCheck());

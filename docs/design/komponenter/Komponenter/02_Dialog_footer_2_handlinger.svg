@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="572" height="345" viewBox="0 0 572 345">
+  <title>Dialog med 2 footerhandlinger</title>
+  <desc>Utsnitt fra Ny_sangbok: header, skillelinje, innholdsfelt og integrert 80px footer. Kun sekundære handlinger med lik vekting skilles vertikalt.</desc>
+  <defs>
+    <clipPath id="dialogklipp">
+      <rect x="0" y="0" width="572" height="345" rx="24"/>
+    </clipPath>
+  </defs>
+  <g id="dialogkropp" clip-path="url(#dialogklipp)">
+    <rect x="0" y="0" width="572" height="345" fill="#322E2A" rx="0"/>
+    <text x="32" y="56" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="500">Eksempel</text>
+    <line x1="32" y1="75" x2="540" y2="75" stroke="#8F7B69" stroke-width="0.85"/>
+    <text x="32" y="116" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="500">Navn</text>
+    <rect x="32" y="133" width="508" height="57" fill="#272421" stroke="#8F7B69" stroke-width="0.85" rx="13"/>
+    <text x="52" y="170" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="400">Lorem ipsum</text>
+    <rect x="0.0" y="265" width="286.03" height="80" fill="#322E2A" rx="0"/>
+    <rect x="286.0" y="265" width="286.03" height="80" fill="#E2C097" rx="0"/>
+    <line x1="0" y1="265" x2="572" y2="265" stroke="#8F7B69" stroke-width="1.0"/>
+    <g id="handling-1" role="button">
+      <g id="avbryt-symbol" transform="translate(96.0 294)" fill="none" stroke="#C7BAA9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="10" cy="10" r="9"/>
+        <path d="M7 7l6 6 M13 7l-6 6"/>
+      </g>
+      <text x="153.0" y="315" fill="#C7BAA9" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="500" text-anchor="middle">Avbryt</text>
+    </g>
+    <g id="handling-2" role="button">
+      <g id="ikon-lagre" transform="translate(386.0 292) scale(1.00000)" stroke="#272421" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <g opacity="1">
+          <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+          <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+          <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+        </g>
+      </g>
+      <text x="439.0" y="315" fill="#272421" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="600" text-anchor="middle">Lagre</text>
+    </g>
+  </g>
+  <rect x="0" y="0" width="572" height="345" fill="none" stroke="#8F7B69" stroke-width="1.15" rx="24"/>
+</svg>

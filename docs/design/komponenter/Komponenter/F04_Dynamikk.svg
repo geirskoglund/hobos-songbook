@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="620" height="310" viewBox="0 0 620 310" role="img">
+  <rect x="0" y="0" width="620" height="310" fill="#272421"/>
+  <text x="20" y="28" fill="#C7BAA9" font-size="14" font-weight="600" font-family="Inter,Arial,sans-serif">VISNING</text>
+  <rect x="45" y="54" width="10" height="45.2" fill="#9B8573"/>
+  <text x="92" y="81" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje én</text>
+  <rect x="45" y="99" width="18" height="45.2" fill="#9B8573"/>
+  <text x="92" y="126" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje to</text>
+  <rect x="45" y="144" width="25" height="45.2" fill="#9B8573"/>
+  <text x="92" y="171" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje tre</text>
+  <rect x="45" y="189" width="15" height="45.2" fill="#9B8573"/>
+  <text x="92" y="216" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje fire</text>
+  <text x="322" y="28" fill="#C7BAA9" font-size="14" font-weight="600" font-family="Inter,Arial,sans-serif">REDIGERING</text>
+  <rect x="345" y="62" width="37" height="39" fill="#403831" stroke="#8F7B69" stroke-width="1" rx="6"/>
+  <text x="363.5" y="88" fill="#E2C097" font-size="16" font-weight="600" font-family="Inter,Arial,sans-serif" text-anchor="middle">1</text>
+  <text x="401" y="88" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje én</text>
+  <rect x="345" y="135" width="37" height="39" fill="#403831" stroke="#8F7B69" stroke-width="1" rx="6"/>
+  <text x="363.5" y="161" fill="#E2C097" font-size="16" font-weight="600" font-family="Inter,Arial,sans-serif" text-anchor="middle">3</text>
+  <text x="401" y="161" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje to</text>
+  <rect x="345" y="208" width="37" height="39" fill="#403831" stroke="#8F7B69" stroke-width="1" rx="6"/>
+  <text x="363.5" y="234" fill="#E2C097" font-size="16" font-weight="600" font-family="Inter,Arial,sans-serif" text-anchor="middle">5</text>
+  <text x="401" y="234" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Gentium Book Plus,Georgia,serif">Linje tre</text>
+</svg>

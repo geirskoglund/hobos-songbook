@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="297" height="170" viewBox="0 0 297 170">
+  <title>Kontekstmeny – Opprett / Importer</title>
+  <desc>Kontekstmeny løftet uendret geometrisk fra Sangliste_plussmeny.svg.</desc>
+  <rect x="0" y="0" width="297" height="170" fill="#272421" rx="0"/>
+  <defs>
+    <filter id="panel-shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="9" stdDeviation="12" flood-color="#211F1D" flood-opacity=".52"/>
+    </filter>
+  </defs>
+  <g id="kontekstmeny" transform="translate(-409 -877)">
+    <g id="add-song-panel">
+      <rect x="425" y="893" width="265" height="139" rx="16" fill="#403831" stroke="#8F7B69" stroke-width="0.9" filter="url(#panel-shadow)"/>
+      <line x1="445" y1="894" x2="669" y2="894" stroke="#C7BAA9" stroke-width="0.7" opacity=".13"/>
+      <g id="icon-ny-449-911" transform="translate(449 911) scale(1.0)" stroke="#F4EDE3" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <g opacity="1">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <line x1="12" y1="5" x2="12" y2="19"/>
+        </g>
+      </g>
+      <text x="490" y="930" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="400">Opprett</text>
+      <line x1="444" y1="960" x2="671" y2="960" stroke="#8F7B69" stroke-width="0.9" opacity="0.8"/>
+      <g id="icon-importer-449-982" transform="translate(449 982) scale(1.0)" stroke="#F4EDE3" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <g opacity="1">
+          <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2zM14 2v6h6"/>
+          <path d="M12 18v-6m-3 3 3-3 3 3"/>
+        </g>
+      </g>
+      <text x="490" y="1001" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="400">Importer</text>
+    </g>
+  </g>
+</svg>

@@ -1,3 +1,6 @@
+import {placeOverlay} from './layout.ts';
+import {dialogFrame, dialogFooter} from './controls.ts';
+export {dialogFrame, dialogFooter};
 export interface DialogOptions {
   opener?: HTMLElement;
   focus?: HTMLElement;
@@ -9,7 +12,7 @@ export interface DialogOptions {
 /** Each dialog owns its focus, activation and lifecycle; no document-wide button interception. */
 export function openDialog(box: HTMLDialogElement, options: DialogOptions = {}) {
   let closed = false, down: {x: number; y: number; scroll: number} | undefined;
-  const place = () => {if (!closed) options.place?.();};
+  const place = () => {if (!closed) {if(options.place)options.place();else placeOverlay(box);}};
   const observer = new ResizeObserver(place);
   function close() {
     if (closed) return;closed = true;observer.disconnect();
@@ -45,14 +48,11 @@ export function openDialog(box: HTMLDialogElement, options: DialogOptions = {}) 
 
 export function confirmImportCopy(filename: string, opener: HTMLElement): Promise<boolean> {
   return new Promise(resolve => {
-    const box = document.createElement('dialog');box.className = 'edit-popup import-copy';box.setAttribute('aria-label', 'Importer kopi');
+    const box = dialogFrame('Importer kopi', 'edit-popup import-copy');
     const text = document.createElement('p');text.textContent = `Fil ${filename} er allerede importert. Vil du importere en kopi?`;
-    const actions = document.createElement('div');actions.className = 'popup-actions';
-    const abort = document.createElement('button'), confirm = document.createElement('button');
-    abort.type = confirm.type = 'button';abort.textContent = 'Avbryt';confirm.textContent = 'Importer';
     const finish = (accepted: boolean) => {dialog.close();resolve(accepted);};
-    abort.addEventListener('click', () => finish(false));confirm.addEventListener('click', () => finish(true));
-    actions.append(abort, confirm);box.append(text, actions);
-    const dialog = openDialog(box, {opener, focus: abort, outside: true, cancel: () => finish(false)});
+    const actions=dialogFooter([{id:'cancel',label:'Avbryt',run:()=>finish(false),icon:'kryss'},{id:'import',label:'Importer',primary:true,run:()=>finish(true),icon:'importer'}]);
+    box.append(text, actions);
+    const dialog = openDialog(box, {opener, focus: actions.querySelector('button')!, outside: true, cancel: () => finish(false)});
   });
 }

@@ -1,4 +1,7 @@
+import './fonts.css';
 import './style.css';
+import {startLayout} from './ui/layout.ts';
+startLayout();
 import {startAppInteractions} from './ui/app-interactions.ts';
 startAppInteractions();
 import {startSongbook} from './ui/songbook.ts';

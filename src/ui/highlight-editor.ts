@@ -1,3 +1,4 @@
+import {readingTop} from './layout.ts';
 import {anchorFor, changeAnnotation, type Highlight, type LineAnchor} from '../domain/personal.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
 export interface TextSpan {line: HTMLElement; start: number; end: number}
@@ -30,7 +31,7 @@ export function nativeLyricSpans(root: HTMLElement): TextSpan[] {
 export function edgeScroll(y: () => number, moved: () => void) {
   let frame = 0;
   const tick = () => {
-    const top = document.querySelector('.edit-toolbar')?.getBoundingClientRect().bottom ?? 52, at = y();
+    const top = readingTop(), at = y();
     const delta = at<top+35 ? -Math.min(12,(top+35-at)/3) : at>innerHeight-45 ? Math.min(12,(at-innerHeight+45)/3) : 0;
     const before = scrollY; if (delta) window.scrollBy(0,delta); if (scrollY!==before) moved();
     frame = requestAnimationFrame(tick);
@@ -61,7 +62,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     return parts.flatMap(part=>[...part.line.querySelectorAll<HTMLElement>('.lyric')].flatMap(lyric=>{
       const offset=Number(lyric.dataset.offset),from=Math.max(0,part.start-offset),to=Math.min(Number(lyric.dataset.length),part.end-offset);
       if(to<=from)return[];const a=inLyric(lyric,from),b=inLyric(lyric,to);if(!a||!b)return[];
-      const range=document.createRange();range.setStart(a.node,a.at);range.setEnd(b.node,b.at);return[...range.getClientRects()].filter(rect=>rect.width>0);
+      const range=document.createRange();range.setStart(a.node,a.at);range.setEnd(b.node,b.at);const bounds=lyric.getBoundingClientRect();return[...range.getClientRects()].filter(rect=>rect.width>0).map(rect=>new DOMRect(rect.left,Math.max(rect.top,bounds.top),rect.width,Math.max(0,Math.min(rect.bottom,bounds.bottom)-Math.max(rect.top,bounds.top))));
     }));
   }
   function bounds(selection: Selection) {

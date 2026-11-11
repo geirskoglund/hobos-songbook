@@ -21,10 +21,10 @@ export async function savedSongs(page) {
 }
 
 export async function openMenu(page) {
-  if (!await page.locator('#settings-dialog').isVisible()) await page.getByRole('button',{name:'Meny',exact:true}).click();
+  if (!await page.locator('#main-menu').isVisible()) await page.getByRole('button',{name:'Meny',exact:true}).click();
 }
 export async function closeMenu(page) {
-  if (await page.locator('#settings-dialog').isVisible()) await page.getByRole('button',{name:'Lukk meny',exact:true}).click();
+  if (await page.locator('#main-menu').isVisible()) await page.getByRole('button',{name:'Meny',exact:true}).click();
 }
 export async function setCapo(page, value) {
   await page.locator('#capo-pill').click();
@@ -33,10 +33,15 @@ export async function setCapo(page, value) {
   await page.getByRole('button',{name:'OK',exact:true}).click();
 }
 export async function setDisplay(page, {theme, fontSize, showGrids, showDynamics}) {
-  await openMenu(page);
-  if (theme !== undefined) await page.locator('#theme').selectOption(theme);
+  await openSettings(page);
   if (fontSize !== undefined) {await page.locator('#font-size').fill(String(fontSize)); await page.locator('#font-size').dispatchEvent('input');}
   if (showGrids !== undefined) await page.locator('#show-grids').setChecked(showGrids);
   if (showDynamics !== undefined) await page.locator('#show-dynamics').setChecked(showDynamics);
-  await closeMenu(page);
+  await closeSettings(page);
 }
+
+export async function openSettings(page){
+ if(!await page.locator('#settings').isVisible()){await openMenu(page);await page.getByRole('button',{name:'Innstillinger',exact:true}).click();}
+}
+export async function closeSettings(page){if(await page.locator('#settings').isVisible())await page.locator('#back').click();}
+export async function goSongs(page){await openMenu(page);await page.getByRole('button',{name:'Sanger',exact:true}).click();}

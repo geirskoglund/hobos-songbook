@@ -1,0 +1,1542 @@
+{
+  "root": "Komponentkart.svg",
+  "palette": {
+    "Appbakgrunn": "#272421",
+    "Toppfelt": "#211F1D",
+    "Overflate": "#322E2A",
+    "Hevet flate": "#403831",
+    "Primærtekst": "#F4EDE3",
+    "Sekundærtekst": "#C7BAA9",
+    "Akkorder": "#E5BD8D",
+    "Refreng": "#D9A385",
+    "Dynamikk": "#9B8573",
+    "Gulmarkering": "#D6B77C",
+    "Handling / fokus": "#E2C097",
+    "Kontur": "#8F7B69"
+  },
+  "components": {
+    "N01_Toppfelt": {
+      "filename": "N01_Toppfelt.svg",
+      "title": "Toppfelt",
+      "family": "Navigasjon",
+      "description": "Tilbake til venstre; midtstilt modushandling; miljømerking og meny til høyre. Uten appnavn.",
+      "variants": "Visning → Rediger / Redigering → Visning",
+      "example": "Rediger / Visning",
+      "sources": [
+        "05_visningsmodus_rediger.svg",
+        "01_filinnhold_normal.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "541c1777e4b61abd3c49b8381edfe3bc2998e9b357d1e45d2749328e56054db0",
+      "colors": [
+        {
+          "role": "Toppfelt",
+          "hex": "#211F1D"
+        },
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "N01_Toppfelt",
+      "source_links": [
+        {
+          "name": "05_visningsmodus_rediger.svg",
+          "url": "https://drive.google.com/file/d/1YxOTg1VeFfc1SviWvXTKFX5OBM3v-vwd/view"
+        },
+        {
+          "name": "01_filinnhold_normal.svg",
+          "url": "https://drive.google.com/file/d/1RsXYgC3lT3Tu14Hcuyy5w4PZL8BNhtup/view"
+        }
+      ]
+    },
+    "N02_Navigasjonspanel": {
+      "filename": "N02_Navigasjonspanel.svg",
+      "title": "Navigasjonspanel",
+      "family": "Navigasjon",
+      "description": "Høyre navigasjonspanel fra rett under den synlige headeren til skjermbunnen. Menyknappen i headeren åpner og lukker panelet. Rette hjørner, seksjonsdelere og bunnforankret siste valg.",
+      "variants": "Åpent/lukket • aktivt/ordinært menyvalg",
+      "example": "Sanger / Innstillinger",
+      "sources": [
+        "Meny.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "66ccaff5e64569f745e675579bf5d8448dafef216757557773f0bef2f4a054a0",
+      "colors": [
+        {
+          "role": "Toppfelt",
+          "hex": "#211F1D"
+        },
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "N02_Navigasjonspanel",
+      "source_links": [
+        {
+          "name": "Meny.svg",
+          "url": "https://drive.google.com/file/d/1BbRiSuGFzcqc6vxbRjkAG05rD4PdCGCO/view"
+        }
+      ],
+      "approved_clarification": "Brukeravklaring 11. november 2026: headeren forblir synlig, og panelet går fra under headeren til skjermbunnen. Ingen branding i toppfeltet."
+    },
+    "L01_Listerad_tittel_metadata": {
+      "filename": "L01_Listerad_tittel_metadata.svg",
+      "title": "Listerad – tittel og metadata",
+      "family": "Listerader",
+      "description": "Stor primærtittel; liten sekundærlinje; valgfri ekstra informasjonslinje.",
+      "variants": "Med/uten ekstra informasjonslinje",
+      "example": "Sang",
+      "sources": [
+        "Sangliste.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "7db661e881bcfab4ff5f2950b59029551a03ec287005d456b409e7fafdf5c1cf",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "L01_Listerad_tittel_metadata",
+      "source_links": [
+        {
+          "name": "Sangliste.svg",
+          "url": "https://drive.google.com/file/d/1VK0Gc9zOQKqDxLIfSyPLh9KIiS-iR5RR/view"
+        }
+      ]
+    },
+    "L02_Listerad_tittel_antall": {
+      "filename": "L02_Listerad_tittel_antall.svg",
+      "title": "Listerad – tittel og antall",
+      "family": "Listerader",
+      "description": "Tittel og sekundært antall, uten unødvendige metadata eller leading-ikon.",
+      "variants": "Med valgfri radmeny som separat betjening",
+      "example": "Setlisteoversikt",
+      "sources": [
+        "Setlister.svg",
+        "Setlister_radmeny.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "c2f450e2de0a1ceda7be1be1f481caaef13cda178ddb5be0787fd4467d0787d6",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "L02_Listerad_tittel_antall",
+      "source_links": [
+        {
+          "name": "Setlister.svg",
+          "url": "https://drive.google.com/file/d/1reBJWUjyxVwvKR4z2VwlSxS-TjqAt73s/view"
+        },
+        {
+          "name": "Setlister_radmeny.svg",
+          "url": "https://drive.google.com/file/d/112cydq4Jjoljf-fWyZvdAmpbmASsL-C0/view"
+        }
+      ]
+    },
+    "L03_Listerad_nummerert": {
+      "filename": "L03_Listerad_nummerert.svg",
+      "title": "Listerad – nummerert",
+      "family": "Listerader",
+      "description": "Sekvensnummer i egen smal kolonne; primærtekst og metadata til høyre. Ingen flyttehåndtak.",
+      "variants": "Enlinjet/tolinjet innhold",
+      "example": "Nummerert sang",
+      "sources": [
+        "Setliste.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "f00f20efee694e67669d0517141d4539f324883785631d3a8eab3fa15520b2f2",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "L03_Listerad_nummerert",
+      "source_links": [
+        {
+          "name": "Setliste.svg",
+          "url": "https://drive.google.com/file/d/1XWuZOuyV3dIn8HmDnMDf0a94zbd5-gSV/view"
+        }
+      ]
+    },
+    "L04_Listerad_spesial": {
+      "filename": "L04_Listerad_spesial.svg",
+      "title": "Listerad – spesialelement",
+      "family": "Listerader",
+      "description": "Alternativt innhold i nummerert liste; markør og innhold har samme godkjente varme aksent.",
+      "variants": "Pause / Påminnelse",
+      "example": "Pause og NB!",
+      "sources": [
+        "Setliste.svg",
+        "Setliste_paaminnelse.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "6f33ed0ecd28faf1cb8b6039e076540987784cdd4112c2ae1009e8691b87180f",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        }
+      ],
+      "component_id": "L04_Listerad_spesial",
+      "source_links": [
+        {
+          "name": "Setliste.svg",
+          "url": "https://drive.google.com/file/d/1XWuZOuyV3dIn8HmDnMDf0a94zbd5-gSV/view"
+        },
+        {
+          "name": "Setliste_paaminnelse.svg",
+          "url": "https://drive.google.com/file/d/1Z9xxEijd9-vn3MFXV_ALlJYdYf9YMP2p/view"
+        }
+      ]
+    },
+    "L05_Listerad_valgbar": {
+      "filename": "L05_Listerad_valgbar.svg",
+      "title": "Listerad – valgbar",
+      "family": "Listerader",
+      "description": "Kompakt tittelrad; utvalg markeres med flate og sjekkmerke.",
+      "variants": "Valgt / ikke valgt",
+      "example": "Sangvalg",
+      "sources": [
+        "Setliste_sangvelger.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "86cda32e5cea720b0fbf88cbbecf7a0a5aac0aa0d9f9c5bcfc01f7e571079637",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "L05_Listerad_valgbar",
+      "source_links": [
+        {
+          "name": "Setliste_sangvelger.svg",
+          "url": "https://drive.google.com/file/d/1mGzt4U0DkRgi05i5SmJXLlolaSkNmlJ0/view"
+        }
+      ]
+    },
+    "L06_Listerad_separat_handling": {
+      "filename": "L06_Listerad_separat_handling.svg",
+      "title": "Listerad – separat handling",
+      "family": "Listerader",
+      "description": "Radens informasjonsflate og en egen høyrestilt handlingsknapp har separate treffområder.",
+      "variants": "Ulike handlinger via ikon i raden",
+      "example": "Synkroniser kilde",
+      "sources": [
+        "Synkronisering.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "fe660883dbfd59d4dc67e150edd29ba5d05e5182d17d4df2a30a53477ac3d2b8",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "L06_Listerad_separat_handling",
+      "source_links": [
+        {
+          "name": "Synkronisering.svg",
+          "url": "https://drive.google.com/file/d/1YMCHtfORilldAljM4prLF3DpIXl_W6EP/view"
+        }
+      ]
+    },
+    "D01_Visningspille": {
+      "filename": "D01_Visningspille.svg",
+      "title": "Visningspille",
+      "family": "Verdier og inndata",
+      "description": "Kompakt, avrundet verdiindikator. Må ikke forveksles med kontrollen som endrer verdien.",
+      "variants": "Toneart / takt / capo",
+      "example": "Em · 4/4",
+      "sources": [
+        "Sangvisning_sticky_paa.svg",
+        "Komponentkart.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "1ddded5b73ca0807ba3f142f12e327f1d4cb2aefe01f6bbf781c64d94ecfa01a",
+      "colors": [
+        {
+          "role": "Toppfelt",
+          "hex": "#211F1D"
+        },
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "D01_Visningspille",
+      "source_links": [
+        {
+          "name": "Sangvisning_sticky_paa.svg",
+          "url": "https://drive.google.com/file/d/1B8a29IJ7Wr13EvB43JgMrt_qvH1A9EMR/view"
+        },
+        {
+          "name": "Komponentkart.svg",
+          "url": "https://drive.google.com/file/d/1uEoGh4veaSaZf3sAz2_eP5Qd_N52KNfb/view"
+        }
+      ]
+    },
+    "D02_Tekstfelt_enlinjet": {
+      "filename": "D02_Tekstfelt_enlinjet.svg",
+      "title": "Tekstfelt – enlinjet",
+      "family": "Verdier og inndata",
+      "description": "Etikett og enlinjet felt med samme kontur- og bakgrunnssystem som andre input.",
+      "variants": "Tekst / kort verdi",
+      "example": "Tittel / navn",
+      "sources": [
+        "Ny_sangbok.svg",
+        "Komponentkart.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "812e16bca852199263436511766c4bd10407da099b804028ce277df4d90a907b",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "D02_Tekstfelt_enlinjet",
+      "source_links": [
+        {
+          "name": "Ny_sangbok.svg",
+          "url": "https://drive.google.com/file/d/1mzkCq5oXqKulUrdN45juxw3S3veRdDLp/view"
+        },
+        {
+          "name": "Komponentkart.svg",
+          "url": "https://drive.google.com/file/d/1uEoGh4veaSaZf3sAz2_eP5Qd_N52KNfb/view"
+        }
+      ]
+    },
+    "D03_Tekstfelt_flerlinjet": {
+      "filename": "D03_Tekstfelt_flerlinjet.svg",
+      "title": "Tekstfelt – flerlinjet",
+      "family": "Verdier og inndata",
+      "description": "Flerlinjet fri tekst i større redigeringsflate. Ikke en liten verdikontroll.",
+      "variants": "Vanlig tekstinnhold over flere linjer",
+      "example": "Notattekst",
+      "sources": [
+        "Komponentkart.svg",
+        "Setliste_paaminnelse.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "bf8923f01e9305cfc4a283eb408e072c0726cb8f12bc3d2fc094558bc59a545e",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "D03_Tekstfelt_flerlinjet",
+      "source_links": [
+        {
+          "name": "Komponentkart.svg",
+          "url": "https://drive.google.com/file/d/1uEoGh4veaSaZf3sAz2_eP5Qd_N52KNfb/view"
+        },
+        {
+          "name": "Setliste_paaminnelse.svg",
+          "url": "https://drive.google.com/file/d/1Z9xxEijd9-vn3MFXV_ALlJYdYf9YMP2p/view"
+        }
+      ]
+    },
+    "D04_Valgkontroll_radio": {
+      "filename": "D04_Valgkontroll_radio.svg",
+      "title": "Valgkontroll – ett valg",
+      "family": "Verdier og inndata",
+      "description": "Radiovalg: ett alternativ om gangen. Fokus/aktivt valg kan vises med Handling/fokus.",
+      "variants": "Valgt / ikke valgt",
+      "example": "Kun ned / Opp og ned",
+      "sources": [
+        "Ny_kilde.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "332520e7b481ef16fcdf26bf992cb5d995fd5391514a7734c1a7e7e996af7d93",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "D04_Valgkontroll_radio",
+      "source_links": [
+        {
+          "name": "Ny_kilde.svg",
+          "url": "https://drive.google.com/file/d/1RAUhJYx8KB9dSaG_HWIFWU27O42KQL51/view"
+        }
+      ]
+    },
+    "D05_Valgkontroll_bryter": {
+      "filename": "D05_Valgkontroll_bryter.svg",
+      "title": "Valgkontroll – av/på",
+      "family": "Verdier og inndata",
+      "description": "To tilstander i kontroll knyttet til en innstilling; ikke navigasjon mellom appmoduser.",
+      "variants": "På / av",
+      "example": "Vis akkordskjema",
+      "sources": [
+        "Innstillinger.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "6389fd669cfd31134215dc8e4afe2e82c8e3a8cd56380be259ea93dd40ce17b1",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "D05_Valgkontroll_bryter",
+      "source_links": [
+        {
+          "name": "Innstillinger.svg",
+          "url": "https://drive.google.com/file/d/18e0FBA2Mk1lzCiopX85E52i0NPf_EvzV/view"
+        }
+      ]
+    },
+    "D06_Valgkontroll_skyver": {
+      "filename": "D06_Valgkontroll_skyver.svg",
+      "title": "Valgkontroll – skyver",
+      "family": "Verdier og inndata",
+      "description": "Trinnløs eller trinnvis verdi på én akse, med synlig aktuell verdi.",
+      "variants": "Aktiv posisjon",
+      "example": "Skriftstørrelse",
+      "sources": [
+        "Innstillinger.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "8c84731e630d719e953c74c505bad077c56aa13e0aecb381937371554a8be618",
+      "colors": [
+        {
+          "role": "Toppfelt",
+          "hex": "#211F1D"
+        },
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "D06_Valgkontroll_skyver",
+      "source_links": [
+        {
+          "name": "Innstillinger.svg",
+          "url": "https://drive.google.com/file/d/18e0FBA2Mk1lzCiopX85E52i0NPf_EvzV/view"
+        }
+      ]
+    },
+    "E01_Dialog_fullskjerm": {
+      "filename": "E01_Dialog_fullskjerm.svg",
+      "title": "Dialog – fullskjerm",
+      "family": "Dialoger",
+      "description": "Hele visningsflaten, rette ytterhjørner; overskrift; scrollbart tekstfelt; integrert footer.",
+      "variants": "Avbryt / Lagre",
+      "example": "Råtekst",
+      "sources": [
+        "04_ratekst_fullskjerm.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "706bd3aff87528808be134ab34d4a7006e1a39f0b181071868549ce83de954d5",
+      "colors": [
+        {
+          "role": "Toppfelt",
+          "hex": "#211F1D"
+        },
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "E01_Dialog_fullskjerm",
+      "source_links": [
+        {
+          "name": "04_ratekst_fullskjerm.svg",
+          "url": "https://drive.google.com/file/d/1b6QDqsGpezhXEe9N6XaXEPVu5nA2NmCM/view"
+        }
+      ]
+    },
+    "F01_Akkordskjema": {
+      "filename": "F01_Akkordskjema.svg",
+      "title": "Akkordskjema",
+      "family": "Sanginnhold",
+      "description": "Felles visningsflate for ett skjema; godkjent skråstilt pin viser sticky-tilstand.",
+      "variants": "Sticky av/på; ett skjema om gangen",
+      "example": "Akkordprogresjon",
+      "sources": [
+        "Sangvisning_sticky_paa.svg",
+        "Sangvisning_sticky_av.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "18070eb2a7fbba075c5418ddef10071f220353f3a66ea4b2dde96cff52503496",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "F01_Akkordskjema",
+      "source_links": [
+        {
+          "name": "Sangvisning_sticky_paa.svg",
+          "url": "https://drive.google.com/file/d/1B8a29IJ7Wr13EvB43JgMrt_qvH1A9EMR/view"
+        },
+        {
+          "name": "Sangvisning_sticky_av.svg",
+          "url": "https://drive.google.com/file/d/1ITO_RYH4L1rSm7_DOUCxW3dJQCyDjU3W/view"
+        }
+      ]
+    },
+    "F02_Refreng": {
+      "filename": "F02_Refreng.svg",
+      "title": "Refrengstruktur",
+      "family": "Sanginnhold",
+      "description": "Blokk med overskrift, innrykk og venstrestrek; senere henvisninger som diskret tekstkontroll.",
+      "variants": "Første blokk / senere henvisning",
+      "example": "Refreng",
+      "sources": [
+        "Sangvisning_sticky_paa.svg",
+        "03_viskelaer_aktiv_alle_elementer.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "9fea415ee02998b8de8ecc0418728c84a4c7939fee2aa54494ad964ee7515a3b",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Refreng",
+          "hex": "#D9A385"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "F02_Refreng",
+      "source_links": [
+        {
+          "name": "Sangvisning_sticky_paa.svg",
+          "url": "https://drive.google.com/file/d/1B8a29IJ7Wr13EvB43JgMrt_qvH1A9EMR/view"
+        },
+        {
+          "name": "03_viskelaer_aktiv_alle_elementer.svg",
+          "url": "https://drive.google.com/file/d/10haukqU8qCnjofTn1gI9eN4DrTundyIR/view"
+        }
+      ]
+    },
+    "F03_Akkord_og_anvisning": {
+      "filename": "F03_Akkord_og_anvisning.svg",
+      "title": "Akkord og anvisning",
+      "family": "Sanginnhold",
+      "description": "Inline akkord vises over riktig tekstposisjon; anvisning er eget formatert tekstelement.",
+      "variants": "Akkord / anvisning",
+      "example": "Em / Intro",
+      "sources": [
+        "Sangvisning_sticky_paa.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "95b98a7638249a8e684b2983a32acd3a5f4bd8684d4efad4450d9987b99bfb41",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "F03_Akkord_og_anvisning",
+      "source_links": [
+        {
+          "name": "Sangvisning_sticky_paa.svg",
+          "url": "https://drive.google.com/file/d/1B8a29IJ7Wr13EvB43JgMrt_qvH1A9EMR/view"
+        }
+      ]
+    },
+    "F04_Dynamikk": {
+      "filename": "F04_Dynamikk.svg",
+      "title": "Dynamikk",
+      "family": "Sanginnhold",
+      "description": "Visningsprofil i fast venstremarg; under redigering bare separate nummererte nivåmarkører.",
+      "variants": "Visning / redigering",
+      "example": "Nivå 1–5",
+      "sources": [
+        "Sangvisning_sticky_paa.svg",
+        "03_viskelaer_aktiv_alle_elementer.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "8a1b4b21553ba065d56a0fda18881874c67592a06f4a83bbc7c49802141bb3b9",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Dynamikk",
+          "hex": "#9B8573"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "F04_Dynamikk",
+      "source_links": [
+        {
+          "name": "Sangvisning_sticky_paa.svg",
+          "url": "https://drive.google.com/file/d/1B8a29IJ7Wr13EvB43JgMrt_qvH1A9EMR/view"
+        },
+        {
+          "name": "03_viskelaer_aktiv_alle_elementer.svg",
+          "url": "https://drive.google.com/file/d/10haukqU8qCnjofTn1gI9eN4DrTundyIR/view"
+        }
+      ]
+    },
+    "F05_Annotering": {
+      "filename": "F05_Annotering.svg",
+      "title": "Personlig annotering",
+      "family": "Sanginnhold",
+      "description": "Notat i egen hevet flate, uten overskrift; valgfri stiplet forankring. Gulmarkering uten tekstendring.",
+      "variants": "Notat / gulmarkering",
+      "example": "Personlig påminnelse",
+      "sources": [
+        "Sangvisning_sticky_paa.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "c3a2a75f03669d95608a645b5501fa2a913159a39cbdbe1589ee0b35164374b0",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Gulmarkering",
+          "hex": "#D6B77C"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "F05_Annotering",
+      "source_links": [
+        {
+          "name": "Sangvisning_sticky_paa.svg",
+          "url": "https://drive.google.com/file/d/1B8a29IJ7Wr13EvB43JgMrt_qvH1A9EMR/view"
+        }
+      ]
+    },
+    "F06_Fjerningskontroll": {
+      "filename": "F06_Fjerningskontroll.svg",
+      "title": "Fjerningskontroll",
+      "family": "Sanginnhold",
+      "description": "Global Fjern-modus gjør × synlig ved hvert fjernbart element; underliggende sangtekst berøres ikke.",
+      "variants": "Ved akkord / refreng / notat / dynamikk",
+      "example": "Fjern",
+      "sources": [
+        "03_viskelaer_aktiv_alle_elementer.svg"
+      ],
+      "created": "nytt uttrekk fra godkjente SVG-kilder",
+      "sha256": "e304aa680c264d795b94265b9b6a9ae04c8788ca1dd949e5319df24d280448b1",
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Refreng",
+          "hex": "#D9A385"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "F06_Fjerningskontroll",
+      "source_links": [
+        {
+          "name": "03_viskelaer_aktiv_alle_elementer.svg",
+          "url": "https://drive.google.com/file/d/10haukqU8qCnjofTn1gI9eN4DrTundyIR/view"
+        }
+      ]
+    },
+    "H01_Flytende_handling": {
+      "filename": "01_Flytende_plussknapp.svg",
+      "title": "Flytende handling",
+      "family": "Handlinger og menyer",
+      "description": "Flytende transparent pluss; plassering må ikke dekke viktig innhold.",
+      "variants": "Normal; åpen handlingsmeny vises separat",
+      "example": "Plussknapp",
+      "sources": [
+        "Sangliste_plussmeny.svg"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "9de1f39233e3fcc027e01169b509b2601a64339b80372644935cabf8a6ea8089",
+      "external": true,
+      "colors": [
+        {
+          "role": "Toppfelt",
+          "hex": "#211F1D"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "H01_Flytende_handling",
+      "source_links": [
+        {
+          "name": "Sangliste_plussmeny.svg",
+          "url": "https://drive.google.com/file/d/1P5zqvIyXiSSmHT6lkgagQZWUV33c51O8/view"
+        }
+      ]
+    },
+    "H02_Verktoyknapp": {
+      "filename": "04_Verktoyknapp.svg",
+      "title": "Verktøyknapp",
+      "family": "Handlinger og menyer",
+      "description": "Ikon over tekst; tydelig valgt tilstand; samme ikon for samme handling.",
+      "variants": "Normal / aktiv",
+      "example": "Fjern",
+      "sources": [
+        "01_filinnhold_normal.svg",
+        "03_viskelaer_aktiv_alle_elementer.svg"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "1849610acc142fb24178e8f2e00325fd2893b815bb4660c521870e680fcecc76",
+      "external": true,
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "H02_Verktoyknapp",
+      "source_links": [
+        {
+          "name": "01_filinnhold_normal.svg",
+          "url": "https://drive.google.com/file/d/1RsXYgC3lT3Tu14Hcuyy5w4PZL8BNhtup/view"
+        },
+        {
+          "name": "03_viskelaer_aktiv_alle_elementer.svg",
+          "url": "https://drive.google.com/file/d/10haukqU8qCnjofTn1gI9eN4DrTundyIR/view"
+        }
+      ]
+    },
+    "H03_Fanevelger": {
+      "filename": "05_Fanevelger.svg",
+      "title": "Fanevelger",
+      "family": "Handlinger og menyer",
+      "description": "Bytter innholdet i samme verktøyområde; valgt fane har understrek.",
+      "variants": "Filinnhold / Egentilpasning",
+      "example": "Editorfaner",
+      "sources": [
+        "01_filinnhold_normal.svg"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "fb0557938c0102b595372a294c0331a22f0a03b6ca6406206cf13c9b389aec12",
+      "external": true,
+      "colors": [
+        {
+          "role": "Toppfelt",
+          "hex": "#211F1D"
+        },
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "H03_Fanevelger",
+      "source_links": [
+        {
+          "name": "01_filinnhold_normal.svg",
+          "url": "https://drive.google.com/file/d/1RsXYgC3lT3Tu14Hcuyy5w4PZL8BNhtup/view"
+        }
+      ]
+    },
+    "H04_Kontekstmeny": {
+      "filename": "06_Kontekstmeny.svg",
+      "title": "Kontekstmeny",
+      "family": "Handlinger og menyer",
+      "description": "Kompakt meny med ikon og kort handlingsnavn; innhold kontekstavhengig.",
+      "variants": "Åpen/lukket",
+      "example": "Opprett / Importer",
+      "sources": [
+        "Sangliste_plussmeny.svg"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "d0ecb624f252886241f47a34f58495f9cc9c65246af71b79bb37e6e228700c36",
+      "external": true,
+      "colors": [
+        {
+          "role": "Toppfelt",
+          "hex": "#211F1D"
+        },
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "H04_Kontekstmeny",
+      "source_links": [
+        {
+          "name": "Sangliste_plussmeny.svg",
+          "url": "https://drive.google.com/file/d/1P5zqvIyXiSSmHT6lkgagQZWUV33c51O8/view"
+        }
+      ]
+    },
+    "D07_Liten_verdikontroll_numerisk": {
+      "filename": "03_Liten_verdikontroll_Capo.svg",
+      "title": "Liten verdikontroll – numerisk",
+      "family": "Verdier og inndata",
+      "description": "Kompakt kontroll med ikon og trinnvis verdi. Ingen OK/Avbryt.",
+      "variants": "Lav/høy verdi, piler deaktiveres ved grenser",
+      "example": "Capo",
+      "sources": [
+        "Komponentkart.svg",
+        "Ikonbibliotek.zip"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "01e6439345f110faca7fd2e1b3b4715c60deb0c264ee788c7d9f19705cfb82c0",
+      "external": true,
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "D07_Liten_verdikontroll_numerisk",
+      "source_links": [
+        {
+          "name": "Komponentkart.svg",
+          "url": "https://drive.google.com/file/d/1uEoGh4veaSaZf3sAz2_eP5Qd_N52KNfb/view"
+        },
+        {
+          "name": "Ikonbibliotek.zip",
+          "url": "https://drive.google.com/file/d/1225vuxa-p2FQKJz0ja3g4JD79zyfdhbJ/view"
+        }
+      ]
+    },
+    "D08_Liten_verdikontroll_tekstlig": {
+      "filename": "03_Liten_verdikontroll_Toneart.svg",
+      "title": "Liten verdikontroll – tekstlig",
+      "family": "Verdier og inndata",
+      "description": "Kompakt kontroll med ikon og kort tekstfelt. Ingen OK/Avbryt.",
+      "variants": "Tekstlig verdi",
+      "example": "Toneart / Takt",
+      "sources": [
+        "03_Liten_verdikontroll_Capo.svg"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "3fd80dad4e79125680d251709291a90196787a80efa9f7c90636dfb34d16eeca",
+      "external": true,
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "D08_Liten_verdikontroll_tekstlig",
+      "source_links": [
+        {
+          "name": "03_Liten_verdikontroll_Capo.svg",
+          "url": "https://drive.google.com/file/d/1itQEOPaHf5ITyWOBlkEwwGiDhHPjsDc8/view"
+        }
+      ]
+    },
+    "D09_Sangbokvelger_kun_valg": {
+      "filename": "07_Sangbokvelger_kun_valg.svg",
+      "title": "Sangbokvelger – kun valg",
+      "family": "Verdier og inndata",
+      "description": "Åpen liste med valgte og tilgjengelige elementer. Ingen opprettelseshandling.",
+      "variants": "Valgt/ikke valgt",
+      "example": "Velg sangbok",
+      "sources": [
+        "Sangliste_sangbokvelger.svg"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "3d3b5da6724c22720f4259cedc8401e65958e1573913d60183597387b28517a5",
+      "external": true,
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "D09_Sangbokvelger_kun_valg",
+      "source_links": [
+        {
+          "name": "Sangliste_sangbokvelger.svg",
+          "url": "https://drive.google.com/file/d/1MkkUvYx9IaSEogVEa2UiydQAZRCCVApp/view"
+        }
+      ]
+    },
+    "D10_Sangbokvelger_med_handling": {
+      "filename": "07_Sangbokvelger.svg",
+      "title": "Sangbokvelger – med handling",
+      "family": "Verdier og inndata",
+      "description": "Samme valgkontroll med separat tillegghandling nederst.",
+      "variants": "Valg + opprettelse",
+      "example": "Ny sangbok",
+      "sources": [
+        "Ny_sangbok.svg"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "a1ecc2cc27b02c9bc6393a8c4fb7b18eb414123bb35c4fe8e8729eb81aaacbb0",
+      "external": true,
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Hevet flate",
+          "hex": "#403831"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Akkorder",
+          "hex": "#E5BD8D"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "D10_Sangbokvelger_med_handling",
+      "source_links": [
+        {
+          "name": "Ny_sangbok.svg",
+          "url": "https://drive.google.com/file/d/1mzkCq5oXqKulUrdN45juxw3S3veRdDLp/view"
+        }
+      ]
+    },
+    "E02_Dialog_en_handling": {
+      "filename": "02_Dialog_footer_1_handling.svg",
+      "title": "Dialog – én handling",
+      "family": "Dialoger",
+      "description": "Header, kropp og helbredde-integrert footer med én primærhandling.",
+      "variants": "Én handling",
+      "example": "Lagre",
+      "sources": [
+        "Ny_sangbok.svg"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "bd1cec60deba4a48c7ffc0e5d7a3c5440a7f594ab5ba757f5022d149ab6798f9",
+      "external": true,
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "E02_Dialog_en_handling",
+      "source_links": [
+        {
+          "name": "Ny_sangbok.svg",
+          "url": "https://drive.google.com/file/d/1mzkCq5oXqKulUrdN45juxw3S3veRdDLp/view"
+        }
+      ]
+    },
+    "E03_Dialog_to_handlinger": {
+      "filename": "02_Dialog_footer_2_handlinger.svg",
+      "title": "Dialog – to handlinger",
+      "family": "Dialoger",
+      "description": "Én primær og én sekundær handling, uten vertikal skillelinje imellom.",
+      "variants": "Primær / sekundær",
+      "example": "Avbryt / Lagre",
+      "sources": [
+        "Ny_kilde.svg"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "4987c5aba63e499dee406d76d4f3b6fc5707e71cf34a93cf9e78c190d15a5fdb",
+      "external": true,
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "E03_Dialog_to_handlinger",
+      "source_links": [
+        {
+          "name": "Ny_kilde.svg",
+          "url": "https://drive.google.com/file/d/1RAUhJYx8KB9dSaG_HWIFWU27O42KQL51/view"
+        }
+      ]
+    },
+    "E04_Dialog_tre_handlinger": {
+      "filename": "02_Dialog_footer_3_handlinger.svg",
+      "title": "Dialog – tre handlinger",
+      "family": "Dialoger",
+      "description": "Vertikal skillelinje bare mellom likestilte sekundærhandlinger.",
+      "variants": "To sekundære + én primær",
+      "example": "Avbryt / Tilbake / Lagre (illustrasjon)",
+      "sources": [
+        "02_Dialog_footer_3_handlinger.svg"
+      ],
+      "created": "flyttet uendret fra Opprydding",
+      "sha256": "b9a34d030b0f90eb99a9128033778ad04a67086fbabfd50eda349782ba24295b",
+      "external": true,
+      "colors": [
+        {
+          "role": "Appbakgrunn",
+          "hex": "#272421"
+        },
+        {
+          "role": "Overflate",
+          "hex": "#322E2A"
+        },
+        {
+          "role": "Kontur",
+          "hex": "#8F7B69"
+        },
+        {
+          "role": "Sekundærtekst",
+          "hex": "#C7BAA9"
+        },
+        {
+          "role": "Handling / fokus",
+          "hex": "#E2C097"
+        },
+        {
+          "role": "Primærtekst",
+          "hex": "#F4EDE3"
+        }
+      ],
+      "component_id": "E04_Dialog_tre_handlinger",
+      "source_links": [
+        {
+          "name": "02_Dialog_footer_3_handlinger.svg",
+          "url": "https://drive.google.com/file/d/172fvhxjM0gY-ywSh0kRgzlGIxTzyinh4/view"
+        }
+      ]
+    }
+  },
+  "families": [
+    [
+      "Navigasjon",
+      [
+        "N01_Toppfelt",
+        "N02_Navigasjonspanel"
+      ]
+    ],
+    [
+      "Handlinger og menyer",
+      [
+        "H01_Flytende_handling",
+        "H02_Verktoyknapp",
+        "H03_Fanevelger",
+        "H04_Kontekstmeny"
+      ]
+    ],
+    [
+      "Listerader",
+      [
+        "L01_Listerad_tittel_metadata",
+        "L02_Listerad_tittel_antall",
+        "L03_Listerad_nummerert",
+        "L04_Listerad_spesial",
+        "L05_Listerad_valgbar",
+        "L06_Listerad_separat_handling"
+      ]
+    ],
+    [
+      "Verdier og inndata",
+      [
+        "D01_Visningspille",
+        "D07_Liten_verdikontroll_numerisk",
+        "D08_Liten_verdikontroll_tekstlig",
+        "D02_Tekstfelt_enlinjet",
+        "D03_Tekstfelt_flerlinjet",
+        "D04_Valgkontroll_radio",
+        "D05_Valgkontroll_bryter",
+        "D06_Valgkontroll_skyver",
+        "D09_Sangbokvelger_kun_valg",
+        "D10_Sangbokvelger_med_handling"
+      ]
+    ],
+    [
+      "Dialoger",
+      [
+        "E02_Dialog_en_handling",
+        "E03_Dialog_to_handlinger",
+        "E04_Dialog_tre_handlinger",
+        "E01_Dialog_fullskjerm"
+      ]
+    ],
+    [
+      "Sanginnhold",
+      [
+        "F01_Akkordskjema",
+        "F02_Refreng",
+        "F03_Akkord_og_anvisning",
+        "F04_Dynamikk",
+        "F05_Annotering",
+        "F06_Fjerningskontroll"
+      ]
+    ]
+  ]
+}

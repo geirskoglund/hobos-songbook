@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="620" height="216" viewBox="0 0 620 216" role="img">
+  <rect x="0" y="0" width="620" height="216" fill="#272421"/>
+  <text x="20" y="18" fill="#C7BAA9" font-size="13" font-weight="600" font-family="Inter,Arial,sans-serif" letter-spacing=".4">VELG ETT ALTERNATIV</text>
+  <circle cx="49" cy="73" r="14" fill="#322E2A" stroke="#8F7B69" stroke-width="1.8"/>
+  <circle cx="49" cy="73" r="6" fill="#E2C097"/>
+  <text x="82" y="80" fill="#F4EDE3" font-size="20" font-weight="400" font-family="Inter,Arial,sans-serif">Kun ned</text>
+  <circle cx="49" cy="143" r="14" fill="#322E2A" stroke="#8F7B69" stroke-width="1.8"/>
+  <text x="82" y="150" fill="#F4EDE3" font-size="20" font-weight="400" font-family="Inter,Arial,sans-serif">Opp og ned</text>
+</svg>

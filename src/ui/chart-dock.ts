@@ -24,7 +24,7 @@ export function createChartDock(grids: GridBlock[], source: string, onRelease: (
     });
   };
   const resize = new ResizeObserver(fitChart);
-  window.addEventListener('resize', fitChart);
+  window.addEventListener('resize', fitChart);document.addEventListener('app-layout',fitChart);
   resize.observe(natural); resize.observe(document.documentElement);
-  return {element: dock, dispose: () => {cancelAnimationFrame(frame); resize.disconnect(); window.removeEventListener('resize', fitChart);}};
+  return {element: dock, dispose: () => {cancelAnimationFrame(frame);document.removeEventListener('app-layout',fitChart); resize.disconnect(); window.removeEventListener('resize', fitChart);}};
 }

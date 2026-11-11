@@ -35,6 +35,7 @@ export function attachDynamicsProfile(body: HTMLElement, hasDynamics: boolean): 
   body.querySelectorAll('.dynamic-row').forEach(row => resize.observe(row));
   const mutation = new MutationObserver(schedule);
   mutation.observe(body, {subtree: true, attributes: true, attributeFilter: ['hidden']});
+  document.addEventListener('app-layout',schedule);
   schedule();
-  return () => {disposed = true; cancelAnimationFrame(frame); resize.disconnect(); mutation.disconnect(); svg.remove();delete body.dataset.hasDynamics;};
+  return () => {disposed = true; document.removeEventListener('app-layout',schedule); cancelAnimationFrame(frame); resize.disconnect(); mutation.disconnect(); svg.remove();delete body.dataset.hasDynamics;};
 }

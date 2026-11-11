@@ -126,7 +126,7 @@ Automatisert kravdekning (T01–T10 viser til issuen):
 | `tests/chordpro.test.mjs`: UUID per innlesing, uendret BOM/CRLF/LF/ukjent innhold, opprinnelse, filnavnfallback | F01–F05, F10, F14; T01–T02 |
 | Parserprøver: påkrevde direktiver, musikalsk rekkefølge, akkordsymboler/midt i ord/påfølgende akkorder, eldre markører, manglende/ufullstendig refreng, stabile forekomster | F15–F21, F23; T03–T04 |
 | `songs.spec.mjs`: tre like titler/filer, ulike ID-er, trygg HTML-tekst, individuelle refreng og gjenåpning | F01–F05, F10–F12, F14–F16, F19–F21, F23; T01–T04 |
-| Layout ved 320/768/1440 px, begge temaer, 16/36 px, langt enkeltord, midtordakkorder og rene akkordlinjer; tekst/akkord-cellers geometri og viewportbredde | F17–F18, F22–F25, F28–F30; T05 |
+| Layout ved 320/768/1440 px, mørkt tema, 16/36 px, langt enkeltord, midtordakkorder og rene akkordlinjer; tekst/akkord-cellers geometri og viewportbredde | F17–F18, F22–F25, F28–F30; T05 |
 | Tema/størrelse på tvers av sanger/omstart, OS-lyst med mørk standard og scroll øverst ved ny åpning | F26–F30; T06 |
 | Full lukking av Chromium, ny prosess med samme vedvarende profil, offline før navigasjon, sang/refreng/innstillinger uendret | F06–F07, F11–F12, F20, F28–F29; T07 |
 | `shell.spec.mjs`: faktiske sanger i begge miljøer, to ekte workeroppdateringer, ny PR/SHA, uendret ID/original/personlig tilstand og uvedkommende cache | F01, F03, F06–F09, F20, F28–F29; T08 |
@@ -139,7 +139,7 @@ Kort manuelt forløp på testutgaven:
 
 1. Les inn to ChordPro-filer med samme tittel og samme fil en gang til. Åpne alle tre separat, prøv ren TXT og feil fil. Ved gjentatt filnavn prøves Avbryt og Importer i kopidialogen, også med endret innhold. Kontroller forståelig status og uendret oversikt etter feil.
 2. Prøv kommentarer, lange linjer/ord, midtordakkorder og rene akkordlinjer. Første refreng er helt; åpne bare én senere henvisning. Bytt sang og åpne på nytt.
-3. Bruk tastatur/berøring for filvalg, sangvalg, tilbake, refreng, tema og skriftstørrelse. Kontroller fokus og lesbarhet i begge temaer ved 16–36 px. Les langt ned, åpne sangen igjen og kontroller at den starter øverst.
+3. Bruk tastatur/berøring for filvalg, sangvalg, tilbake, refreng, tema og skriftstørrelse. Kontroller fokus og lesbarhet i mørkt tema ved 16–36 px. Les langt ned, åpne sangen igjen og kontroller at den starter øverst.
 4. Vent på offline-klar, lukk nettleser/installert PWA helt, koble fra nettet og gjenåpne. Åpne sangen fra oversikten; kontroller refreng og globale valg.
 5. Gjenta på fysisk iPad/Safari/installert PWA og en annen plattform. Etter neste testoppdatering kontrolleres at sanger og valg består. Produksjon og test skal ha egne data.
 
@@ -167,13 +167,13 @@ Manuelt: la appen stå åpen gjennom publisering av en ny testutgave, både rett
 
 `tests/e2e/arrangement.spec.mjs` prøver én kompakt skjemaflate, fravær av generisk overskrift og inline-duplikater, sticky plassering under toppen, høydebegrensning ved vindusendring og × som bare frigjør sticky for aktuell åpning: samme scrollposisjon, innhold tilbake på originalplassen ved oppscrolling og sticky på ved neste åpning. Personlig prioritet prøves med en faktisk separat `personal`-oppføring i IndexedDB; samme UI brukes, og personlig innhold består gjennom lagring av refrengtilstand/ny åpning. Original/ID bevares. Ingen editor kreves for dette lagringsbeviset.
 
-Profilen prøves som én sammenhengende SVG-sti med fast venstrekant, myke høyreoverganger, nøyaktige bredder 5/10/15/20/25 px og 30 px marg nedenfor tittel/skjema. Nivå 3 før første tagg, uavhengighet av tekststørrelse og manglende speiling kontrolleres geometrisk. Uten gyldige tagger, ved global av og ved 319 px er profil/marg borte; ved 320 px er de tilbake. Høyden oppdateres ved refrengfolding. Meny med Escape, fokus, vedvarende valg og offline gjenåpning inngår. Layout/geometri prøves ved 320/768/1440 px, 16/36 px og begge temaer. Henvisningens overskriftsfarge sammenlignes med første refreng før trykk. Kontroller visuelt at samme smale venstrelinje følger refrengteksten i første og åpne henvisninger, og at linjen ikke vises for en sammenfoldet henvisning. Eksisterende lagrings-/oppdateringsprøver bruker menyen for de flyttede kontrollene; automatiske varsler prøves fortsatt under lesing uten meny.
+Profilen prøves som én sammenhengende SVG-sti med fast venstrekant, myke høyreoverganger, nøyaktige bredder 5/10/15/20/25 px og 30 px marg nedenfor tittel/skjema. Nivå 3 før første tagg, uavhengighet av tekststørrelse og manglende speiling kontrolleres geometrisk. Uten gyldige tagger, ved global av og ved 319 px er profil/marg borte; ved 320 px er de tilbake. Høyden oppdateres ved refrengfolding. Meny med Escape, fokus, vedvarende valg og offline gjenåpning inngår. Layout/geometri prøves ved 320/768/1440 px, 16/36 px og mørkt tema. Henvisningens overskriftsfarge sammenlignes med første refreng før trykk. Kontroller visuelt at samme smale venstrelinje følger refrengteksten i første og åpne henvisninger, og at linjen ikke vises for en sammenfoldet henvisning. Eksisterende lagrings-/oppdateringsprøver bruker menyen for de flyttede kontrollene; automatiske varsler prøves fortsatt under lesing uten meny.
 
 Samme testfil kontrollerer faktiske avstander mellom synlige innholdselementer med lange blanklinjer, kommentarer, flyttet grid og åpne/lukkede refreng. Blanklinjeserier gir en halv tekstlinje ekstra avstand ved 320/768/1440 px og skrift 16/36 px. Reell høyde for ordinære tekstlinjer er høyst 1,2 ganger skriftstørrelsen; korte akkordlinjer og refrengkontroll må også holde seg innenfor kompakte høydegrenser. Kommentar → fullt refreng, kommentar → refrenghenvisning og kommentar → tekst uten blanklinje i kilden har null ekstra layoutavstand, både med åpen og lukket henvisning. Lagret original med BOM/CRLF og alle blanklinjer er fortsatt identisk.
 
 `songs.spec.mjs` kontrollerer at toneartspillen bare viser verdien, med tilgjengelig navn «Toneart: …», og at sanger uten toneart viser standard takt 4/4 uten en tom toneartspille.
 
-Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontroller kompakt topp og samlet skjema, scroll og se at det fester seg. Trykk × mens skjemaet er sticky, scroll opp og finn det på originalplassen. Åpne sangen igjen og kontroller at sticky er på igjen. Kontroller at den sammenhengende profilen ligger tydelig nær tekstfargen i begge temaer, trykk direkte på «Refreng», og bruk menyen for tema/skrift/av-på og appstatus. Kontroller at menyen kan lukkes uten å miste lesestedet. På fysisk iPhone/iPad/Safari gjenstår kontroll av profilform, berøring, sticky høyde og offline etter oppdatering.
+Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontroller kompakt topp og samlet skjema, scroll og se at det fester seg. Trykk × mens skjemaet er sticky, scroll opp og finn det på originalplassen. Åpne sangen igjen og kontroller at sticky er på igjen. Kontroller at den sammenhengende profilen ligger tydelig nær tekstfargen i mørkt tema, trykk direkte på «Refreng», og bruk menyen for tema/skrift/av-på og appstatus. Kontroller at menyen kan lukkes uten å miste lesestedet. På fysisk iPhone/iPad/Safari gjenstår kontroll av profilform, berøring, sticky høyde og offline etter oppdatering.
 
 ## Personlige tilpasninger (issue #8)
 
@@ -183,7 +183,7 @@ Manuelt: les inn [prøvefilen](../examples/akkordskjema-og-dynamikk.cho). Kontro
 
 Nettlesertestene kontrollerer også ikonrekkefølge, deaktivert lagring ved uendrede/tilbakeførte verdier, OK kontra Avbryt/Escape, bred skjema-popup, smalt capofelt, pillejustering og takt i begge modi. Plassering i margen og på tom linje, ferskt mål etter tidligere tekstvalg, pekernedtrykk uten åpning, avbrutt berøring, drahåndtak og rene tekstkoordinater prøves særskilt. Tastaturplassering, dialogfokus, utvendig scroll/avbryt og touch-pan via Chromium-protokollen kontrolleres også, samt bevaring/tømming av flere skjemablokker.
 
-Manuelt: prøv berøringsmarkering og markeringspenn, små lokale felt ved skjermtastatur, fast verktøylinje i full bredde og skjema som scroller med sangen under redigering, samt sticky-skjema i fremføring, notatsletting, OK/Avbryt og fri skjematekst i begge temaer og store skrifter. Fysisk iPad/Safari, Android/Chrome og installert PWA gjenstår. Chromium er ikke fysisk plattformbevis.
+Manuelt: prøv berøringsmarkering og markeringspenn, små lokale felt ved skjermtastatur, fast verktøylinje i full bredde og skjema som scroller med sangen under redigering, samt sticky-skjema i fremføring, notatsletting, OK/Avbryt og fri skjematekst i mørkt tema og store skrifter. Fysisk iPad/Safari, Android/Chrome og installert PWA gjenstår. Chromium er ikke fysisk plattformbevis.
 
 `editor-feedback.spec.mjs` kontrollerer verktøylinjens uendrede posisjon ved 0/1/3/10/80/450 px scroll og ulike bredder, ett flerlinjeutvalg med felles sletting/avgrensning etter lagring, touch-pen uten native Selection, notatflytting med mus/touch/tastatur, avbrudd og beskyttet opptatt mål. Skjemaets målbare innholdsbredde og eksplisitte tomme celler prøves mot samme korte takter som i brukertilbakemeldingen. Ingen firepunktumsgrense eller synlige prikker, og originalen forblir identisk. Fysisk Androids nettleser-/OS-meny og iPad/Safari må fortsatt prøves på enhetene.
 
@@ -191,7 +191,7 @@ Manuelt: prøv berøringsmarkering og markeringspenn, små lokale felt ved skjer
 
 Capokontrollen prøves med synlige `<`/`>`-knapper rundt et rent tall, uten input/textarea: alle steg 0–11, deaktiverte grenser, ingen overgang rundt endene, minst 44 px treffområde, fullført touch-trykk, piltaster/Home/End, Avbryt/Escape, OK uten vedvarende skriving og eksplisitt Lagre. Også capo 11 prøves mot faktisk akkordvisning. Domenevalideringen avviser 12, negative tall og desimaltall.
 
-Punktumavstand sammenlignes med samme takt uten punktum. Ett, to og fem punktum først, mellom akkorder og sist gir nøyaktig tilsvarende antall ekstra mellomrom. Vanlig akkordavstand beholdes. Prøves ved 320/1000 px i begge temaer.
+Punktumavstand sammenlignes med samme takt uten punktum. Ett, to og fem punktum først, mellom akkorder og sist gir nøyaktig tilsvarende antall ekstra mellomrom. Vanlig akkordavstand beholdes. Prøves ved 320/1000 px i mørkt tema.
 
 ## Originaleditorens grunnflate (issue #14)
 
@@ -199,7 +199,7 @@ Punktumavstand sammenlignes med samme takt uten punktum. Ett, to og fem punktum 
 
 `tests/e2e/original.spec.mjs` prøver faktisk IndexedDB før/etter første Avbryt, OK og Lagre, alle utgangsvalg, tittel alene, like titler/ulike ID-er og stabile ID-er ved videre lagring. Samlet original-/personlagring avbrytes med ekte transaksjonsabort både ved opprettelse og oppdatering; begge lag skal være uendrede, og nytt forsøk skal lykkes uten dublett. Videre redigering mens transaksjonen holdes åpen skal forbli dirty. Andre faners personfelt bevares, nyere original avvises, og nylig lagrede notater/markeringer fra andre faner bevares gjennom felles tekstoppdatering.
 
-Modal/popup/utkast prøves med Escape/fokusretur, Ctrl/Cmd+S uten lagringslekkasje, Unicode, tekstangre, apptekstmeny og lange sanger ved 320/768/1440 px, begge temaer, 36 px skrift og redusert viewport. En ekte workeroppdatering skal stoppe ved både modalutkast og bekreftet ny sang, avvente samlet lagring og gjenopprette redigeringen etter vellykket lagring. Offline gjenåpning skal bevare lagret original, ID og personvalg. Eksisterende person-, interaksjons-, sang-/arrangements- og oppdateringstester er regresjonsgrunnlag.
+Modal/popup/utkast prøves med Escape/fokusretur, Ctrl/Cmd+S uten lagringslekkasje, Unicode, tekstangre, apptekstmeny og lange sanger ved 320/768/1440 px, mørkt tema, 36 px skrift og redusert viewport. En ekte workeroppdatering skal stoppe ved både modalutkast og bekreftet ny sang, avvente samlet lagring og gjenopprette redigeringen etter vellykket lagring. Offline gjenåpning skal bevare lagret original, ID og personvalg. Eksisterende person-, interaksjons-, sang-/arrangements- og oppdateringstester er regresjonsgrunnlag.
 
 Mobilrettelsene prøves også med touch-kontekst ved 320/390/768 px: åpning uten inputfokus, synlig første tekstlinje i beskyttet sang med dynamikk/refreng/grid, fravær av SVG/personverktøy i forhåndsvisning, låste metadatafelt og bevart original/persondata. Kompakte metadatafelt, forankring, avstand fra tittelens fokusramme og redusert viewport inngår. F17 kontrolleres uttrykkelig: originaleditorens tomme verktøylinje er synlig, har målbar høyde og uendret posisjon før/etter tekstscroll både i skrivefelt og beskyttet forhåndsvisning, også ved redusert viewport. Ny sang fra fremføring/redigering prøver alle utgangsvalg og avvist lagring.
 
@@ -212,6 +212,12 @@ Fysisk iPad/Safari, Android/Chrome og installert PWA med skjermtastatur, første
 `tests/annotations.test.mjs` prøver faste notatposisjoner ved forkorting/tom tekst, kollisjonsrekkefølge, separate refrengforekomster, sikre tekst-/metadataskift, usikker gjentatt tekst, gamle/tomme annoteringer og feltvis sammenslåing. Arbeidsøkten prøves med videre redigering etter innsendt lagringsøyeblikksbilde.
 
 `tests/e2e/annotations.spec.mjs` prøver gjentatte notatdialoger, forkorting og tømming av originalen, notater under tomt innhold, lagring/gjenåpning, sikker/usikker gulmarkering, lett lagringsformat, gamle format-2-poster med andre personfelt og opprydding etter sletting. Filnavndialogen prøves med Avbryt og Importer mot forskjellig innhold uten overskriving.
+
+## Designsystem og appskall (#23)
+
+`design-system.spec.mjs` prøver alle hovedsider ved 320/768/1440 px, sidepanel under faktisk header, operativ hamburger, Escape/fokus, tidligere lysinnstilling, innstillingsbesøk med ulagret sangutkast og utgangsvalg, endret headerhøyde, lokale offlinefonter og oppgradering av gammel innstillingsdialogtilstand. Øvrige integrasjonstester bruker headerens Ny sang/Rediger og egen Innstillinger-side. De beholder utkast-, lagrings-, original-, geometri- og oppdateringskontroller; lysmodus er ikke lenger en produktvariant.
+
+Manuelt på testadressen: sammenlign farger/fonter, meny, Innstillinger uten temavelger og dialogfootere mot designreferansene. Prøv lange handlingsetiketter, store skrifter og safe-area/skjermtastatur på fysisk iPad/Safari og Android/Chrome. Verifiser også installert PWA/offline. Automatisert Chromium beviser ikke disse fysiske forholdene. Faktisk SHA, CI-resultat og gjenværende fysiske kontroller rapporteres i PR.
 
 ## Avgrensning av kontrollarbeid
 

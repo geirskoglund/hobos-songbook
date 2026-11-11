@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="620" height="245" viewBox="0 0 620 245" role="img">
+  <rect x="0" y="0" width="620" height="245" fill="#272421"/>
+  <text x="27" y="37" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Notat</text>
+  <rect x="27" y="54" width="564" height="122" fill="#322E2A" stroke="#8F7B69" stroke-width="1" rx="8"/>
+  <text x="45" y="89" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Siste refreng – roligere</text>
+  <text x="45" y="122" fill="#F4EDE3" font-size="17" font-weight="400" font-family="Inter,Arial,sans-serif">Og la fela avslutte</text>
+</svg>

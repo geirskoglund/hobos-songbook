@@ -1,5 +1,7 @@
 # Agentinngang
 
+- Én implementasjon per kontrolltype, med parametere/varianter og gjenbruk fra alle brukssteder. Overordnet layout har én vedlikeholdt kilde. Ikke kopier kontroller eller kompenser med lokale overstyringer. Se ARCHITECTURE.
+
 - Appen skal eie tekst- og kontekstbetjening på alle skjermer, også i tekstfelter. Unngå nettleserens tekst-/lenkemenyer, native verktøytips og valideringsballonger. Bevar nødvendig filvalg, skjermtastatur og tilgjengelig betjening; nettleserens hovedmenyer og systemdialoger er utenfor nettsidens kontroll. Se DESIGN for felles løsning.
 - Svar på bokmål. Bruk aktuell GitHub-issue som oppgavegrunnlag; bevar brukerkrav og stabile ID-er.
 - Produktansvarlig beslutter, tester og godkjenner. ChatGPT avklarer og skriver funksjonelle issues. Codex-klargjører leser repoet og supplerer aktuell issue, men endrer ikke repofiler, branches, commits eller PR-er. Codex-implementerer koder, tester, oppdaterer relevant dokumentasjon og leverer PR/testutgave etter uttrykkelig implementeringsbestilling.

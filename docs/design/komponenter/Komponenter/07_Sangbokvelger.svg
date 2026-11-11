@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="494" viewBox="0 0 620 494">
+  <title>Sangbokvelger – valgt og meny åpen</title>
+  <desc>Velger, valgt sangbok, sjekkhake og Ny sangbok løftet fra godkjent Sangbokvelger/Ny sangbok-skisse.</desc>
+  <rect x="0" y="0" width="620" height="494" fill="#272421" rx="0"/>
+  <g id="sangbokvelger" transform="translate(-50 -60)">
+    <g id="sangbokvelger">
+      <text x="74" y="91" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="500" text-anchor="start">Sangbok</text>
+      <rect x="74" y="115" width="572" height="68" rx="16" fill="#322E2A" stroke="#8F7B69" stroke-width="1.15"/>
+      <text x="103" y="159" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="400" text-anchor="start">Hobo Sapiens</text>
+      <path d="m 604 143 10 10 10 -10" stroke="#C7BAA9" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </g>
+    <g id="sangbokliste">
+      <rect x="74" y="196" width="572" height="310" rx="17" fill="#322E2A" stroke="#8F7B69" stroke-width="1.15"/>
+      <rect x="83" y="205" width="554" height="65" rx="12" fill="#403831"/>
+      <text x="105" y="244" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" text-anchor="start">Hobo Sapiens</text>
+      <text x="105" y="316" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" text-anchor="start">Getinghonung</text>
+      <text x="105" y="388" fill="#F4EDE3" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" text-anchor="start">Privat</text>
+      <path d="m 597 235 8 8 15 -18" stroke="#E5BD8D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <line x1="96" y1="420" x2="624" y2="420" stroke="#8F7B69" stroke-width="1"/>
+      <path d="M 107 458 h 19 M 116.5 448.5 v 19" stroke="#E2C097" stroke-width="2.2" stroke-linecap="round"/>
+      <text x="150" y="467" fill="#E2C097" font-family="Inter, Arial, sans-serif" font-size="21" font-weight="500" text-anchor="start">Ny sangbok</text>
+    </g>
+  </g>
+</svg>

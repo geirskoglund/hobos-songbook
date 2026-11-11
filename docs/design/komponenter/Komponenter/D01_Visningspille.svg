@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="620" height="203" viewBox="0 0 620 203" role="img">
+  <rect x="0" y="0" width="620" height="203" fill="#272421"/>
+  <text x="20" y="18" fill="#C7BAA9" font-size="13" font-weight="600" font-family="Inter,Arial,sans-serif" letter-spacing=".4">KOMPAKTE VERDIER</text>
+  <rect x="25" y="60" width="78" height="32" fill="#211F1D" stroke="#8F7B69" stroke-width="1" rx="16"/>
+  <text x="64.0" y="82" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="middle">Em</text>
+  <rect x="117" y="60" width="78" height="32" fill="#211F1D" stroke="#8F7B69" stroke-width="1" rx="16"/>
+  <text x="156.0" y="82" fill="#F4EDE3" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="middle">4/4</text>
+  <rect x="208" y="60" width="172" height="32" fill="#211F1D" stroke="#8F7B69" stroke-width="1" rx="16"/>
+  <text x="294.0" y="82" fill="#E5BD8D" font-size="15" font-weight="400" font-family="Inter,Arial,sans-serif" text-anchor="middle">Capo 2: Dm</text>
+  <text x="25" y="134" fill="#C7BAA9" font-size="14" font-weight="400" font-family="Inter,Arial,sans-serif">Viser eksisterende verdier; ikke en åpen redigeringskontroll.</text>
+</svg>
