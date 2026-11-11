@@ -47,3 +47,14 @@ test('a saved legacy update handoff with settings open restores its song context
  await page.evaluate(id=>history.replaceState({'hobos-songbook-test:update-view':{version:1,songId:id,scrollY:0,chartReleased:false,menu:{open:true,scrollTop:0,infoOpen:true},focusId:'update'}},''),song.id);
  await page.reload();await expect(page.locator('#settings')).toBeVisible();await expect(page.locator('#update')).toBeFocused();await page.locator('#back').click();await expect(page.locator('#song-title')).toHaveText('Eldre utgave');
 });
+
+test('finishing a slow initial library read does not replace a user-selected page',async({page})=>{
+ await page.addInitScript(()=>{
+  const open=indexedDB.open.bind(indexedDB);let first=true;
+  indexedDB.open=(...args)=>{
+   const request=open(...args);if(first){first=false;Object.defineProperty(request,'onsuccess',{set(handler){request.addEventListener('success',()=>{window.resumeLibrary=()=>handler.call(request,new Event('success'));},{once:true});}});}return request;
+  };
+ });
+ await page.goto(url);await expect.poll(()=>page.evaluate(()=>typeof window.resumeLibrary)).toBe('function');
+ await openSettings(page);await page.evaluate(()=>window.resumeLibrary());await expect(page.locator('#library-status')).toContainText('Ingen sanger');await expect(page.locator('#settings')).toBeVisible();await expect(page.locator('html')).toHaveAttribute('data-page','settings');
+});

@@ -3,7 +3,8 @@ export const pages = ['library', 'reader', 'settings', 'setlists', 'sync', 'file
 export type Page = typeof pages[number];
 export const pageNames: Record<Page, string> = {library:'Sanger', reader:'', settings:'Innstillinger', setlists:'Setlister', sync:'Synkronisering', files:'Filer'};
 let layoutFrame=0;
-export function requestLayout(){if(!layoutFrame)layoutFrame=requestAnimationFrame(()=>{layoutFrame=0;document.dispatchEvent(new Event('app-layout'));});}
+export function flushLayout(){cancelAnimationFrame(layoutFrame);layoutFrame=0;document.dispatchEvent(new Event('app-layout'));}
+export function requestLayout(){if(!layoutFrame)layoutFrame=requestAnimationFrame(flushLayout);}
 export function currentPage(): Page {return (document.documentElement.dataset.page as Page) || 'library';}
 export function showPage(page: Page, canGoBack = page === 'reader') {
   document.documentElement.dataset.page = page;
@@ -12,12 +13,12 @@ export function showPage(page: Page, canGoBack = page === 'reader') {
   for (const id of pages) document.getElementById(id)!.hidden = id !== page;
   document.getElementById('page-title')!.textContent = pageNames[page];
   document.body.classList.toggle('reader-active', page === 'reader');
-  requestLayout();
   document.querySelectorAll<HTMLElement>('[data-page-action]').forEach(node => {node.hidden = node.dataset.pageAction !== page;});
   document.querySelectorAll<HTMLElement>('[data-destination]').forEach(node => {
     const selected = node.dataset.destination === (page === 'reader' ? 'library' : page);
     if (selected) node.setAttribute('aria-current', 'page'); else node.removeAttribute('aria-current');
   });
+  flushLayout();
 }
 export function overlayWidth(kind:'grid'|'value'|'note'){return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(kind==='grid'?'--content-width':kind==='value'?'--popup-value-width':'--popup-note-width'));}
 export function viewport() {

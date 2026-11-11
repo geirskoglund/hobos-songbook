@@ -17,7 +17,9 @@ export function attachDynamicsProfile(body: HTMLElement, hasDynamics: boolean): 
       const levelWidth = Number(row.dataset.dynamicLevel) * 5;
       if (segments.at(-1)?.width !== levelWidth) segments.push({y: segments.length ? Math.max(0, rect.top - bounds.top) : 0, width: levelWidth});
     }
-    if (!segments.length || !height || !width) {svg.style.display = 'none'; return;}
+    // An inactive page already hides its descendants. Retain the last valid geometry
+    // instead of scheduling a display:none write that can outlive the hidden page.
+    if (!segments.length || !height || !width) return;
     svg.style.removeProperty('display'); svg.style.width = `${width}px`; svg.style.height = `${height}px`;
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     const first = segments[0].width, last = segments.at(-1)!.width;
@@ -35,7 +37,8 @@ export function attachDynamicsProfile(body: HTMLElement, hasDynamics: boolean): 
   body.querySelectorAll('.dynamic-row').forEach(row => resize.observe(row));
   const mutation = new MutationObserver(schedule);
   mutation.observe(body, {subtree: true, attributes: true, attributeFilter: ['hidden']});
-  document.addEventListener('app-layout',schedule);
+  const refresh=()=>{cancelAnimationFrame(frame);draw();};
+  document.addEventListener('app-layout',refresh);
   schedule();
-  return () => {disposed = true; document.removeEventListener('app-layout',schedule); cancelAnimationFrame(frame); resize.disconnect(); mutation.disconnect(); svg.remove();delete body.dataset.hasDynamics;};
+  return () => {disposed = true; document.removeEventListener('app-layout',refresh); cancelAnimationFrame(frame); resize.disconnect(); mutation.disconnect(); svg.remove();delete body.dataset.hasDynamics;};
 }

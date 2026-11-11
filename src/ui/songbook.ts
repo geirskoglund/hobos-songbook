@@ -188,7 +188,6 @@ export function startSongbook() {
         const song = songs.find(song => song.id === resume.songId);
         if (song) await openSong(song, resume);
       } else if (resume){settingsReturn=resume.settingsReturn;await restoreUpdateView(resume, () => active === null);}
-      if(!resume)showPage('library');
     } catch (error) {
       libraryStatus.textContent = error instanceof Error ? error.message : 'Kunne ikke åpne sanglageret.'; retry.hidden = false;
     } finally {
@@ -350,6 +349,7 @@ export function startSongbook() {
     } catch (error) {notify(error instanceof Error ? error.message : 'Filen kunne ikke leses eller lagres. Prøv igjen.', true);}
     finally {importing = false; file.disabled = false; file.value = '';}
   });
+  showPage('library');
   void load();
   return {beforeUpdateReload: async (focusId: string | null) => {
     if (saving) await saving;
