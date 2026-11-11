@@ -128,7 +128,7 @@ button.song-key {font:500 .65em/1.2 var(--font-ui); padding:2px 9px; background:
 .edit-popup {position:fixed; inset:auto; margin:0; overflow:auto; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--panel); box-shadow:0 8px 32px #0006; font:14px/1.4 var(--font-ui); color:var(--text)}
 .edit-popup::backdrop {background:#0002}
 .edit-popup h2 {margin:0 0 10px; font:600 15px/1.4 var(--font-ui)}
-.edit-popup input, .edit-popup textarea {display:block; width:100%; min-width:0; border:1px solid var(--border); border-radius:6px; padding:8px; color:var(--text); background:var(--bg); font:inherit}
+.text-control {display:block; width:100%; min-width:0; border:1px solid var(--border); border-radius:var(--radius-field); padding:8px; color:var(--text); background:var(--bg); font:inherit}
 .edit-popup textarea {resize:vertical; min-height:70px; max-height:40svh}
 .popup-grid textarea {font:16px/1.6 var(--font-chord); white-space:pre; overflow:auto}
 .popup-grid textarea + textarea {margin-top:12px}
@@ -172,13 +172,12 @@ input:not([type=file]), textarea {user-select:text; -webkit-user-select:text; -w
 .original-editor header {flex:none; display:grid; gap:12px;}
 .original-editor header:focus {outline:none;}
 .original-editor label {font-size:14px;}
-.original-editor input {width:100%; min-width:0; background:var(--panel); border:1px solid var(--border); padding:8px; border-radius:6px;}
 #original-title {font:var(--song-size)/1.4 var(--font-ui);}
 .original-editor .song-metadata {margin:0;}
 .original-toolbar {flex:none; display:flex; align-items:center; flex-wrap:wrap; gap:6px; min-height:var(--touch-target); padding:4px; border-block:1px solid var(--border); background:var(--panel);}
 .original-toolbar button {display:flex; flex-direction:column; align-items:center; font-size:13px;}
 .original-content {flex:1; min-height:0; display:flex; flex-direction:column; overflow:auto; overscroll-behavior:contain;}
-#original-text {flex:1; width:100%; min-height:0; resize:none; border:1px solid var(--border); border-radius:6px; padding:12px; color:var(--text); background:var(--panel); font:var(--song-size)/1.4 var(--font-song); overflow:auto; scroll-padding-block:24px;}
+#original-text {flex:1; min-height:0; resize:none; padding:12px; font:var(--song-size)/1.4 var(--font-song); overflow:auto; scroll-padding-block:24px;}
 .original-preview {flex:none; padding:8px 4px; font-size:var(--song-size); line-height:1.2; --reader-line:calc(var(--song-size) * 1.2);}
 .original-preview :is(.song-line,.comment,.unknown,.chorus > h2) {margin:var(--content-gap,0px) 0 0;}
 .original-preview .chord-grid {margin-block:8px;}
@@ -195,7 +194,7 @@ input:not([type=file]), textarea {user-select:text; -webkit-user-select:text; -w
 .note-overflow-row {display:flow-root; min-height:1.2em;}
 .note-overflow-row .personal-note {margin-left:auto;}
 .import-copy {width:min(360px,calc(100% - 24px));}
-.original-metadata input:read-only,.original-editor input:read-only {color:var(--muted);}
+.text-control:read-only {color:var(--muted);}
 .original-editor .song-metadata button:disabled {cursor:default;}
 body.original-open {overflow:hidden;}
 .selection-preview[data-pending] span {background:color-mix(in srgb,Highlight 35%,transparent)}
@@ -223,7 +222,7 @@ body.menu-open {overflow:hidden}
 :root:not([data-page=reader]) .edit-toolbar {display:none}
 .display-settings {margin:24px 0 32px;display:grid; flex-wrap: wrap; align-items: center;gap:0;grid-template-columns:1fr;padding:16px 24px;border-color:color-mix(in srgb,var(--border) 50%,transparent)}
 .display-settings legend {font-size:18px;padding:0 8px;color:var(--text)}
-.display-settings > label[for=font-size] {display:flex;justify-content:space-between;font-size:18px;padding:12px 0}
+.range-control .range-heading {display:flex;justify-content:space-between;font-size:18px;padding:12px 0}
 .display-settings input[type=range] {width:100%;margin:8px 0 16px}
 .display-settings .check-option {display: flex; align-items: center; gap: 10px;min-height:76px; cursor: pointer;font-size:18px;justify-content:space-between;border-top:1px solid color-mix(in srgb,var(--border) 35%,transparent)}
 .check-option input {width:58px;height:32px; accent-color: var(--accent); flex: none;appearance:none;order:1;position:relative;border:1px solid var(--border);border-radius:999px;background:var(--panel);cursor:pointer}
@@ -257,3 +256,13 @@ main > section {flex:1;min-width:0}
 .app-info #offline-status {font-size:17px;color:var(--text)}
 #settings > h2 {font-size:18px;margin:24px 0 16px}
 #settings > footer {display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; color: var(--muted);font-size:13px;padding:32px 0;margin-top:40px;border-top:1px solid color-mix(in srgb,var(--border) 35%,transparent)}
+.personal-note button .icon {width:18px;height:18px;vertical-align:middle}
+#chart-close .icon {width:22px;height:22px;vertical-align:middle}
+.range-control input[type=range] {appearance:none;background:transparent;cursor:pointer}
+.range-control input[type=range]::-webkit-slider-runnable-track {height:4px;background:linear-gradient(to right,var(--accent) var(--range-progress),var(--border) var(--range-progress))}
+.range-control input[type=range]::-webkit-slider-thumb {appearance:none;width:24px;height:24px;border:0;border-radius:50%;margin-top:-10px;background:var(--accent)}
+.range-control input[type=range]::-moz-range-track {height:4px;background:var(--border)}
+.range-control input[type=range]::-moz-range-progress {height:4px;background:var(--accent)}
+.range-control input[type=range]::-moz-range-thumb {width:24px;height:24px;border:0;border-radius:50%;background:var(--accent)}
+
+.range-control .range-heading label {font:inherit}

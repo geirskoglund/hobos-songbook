@@ -1,5 +1,5 @@
 import {confirmImportCopy, openDialog, dialogFrame, dialogFooter} from './dialog.ts';
-import {actionButton, icon} from './controls.ts';
+import {actionButton, icon, rangeControl, switchControl} from './controls.ts';
 import {navigation} from './navigation.ts';
 import {currentPage, showPage, type Page} from './layout.ts';
 import {createEditSession, type EditSession} from '../domain/edit-session.ts';
@@ -144,19 +144,19 @@ export function startSongbook() {
   try {preferences = readPreferences(__APP_ENV__.namespace);}
   catch {query('settings-status').textContent = 'Visningsvalg kunne ikke hentes. Endringer gjelder nå, men kan ikke loves husket.';}
   applyPreferences(preferences);
-  const size = query<HTMLInputElement>('font-size');
-  const dynamics = query<HTMLInputElement>('show-dynamics'), grids = query<HTMLInputElement>('show-grids');
-  dynamics.checked = preferences.showDynamics; grids.checked = preferences.showGrids;
-  size.value = String(preferences.fontSize);
-  const updatePreferences = () => {
-    preferences = {theme: 'dark', fontSize: Number(size.value), showDynamics: dynamics.checked, showGrids: grids.checked};
-    applyPreferences(preferences); query('font-value').textContent = `${preferences.fontSize} px`;
-    try {savePreferences(__APP_ENV__.namespace, preferences); query('settings-status').textContent = '';}
-    catch {query('settings-status').textContent = 'Visningen er endret, men valget kunne ikke lagres til neste oppstart.';}
+  const sizeControl=rangeControl({id:'font-size',outputId:'font-value',label:'Skriftstørrelse',unit:'px',min:16,max:36,step:1,value:preferences.fontSize,change:()=>updatePreferences()});
+  const gridsControl=switchControl('show-grids','Vis akkordskjema',()=>updatePreferences());
+  const dynamicsControl=switchControl('show-dynamics','Vis dynamikkprofil',()=>updatePreferences());
+  const size=sizeControl.input,grids=gridsControl.input,dynamics=dynamicsControl.input;
+  grids.checked=preferences.showGrids;dynamics.checked=preferences.showDynamics;
+  query('display-controls').insertBefore(sizeControl.element,query('settings-status'));
+  query('display-controls').insertBefore(gridsControl.element,query('settings-status'));
+  query('display-controls').insertBefore(dynamicsControl.element,query('settings-status'));
+  const updatePreferences=()=>{
+    preferences={theme:'dark',fontSize:Number(size.value),showDynamics:dynamics.checked,showGrids:grids.checked};applyPreferences(preferences);
+    try{savePreferences(__APP_ENV__.namespace,preferences);query('settings-status').textContent='';}
+    catch{query('settings-status').textContent='Visningen er endret, men valget kunne ikke lagres til neste oppstart.';}
   };
-  query('font-value').textContent = `${preferences.fontSize} px`;
-  dynamics.addEventListener('change', updatePreferences); grids.addEventListener('change', updatePreferences);
-  size.addEventListener('input', updatePreferences);
   const closeRowMenus = (except?: Element) => {
     list.querySelectorAll<HTMLDetailsElement>('.song-actions[open]').forEach(action => {if (action !== except) action.open = false;});
   };
@@ -172,7 +172,7 @@ export function startSongbook() {
       button.append(element('small', `${song.origin.filename} · ${index + 1}${song.key ? ` · ${song.key}` : ''}`));
       button.addEventListener('click', () => {closeRowMenus(); void openSong(song);});
       const row = element('li'); row.append(button);
-      const actions = element('details', undefined, 'song-actions'), summary = element('summary', '⋮'); summary.setAttribute('aria-label', `Meny for ${song.title}`);
+      const actions = element('details', undefined, 'song-actions'), summary = element('summary'); summary.append(icon('meny')); summary.setAttribute('aria-label', `Meny for ${song.title}`);
       const edit = element('button', 'Rediger'); edit.type = 'button'; edit.addEventListener('click', () => {actions.open = false; void beginEdit(song, 'library');});
       summary.addEventListener('click', () => closeRowMenus(actions));
       actions.append(summary, edit); row.append(actions); list.append(row);
@@ -244,7 +244,7 @@ export function startSongbook() {
       if (chosen) {
         const dock = createChartDock(chosen.grids.map(grid => transposeGrid(grid, capo)), chosen.source, () => query('back').focus({preventScroll:true}), !editing && !chartReleased);
         if (editing) {
-          const edit = element('button','✎'); edit.setAttribute('aria-label','Rediger akkordskjema'); edit.dataset.tooltip = 'Rediger akkordskjema'; edit.type = 'button'; edit.className = 'edit-chart';
+          const edit = actionButton('',undefined,'rediger'); edit.setAttribute('aria-label','Rediger akkordskjema'); edit.dataset.tooltip = 'Rediger akkordskjema'; edit.type = 'button'; edit.className = 'edit-chart';
           edit.addEventListener('click', event => {event.stopPropagation(); editor?.openGrid(dock.element);}); dock.element.append(edit);
         }
         chartArea.append(dock.element); disposeDock = dock.dispose;

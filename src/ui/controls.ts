@@ -6,10 +6,10 @@ export function icon(name:string) {
   const svg=document.importNode(parsed.documentElement,true) as unknown as SVGElement;
   svg.querySelectorAll('title').forEach(node=>node.remove());svg.removeAttribute('role');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');svg.classList.add('icon');return svg;
 }
-export function actionButton(name:string, action:()=>void, iconName?:string) {
+export function actionButton(name:string, action:(()=>void)|undefined, iconName?:string) {
   const node=document.createElement('button');node.type='button';
   if(iconName)node.append(icon(iconName));
-  const label=document.createElement('span');label.textContent=name;node.append(label);node.addEventListener('click',action);return node;
+  if(name){const label=document.createElement('span');label.textContent=name;node.append(label);}if(action)node.addEventListener('click',action);return node;
 }
 export function textInput(id:string,value='',label?:string) {
   const field=document.createElement('input');field.type='text';field.id=id;field.value=value;field.autocomplete='off';field.className='text-control';if(label)field.setAttribute('aria-label',label);return field;
@@ -30,4 +30,19 @@ export function dialogFooter(actions:DialogAction[]) {
 }
 export function dialogFrame(name:string, variant='') {
   const box=document.createElement('dialog');box.className=`dialog-frame ${variant}`;box.setAttribute('aria-label',name);return box;
+}
+
+export function switchControl(id:string,label:string,change:(checked:boolean)=>void) {
+  const element=document.createElement('label');element.className='check-option';element.htmlFor=id;
+  const text=document.createElement('span');text.textContent=label;
+  const input=document.createElement('input');input.id=id;input.type='checkbox';input.setAttribute('role','switch');input.addEventListener('change',()=>change(input.checked));element.append(text,input);return {element,input};
+}
+export function rangeControl(options:{id:string;outputId:string;label:string;min:number;max:number;step:number;value:number;unit?:string;change:(value:number)=>void}) {
+  const element=document.createElement('div');element.className='range-control';
+  const heading=document.createElement('div');heading.className='range-heading';
+  const label=document.createElement('label');label.htmlFor=options.id;label.textContent=options.label;
+  const output=document.createElement('output');output.id=options.outputId;output.htmlFor.add(options.id);
+  const input=document.createElement('input');input.id=options.id;input.type='range';input.min=String(options.min);input.max=String(options.max);input.step=String(options.step);
+  const set=(value:number)=>{input.value=String(value);output.value=`${input.value}${options.unit ? ` ${options.unit}` : ''}`;input.style.setProperty('--range-progress',`${(Number(input.value)-options.min)/(options.max-options.min)*100}%`);};
+  input.addEventListener('input',()=>{set(Number(input.value));options.change(Number(input.value));});set(options.value);heading.append(label,output);element.append(heading,input);return {element,input,set};
 }

@@ -40,12 +40,8 @@
       <section id="settings" aria-labelledby="settings-heading" hidden>
         <h1 id="settings-heading" class="sr-only" tabindex="-1">Innstillinger</h1>
         <h2 id="display-heading">Visning</h2>
-        <fieldset class="display-settings" aria-labelledby="display-heading">
+        <fieldset id="display-controls" class="display-settings" aria-labelledby="display-heading">
           <legend class="sr-only">Visning</legend>
-          <label for="font-size">Skriftstørrelse <output id="font-value" for="font-size">22 px</output></label>
-          <input id="font-size" type="range" min="16" max="36" step="1" value="22" />
-          <label class="check-option"><input id="show-grids" type="checkbox" checked /> Vis akkordskjema</label>
-          <label class="check-option"><input id="show-dynamics" type="checkbox" checked /> Vis dynamikkprofil</label>
           <p id="settings-status" class="hint" role="status"></p>
         </fieldset>
         <h2 id="app-info-heading">App og offline</h2>
