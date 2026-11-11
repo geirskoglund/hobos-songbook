@@ -8,7 +8,7 @@ Slå opp komponentens definisjon og variant før utforming. Designgrunnlaget sty
 
 De vedtatte designdokumentene i repoet er gjeldende referanser. Skjermbildeskisser kan inneholde komponenter, farger eller menyknapper som avviker fra det vedtatte designet. Slike avvik er ikke bestillinger på nye komponenter eller designendringer, og skal ikke overstyre repoets vedtatte design.
 
-Samme kontrolltype har én felles implementasjon som gjenbrukes med parametere/varianter, og overordnet layout vedlikeholdes ett sted. Se [arkitekturen](ARCHITECTURE.md#felles-ui-og-layout) for runtime-komponentenes ansvar. Katalogen inneholder også planlagte kontroller; et kjent navn betyr ikke at funksjonen allerede er implementert. Avklar reell tvetydighet eller manglende design fremfor å finne opp en ny variant.
+Komponenter innføres ved konkret behov i en bestilt oppgave; katalogen er ikke en bestilling på å implementere alle komponenter på forhånd. Undersøk først om komponenten allerede finnes. Første gang den trengs, implementeres den én gang som en felles, gjenbrukbar komponent. Alle brukssteder bruker samme implementasjon med egne parametere, varianter og tilstand; kontroller skal ikke kopieres eller implementeres på nytt lokalt. Overordnet layout vedlikeholdes ett sted. Se [arkitekturen](ARCHITECTURE.md#felles-ui-og-layout) for runtime-komponentenes ansvar. Katalogen inneholder også planlagte kontroller; et kjent navn betyr ikke at funksjonen allerede er implementert. Avklar reell tvetydighet eller manglende design fremfor å finne opp en ny variant.
 
 ## Implementert sangflyt
 
