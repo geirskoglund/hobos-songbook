@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {importSong,openMenu,savedSongs,setDisplay} from './song-helpers.mjs';
 const url='http://127.0.0.1:4173/hobos-songbook/test/';
 const modal=page=>page.getByRole('dialog',{name:'Rediger sangtekst',exact:true});
-const fresh=async page=>{await page.getByRole('button',{name:'Ny sang',exact:true}).tap();await expect(modal(page)).toBeVisible();};
+const fresh=async page=>{await page.getByRole('button',{name:'Legg til sang',exact:true}).tap();await page.getByRole('menuitem',{name:'Opprett',exact:true}).tap();await expect(modal(page)).toBeVisible();};
 const tap=async(page,locator)=>{const r=await locator.boundingBox();await page.touchscreen.tap(r.x+r.width/2,r.y+r.height/2);};
 
 test.beforeEach(async({request})=>{await request.post('/__test__/reset');});

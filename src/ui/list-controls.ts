@@ -49,9 +49,10 @@ export function floatingAction(name: string, choose: () => void) {
 
 /** H04: shared placement, focus and dismissal; actions supply only their meaning. */
 export function contextMenu(opener: HTMLButtonElement, actions: {name: string; icon: string; run: () => void}[]) {
-  const box = dialogFrame('Legg til sang', 'context-menu');
-  if (opener.id) {box.id = `${opener.id}-menu`; opener.setAttribute('aria-controls', box.id);}
-  const menu = document.createElement('div'); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', 'Sanghandlinger');
+  const name = opener.getAttribute('aria-label') || opener.textContent || 'Handlinger';
+  const box = dialogFrame(name, 'context-menu');
+  const menu = document.createElement('div'); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', name);
+  if (opener.id) {box.id = `${opener.id}-dialog`; menu.id = `${opener.id}-menu`; opener.setAttribute('aria-controls', menu.id);}
   const buttons = actions.map(action => {
     const button = actionButton(action.name, () => {lifecycle.close(); action.run();}, action.icon);
     button.setAttribute('role', 'menuitem'); menu.append(button); return button;
