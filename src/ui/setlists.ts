@@ -14,14 +14,17 @@ export function startSetlists(storage: ReturnType<typeof songStorage>) {
   const add = floatingAction('Ny setliste', () => edit(add)); add.id = 'add-setlist'; add.disabled = true;
   query('setlists').append(add);
 
+  function openSetlist(id: string, newlyCreated = false) {
+    returnView = captureView(null, `setlist-${id}`);
+    if (newlyCreated) {returnView.scrollY = 0; delete returnView.anchor;}
+    selected = id;
+    showPage('setlist'); query('setlist-title').focus({preventScroll: true}); window.scrollTo(0, 0);
+  }
   function draw() {
     list.replaceChildren();
     items.sort((a, b) => b.createdAt - a.createdAt || a.id.localeCompare(b.id));
     for (const item of items) {
-      const {row, button, more} = countRow(item.name, item.songIds.length, () => {
-        returnView = captureView(null, button.id); selected = item.id;
-        showPage('setlist'); query('setlist-title').focus({preventScroll: true}); window.scrollTo(0, 0);
-      }, opener => contextMenu(opener, [
+      const {row, button, more} = countRow(item.name, item.songIds.length, () => openSetlist(item.id), opener => contextMenu(opener, [
         {name: 'Endre info', icon: 'rediger', run: () => edit(opener, item)},
         {name: 'Slett', icon: 'slett', run: () => remove(opener, item)},
       ], 'below'));
@@ -78,7 +81,8 @@ export function startSetlists(storage: ReturnType<typeof songStorage>) {
           const saved = await (item ? storage.renameSetlist(id, name) : storage.createSetlist(id, name));
           items = [...items.filter(current => current.id !== id), saved!];
           draw(); lifecycle.close();
-          (item ? query(`setlist-menu-${id}`) : add).focus({preventScroll: true});
+          if (item) query(`setlist-menu-${id}`).focus({preventScroll: true});
+          else openSetlist(id, true);
         } catch (cause) {
           error.textContent = cause instanceof Error ? cause.message : 'Kunne ikke lagre setlisten. Prøv igjen.';
           field.readOnly = false; actions.querySelectorAll('button').forEach(button => {button.disabled = false;});

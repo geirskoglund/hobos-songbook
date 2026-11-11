@@ -129,7 +129,7 @@ Notater og gulmarkeringer bruker separate koordinatmodeller uten kopier av origi
 
 ### Levert del: oversikt og navn (#28)
 
-- **[IMPLEMENTERT]** Setlister opprettes og navngis lokalt via navnedialog med Avbryt/Lagre. Oversikten viser navn og sangantall, nyeste først. Nye lister er tomme og viser 0 sanger. Endre info bevarer intern ID og opprettelsesrekkefølge; like navn tillates. Slett krever bekreftelse og berører bare setlisten. Radtrykk åpner en tom side med Setliste, tilbakepil og hovedmeny. Oversiktsposisjon og valgt setliste bevares ved Innstillinger-retur og appoppdatering; ulagret navn beskyttes. Vanlig oppstart gjenåpner ikke setlisten.
+- **[IMPLEMENTERT]** Setlister opprettes og navngis lokalt via navnedialog med Avbryt/Lagre. Oversikten viser navn og sangantall, nyeste først. Nye lister er tomme og viser 0 sanger. Etter vellykket opprettelse lukkes navnedialogen og den nye setlisten åpnes direkte i detaljsiden; Tilbake viser den nye raden i oversikten. Endre info bevarer intern ID og opprettelsesrekkefølge; like navn tillates. Slett krever bekreftelse og berører bare setlisten. Radtrykk åpner en tom side med Setliste, tilbakepil og hovedmeny. Oversiktsposisjon og valgt setliste bevares ved Innstillinger-retur og appoppdatering; ulagret navn beskyttes. Vanlig oppstart gjenåpner ikke setlisten.
 
 ### Senere innholdseditor, redigering og navigasjon
 

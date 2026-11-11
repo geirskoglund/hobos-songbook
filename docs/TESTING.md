@@ -99,7 +99,7 @@ Før hoved-PR-merge bygges `/app/` som masterens betrodde plassholder og bare `/
 
 ## Kontroll av setlisteoversikt og navn (#28)
 
-1. Opprett to setlister, også med samme navn. Kontroller 0 sanger, nyeste øverst og at Avbryt/tomt navn ikke oppretter noe. Start appen på nytt og prøv offline etter fullført caching.
+1. Opprett to setlister, også med samme navn. Kontroller at Lagre åpner den nyopprettede setlisten direkte med Setliste, tilbakepil og tom body, og at Tilbake viser riktig ny rad øverst med 0 sanger. Avbryt/tomt navn skal ikke opprette eller åpne en setliste. Start appen på nytt og prøv offline etter fullført caching.
 2. Endre ett navn fra radmenyen, avbryt en ny endring og prøv Slett med både Avbryt og bekreftelse. Sang-/person-/sangbokdata skal være uendret.
 3. Åpne en rad: Setliste, tilbakepil, hamburger og tomt innhold. Prøv Innstillinger-retur og Tilbake til riktig rad/posisjon. En reell appoppdatering skal bevare oversikt/detalj, valgt ID, posisjon og hovedmeny; ulagret navn må lagres/avbrytes før omlasting.
 4. Prøv tastatur/Escape, navnefeltets appmeny, lange navn, siste rad og skjermtastatur ved 320 px, nettbrett og desktop. Registrer fysisk iPad/Safari, Android/Chrome og installert PWA separat.
