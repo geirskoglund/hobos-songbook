@@ -2,13 +2,16 @@
 
 ## Bruk av designsystemet
 
-Les denne delen ved UI-arbeid. [Designkatalogen](design/README.md) har en navneindeks over alle 32 komponentene, med stabile ID-er og lenker til enkelt-SVG-ene. Brukeren kan referere til navn som «Dialog – tre handlinger» eller «Visningspille»; ID, for eksempel `E04_Dialog_tre_handlinger`, er bare nødvendig ved tvetydighet.
+Bruk [navneindeksen](design/README.md) for komponentnavn, ID-er og SVG-er. Entydige navn er tilstrekkelig. Bevar navn og ID-er.
 
-Slå opp komponentens definisjon og variant før utforming. Designgrunnlaget styrer farger/typografi, og enkelt-SVG-en er geometrisk referanse. Ikke be om en ny beskrivelse når referansen dekker behovet. Bevar navn og ID-er. Oppgaven bestemmer innhold og handling; eksempeltekst i designet er ikke en funksjonsbestilling.
+- Repoets vedtatte design gjelder. Designgrunnlaget styrer farger og typografi; enkelt-SVG-en styrer geometrien.
+- Avvikende komponenter, farger eller menyknapper i skjermbildeskisser er ikke bestillinger på designendringer.
+- Innfør komponenter ved konkret behov. Katalogen skal ikke implementeres på forhånd.
+- Sjekk først om komponenten finnes. Hvis ikke, implementer den én gang som en felles, gjenbrukbar komponent.
+- Alle brukssteder bruker samme implementasjon med parametere og varianter. Ikke lag lokale kopier.
+- Overordnet layout vedlikeholdes ett sted. Se [arkitekturen](ARCHITECTURE.md#felles-ui-og-layout).
 
-De vedtatte designdokumentene i repoet er gjeldende referanser. Skjermbildeskisser kan inneholde komponenter, farger eller menyknapper som avviker fra det vedtatte designet. Slike avvik er ikke bestillinger på nye komponenter eller designendringer, og skal ikke overstyre repoets vedtatte design.
-
-Komponenter innføres ved konkret behov i en bestilt oppgave; katalogen er ikke en bestilling på å implementere alle komponenter på forhånd. Undersøk først om komponenten allerede finnes. Første gang den trengs, implementeres den én gang som en felles, gjenbrukbar komponent. Alle brukssteder bruker samme implementasjon med egne parametere, varianter og tilstand; kontroller skal ikke kopieres eller implementeres på nytt lokalt. Overordnet layout vedlikeholdes ett sted. Se [arkitekturen](ARCHITECTURE.md#felles-ui-og-layout) for runtime-komponentenes ansvar. Katalogen inneholder også planlagte kontroller; et kjent navn betyr ikke at funksjonen allerede er implementert. Avklar reell tvetydighet eller manglende design fremfor å finne opp en ny variant.
+Oppgaven bestemmer funksjon og innhold; designets eksempeltekst utvider ikke bestillingen. Avklar bare manglende eller tvetydig design.
 
 ## Implementert sangflyt
 
