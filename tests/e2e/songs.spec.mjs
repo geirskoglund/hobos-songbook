@@ -54,7 +54,7 @@ test('lyrics and chord anchors wrap at mobile/tablet/desktop at both font limits
 
   await page.getByRole('button', {name: '← Mine sanger'}).click();
   await importSong(page, 'ren.txt', 'Bare sangtekst\nuten akkorder');
-  await expect(page.locator('.song-metadata')).toHaveText('Privat4/4');
+  await expect(page.locator('.song-metadata')).toHaveText('4/4');
   await expect(page.locator('.chord')).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();

@@ -21,7 +21,7 @@ import {songStorage} from '../storage/songs.ts';
 import {applyPreferences, defaultPreferences, readPreferences, savePreferences} from '../storage/preferences.ts';
 import {readSongbookFilter, saveSongbookFilter} from '../storage/songbook-filter.ts';
 import type {Songbook} from '../domain/songbook.ts';
-import {choicePicker, contextMenu, floatingAction, metadataRow} from './list-controls.ts';
+import {choicePicker, contextMenu, floatingAction, metadataRow, type MenuAction} from './list-controls.ts';
 import {startSetlists} from './setlists.ts';
 import {createSync} from '../sync/engine.ts';
 import {startSyncView} from './sync.ts';
@@ -149,7 +149,7 @@ export function startSongbook() {
   const app = query('app');
   if (pendingUpdateView) {history.scrollRestoration = 'manual'; app.style.visibility = 'hidden';}
   let settingsReturn:UpdateView|undefined;
-  const nav=navigation(page=>{void navigate(page);});
+  const nav=navigation(page=>{void navigate(page);},()=>({name:'Sanghandlinger',actions:active&&currentPage()==='reader'?songActions(session?.song??active,query<HTMLButtonElement>('menu-button'),editing?'editor':'view'):[]}));
   const filter = actionButton('Alle', () => {
     const name = songbooks.find(book => book.id === selectedBook)?.name ?? 'Alle';
     choicePicker({opener: filter, name: 'Sangbok', value: name, selected: selectedBook,
@@ -197,8 +197,11 @@ export function startSongbook() {
     }finally{leaving=false;}
   }
   const notify = (message: string, error = false) => {status.textContent = message; status.dataset.error = String(error);};
-  function songMenu(song:Song,opener:HTMLButtonElement){
-    const actions:{name:string;icon:string;run:()=>void}[]=[];
+  function songMenu(song:Song,opener:HTMLButtonElement){contextMenu(opener,songActions(song,opener,'list'),'below');}
+  function songActions(song:Song,opener:HTMLButtonElement,place:'list'|'editor'|'view'):MenuAction[]{
+    const download:MenuAction={name:'Last ned',icon:'eksporter',run:()=>downloadText(filename(song),song.original)};
+    if(place==='view')return [download];
+    const actions:MenuAction[]=[];
     const run=(operation:()=>Promise<void>)=>{void operation().catch(error=>notify(error instanceof Error?error.message:'Handlingen mislyktes. Prøv igjen.',true));};
     const update=async()=>{await refreshLibrary();const fresh=songs.find(item=>item.id===song.id);if(fresh&&active?.id===song.id&&session){session.updateContext(fresh);const view=captureView(song.id,null);await openSong(session.song,view,true);}};
     if(song.sync?.deleted||song.sync?.detached)actions.push({name:'Behold privat',icon:'personlig',run:()=>run(async()=>{const book=await chooseSongbook(storage,opener,{description:'Velg sangbok for den private sangen.'});if(!book)return;if(active?.id===song.id&&editing){await finishEdit();if(editing)return;}await sync.keepPrivate(song.id,book);await update();})});
@@ -211,8 +214,8 @@ export function startSongbook() {
       })});
       actions.push({name:'Bytt sangbok',icon:'songlist',run:()=>run(async()=>{const book=await chooseSongbook(storage,opener,{selected:song.songbookId,excludeStandard:accessOf(song)==='shared',description:accessOf(song)==='shared'?'Sangen forblir publisert og flyttes til den valgte sangbokens deling. Andre personer kan få tilgang.':undefined});if(!book||book===song.songbookId)return;await sync.changeBook(song.id,book);await update();})});
     }
-    if(!editing)actions.push({name:'Last ned',icon:'eksporter',run:()=>downloadText(filename(song),song.original)});
-    if(actions.length)contextMenu(opener,actions,'below');
+    if(place==='list')actions.push(download);
+    return actions;
   }
   let preferences = {...defaultPreferences};
   try {preferences = readPreferences(__APP_ENV__.namespace);}
@@ -316,8 +319,6 @@ export function startSongbook() {
     disposeView();editor?.unmount();editor?.element.remove();article.replaceChildren();
     const title = element('h1', parsed.title); title.id = 'song-title'; title.tabIndex = -1; article.append(title);
     const metadata = element('div', undefined, 'song-metadata');
-    const access=element('span',`${accessLabel(song)}${editing?' · '+(songbooks.find(book=>book.id===song.songbookId)?.name??'Sangbok'):''}`,'song-access');metadata.append(access);
-    if(accessOf(song)!=='import'||!editing||song.sync?.detached){const more=actionButton('',()=>songMenu(song,more),'meny');more.className='song-more';more.setAttribute('aria-label',`Handlinger for ${song.title}`);more.setAttribute('aria-haspopup','menu');metadata.append(more);}
     if (parsed.key) {
       const key = element('span', parsed.key, 'song-key');
       key.setAttribute('aria-label', `Toneart: ${parsed.key}`);
@@ -345,7 +346,9 @@ export function startSongbook() {
     };
     if(!editor)editor=createSongEditor(session,changed,()=>showOriginal());
     if(editing)article.prepend(editor.element);
-    showMetadata(); showChart();
+    showMetadata();
+    if(editing){const access=element('span',accessLabel(song),'song-access');access.setAttribute('aria-label',`${accessLabel(song)}. Sangbok: ${songbooks.find(book=>book.id===song.songbookId)?.name??'Ukjent sangbok'}`);metadata.append(access);}
+    showChart();
     const capo = personal.capo ?? 0;
     const bodyContent = element('div'); bodyContent.id = 'song-body'; article.append(bodyContent);
     const dynamicsContext: DynamicsContext = {level: 3, chord: value => transposeChord(value, capo)};

@@ -1,12 +1,18 @@
-import {icon} from './controls.ts';
+import {actionButton,icon} from './controls.ts';
 import {currentPage, mainDestination, type Page} from './layout.ts';
-export function navigation(choose:(page:Page)=>void) {
+import type {MenuAction} from './list-controls.ts';
+export function navigation(choose:(page:Page)=>void,context?:()=>{name:string;actions:MenuAction[]}) {
   const button=document.getElementById('menu-button') as HTMLButtonElement, panel=document.getElementById('main-menu')!, backdrop=document.getElementById('menu-backdrop')!;
   const content=document.querySelector('main')!, left=document.querySelector<HTMLElement>('.nav-left')!, actions=document.getElementById('header-actions')!;
+  const contextual=document.createElement('div');contextual.className='navigation-actions';contextual.hidden=true;contextual.setAttribute('role','group');panel.append(contextual);
   const destinations:[Page,string,string][]=[['library','Sanger','songlist'],['setlists','Setlister','setliste'],['sync','Synkronisering','synkroniser'],['files','Filer','fil-sang'],['settings','Innstillinger','innstillinger']];
   for(const [page,name,glyph] of destinations){const item=document.createElement('button');item.type='button';item.dataset.destination=page;item.append(icon(glyph),document.createTextNode(name));item.addEventListener('click',()=>{close(false);choose(page);});panel.append(item);}
-  function close(focus=true){panel.hidden=backdrop.hidden=true;content.inert=left.inert=actions.inert=false;button.setAttribute('aria-expanded','false');document.body.classList.remove('menu-open');if(focus)button.focus({preventScroll:true});}
-  function open(){panel.hidden=backdrop.hidden=false;content.inert=left.inert=actions.inert=true;button.setAttribute('aria-expanded','true');document.body.classList.add('menu-open');const active=mainDestination(currentPage());(panel.querySelector(`[data-destination="${active}"]`) as HTMLElement).focus({preventScroll:true});}
+  function close(focus=true){panel.hidden=backdrop.hidden=true;contextual.replaceChildren();contextual.hidden=true;content.inert=left.inert=actions.inert=false;button.setAttribute('aria-expanded','false');document.body.classList.remove('menu-open');if(focus)button.focus({preventScroll:true});}
+  function open(){
+    const value=context?.();contextual.replaceChildren();contextual.hidden=!value?.actions.length;contextual.setAttribute('aria-label',value?.name??'Handlinger');
+    for(const action of value?.actions??[])contextual.append(actionButton(action.name,()=>{close();action.run();},action.icon));
+    panel.hidden=backdrop.hidden=false;content.inert=left.inert=actions.inert=true;button.setAttribute('aria-expanded','true');document.body.classList.add('menu-open');const active=mainDestination(currentPage());(panel.querySelector(`[data-destination="${active}"]`) as HTMLElement).focus({preventScroll:true});
+  }
   button.addEventListener('click',()=>panel.hidden?open():close());
   let down:{x:number;y:number}|undefined;
   backdrop.addEventListener('pointerdown',event=>{down={x:event.clientX,y:event.clientY};});backdrop.addEventListener('pointercancel',()=>{down=undefined;});

@@ -53,8 +53,9 @@ export function floatingAction(name: string, choose: () => void) {
   button.setAttribute('aria-label', name); return button;
 }
 
+export interface MenuAction {name: string; icon: string; run: () => void}
 /** H04: shared placement, focus and dismissal; actions supply only their meaning. */
-export function contextMenu(opener: HTMLButtonElement, actions: {name: string; icon: string; run: () => void}[], side: 'above' | 'below' = 'above') {
+export function contextMenu(opener: HTMLButtonElement, actions: MenuAction[], side: 'above' | 'below' = 'above') {
   const name = opener.getAttribute('aria-label') || opener.textContent || 'Handlinger';
   const box = dialogFrame(name, 'context-menu');
   const menu = document.createElement('div'); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', name);

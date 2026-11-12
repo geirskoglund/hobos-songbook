@@ -236,6 +236,7 @@ body.original-open {overflow:hidden;}
 .menu-open #main-menu {bottom:var(--update-notice-space,0px)}
 #main-menu button {display:flex;align-items:center;gap:20px;width:100%;min-height:54px;padding:12px 24px;border:0;border-radius:0;background:none;flex:none}
 #main-menu button[aria-current=page] {background:var(--raised);font-weight:600}
+.navigation-actions {display:flex;flex-direction:column;border-bottom:1px solid color-mix(in srgb,var(--border) 40%,transparent);padding-bottom:8px;margin-bottom:8px}
 #main-menu [data-destination=sync] {border-top:1px solid color-mix(in srgb,var(--border) 40%,transparent);margin-top:8px}
 #main-menu [data-destination=settings] {margin-top:auto;border-top:1px solid color-mix(in srgb,var(--border) 40%,transparent)}
 body.menu-open {overflow:hidden}
@@ -289,9 +290,8 @@ main > section {flex:1;min-width:0}
 
 /* Song access and synchronization reuse the shared rows, dialogs and controls. */
 .song-row .song-choice { flex: 1; min-width: 0; }
-.song-access { color: var(--muted); font-size: .8em; font-weight: 400; }
+.song-access { color: var(--muted); font: 400 12px/1.4 var(--font-ui); }
 .song-metadata .song-access { overflow-wrap: anywhere; }
-.song-more { margin-left: auto; padding: 8px; min-width: 44px; min-height: 44px; }
 .deleted-control { margin-block: var(--space-2); max-width: 18rem; font-size: .85em; }
 .sync-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-6); }
 #sync h2 { font-size: 1.1rem; margin-top: var(--space-6); }
