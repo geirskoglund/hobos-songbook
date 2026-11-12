@@ -28,11 +28,14 @@ export async function closeMenu(page) {
 }
 export async function setCapo(page,value){
  await tool(page,'Capo',true);
+ const title=await page.locator('#song-title').textContent(),songs=(await savedSongs(page)).filter(song=>song.title===title);
+ expect(songs).toHaveLength(1);
+ const songId=songs[0].id;
  const current=Number(await page.getByRole('spinbutton',{name:'Capo',exact:true}).textContent());
  for(let n=0;n<Math.abs(value-current);n++)await page.getByRole('button',{name:value>current?'Øk capo':'Reduser capo',exact:true}).click();
  await page.keyboard.press('Escape');
  await expect(page.getByRole('dialog',{name:'Capo',exact:true})).not.toBeVisible();
- await expect.poll(async()=>(await savedPersonal(page))[0]?.capo??0).toBe(value);
+ await expect.poll(async()=>(await savedPersonal(page)).find(personal=>personal.songId===songId)?.capo??0).toBe(value);
 }
 export async function setDisplay(page, {theme, fontSize, showGrids, showDynamics}) {
   await openSettings(page);
