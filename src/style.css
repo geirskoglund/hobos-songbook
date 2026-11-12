@@ -96,7 +96,7 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 .reader-active #song-status[data-error="true"] {margin:0}
 
 #chart-dock[data-sticky="false"] {position: relative; top: auto;}
-#song-body {padding-bottom: .5em;--reader-line: calc(var(--song-size) * 1.2); display: flow-root;}
+#song-body {padding-bottom:calc(.5em + var(--note-extra,0px));--reader-line: calc(var(--song-size) * 1.2); display: flow-root;}
 #song-body :is(.song-line, .comment, .unknown, .chorus > h2) {margin: var(--content-gap, 0px) 0 0;}
 .song-space, .grid-blank + .grid-blank {display: none;}
 
@@ -116,13 +116,16 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 .editor-tool-panel button:disabled {opacity:.3;cursor:default}
 .tool-divider {height:46px;width:1px;margin:0 12px;background:var(--border)}
 .editor-error {margin:4px 0;color:var(--accent);font-size:14px}
-.element-remove {position:absolute;right:-12px;top:-12px;display:flex;align-items:center;justify-content:center;z-index:8;width:28px;min-height:28px;padding:3px;border-radius:50%;border:1px solid var(--accent);background:var(--raised);color:var(--accent)}
-.element-remove .icon {width:18px;height:18px}
-.element-remove::before {content:'';position:absolute;inset:-8px}
 .chord,.comment,.chorus > h2 {position:relative}
-.dynamic-marker {position:absolute;left:-30px;top:0;min-width:26px;min-height:26px;padding:1px 4px;border:1px solid var(--border);border-radius:6px;background:var(--raised);font:600 13px var(--font-ui);color:var(--chord)}
-.dynamic-empty {position:relative;min-height:30px}
-.highlight-remove-anchor {position:absolute;right:0;top:0}
+.dynamic-marker {position:absolute;left:0;top:0;min-width:26px;min-height:26px;padding:1px 4px;border:1px solid var(--border);border-radius:6px;background:var(--raised);font:600 13px var(--font-ui);color:var(--chord)}
+.dynamic-marker::before {content:'';position:absolute;inset:-9px}
+.dynamic-position {display:block;height:0;pointer-events:none}
+[data-element-selected] {outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}
+.editing-active .chord[data-chord-start] {touch-action:none;cursor:grab}
+.chord[data-moving] {opacity:.3}
+.chord-drag-ghost {position:fixed;z-index:40;pointer-events:none;padding:5px 8px;border:1px solid var(--accent);border-radius:6px;background:var(--panel);color:var(--chord);font:700 16px/1.2 var(--font-chord)}
+.chord-drag-ghost[data-invalid=true] {opacity:.5}
+.chord-drop-caret {position:absolute;z-index:12;width:2px;background:var(--accent);pointer-events:none}
 [data-chorus-selected] {background:color-mix(in srgb,var(--chord) 15%,transparent)}
 .chorus-handle {position:absolute;left:-8px;width:28px;min-height:36px;padding:0;border-radius:12px;background:var(--raised);color:var(--chord);touch-action:none}
 .chorus-handle-start {top:0}.chorus-handle-end {bottom:0}
@@ -133,6 +136,7 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 .editing-active #chart-dock {display:block}
 .annotation-connectors {z-index:0;position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
 .annotation-connectors line {stroke:var(--muted);stroke-width:1.4;stroke-dasharray:2 6}
+.value-control {position:fixed;inset:auto;margin:0}
 .value-control[open] {display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:12px;min-height:67px;padding:12px;background:var(--raised)}
 .value-control > .icon {width:24px;height:24px;color:var(--chord)}
 .value-control input {width:100%;min-height:44px;font-size:16px}
@@ -157,11 +161,10 @@ button.song-key {font:500 .65em/1.2 var(--font-ui); padding:2px 9px; background:
 .capo-control button {width:var(--touch-target); min-height:var(--touch-target); padding:0; border:0; background:transparent; text-align:center; font:24px/1 var(--font-ui)}
 .capo-control #personal-capo {min-width:2ch; text-align:center; font:24px/1.2 var(--font-ui); font-variant-numeric:tabular-nums}
 .song-line, .song-space {position:relative; display:flow-root}
-.song-space {display:none}
-.song-space:has(.personal-note) {display:flow-root; min-height:1.2em}
-.editing-active [data-tool=note] .song-space {display:flow-root; min-height:.6em}
+.song-space {display:flow-root;height:0;min-height:0}
+.song-space::after {content:'';position:absolute;left:0;top:0;width:100%;height:calc(var(--reader-line) / 2)}
 .editing-active [data-note-target] {outline:1px dashed var(--accent); outline-offset:2px; border-radius:3px}
-.personal-note {float:right; position:relative;z-index:1; max-width:48%; margin:0 0 0 .5em; padding:0 .3em; white-space:pre-wrap; overflow-wrap:anywhere; font:var(--note-size)/1.2 var(--font-ui); background:color-mix(in srgb,var(--raised) 85%,transparent); color:var(--text); border-radius:.2em}
+.personal-note {position:absolute;right:0;top:0;z-index:1; min-width:min(196px,48%);max-width:48%;min-height:70px;margin:0;padding:16px 14px;display:flex;align-items:center;white-space:pre-wrap;overflow-wrap:anywhere;font:var(--note-size)/1.2 var(--font-ui);background:color-mix(in srgb,var(--raised) 85%,transparent);color:var(--text);border-radius:10px}
 .personal-note button {min-height:28px; min-width:28px; padding:0 4px; margin-left:4px; border:0; background:none; color:var(--muted); font:16px var(--font-ui)}
 .lyric mark {background:var(--highlight); color:var(--bg); border-radius:.1em}
 
@@ -181,8 +184,7 @@ button.song-key {font:500 .65em/1.2 var(--font-ui); padding:2px 9px; background:
 .selection-preview span {position:absolute; background:color-mix(in srgb,var(--highlight) 40%,transparent); border-radius:2px}
 .editing-active .personal-note {cursor:pointer;touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none}
 .personal-note[data-moving] {opacity:.3}
-.editing-active #song-body[data-note-moving] .song-space {display:flow-root; min-height:.6em}
-.note-drag-ghost {position:fixed; z-index:40; pointer-events:none; padding:4px 6px; border:1px solid var(--accent); border-radius:6px; background:var(--panel); color:var(--text); font:calc(var(--song-size) * .78)/1.2 var(--font-ui); white-space:pre-wrap; overflow-wrap:anywhere; box-shadow:0 5px 18px #0006}
+.note-drag-ghost {position:fixed;z-index:40;pointer-events:none;min-height:70px;padding:16px 14px;border:1px solid var(--accent);border-radius:10px;background:var(--panel);color:var(--text);font:var(--note-size)/1.2 var(--font-ui);display:flex;align-items:center;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 5px 18px #0006}
 .note-drag-ghost[data-invalid=true] {opacity:.5}
 .lyric mark[data-highlight-muted] {background:transparent; color:inherit}
 
@@ -197,7 +199,10 @@ input:not([type=file]), textarea {user-select:text; -webkit-user-select:text; -w
 .original-editor > .field-error {flex:none; margin:0; max-height:20%; overflow:auto;}
 .original-editor > .field-error:empty {display:none;}
 .note-overflow {display:flex; flex-direction:column; gap:8px; margin-top:12px;}
-.note-overflow-row {display:flow-root; min-height:1.2em;}
+.note-overflow-row {position:relative;display:flow-root;min-height:70px;}
+.song-end {height:70px;position:relative;margin-top:8px;}
+#song-body[data-tool]:not([data-tool=""]) .song-end {cursor:crosshair;}
+#song-body:is([data-tool=reference],[data-tool=comment],[data-tool=dynamic]) .song-end {border:1px dashed var(--border);border-radius:8px;}
 .note-overflow-row .personal-note {margin-left:auto;}
 .import-copy {width:min(360px,calc(100% - 24px));}
 .text-control:read-only {color:var(--muted);}

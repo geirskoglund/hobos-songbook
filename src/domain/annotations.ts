@@ -11,7 +11,7 @@ export interface LogicalLine {occurrence: string; sourceLine: number; text: stri
 export function logicalLines(song: Pick<Song, 'original' | 'title'>): LogicalLine[] {
   const result: LogicalLine[] = [];
   const add = (content: Content[], occurrence: string) => {
-    for (const item of content) if ('sourceLine' in item && item.sourceLine !== undefined) result.push({
+    for (const item of content) if ((item.kind==='line'||item.kind==='comment'||item.kind==='unknown') && item.sourceLine !== undefined) result.push({
       occurrence: `${occurrence}/line:${item.sourceLine}`, sourceLine: item.sourceLine,
       text: item.kind === 'line' ? item.segments.map(segment => segment.text).join('') : item.text,
     });

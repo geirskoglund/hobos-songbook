@@ -2,16 +2,32 @@ import { actionButton, icon, textArea } from './controls.ts';
 import { dialogFrame, dialogFooter, openDialog } from './dialog.ts';
 import { valueControl } from './value-controls.ts';
 import { overlayWidth, placeOverlay, currentPage } from './layout.ts';
-import { createHighlightEditor, lyricText, edgeScroll } from './highlight-editor.ts';
+import { createHighlightEditor, lyricText, lyricOffsetAt, edgeScroll } from './highlight-editor.ts';
 import { attachNoteDrag } from './note-drag.ts';
+import { attachHeldElements, type ElementDrag } from './held-elements.ts';
+import { attachDynamicMarkers } from './dynamic-markers.ts';
 import { paintAnnotations } from './annotations.ts';
-import { changeNote, noteAt, changeAnnotation, type Highlight } from '../domain/annotations.ts';
+import { changeNote, noteAt, logicalLines, changeAnnotation, type Highlight } from '../domain/annotations.ts';
 import { shiftChord, shiftGridText, sharedGridText, validGrid } from '../domain/personal.ts';
-import { sourceLines, sourceChords, sourceBlocks, setChord, setMetadata, setDirective, insertDirective, patchSong, setChorus, removeSourceBlock, transposeSong, lineEnding, mergeRawSource, type SourceBlock } from '../domain/source-edit.ts';
-import { validTime } from '../domain/original.ts';
+import { sourceLines, sourceChords, sourceBlocks, setChord, moveChord, setMetadata, setDirective, insertDirective, patchSong, setChorus, removeSourceBlock, transposeSong, lineEnding, mergeRawSource, type SourceBlock } from '../domain/source-edit.ts';
 import type { Song, SongPersonal } from '../domain/song.ts';
 import type { EditSession } from '../domain/edit-session.ts';
 export function createSongEditor(session: EditSession, change: (source?: boolean) => void, raw: () => void) {
+  type ElementChoice = {
+    kind: 'note';
+    id: string;
+  } | {
+    kind: 'chord';
+    start: number;
+  } | {
+    kind: 'comment' | 'dynamic' | 'chorus' | 'reference';
+    line: number;
+  } | {
+    kind: 'highlight';
+    occurrence: string;
+    range: Highlight;
+  };
+  let selected: ElementChoice | undefined;
   let body: HTMLElement | undefined,
     unmount = () => {},
     highlighter: ReturnType<typeof createHighlightEditor> | undefined;
@@ -48,15 +64,16 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
   const buttons = new Map<string, HTMLButtonElement[]>();
   function paintTools() {
     for (const [name, items] of buttons) for (const b of items) {
-      if (name === 'undo') b.disabled = !session.canUndo();else if (name === 'redo') b.disabled = !session.canRedo();else if (['remove', 'chord', 'chorus', 'reference', 'comment', 'dynamic', 'note', 'highlight'].includes(name)) b.setAttribute('aria-pressed', String(tool === name));
+      if (name === 'undo') b.disabled = !session.canUndo();else if (name === 'redo') b.disabled = !session.canRedo();else if (name === 'remove') b.disabled = !selected;else if (['chord', 'chorus', 'reference', 'comment', 'dynamic', 'note', 'highlight'].includes(name)) b.setAttribute('aria-pressed', String(tool === name));
     }
     body?.setAttribute('data-tool', tool ?? '');
     highlighter?.setActive(tool === 'highlight');
-    drawRemove();
+    reflectSelection();
   }
   const setTool = (value?: string) => {
     toolbar.querySelector('.editor-error')?.remove();
     tool = value;
+    selected = undefined;
     highlighter?.clear();
     paintTools();
   };
@@ -78,6 +95,9 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
   function value(name: string, iconName: string, anchor: HTMLElement, start: string, apply: (value: string, submitted: boolean) => void, numeric?: {
     min: number;
     max: number;
+  }, point?: {
+    x: number;
+    y: number;
   }) {
     closePopup();
     setTool();
@@ -86,9 +106,9 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       name,
       icon: iconName,
       anchor,
+      point,
       value: start,
       submitOnly: ['Toneart', 'Akkord', 'Anvisning'].includes(name),
-      multiline: name === 'Notat',
       numeric,
       change: apply,
       closed: () => {
@@ -110,7 +130,6 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       time: 'time'
     }[name], anchor, start, (text, submitted) => {
       if (text === (name === 'title' ? session.song.title : name === 'key' ? session.song.key ?? '' : sourceLines(session.song.original).find(l => l.directive?.name === 'time')?.directive?.value ?? '')) return;
-      if (name === 'time' && !validTime(text)) throw Error('Skriv takt, for eksempel 4/4 eller 3/4.');
       if (name === 'key') {
         if (!submitted) return;
         const next = transposeSong(session.song, text.trim());
@@ -124,7 +143,10 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
   function openGrid(anchor: HTMLElement, shared = false) {
     closePopup();
     setTool();
-    if(shared&&sourceBlocks(session.song.original,'grid').some(block=>!block.end)){showError('Skjemaet mangler en entydig slutt. Rett det i Råtekst først.');return;}
+    if (shared && sourceBlocks(session.song.original, 'grid').some(block => !block.end)) {
+      showError('Skjemaet mangler en entydig slutt. Rett det i Råtekst først.');
+      return;
+    }
     const capo = session.personal.capo ?? 0,
       source = shared ? sharedGridText(session.song.original) : session.personal.chordGrid || sharedGridText(session.song.original),
       shown = shiftGridText(source, -capo);
@@ -210,7 +232,10 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       dirty
     };
   }
-  function note(anchor: HTMLElement) {
+  function note(anchor: HTMLElement, point?: {
+    x: number;
+    y: number;
+  }) {
     const row = anchor.closest<HTMLElement>('[data-note-line]');
     if (!row) return;
     const id = anchor.closest<HTMLElement>('[data-note-id]')?.dataset.noteId,
@@ -222,10 +247,15 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
         line,
         text
       }));
-    });
+    }, undefined, point);
   }
   function run(name: string, button: HTMLElement) {
+    if (name === 'remove') {
+      removeSelected();
+      return;
+    }
     if (name === 'undo' || name === 'redo') {
+      selected = undefined;
       if (name === 'undo' ? session.undo() : session.redo()) {
         change(true);
         paintTools();
@@ -335,40 +365,22 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       return !best || distance(r) < distance(best) ? r : best;
     }, undefined);
   }
-  function chordAt(row: HTMLElement, target: Element, x: number, y: number) {
-    const lyric = target.closest<HTMLElement>('.lyric');
-    if (!lyric) return 0;
-    const doc = document as Document & {
-      caretRangeFromPoint?: (x: number, y: number) => Range | null;
-      caretPositionFromPoint?: (x: number, y: number) => {
-        offsetNode: Node;
-        offset: number;
-      } | null;
-    };
-    const point = doc.caretPositionFromPoint?.(x, y),
-      range = doc.caretRangeFromPoint?.(x, y),
-      node = point?.offsetNode ?? range?.startContainer,
-      offset = point?.offset ?? range?.startOffset;
-    if (node && offset !== undefined && lyric.contains(node)) {
-      const prefix = document.createRange();
-      prefix.selectNodeContents(lyric);
-      prefix.setEnd(node, offset);
-      return Number(lyric.dataset.offset) + Math.min(Number(lyric.dataset.length), prefix.toString().length);
-    }
-    return Number(lyric.dataset.offset);
-  }
   function handleClick(event: MouseEvent) {
     const target = event.target as Element;
+    const point = {
+      x: event.clientX,
+      y: event.clientY
+    };
     if (tool === 'note' && target.closest('.personal-note')) {
-      note(target.closest<HTMLElement>('.personal-note')!);
+      note(target.closest<HTMLElement>('.personal-note')!, point);
       return;
     }
     if (target.closest('[data-remove-element],.highlight-controls,.chorus-handle')) return;
     const row = target.closest<HTMLElement>('[data-source-line]') ?? rowAt(event.clientY);
     if (!row || !body?.contains(row) || !tool) return;
-    const index = Number(row.dataset.sourceLine);
+    const index = Number(row.closest<HTMLElement>('.reference')?.dataset.referenceLine ?? row.dataset.sourceLine);
     if (tool === 'note') {
-      note(target.closest<HTMLElement>('.personal-note') ?? row);
+      note(target.closest<HTMLElement>('.personal-note') ?? row, point);
       return;
     }
     if (tool === 'highlight' || tool === 'chorus' || tool === 'remove') return;
@@ -376,13 +388,13 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     if (tool === 'chord') {
       const chord = target.closest<HTMLElement>('.chord[data-chord-start]'),
         existing = chord ? Number(chord.dataset.chordStart) : undefined,
-        offset = chord ? Number(chord.dataset.chordOffset) : chordAt(row, target, event.clientX, event.clientY);
+        offset = chord ? Number(chord.dataset.chordOffset) : lyricOffsetAt(row, event.clientX, event.clientY);
       const start = chord?.dataset.original ?? '',
         capo = session.personal.capo ?? 0;
       value('Akkord', 'akkord', chord ?? row, shiftChord(start, -capo), (text, submitted) => {
         if (!submitted) return;
         original(setChord(session.song, index, offset, shiftChord(text.trim(), capo), existing));
-      });
+      }, undefined, point);
     } else if (tool === 'comment') {
       const current = sourceLines(session.song.original)[index],
         existing = ['comment', 'c'].includes(current?.directive?.name ?? '');
@@ -390,7 +402,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
         if (!submitted) return;
         if (/[\r\n{}]/.test(text)) throw Error('Bruk én linje uten klammer.');
         original(existing ? setDirective(session.song, index, 'comment', text) : insertDirective(session.song, index, `{comment: ${text}}`));
-      });
+      }, undefined, point);
     } else if (tool === 'dynamic') {
       const marker = target.closest<HTMLElement>('[data-dynamic-line]');
       let line = marker ? Number(marker.dataset.dynamicLine) : undefined;
@@ -400,10 +412,10 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       }, {
         min: 1,
         max: 5
-      });
+      }, point);
     } else if (tool === 'reference') {
-      const definitions=sourceBlocks(session.song.original,'chorus');
-      if(!definitions.some(b=>b.end&&b.end.index<index)||definitions.some(b=>b.start.index<index&&index<(b.end?.index??Infinity))) {
+      const definitions = sourceBlocks(session.song.original, 'chorus');
+      if (!definitions.some(b => b.end && b.end.index < index) || definitions.some(b => b.start.index < index && index < (b.end?.index ?? Infinity))) {
         showError('Definer et refreng før du setter inn en henvisning.');
         return;
       }
@@ -421,85 +433,199 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     }
     p.textContent = text;
   }
-  function removeButton(anchor: HTMLElement, label: string, action: () => void) {
-    const b = actionButton('', () => {
-      try {
-        action();
-      } catch (e) {
-        showError(e instanceof Error ? e.message : 'Kunne ikke fjerne elementet.');
-      }
-    }, 'kryss');
-    b.className = 'element-remove';
-    b.dataset.removeElement = '';
-    b.setAttribute('aria-label', label);
-    anchor.append(b);
+  function choiceAt(target: Element): ElementChoice | undefined {
+    const note = target.closest<HTMLElement>('.personal-note');
+    if (note?.dataset.noteId) return {
+      kind: 'note',
+      id: note.dataset.noteId
+    };
+    const chord = target.closest<HTMLElement>('.chord[data-chord-start]');
+    if (chord) return {
+      kind: 'chord',
+      start: Number(chord.dataset.chordStart)
+    };
+    const dynamic = target.closest<HTMLElement>('.dynamic-marker');
+    if (dynamic) return {
+      kind: 'dynamic',
+      line: Number(dynamic.dataset.dynamicLine)
+    };
+    const mark = target.closest<HTMLElement>('mark');
+    if (mark) {
+      const row = mark.closest<HTMLElement>('[data-occurrence]'),
+        lyric = mark.closest<HTMLElement>('.lyric');
+      if (!row || !lyric) return;
+      const before = document.createRange();
+      before.selectNodeContents(lyric);
+      before.setEndBefore(mark);
+      const at = Number(lyric.dataset.offset) + before.toString().length;
+      const range = session.personal.annotations?.[row.dataset.occurrence!]?.highlights.find(range => at >= range.start && at < range.end);
+      if (range) return {
+        kind: 'highlight',
+        occurrence: row.dataset.occurrence!,
+        range
+      };
+    }
+    const comment = target.closest<HTMLElement>('.comment[data-source-line]');
+    if (comment && ['comment', 'c'].includes(sourceLines(session.song.original)[Number(comment.dataset.sourceLine)]?.directive?.name ?? '')) return {
+      kind: 'comment',
+      line: Number(comment.dataset.sourceLine)
+    };
+    const heading = target.closest<HTMLElement>('.chorus > h2'),
+      section = heading?.parentElement;
+    if (section?.dataset.referenceLine !== undefined) return {
+      kind: 'reference',
+      line: Number(section.dataset.referenceLine)
+    };
+    if (section?.dataset.chorusStart !== undefined) return {
+      kind: 'chorus',
+      line: Number(section.dataset.chorusStart)
+    };
   }
-  function drawRemove() {
+  function selectable(target: Element): HTMLElement | undefined {
+    if (target.closest('.highlight-controls,.chorus-handle')) return;
+    const node = target.closest<HTMLElement>('.personal-note,.chord[data-chord-start],.dynamic-marker,mark,.comment[data-source-line],.chorus > h2');
+    if((tool==='highlight'||tool==='chorus')&&node?.matches('.chord'))return;
+    return node && body?.contains(node) && choiceAt(node) ? node : undefined;
+  }
+  function reflectSelection() {
     if (!body) return;
-    body.querySelectorAll('[data-remove-element]').forEach(n => n.remove());
-    if (tool !== 'remove') return;
-    for (const chord of body.querySelectorAll<HTMLElement>('.chord[data-chord-start]')) removeButton(chord, 'Fjern akkord', () => original(setChord(session.song, Number(chord.closest<HTMLElement>('[data-source-line]')!.dataset.sourceLine), Number(chord.dataset.chordOffset), '', Number(chord.dataset.chordStart))));
-    for (const marker of body.querySelectorAll<HTMLElement>('.dynamic-marker')) removeButton(marker, 'Fjern dynamikk', () => {
-      const row = sourceLines(session.song.original)[Number(marker.dataset.dynamicLine)];
-      original(patchSong(session.song, [{
-        start: row.start,
-        end: row.end,
-        text: ''
-      }]));
-    });
-    for (const row of body.querySelectorAll<HTMLElement>('[data-source-line]')) {
-      const source = sourceLines(session.song.original)[Number(row.dataset.sourceLine)];
-      if (['comment', 'c'].includes(source?.directive?.name ?? '')) removeButton(row, 'Fjern anvisning', () => original(patchSong(session.song, [{
-        start: source.start,
-        end: source.end,
-        text: ''
-      }])));
+    body.querySelectorAll('[data-element-selected]').forEach(node => node.removeAttribute('data-element-selected'));
+    for (const node of body.querySelectorAll<HTMLElement>('.personal-note,.chord[data-chord-start],mark,.comment[data-source-line],.chorus > h2')) if (choiceAt(node)) {
+      node.tabIndex = 0;
+      node.setAttribute('aria-description', 'Hold inne eller trykk Enter for å velge. Fjern sletter valgt element.');
     }
-    for (const section of body.querySelectorAll<HTMLElement>('.chorus')) {
-      if (section.dataset.referenceLine) {
-        const row = sourceLines(session.song.original)[Number(section.dataset.referenceLine)];
-        removeButton(section.querySelector<HTMLElement>('h2')!, 'Fjern refrenghenvisning', () => original(patchSong(session.song, [{
-          start: row.start,
-          end: row.end,
-          text: ''
-        }])));
-      } else if (section.dataset.chorusStart) {
-        const block = sourceBlocks(session.song.original, 'chorus').find(b => b.start.index === Number(section.dataset.chorusStart));
-        if (block) removeButton(section.querySelector<HTMLElement>('h2')!, 'Fjern refrengformatering', () => original(removeSourceBlock(session.song, block)));
-      }
+    if (!selected) return;
+    const choice = selected;
+    let nodes: HTMLElement[] = [];
+    if (choice.kind === 'note') nodes = [...body.querySelectorAll<HTMLElement>('.personal-note')].filter(node => node.dataset.noteId === choice.id);else if (choice.kind === 'chord') nodes = [...body.querySelectorAll<HTMLElement>('.chord[data-chord-start]')].filter(node => Number(node.dataset.chordStart) === choice.start);else if (choice.kind === 'highlight') nodes = [...body.querySelectorAll<HTMLElement>('mark')].filter(node => {
+      const own = choiceAt(node);
+      return own?.kind === 'highlight' && (choice.range.groupId ? own.range.groupId === choice.range.groupId : own.occurrence === choice.occurrence && own.range.start === choice.range.start && own.range.end === choice.range.end);
+    });else if (choice.kind === 'dynamic') nodes = [...body.querySelectorAll<HTMLElement>('.dynamic-marker')].filter(node => Number(node.dataset.dynamicLine) === choice.line);else if (choice.kind === 'comment') nodes = [...body.querySelectorAll<HTMLElement>('.comment[data-source-line]')].filter(node => Number(node.dataset.sourceLine) === choice.line);else nodes = [...body.querySelectorAll<HTMLElement>(choice.kind === 'chorus' ? '[data-chorus-start]' : '[data-reference-line]')].filter(node => Number(choice.kind === 'chorus' ? node.dataset.chorusStart : node.dataset.referenceLine) === choice.line);
+    for (const node of nodes) node.dataset.elementSelected = '';
+  }
+  function selectElement(target: HTMLElement) {
+    const choice = choiceAt(target);
+    if (!choice) return;
+    setTool();
+    selected = choice;
+    if (choice.kind === 'highlight') {
+      const row = target.closest<HTMLElement>('[data-occurrence]');
+      if (row) highlighter?.restore(row, choice.range);
     }
-    for (const note of body.querySelectorAll<HTMLElement>('.personal-note')) removeButton(note, 'Fjern notat', () => update(state => changeNote(state, note.dataset.noteId!, undefined)));
-    const seen = new Set<string>();
-    for (const mark of body.querySelectorAll<HTMLElement>('mark')) {
-      const row = mark.closest<HTMLElement>('[data-occurrence]')!,
-        lyric = mark.closest<HTMLElement>('.lyric')!,
-        range = document.createRange();
-      range.selectNodeContents(lyric);
-      range.setEndBefore(mark);
-      const at = Number(lyric.dataset.offset) + range.toString().length;
-      const highlight = session.personal.annotations?.[row.dataset.occurrence!]?.highlights.find(h => at >= h.start && at < h.end);
-      if (!highlight) continue;
-      const id = highlight.groupId ?? `${row.dataset.occurrence}:${highlight.start}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const control = document.createElement('span');
-      control.className = 'highlight-remove-anchor';
-      row.append(control);
-      removeButton(control, 'Fjern gulmarkering', () => update(state => {
+    paintTools();
+  }
+  function removeSelected() {
+    const choice = selected;
+    if (!choice) return;
+    selected = undefined;
+    highlighter?.clear();
+    try {
+      if (choice.kind === 'note') update(state => changeNote(state, choice.id, undefined));else if (choice.kind === 'highlight') update(state => {
         let next = state;
         for (const annotation of Object.values(state.annotations ?? {})) {
-          const highlights = annotation.highlights.filter(h => highlight.groupId ? h.groupId !== highlight.groupId : annotation.anchor.occurrence !== row.dataset.occurrence || h.start !== highlight.start || h.end !== highlight.end);
+          const highlights = annotation.highlights.filter(range => choice.range.groupId ? range.groupId !== choice.range.groupId : annotation.anchor.occurrence !== choice.occurrence || range.start !== choice.range.start || range.end !== choice.range.end);
           next = changeAnnotation(next, annotation.anchor, {
             highlights
           });
         }
         return next;
-      }));
+      });else if (choice.kind === 'chord') {
+        const row = sourceLines(session.song.original).find(row => sourceChords(row).some(token => token.start === choice.start)),
+          token = row && sourceChords(row).find(token => token.start === choice.start);
+        if (row && token) original(setChord(session.song, row.index, token.offset, '', choice.start));
+      } else if (choice.kind === 'chorus') {
+        const block = sourceBlocks(session.song.original, 'chorus').find(block => block.start.index === choice.line);
+        if (block) original(removeSourceBlock(session.song, block));
+      } else {
+        const row = sourceLines(session.song.original)[choice.line];
+        if (row) original(patchSong(session.song, [{
+          start: row.start,
+          end: row.end,
+          text: ''
+        }]));
+      }
+      paintTools();
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Kunne ikke fjerne elementet.');
     }
+  }
+  function startChordDrag(node: HTMLElement, x: number, y: number): ElementDrag | undefined {
+    if (!node.matches('.chord[data-chord-start]') || !body) return;
+    const root = body,
+      start = Number(node.dataset.chordStart),
+      ghost = node.cloneNode(true) as HTMLElement;
+    ghost.className = 'chord-drag-ghost';
+    ghost.removeAttribute('tabindex');
+    ghost.removeAttribute('data-element-selected');
+    ghost.setAttribute('aria-hidden', 'true');
+    document.body.append(ghost);
+    node.dataset.moving = '';
+    const caret = document.createElement('span');
+    caret.className = 'chord-drop-caret';
+    root.append(caret);
+    let target: {
+      line: number;
+      offset: number;
+    } | undefined;
+    const move = (x: number, y: number) => {
+      ghost.style.left = `${x + 12}px`;
+      ghost.style.top = `${y - 30}px`;
+      target = undefined;
+      caret.hidden = true;
+      const rows = [...root.querySelectorAll<HTMLElement>('.song-line,.song-space,.song-end')].filter(row => !row.closest('[hidden]'));
+      const row = rows.find(row => {
+        const rect = row.getBoundingClientRect();
+        return y >= rect.top - 3 && y <= rect.bottom + 3;
+      });
+      if (!row) {
+        ghost.dataset.invalid = 'true';
+        return;
+      }
+      const line = Number(row.dataset.sourceLine),
+        offset = lyricOffsetAt(row, x, y);
+      target = {
+        line,
+        offset
+      };
+      ghost.dataset.invalid = 'false';
+      const bounds = root.getBoundingClientRect(),
+        rect = row.getBoundingClientRect();
+      caret.hidden = false;
+      caret.style.left = `${Math.max(0, Math.min(x - bounds.left, root.clientWidth - 2))}px`;
+      caret.style.top = `${rect.top - bounds.top}px`;
+      caret.style.height = `${Math.max(20, rect.height)}px`;
+    };
+    move(x, y);
+    return {
+      move,
+      finish(cancel) {
+        ghost.remove();
+        caret.remove();
+        delete node.dataset.moving;
+        if (cancel || !target) return;
+        try {
+          const moved = moveChord(session.song, start, target.line, target.offset);
+          selected = {
+            kind: 'chord',
+            start: moved.start
+          };
+          original(moved.song);
+        } catch (error) {
+          showError(error instanceof Error ? error.message : 'Kunne ikke flytte akkorden.');
+        }
+      }
+    };
   }
   function decorate() {
     if (!body) return;
     const rows = sourceLines(session.song.original);
+    const end = document.createElement('div');
+    end.className = 'song-end';
+    end.dataset.sourceLine = String(rows.length);
+    end.dataset.noteLine = String(logicalLines(session.song).length);
+    end.tabIndex = 0;
+    end.setAttribute('aria-label', 'Plassering etter sangteksten');
+    body.append(end);
     for (const row of body.querySelectorAll<HTMLElement>('[data-source-line]')) {
       const source = rows[Number(row.dataset.sourceLine)];
       if (!source) continue;
@@ -514,26 +640,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       }
       row.tabIndex = 0;
     }
-    for (const row of rows.filter(r => r.directive?.name === 'x_dyn' && /^[1-5]$/.test(r.directive.value.trim()))) {
-      const next = rows.slice(row.index + 1).find(r => body!.querySelector(`[data-source-line="${r.index}"]`));
-      const anchors = next ? [...body.querySelectorAll<HTMLElement>(`[data-source-line="${next.index}"]`)] : [];
-      if (!anchors.length) {
-        const placeholder = document.createElement('div');
-        placeholder.className = 'dynamic-empty';
-        body.append(placeholder);
-        anchors.push(placeholder);
-      }
-      for (const anchor of anchors) {
-        const marker = actionButton(row.directive!.value, undefined);
-        marker.className = 'dynamic-marker';
-        marker.style.top = `${anchor.querySelectorAll('.dynamic-marker').length * 28}px`;
-        marker.dataset.dynamicLine = String(row.index);
-        marker.dataset.level = row.directive!.value;
-        marker.setAttribute('aria-label', `Dynamikk ${row.directive!.value}`);
-        anchor.prepend(marker);
-      }
-    }
-    drawRemove();
+    reflectSelection();
   }
   function mount(root: HTMLElement) {
     unmount();
@@ -544,8 +651,24 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     }, true);
     const stopDrag = attachNoteDrag(root, update, rowAt, node => {
       if (tool === 'note') note(node);
-    });
+    }, selectElement);
     decorate();
+    const stopDynamics = attachDynamicMarkers(root);
+    const stopHeld = attachHeldElements(root, {
+      resolve: selectable,
+      select: selectElement,
+      startDrag: startChordDrag
+    });
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Element;
+      if (toolbar.contains(target) || target.closest('[data-element-selected],.highlight-controls,.chorus-handle')) return;
+      if (selected) {
+        selected = undefined;
+        highlighter?.clear();
+        paintTools();
+      }
+    };
+    document.addEventListener('pointerdown', outside, true);
     if (restored) {
       const row = [...root.querySelectorAll<HTMLElement>('[data-occurrence]')].find(r => r.dataset.occurrence === restored!.occurrence);
       if (row) highlighter.restore(row, restored.range);
@@ -658,6 +781,34 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
         run(event.shiftKey || event.key.toLowerCase() === 'y' ? 'redo' : 'undo', toolbar);
       }
       if (event.key === 'Escape') setTool();
+      const target = event.target as Element,
+        node = selectable(target);
+      if (!tool && node && ['Enter', ' '].includes(event.key)) {
+        event.preventDefault();
+        selectElement(node);
+        return;
+      }
+      if (event.altKey && ['ArrowLeft', 'ArrowRight'].includes(event.key) && node?.matches('.chord[data-chord-start]')) {
+        event.preventDefault();
+        const row = node.closest<HTMLElement>('[data-source-line]')!,
+          offset = Math.max(0, Math.min(lyricText(row).length, Number(node.dataset.chordOffset) + (event.key === 'ArrowRight' ? 1 : -1)));
+        try {
+          const next = moveChord(session.song, Number(node.dataset.chordStart), Number(row.dataset.sourceLine), offset);
+          selected = {
+            kind: 'chord',
+            start: next.start
+          };
+          original(next.song);
+        } catch (error) {
+          showError(error instanceof Error ? error.message : 'Kunne ikke flytte akkorden.');
+        }
+        return;
+      }
+      if (selected && ['Delete', 'Backspace'].includes(event.key)) {
+        event.preventDefault();
+        removeSelected();
+        return;
+      }
       if (['Enter', ' '].includes(event.key) && (event.target as Element).matches('[data-source-line],.personal-note')) {
         event.preventDefault();
         const target = event.target as HTMLElement;
@@ -696,6 +847,9 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     unmount = () => {
       down?.stop();
       stopDrag();
+      stopHeld();
+      stopDynamics();
+      document.removeEventListener('pointerdown', outside, true);
       highlighter?.dispose();
       highlighter = undefined;
       root.removeEventListener('pointerdown', pointerDown);
@@ -706,6 +860,9 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       document.removeEventListener('keydown', key);
     };
     paintTools();
+    if (selected) root.querySelector<HTMLElement>('[data-element-selected]')?.focus({
+      preventScroll: true
+    });
   }
   const rowsLast = () => sourceLines(session.song.original).length;
   function showChorusHandles(index: number) {

@@ -58,14 +58,18 @@ export function renderGrid(block: GridBlock): HTMLElement {
 }
 export function renderContent(content: Content[], context: DynamicsContext): DocumentFragment {
   const fragment = document.createDocumentFragment();
+  const dynamic = (block: {level: DynamicLevel;sourceLine?: number}) => {
+    instruction(block.level, context);
+    if(block.sourceLine!==undefined){const anchor=node('span',undefined,'dynamic-position');anchor.dataset.dynamicSource=String(block.sourceLine);anchor.dataset.level=String(block.level);anchor.setAttribute('aria-hidden','true');fragment.append(anchor);}
+  };
   const identify = (row: HTMLElement, sourceLine?: number) => {
     if (sourceLine !== undefined) {row.dataset.sourceLine = String(sourceLine); row.dataset.occurrence = `${context.occurrence ?? 'source'}/line:${sourceLine}`;}
     return row;
   };
   for (const block of content) {
-    if (block.kind === 'dynamic') {instruction(block.level, context); continue;}
+    if (block.kind === 'dynamic') {dynamic(block); continue;}
     if (block.kind === 'grid') {
-      for (const row of block.rows) if (row.kind === 'dynamic') instruction(row.level, context);
+      for (const row of block.rows) if (row.kind === 'dynamic') dynamic(row);
       context.spokenLevel = undefined; continue;
     }
     if (block.kind !== 'line') {fragment.append(decorate(identify(node('p', block.text, block.kind), block.sourceLine), context)); continue;}

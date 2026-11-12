@@ -103,7 +103,7 @@ test('dynamics have a straight left edge and exact fixed widths in a 30px margin
   const original='{t: Dynamikk}\n{sog}\n| C . | G . |\n{eog}\nNormal\n{x_dyn: 1}\nEn\n\n{x_dyn: 2}\nTo\n{x_dyn: 3}\nTre\n{x_dyn: 4}\nFire\n{x_dyn: 5}\nFem\n{soc}\n{x_dyn: 4}\nRefreng\n{eoc}\n{x_dyn: 1}\nLavt\n{chorus}\nEtter';
   await page.setViewportSize({width:390,height:844});await page.goto(base); await importSong(page,'dynamikk.cho',original);
   const line=text=>page.locator('.song-line').filter({has:page.locator('.lyric').filter({hasText:new RegExp(`^${text}$`)})});
-  for (const [text,level] of [['Normal',3],['En',1],['To',2],['Tre',3],['Fire',4],['Fem',5],['Etter',4]]) await expect(line(text)).toHaveAttribute('data-dynamic-level',String(level));
+  for (const [text,level] of [['Normal',3],['En',1],['To',2],['Tre',3],['Fire',4],['Fem',5],['Etter',1]]) await expect(line(text)).toHaveAttribute('data-dynamic-level',String(level));
   await expect(page.locator('#dynamics-profile path')).toHaveCount(1);
   await expect(page.locator('#dynamics-profile path')).toHaveAttribute('d',/C/);
   await expect(page.locator('#dynamics-profile rect')).toHaveCount(0);
@@ -131,7 +131,7 @@ test('dynamics have a straight left edge and exact fixed widths in a 30px margin
   const beforeHeight=profile.height;
   await page.getByRole('button',{name:'Refreng',exact:true}).click();
   await expect.poll(async()=> (await page.locator('#dynamics-profile').boundingBox()).height).toBeGreaterThan(beforeHeight);
-  await expect(line('Etter')).toHaveAttribute('data-dynamic-level','4');
+  await expect(line('Etter')).toHaveAttribute('data-dynamic-level','1');
   await expect(page.getByRole('button',{name:'Refreng',exact:true})).toHaveCSS('border-top-width','0px');
   expect(await page.getByRole('button',{name:'Refreng',exact:true}).evaluate(node=>getComputedStyle(node,'::after').content)).toBe('none');
   expect((await savedSongs(page))[0].original).toBe(original);

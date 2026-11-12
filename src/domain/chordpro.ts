@@ -1,7 +1,7 @@
 import {parseGridRow, gridOptions, type GridRow, type GridOptions} from './grid.ts';
 export interface Segment {chord?: string; text: string}
 export type DynamicLevel = 1 | 2 | 3 | 4 | 5;
-export interface DynamicDirective {kind: 'dynamic'; level: DynamicLevel}
+export interface DynamicDirective {kind: 'dynamic'; level: DynamicLevel; sourceLine?: number}
 export type GridContent = GridRow | DynamicDirective | {kind: 'comment' | 'unknown'; text: string; sourceLine?: number};
 export interface GridBlock {kind: 'grid'; options: GridOptions; rows: GridContent[]}
 export type Content = {kind: 'line'; segments: Segment[]; sourceLine?: number} | {kind: 'comment' | 'unknown'; text: string; sourceLine?: number} | DynamicDirective | GridBlock;
@@ -41,16 +41,15 @@ export function parseChordPro(original: string, fallbackTitle: string): ParsedSo
       case 'title': case 't': if (value.trim()) song.title = value.trim(); break;
       case 'key': song.key = value.trim() || null; break;
       case 'time':
-        if (/^(?:[1-9]\d*(?:\s*\+\s*[1-9]\d*)*\s*\/\s*[1-9]\d*|C\|?)$/.test(value.trim())) {
-          const time = value.replace(/\s/g, '');
+        if (value.trim()) {
+          const time = /^(?:[1-9]\d*(?:\s*\+\s*[1-9]\d*)*\s*\/\s*[1-9]\d*|C\|?)$/.test(value.trim()) ? value.replace(/\s/g, '') : value.trim();
           if (!timeSeen) song.time = time; else emitInstruction({kind:'comment',text:time,sourceLine:index});
           timeSeen = true;
         }
-        else emitInstruction({kind: 'unknown', text: line, sourceLine: index});
         break;
       case 'comment': case 'c': emitInstruction({kind: 'comment', text: value, sourceLine: index}); break;
       case 'x_dyn':
-        if (/^[1-5]$/.test(value.trim())) {song.hasDynamics = true;emitInstruction({kind: 'dynamic', level: Number(value.trim()) as DynamicLevel});}
+        if (/^[1-5]$/.test(value.trim())) {song.hasDynamics = true;emitInstruction({kind: 'dynamic', level: Number(value.trim()) as DynamicLevel, sourceLine: index});}
         else emitInstruction({kind: 'comment', text: `Ugyldig dynamikknivå «${value}». Bruk 1–5; forrige nivå beholdes.`});
         break;
       case 'start_of_grid': case 'sog':
@@ -60,7 +59,7 @@ export function parseChordPro(original: string, fallbackTitle: string): ParsedSo
       case 'soc': case 'start_of_chorus': finishGrid(); finish(); chorus = [];chorusLine=index; break;
       case 'eoc': case 'end_of_chorus': finishGrid(); finish(); break;
       case 'chorus':
-        finishGrid(); finish(); song.blocks.push({kind: 'reference', occurrence: `line:${index}`, content: previous}); break;
+        finishGrid(); finish(); song.blocks.push({kind: 'reference', occurrence: `line:${index}`, content: previous?.filter(item=>item.kind!=='dynamic').map(item=>item.kind==='grid'?{...item,rows:item.rows.filter(row=>row.kind!=='dynamic')}:item) ?? null}); break;
       default: emitInstruction({kind: 'unknown', text: line, sourceLine: index});
     }
   });

@@ -97,7 +97,8 @@ export function setMetadata(song: Song, field: 'title' | 'key' | 'time', value: 
   if (field === 'title' && !clean) throw Error('Skriv en tittel.');
   if (/[\r\n{}]/.test(clean)) throw Error('Verdien kan ikke inneholde linjeskift eller klammer.');
   const matches = sourceLines(song.original).filter(l => l.directive && (l.directive.name === field || field === 'title' && l.directive.name === 't'));
-  if (matches.length > 1) throw Error('Flere direktiver for dette feltet. Rett dem i Råtekst først.');
+  if (matches.length > 1 && field === 'key') throw Error('Flere tagger for dette feltet. Rett dem i Råtekst først.');
+  if (field === 'title' && matches.length) return patchSong(song, matches.map(row => ({start: row.directive!.start, end: row.directive!.end, text: clean})));
   const row = matches[0];
   if (row) {
     const d = row.directive!;
@@ -132,10 +133,14 @@ export function sourceChords(line: SourceLine) {
   });
 }
 export function setChord(song: Song, lineIndex: number, offset: number, value: string, existing?: number): Song {
-  const row = sourceLines(song.original)[lineIndex];
-  if (!row) throw Error('Tekstposisjonen finnes ikke lenger.');
+  const rows = sourceLines(song.original), row = rows[lineIndex];
   const chord = value.trim();
   if (chord && !isChord(chord)) throw Error('Skriv en gyldig akkord, for eksempel C, F#m7 eller D/F#.');
+  if (!row) {
+    if(lineIndex===rows.length&&existing===undefined&&chord)return insertDirective(song,lineIndex,`[${chord}]`);
+    throw Error('Tekstposisjonen finnes ikke lenger.');
+  }
+  if(row.directive)throw Error('Velg en posisjon i sangteksten.');
   const tokens = sourceChords(row),
     token = existing === undefined ? undefined : tokens.find(t => t.start === existing);
   if (existing !== undefined && !token) throw Error('Akkorden er endret. Velg den på nytt.');
@@ -146,6 +151,16 @@ export function setChord(song: Song, lineIndex: number, offset: number, value: s
     end: token?.end ?? Math.min(at, row.start + row.text.length),
     text: chord ? `[${chord}]` : ''
   }]);
+}
+/** Moving a source chord is one source change; lyric coordinates do not change. */
+export function moveChord(song:Song,start:number,line:number,offset:number):{song:Song;start:number}{
+  const token=sourceLines(song.original).flatMap(sourceChords).find(chord=>chord.start===start);
+  if(!token)throw Error('Akkorden er endret. Velg den på nytt.');
+  const without=patchSong(song,[{start:token.start,end:token.end,text:''}]);
+  const next=setChord(without,line,offset,token.value),target=sourceLines(next.original)[line];
+  const inserted=sourceChords(target).filter(chord=>chord.offset===offset&&chord.value===token.value).at(-1);
+  if(!inserted)throw Error('Kunne ikke plassere akkorden.');
+  return{song:next,start:inserted.start};
 }
 export function insertDirective(song: Song, lineIndex: number, text: string): Song {
   const row = sourceLines(song.original)[lineIndex],

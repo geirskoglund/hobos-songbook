@@ -66,10 +66,10 @@ test('dynamics are ordered instructions, including inside grids and repeated cho
   assert.deepEqual(parsed.blocks.slice(0,3).map(block => block.kind), ['dynamic','line','dynamic']);
   const chorus = parsed.blocks.find(block => block.kind === 'chorus');
   const ref = parsed.blocks.find(block => block.kind === 'reference');
-  assert.deepEqual(chorus.content[0], {kind:'dynamic',level:4}); assert.deepEqual(ref.content, chorus.content);
+  assert.deepEqual(chorus.content[0], {kind:'dynamic',level:4,sourceLine:4}); assert.deepEqual(ref.content, chorus.content.filter(block=>block.kind!=='dynamic'));
   const grid = parsed.blocks.find(block => block.kind === 'grid');
   assert.deepEqual(grid.rows.map(row => row.kind), ['grid-row','dynamic','grid-row']);
-  assert.deepEqual(grid.rows[1], {kind:'dynamic',level:5});
+  assert.deepEqual(grid.rows[1], {kind:'dynamic',level:5,sourceLine:10});
   assert.equal(parsed.blocks.filter(block => block.kind === 'comment' && block.text.includes('Ugyldig dynamikknivå')).length, 3);
   assert.equal(parsed.blocks.at(-1).segments[0].text, 'Etter');
 });
@@ -105,5 +105,5 @@ test('time is derived from source, defaults to 4/4, and later changes remain at 
   assert.deepEqual(parsed.blocks.map(block=>block.text ?? block.segments?.[0].text),['Vals','6/8','Videre']);
   assert.equal(parseChordPro('{time: 3+2/8}','T').time,'3+2/8');
   assert.equal(parseChordPro('{time: C|}','T').time,'C|');
-  const invalid=parseChordPro('{time: feil}\nOrd','T');assert.equal(invalid.time,'4/4');assert.equal(invalid.blocks[0].kind,'unknown');
+  const free=parseChordPro('{time: Valsetakt}\nOrd','T');assert.equal(free.time,'Valsetakt');assert.equal(free.blocks[0].kind,'line');
 });

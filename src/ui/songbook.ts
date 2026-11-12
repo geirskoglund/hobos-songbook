@@ -59,7 +59,8 @@ export function startSongbook() {
     renderFrame=requestAnimationFrame(()=>{renderFrame=0;if(!active||!session)return;const view=captureView(active.id,null);view.chartReleased=chartReleasedState;void openSong(session.song,view,true);});
   }
   function changed(source=false){
-    const state=session!.personal,key=JSON.stringify([state.capo,state.chordGrid,state.tuning]);
+    const state=session!.personal,key=JSON.stringify([state.capo,state.chordGrid]);
+    const tuning=reader.querySelector('.song-tuning');if(tuning)tuning.textContent=state.tuning||'Standard stemming';
     if(source||visualPersonal!==key){visualPersonal=key;redraw();}else editor?.refresh();
     void flush();
   }
@@ -264,7 +265,7 @@ export function startSongbook() {
     catch (error) {notify(error instanceof Error ? error.message : 'Kunne ikke hente personlig tilstand.', true); return;}
     if(!session||session.song.id!==song.id){editor?.dispose();editor=undefined;session=createEditSession(song,personal);chartReleasedState=Boolean(resume?.chartReleased);}
     song=session.song;personal=session.personal;active=song;
-    visualPersonal=JSON.stringify([personal.capo,personal.chordGrid,personal.tuning]);
+    visualPersonal=JSON.stringify([personal.capo,personal.chordGrid]);
     editMenu.hidden=false;editMenu.replaceChildren(icon(editing?'visning':'rediger'),element('span',editing?'Visning':'Rediger'));
     editMenu.setAttribute('aria-label',editing?'Visning':'Rediger');
     document.body.classList.toggle('editing-active', Boolean(editing));
@@ -282,7 +283,7 @@ export function startSongbook() {
     const showMetadata=()=>{
       const state=personalState();
       if(state.capo||editing){const key=gripKey(parsed.key,state.capo??0);metadata.append(element('span',state.capo?`Capo ${state.capo}${key?`: ${key}`:''}`:'Uten capo','song-key'));}
-      if(state.tuning||editing)metadata.append(element('span',state.tuning||'Standard stemming','song-key'));
+      if(state.tuning||editing)metadata.append(element('span',state.tuning||'Standard stemming','song-key song-tuning'));
     };
     let disposeDock = () => {};
     let chartReleased=chartReleasedState;
@@ -309,16 +310,16 @@ export function startSongbook() {
       if (block.kind === 'chorus') {
         const section = element('section', undefined, 'chorus');section.dataset.chorusStart=String(block.sourceLine);
         const body = element('div', undefined, 'chorus-text'); body.append(renderContent(block.content, dynamicsContext));
-        section.append(element('h2', 'Refreng'), body); bodyContent.append(section);
+        const heading=element('h2','Refreng');heading.dataset.sourceLine=String(block.sourceLine);section.append(heading, body); bodyContent.append(section);
       } else if (block.kind === 'reference') {
         if(!block.content){const missing=element('section',undefined,'chorus reference');missing.dataset.referenceLine=block.occurrence.replace('line:','');missing.append(element('h2','Refreng'),element('p','Refreng — ingen tidligere refrengtekst er definert.','comment'));bodyContent.append(missing);continue;}
         const section = element('section', undefined, 'chorus reference');section.dataset.referenceLine=block.occurrence.replace('line:','');
-        const heading = element('h2'), button = element('button', 'Refreng'); button.type = 'button';
+        const heading = element('h2'), button = element('button', 'Refreng'); button.type = 'button';heading.dataset.sourceLine=block.occurrence.replace('line:','');
         button.setAttribute('aria-label', 'Refreng');
         const body = element('div', undefined, 'chorus-text'); body.id = `chorus-${block.occurrence.replace(':', '-')}`;
         body.append(renderContent(block.content, dynamicsContext));
         dynamicsContext.spokenLevel = undefined; // The following content stays accessible when this body is collapsed.
-        let expanded = personal.chorus[block.occurrence] === true;
+        let expanded = !editing && personal.chorus[block.occurrence] === true;
         const reflect = () => {button.setAttribute('aria-expanded', String(expanded)); body.hidden = !expanded;};
         button.setAttribute('aria-controls', body.id); reflect();
         button.addEventListener('click', async () => {
@@ -334,7 +335,7 @@ export function startSongbook() {
           catch {if (active?.id === song.id) notify('Refrengvalget kunne ikke lagres. Prøv igjen; tidligere valg er beholdt.', true);}
           finally {button.disabled = false;}
         });
-        heading.append(button); section.append(heading, body); bodyContent.append(section);
+        if(editing)heading.textContent='Refreng';else heading.append(button); section.append(heading, body); bodyContent.append(section);
       } else bodyContent.append(renderContent([block], dynamicsContext));
     }
     paintAnnotations(bodyContent, song, personalState());

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {sourceLines,sourceChords,setChord,setMetadata,insertDirective,setDirective,sourceBlocks,setChorus,removeSourceBlock,transposeSong,patchSong,mergeRawSource} from '../src/domain/source-edit.ts';
+import {sourceLines,sourceChords,setChord,moveChord,setMetadata,insertDirective,setDirective,sourceBlocks,setChorus,removeSourceBlock,transposeSong,patchSong,mergeRawSource} from '../src/domain/source-edit.ts';
 import {createEditSession} from '../src/domain/edit-session.ts';
 import {withOriginal} from '../src/domain/original.ts';
 import {shiftGridText} from '../src/domain/personal.ts';
@@ -14,7 +14,7 @@ test('source offsets preserve BOM, aliases, mixed endings and unknown directives
  assert.equal(setChord(initial,3,2,'Am').original,source.replace('Hei','He[Am]i'));
  assert.equal(setChord(initial,3,4,'',token.start).original,source.replace('[G/B]',''));
  assert.equal(patchSong(initial,[]).original,source);
- assert.throws(()=>setMetadata(song('{title: A}\n{t: B}\nOrd'),'title','C'),/Flere/);
+ assert.equal(setMetadata(song('{title: A}\n{t: B}\nOrd'),'title','C').original,'{title: C}\n{t: C}\nOrd');
 });
 test('chorus boundaries are whole source lines; resizing/removing keeps words and unrelated source',()=>{
  const initial=song('Før\r\nEn\r\nTo\r\nEtter\r\n');
@@ -23,6 +23,13 @@ test('chorus boundaries are whole source lines; resizing/removing keeps words an
  assert.equal(removeSourceBlock(marked,block).original,initial.original);
  const resized=setChorus(marked,2,2,block.start.index);assert.equal(resized.original,'Før\r\n{soc}\r\nEn\r\n{eoc}\r\nTo\r\nEtter\r\n');
  assert.equal(setChorus(song('En'),0,0).original,'{soc}\nEn\n{eoc}\n');
+});
+test('moving a chord preserves lyrics and exact unrelated bytes and creates one atomic history step',()=>{
+ const source='\uFEFF{t: Flytt}\r\n[C]abcdef [G/B]ord\rNeste\n{x_future: behold}\r\n',initial=song(source),token=sourceChords(sourceLines(source)[1])[0];
+ const same=moveChord(initial,token.start,1,3);assert.equal(same.song.original,source.replace('[C]abcdef','abc[C]def'));assert.equal(sourceChords(sourceLines(same.song.original)[1]).find(c=>c.start===same.start).offset,3);
+ const session=createEditSession(initial,personal),next=moveChord(initial,token.start,2,2);session.replaceOriginal(next.song);assert.equal(session.song.original,source.replace('[C]','').replace('Neste','Ne[C]ste'));assert.equal(session.undo(),true);assert.equal(session.song.original,source);assert.equal(session.undo(),false);
+ assert.equal(moveChord(initial,token.start,1,0).song.original,source);
+ assert.throws(()=>moveChord(initial,token.start,0,0),/sangteksten/);
 });
 test('toneart transposes all inline and shared grids once; first key assignment does not move chords',()=>{
  const source='{title: T}\n{key: C}\n[C]Ord [G/B]mer\n{sog}\n| C G/B . N.C. |\n{eog}\n{soc}\n[F]Kor\n{eoc}\n{x_future: C}\n';

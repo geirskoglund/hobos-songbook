@@ -4,6 +4,18 @@ import type {Song, SongPersonal} from '../domain/song.ts';
 export interface TextSpan {line: HTMLElement; start: number; end: number}
 interface Selection {parts: TextSpan[]; id?: string}
 export const lyricText = (line: HTMLElement) => [...line.querySelectorAll<HTMLElement>('.lyric')].map(node => (node.textContent ?? '').slice(0,Number(node.dataset.length))).join('');
+/** Character-precise placement, including inside words split by chord segments. */
+export function lyricOffsetAt(line:HTMLElement,x:number,y:number):number{
+  let result=0,distance=Infinity;
+  for(const lyric of line.querySelectorAll<HTMLElement>('.lyric')){
+    const walker=document.createTreeWalker(lyric,NodeFilter.SHOW_TEXT);let node:Node|null,local=0;
+    while((node=walker.nextNode())){const text=node.textContent??'',length=text.length;for(let i=0;i<length;){const step=String.fromCodePoint(text.codePointAt(i)!).length;
+      const range=document.createRange();range.setStart(node,i);range.setEnd(node,i+step);const rect=range.getBoundingClientRect(),dy=Math.max(rect.top-y,0,y-rect.bottom);
+      for(const [edge,at] of [[rect.left,i],[rect.right,i+step]]){const score=dy*100+Math.abs(edge-x);if(score<distance){distance=score;result=Number(lyric.dataset.offset)+Math.min(Number(lyric.dataset.length),local+at);}}i+=step;
+    }local+=length;}
+  }
+  return result;
+}
 const visible = (node: HTMLElement) => !node.closest('[hidden]') && node.getClientRects().length > 0;
 /** Clip the actual selection to each lyric node, including across logical lines. */
 export function nativeLyricSpans(root: HTMLElement): TextSpan[] {
@@ -69,7 +81,8 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     const all = rows(),parts=selection.parts.filter(part=>visible(part.line)),first=parts[0] ?? selection.parts[0],last=parts.at(-1) ?? first;
     return {start:(all.find(row=>row.line===first.line)?.at ?? 0)+first.start,end:(all.find(row=>row.line===last.line)?.at ?? 0)+last.end};
   }
-  function spans(start: number, end: number) {return rows().flatMap(row => {const from=Math.max(0,start-row.at),to=Math.min(row.text.length,end-row.at); return to>from ? [{line:row.line,start:from,end:to}] : [];});}
+  function wholeWords(parts: TextSpan[]) {return parts.flatMap(part=>{const text=lyricText(part.line);let start=part.start,end=part.end;while(start<end&&/\s/u.test(text[start]))start++;while(end>start&&/\s/u.test(text[end-1]))end--;if(end<=start)return[];while(start>0&&!/\s/u.test(text[start-1]))start--;while(end<text.length&&!/\s/u.test(text[end]))end++;return[{line:part.line,start,end}];});}
+  function spans(start: number, end: number) {return wholeWords(rows().flatMap(row => {const from=Math.max(0,start-row.at),to=Math.min(row.text.length,end-row.at); return to>from ? [{line:row.line,start:from,end:to}] : [];}));}
   function atPoint(x: number, y: number): number | undefined {
     const all = rows();
     const doc=document as Document & {caretPositionFromPoint?:(x:number,y:number)=>{offsetNode:Node;offset:number}|null;caretRangeFromPoint?:(x:number,y:number)=>Range|null};
@@ -117,6 +130,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
   }
   function reference(part: TextSpan): LineAnchor {return anchorFor(song,Number(part.line.dataset.sourceLine),part.line.dataset.occurrence!,lyricText(part.line));}
   function replace(previous: Selection | undefined, next: TextSpan[], id=previous?.id ?? crypto.randomUUID()) {
+    next=wholeWords(next);
     const oldParts=previous?.parts ?? [], added=next.map(part=>({...part,anchor:reference(part)}));
     update(current=>{
       let state=current;
@@ -167,6 +181,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
         else{pending=parts;overlay.dataset.pending='';preview(parts);}
         ignoreClick=true;
       }else if(cancel)clear();else if(gesture.mark){selectMark(gesture.mark);if(toolFirst)applied();ignoreClick=true;}
+      else if(gesture.armed){const parts=spans(gesture.start,gesture.start+1);if(parts.length){replace(undefined,parts);applied();ignoreClick=true;}}
     }
     if(handleGesture&&(!event||event.pointerId===handleGesture.pointer)){
       const gesture=handleGesture,next=selected;handleGesture=undefined;gesture.stop();overlay.replaceChildren();unmute();
@@ -180,7 +195,8 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     const handle=(event.target as Element).closest<HTMLElement>('.highlight-handle');
     if(handle&&selected&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){
       event.preventDefault();const edge=handle.dataset.edge as 'start'|'end',b=bounds(selected),length=rows().at(-1)!,max=length.at+length.text.length;
-      const at=event.key==='Home'?(edge==='start'?0:b.start+1):event.key==='End'?(edge==='end'?max:b.end-1):b[edge]+(event.key==='ArrowRight'?1:-1);
+      const boundaries=rows().flatMap(row=>[...row.text.matchAll(/\S+/gu)].map(word=>row.at+word.index+(edge==='end'?word[0].length:0))).sort((a,b)=>a-b);
+      const at=event.key==='Home'?(edge==='start'?0:b.start+1):event.key==='End'?(edge==='end'?max:b.end-1):event.key==='ArrowRight'?boundaries.find(at=>at>b[edge])??max:[...boundaries].reverse().find(at=>at<b[edge])??0;
       if(at>=0&&at<=max){b[edge]=at;if(b.end>b.start){const parts=spans(b.start,b.end);if(parts.length)replace(selected,parts);}}
     }
     if(event.key==='Escape'){finish(undefined,true);clear();}

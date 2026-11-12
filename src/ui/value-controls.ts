@@ -1,4 +1,4 @@
-import { actionButton, icon, textInput, textArea } from './controls.ts';
+import { actionButton, icon, textInput } from './controls.ts';
 import { dialogFrame, openDialog } from './dialog.ts';
 import { placeOverlay } from './layout.ts';
 export function valueControl(options: {
@@ -7,7 +7,7 @@ export function valueControl(options: {
   anchor: HTMLElement;
   value: string;
   submitOnly?: boolean;
-  multiline?: boolean;
+  point?: {x: number; y: number};
   numeric?: {
     min: number;
     max: number;
@@ -83,21 +83,23 @@ export function valueControl(options: {
     focus = number;
     commit(String(value));
   } else {
-    const input = options.multiline ? textArea('value-input', options.value, options.name, 2) : textInput('value-input', options.value, options.name);
+    const input = textInput('value-input', options.value, options.name);
+    let edited = false;
     input.autocomplete = 'off';
     input.spellcheck = false;
-    pending = () => input.value !== lastCommitted;
+    pending = () => edited && input.value !== lastCommitted;
     input.addEventListener('input', () => {
+      edited = true;
       clearTimeout(timer);
       timer = window.setTimeout(() => commit(input.value), 180);
     });
     finish = () => {
       clearTimeout(timer);
-      return commit(input.value, true);
+      return !edited || commit(input.value, true);
     };
     input.addEventListener('keydown', rawEvent => {
       const event = rawEvent as KeyboardEvent;
-      if (event.key === 'Enter' && (!options.multiline || event.ctrlKey || event.metaKey)) {
+      if (event.key === 'Enter') {
         event.preventDefault();
         if (finish()) lifecycle.close();
       }
@@ -108,7 +110,8 @@ export function valueControl(options: {
   const rect = options.anchor.getBoundingClientRect();
   const close = () => {
     if (closing) return;
-    if (finish()) lifecycle.close();
+    finish();
+    lifecycle.close();
   };
   box.addEventListener('keydown', event => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') event.preventDefault();
@@ -123,10 +126,7 @@ export function valueControl(options: {
     focus,
     place: () => placeOverlay(box, undefined, {
       width: options.numeric ? 230 : 320,
-      point: {
-        x: rect.left,
-        y: rect.bottom + 8
-      }
+      point: options.point ?? {x: rect.left, y: Math.max(rect.bottom, options.anchor.closest('.edit-toolbar')?.getBoundingClientRect().bottom ?? rect.bottom) + 12}
     }),
     outside: true,
     cancel: close,

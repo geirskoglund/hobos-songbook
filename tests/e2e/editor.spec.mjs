@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {importSong,savedSongs,savedPersonal,editSong,tool,rawEditor,fillValue,setCapo,goSongs,openSettings,closeSettings} from './song-helpers.mjs';
+import {selectElement,importSong,savedSongs,savedPersonal,editSong,tool,rawEditor,fillValue,setCapo,goSongs,openSettings,closeSettings} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
 const source='\uFEFF{title: Arbeid}\r\n{key: C}\r\n{time: 4/4}\r\n{sog}\r\n| C G/B . |\r\n{eog}\r\n{x_dyn: 2}\r\n[C]Hei på [G]deg\r\nNeste linje\r\n{soc}\r\n[F]Syng med\r\n{eoc}\r\n{chorus}\r\n{x_future: behold}\r\n';
 const saveRaw=async page=>{await page.getByRole('dialog',{name:'Råtekst',exact:true}).getByRole('button',{name:'Lagre',exact:true}).click();await expect(page.getByRole('dialog',{name:'Råtekst',exact:true})).not.toBeVisible();};
@@ -38,10 +38,10 @@ test('shared/personal grids and chord entry use visible capo grips; toneart chan
  await tool(page,'Akkorder');await page.locator('.chord[data-chord-start]').first().click();await fillValue(page,'Akkord','  ');await expect.poll(async()=>(await savedSongs(page))[0].original).toContain('\r\nHei på');
 });
 
-test('notes autosave, retain logical identity, draw F05 in both modes and use persistent cross-tab Remove',async({page})=>{
- await importSong(page,'arbeid.cho',source);await tool(page,'Notater',true);await page.locator('.song-line').first().click();await fillValue(page,'Notat','Husk\nto stemmer');await expect.poll(async()=>Object.values((await savedPersonal(page))[0].notes??{}).map(n=>n.text)).toEqual(['Husk\nto stemmer']);
+test('notes autosave, retain logical identity, draw F05 in both modes and remove the selected element across tabs',async({page})=>{
+ await importSong(page,'arbeid.cho',source);await tool(page,'Notater',true);await page.locator('.song-line').first().click();await fillValue(page,'Notat','Husk to stemmer');await expect.poll(async()=>Object.values((await savedPersonal(page))[0].notes??{}).map(n=>n.text)).toEqual(['Husk to stemmer']);
  await expect(page.locator('.annotation-connectors line')).toHaveCount(1);await page.getByRole('button',{name:'Visning',exact:true}).click();await expect(page.locator('.annotation-connectors line')).toHaveCount(1);await expect(page.locator('.personal-note button')).toHaveCount(0);
- await tool(page,'Fjern');await page.getByRole('tab',{name:'Egentilpasning',exact:true}).click();await expect(page.getByRole('button',{name:'Fjern',exact:true})).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'Fjern notat',exact:true}).click();await expect.poll(async()=>Object.keys((await savedPersonal(page))[0].notes??{})).toHaveLength(0);await expect(page.getByRole('button',{name:'Fjern',exact:true})).toHaveAttribute('aria-pressed','true');
+ await selectElement(page,page.locator('.personal-note'));await page.getByRole('tab',{name:'Egentilpasning',exact:true}).click();await expect(page.getByRole('button',{name:'Fjern',exact:true})).toBeEnabled();await page.getByRole('button',{name:'Fjern',exact:true}).click();await expect.poll(async()=>Object.keys((await savedPersonal(page))[0].notes??{})).toHaveLength(0);await expect(page.getByRole('button',{name:'Fjern',exact:true})).toBeDisabled();
  await page.getByRole('button',{name:'Capo',exact:true}).click();await expect(page.locator('[data-remove-element]')).toHaveCount(0);await page.keyboard.press('Escape');
 });
 

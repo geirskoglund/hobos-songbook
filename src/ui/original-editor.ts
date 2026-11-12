@@ -55,7 +55,7 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
   toolbar.addEventListener('pointercancel', () => {
     if (gesture) gesture.cancelled = true;
   });
-  for (const tag of ['{title: }', '{key: }', '{time: }', '{soc}', '{eoc}', '{chorus}', '{comment: }', '{x_dyn: }', '{sog}', '{eog}']) {
+  for (const tag of ['[]', '{title: }', '{key: }', '{time: }', '{soc}', '{eoc}', '{chorus}', '{comment: }', '{x_dyn: }', '{sog}', '{eog}']) {
     const button = actionButton(tag, () => {
       if (busy) return;
       if (gesture && (gesture.cancelled || gesture.scroll !== toolbar.scrollTop)) {
@@ -67,7 +67,7 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
       field.focus({
         preventScroll: true
       });
-      history.insert(tag, position, tag.includes(':') ? tag.length - 1 : tag.length);
+      history.insert(tag, position, tag === '[]' ? 1 : tag.includes(':') ? tag.length - 1 : tag.length);
       field.scrollTop = scroll;
       remember();
       error.textContent = '';
@@ -142,7 +142,7 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
   document.body.classList.add('original-open');
   const lifecycle = openDialog(box, {
     opener,
-    focus: heading,
+    focus: initial === '{t: }\n' ? field : heading,
     place: () => placeOverlay(box, undefined, {
       fullscreen: true
     }),
@@ -153,6 +153,7 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
       document.body.classList.remove('original-open');
     }
   });
+  if (initial === '{t: }\n') {field.setSelectionRange(4, 4); remember();}
   return {
     dispose: cancel,
     dirty: () => !closed && (field.value !== displayInitial || submitted),
