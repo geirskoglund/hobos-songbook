@@ -11,7 +11,7 @@ export interface LogicalLine {occurrence: string; sourceLine: number; text: stri
 export function logicalLines(song: Pick<Song, 'original' | 'title'>): LogicalLine[] {
   const result: LogicalLine[] = [];
   const add = (content: Content[], occurrence: string) => {
-    for (const item of content) if ('sourceLine' in item && item.sourceLine !== undefined) result.push({
+    for (const item of content) if ((item.kind==='line'||item.kind==='comment'||item.kind==='unknown') && item.sourceLine !== undefined) result.push({
       occurrence: `${occurrence}/line:${item.sourceLine}`, sourceLine: item.sourceLine,
       text: item.kind === 'line' ? item.segments.map(segment => segment.text).join('') : item.text,
     });
@@ -30,6 +30,7 @@ export function noteAt(personal: SongPersonal, line: number): [string, PersonalN
   return Object.entries(personal.notes ?? {}).find(([, note]) => note.line === line);
 }
 export function changeNote(current: SongPersonal, id: string, note: PersonalNote | undefined): SongPersonal {
+  if(note&&(!Number.isSafeInteger(note.line)||note.line<0))throw Error('Velg en gyldig tekstlinje for notatet.');
   const notes = {...current.notes};
   if (note?.text.trim()) notes[id] = note; else delete notes[id];
   return {...current, notes: Object.keys(notes).length ? notes : undefined};
@@ -46,7 +47,7 @@ export function cleanPersonal(current: SongPersonal): SongPersonal {
   const {annotations: oldAnnotations, notes: oldNotes, ...rest} = current;
   let result: SongPersonal = {...rest, version: 3};
   for (const [id, note] of Object.entries(oldNotes ?? {})) {
-    if (note && Number.isInteger(note.line) && note.line >= 0 && typeof note.text === 'string') result = changeNote(result, id, {line: note.line, text: note.text});
+    if (note && typeof note.text === 'string') result = changeNote(result, id, {line:Number.isSafeInteger(note.line)&&note.line>=0?note.line:Number.MAX_SAFE_INTEGER,text:note.text});
   }
   for (const [key, annotation] of Object.entries(oldAnnotations ?? {})) {
     if (!annotation?.anchor || annotation.anchor.occurrence !== key || !Array.isArray(annotation.highlights)) continue;
@@ -109,7 +110,10 @@ function shiftRange(range: Highlight, before: string, after: string): Highlight 
 export function reconcilePersonal(before: Song, after: Song, personal: SongPersonal): SongPersonal {
   if (before.original === after.original) return personal;
   const oldRows = logicalLines(before), newRows = logicalLines(after), positions = align(oldRows, newRows);
-  let result: SongPersonal = {...personal, annotations: undefined};
+  const sourceRows=(song:Song)=>song.original.replace(/^\uFEFF/,'').split(/\r\n|\r|\n/).map((text,index)=>({text,sourceLine:index,occurrence:`line:${index}`}));
+  const oldSource=sourceRows(before),newSource=sourceRows(after),sourceMap=align(oldSource,newSource),chorus:Record<string,boolean>={};
+  for(const [key,value] of Object.entries(personal.chorus)){const index=Number(key.replace(/^line:/,'')),next=sourceMap.get(index);if(next!==undefined&&/^\s*\{chorus\s*\}\s*$/i.test(newSource[next]?.text??''))chorus[`line:${next}`]=value;}
+  let result: SongPersonal = {...personal, chorus, annotations: undefined};
   for (const annotation of Object.values(personal.annotations ?? {})) {
     const oldIndex = oldRows.findIndex(row => row.occurrence === annotation.anchor.occurrence), newIndex = positions.get(oldIndex);
     if (newIndex === undefined) continue;

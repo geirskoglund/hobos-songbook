@@ -22,12 +22,9 @@ test('legacy light preference starts dark and keeps other display values',async(
  await page.goto(url);await expect(page.locator('html')).toHaveAttribute('data-theme','dark');await expect(page.locator('#theme')).toHaveCount(0);await expect(page.locator('#font-size')).toHaveValue('31');await expect(page.locator('#show-grids')).not.toBeChecked();await expect(page.locator('#show-dynamics')).not.toBeChecked();
  await openSettings(page);await page.locator('#show-grids').check();const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('hobos-songbook-test:display')));expect(saved).toMatchObject({theme:'dark',fontSize:31,showGrids:true,showDynamics:false});
 });
-test('settings visit retains an unsaved song draft; actual navigation owns leave decisions',async({page})=>{
- await page.goto(url);await importSong(page,'draft.txt','{t: Utkast}\nBehold dette');const original=await savedSongs(page);
- await page.locator('#edit-song').click();await setCapo(page,2);await openSettings(page);await page.locator('#font-size').fill('30');await page.locator('#font-size').dispatchEvent('input');await closeSettings(page);
- await expect(page.locator('#capo-pill')).toContainText('2');await expect(page.locator('#edit-save')).toBeEnabled();expect(await savedSongs(page)).toEqual(original);
- await openMenu(page);await page.getByRole('button',{name:'Setlister',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Ulagrede endringer'});await expect(dialog.locator('.dialog-footer')).toHaveAttribute('data-count','3');await expect(dialog.getByRole('button',{name:'Fortsett redigering'})).toBeFocused();await dialog.getByRole('button',{name:'Fortsett redigering'}).click();await expect(page.locator('#capo-pill')).toContainText('2');
- await openMenu(page);await page.getByRole('button',{name:'Setlister',exact:true}).click();await dialog.getByRole('button',{name:'Forkast endringer'}).click();await expect(page.locator('#setlists')).toBeVisible();await expect(page.locator('.edit-toolbar')).toHaveCount(0);expect(await savedSongs(page)).toEqual(original);
+test('settings retain autosaved song context and actual navigation leaves the editor cleanly',async({page})=>{
+ await page.goto(url);await importSong(page,'draft.txt','{t: Utkast}\nBehold dette');const original=await savedSongs(page);await setCapo(page,2);await openSettings(page);await page.locator('#font-size').fill('30');await page.locator('#font-size').dispatchEvent('input');await closeSettings(page);await expect(page.locator('.song-metadata')).toContainText('Capo 2');expect(await savedSongs(page)).toEqual(original);
+ await openMenu(page);await page.getByRole('button',{name:'Setlister',exact:true}).click();await expect(page.locator('#setlists')).toBeVisible();await expect(page.locator('.edit-toolbar')).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Ulagrede endringer'})).toHaveCount(0);expect(await savedSongs(page)).toEqual(original);
 });
 test('one measured header boundary follows a real layout change',async({page})=>{
  await page.goto(url);await importSong(page,'layout.cho','{t: Rammer}\n{sog}\n| D | A |\n{eog}\n'+('Tekst\n').repeat(80));

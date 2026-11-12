@@ -1,39 +1,24 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {originalDocument, originalChangeError, withOriginal, newSong} from '../src/domain/original.ts';
-const song = original => ({id:'stable',original,title:'Filnavn',key:null,origin:{kind:'local',filename:'Filnavn.txt',importedAt:'dato'}});
-test('no-op preserves exact source, fallback, BOM, aliases and every line ending',()=>{
-  for (const source of ['Ord','\uFEFFOrd\r\n\r\n','{t: Tittel}\r{key: D}\rTekst\r','\uFEFF {title: Tittel} \r\n{time: 6/8}\nTekst\rSiste','{title: Først}\n{t: Sist}\nOrd','{key: D}\n[D]Ord\n{x_future: behold}']) {
-    const model=originalDocument(song(source));assert.equal(model.apply(model.fields),source);
-  }
+import {withOriginal,newSong} from '../src/domain/original.ts';
+import {parseChordPro} from '../src/domain/chordpro.ts';
+import {setMetadata,patchSong} from '../src/domain/source-edit.ts';
+const song=original=>withOriginal({...newSong(),title:'Filnavn'},original);
+test('unchanged raw source preserves exact BOM, aliases, unknown directives and all line endings',()=>{
+ for(const source of ['Ord','\uFEFFOrd\r\n\r\n','{t: Tittel}\r{key: D}\rTekst\r','\uFEFF {title: Tittel} \r\n{time: 6/8}\nTekst\rSiste','{title: Først}\n{t: Sist}\nOrd','{key: D}\n[D]Ord\n{x_future: behold}'])assert.equal(patchSong(song(source),[]).original,source);
 });
-test('surgical edits preserve untouched spelling, whitespace and mixed endings',()=>{
-  const source='\uFEFF {t: Gammel} \r\n{key: Db}\r{time: 6/8}\nFørst\r\nSist\r';
-  const model=originalDocument(song(source));
-  assert.equal(model.apply({...model.fields,title:'Ny',time:'3/4',text:'Først\nEndret\n'}),'\uFEFF {t: Ny} \r\n{key: Db}\r{time: 3/4}\nFørst\r\nEndret\r');
-  assert.equal(model.apply({...model.fields,time:''}),'\uFEFF {t: Gammel} \r\n{key: Db}\rFørst\r\nSist\r');
+test('metadata surgery leaves untouched whitespace and mixed source endings intact',()=>{
+ const source='\uFEFF {t: Gammel} \r\n{key: Db}\r{time: 6/8}\nFørst\r\nSist\r';
+ assert.equal(setMetadata(setMetadata(song(source),'title','Ny'),'time','3/4').original,source.replace('Gammel','Ny').replace('6/8','3/4'));
+ assert.equal(setMetadata(song(source),'time','').original,source.replace('{time: 6/8}\n',''));
+ assert.equal(setMetadata(song('{time: 4/4}\nOrd\n{time: 3/4}\nVals'),'time','4/4 Trainbeat').original,'{time: 4/4 Trainbeat}\nOrd\n{time: 3/4}\nVals');
 });
-test('new and fallback songs only gain deliberately edited metadata',()=>{
-  const fresh=newSong(), other=newSong();assert.notEqual(fresh.id,other.id);assert.equal(fresh.original,'');
-  const model=originalDocument(fresh);assert.equal(model.fields.title,'');
-  const source=model.apply({...model.fields,title:'Ny sang'});assert.equal(source,'{title: Ny sang}\n');
-  const plain=originalDocument(song('Ord\r\n'));assert.equal(plain.apply({...plain.fields,text:'Nye ord\n'}),'Nye ord\r\n');
-  assert.equal(plain.apply({...plain.fields,key:'D'}),'{key: D}\r\nOrd\r\n');
-  assert.throws(()=>model.apply({...model.fields,title:'   '}),/tittel/);
+test('new songs have distinct stable provisional IDs and only deliberately supplied metadata',()=>{
+ const a=newSong(),b=newSong();assert.notEqual(a.id,b.id);assert.equal(a.original,'{t: }\n');assert.equal(a.songbookId,'standard');
+ assert.equal(setMetadata(a,'title','Ny sang').original,'{t: Ny sang}\n');assert.equal(setMetadata(song('Ord\r\n'),'key','D').original,'{key: D}\r\nOrd\r\n');
+ assert.throws(()=>setMetadata(a,'title','   '),/tittel/);
 });
-test('structures remain protected and first key never transposes chords',()=>{
-  for(const source of ['[D]Ord','{comment: Rolig}\nOrd','{soc}\nOrd\n{eoc}\n{chorus}','{sog}\n| D |\n{eog}','{x_dyn: 2}\nOrd','{unknown: behold}\nOrd','Ord\n{title: Midt i}']) {
-    const model=originalDocument(song(source));assert.equal(model.bodyProtected,true);assert.throws(()=>model.apply({...model.fields,text:'Erstatt'}),/låst/);assert.equal(model.apply(model.fields),source);
-  }
-  const model=originalDocument(song('[Db]Ord'));assert.equal(model.apply({...model.fields,key:'Db'}),'{key: Db}\n[Db]Ord');
-  const keyed=originalDocument(song('{key: Db}\n[Db]Ord'));assert.throws(()=>keyed.apply({...keyed.fields,key:'D'}),/transponering/);
-  const plain=originalDocument(song('Ord'));for(const text of ['{soc}','[D]Akkord'])assert.throws(()=>plain.apply({...plain.fields,text}),/koder/);
-});
-test('ambiguous metadata, annotation anchors and chorus occurrence identity are not silently rewritten',()=>{
-  const model=originalDocument(song('{title: A}\n{t: B}\nOrd'));assert.throws(()=>model.apply({...model.fields,title:'C'}),/flere direktiver/);
-  const before=song('Ord'),after=withOriginal(before,'{title: Ny}\nOrd'),personal={songId:'stable',chorus:{}};
-  assert.equal(originalChangeError(before,after,personal),undefined);
-  assert.equal(originalChangeError(before,after,{...personal,notes:{one:{line:0,text:'Husk'}}}),undefined);
-  assert.match(originalChangeError(before,after,{...personal,chorus:{'line:2':true}}),/refreng/);
-  assert.equal(originalChangeError(before,before,{...personal,annotations:{line:{note:'Husk',highlights:[]}}}),undefined);
+test('raw edits accept structures and time accepts free text',()=>{
+ const before=song('{soc}\nOrd\n{eoc}\n{chorus}');assert.equal(withOriginal(before,'{soc}\nNye ord\n{eoc}').id,before.id);
+ for(const value of ['4/4','3/4','6/8','3+2/8','C','C|','Valsetakt','4/4 Trainbeat'])assert.equal(parseChordPro(setMetadata(before,'time',value).original,'T').time,value);
 });

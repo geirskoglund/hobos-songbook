@@ -4,6 +4,19 @@ import type {Song, SongPersonal} from '../domain/song.ts';
 export interface TextSpan {line: HTMLElement; start: number; end: number}
 interface Selection {parts: TextSpan[]; id?: string}
 export const lyricText = (line: HTMLElement) => [...line.querySelectorAll<HTMLElement>('.lyric')].map(node => (node.textContent ?? '').slice(0,Number(node.dataset.length))).join('');
+/** Character-precise placement, including inside words split by chord segments. */
+export function lyricPositionAt(line:HTMLElement,x:number,y:number){
+  const bounds=line.getBoundingClientRect();let result={offset:0,x:bounds.left,top:bounds.top,height:Math.max(20,bounds.height)},distance=Infinity;
+  for(const lyric of line.querySelectorAll<HTMLElement>('.lyric')){
+    const walker=document.createTreeWalker(lyric,NodeFilter.SHOW_TEXT);let node:Node|null,local=0;
+    while((node=walker.nextNode())){const text=node.textContent??'',length=text.length;for(let i=0;i<length;){const step=String.fromCodePoint(text.codePointAt(i)!).length;
+      const range=document.createRange();range.setStart(node,i);range.setEnd(node,i+step);const rect=range.getBoundingClientRect(),dy=Math.max(rect.top-y,0,y-rect.bottom);
+      for(const [edge,at] of [[rect.left,i],[rect.right,i+step]]){const score=dy*100+Math.abs(edge-x);if(score<distance){distance=score;result={offset:Number(lyric.dataset.offset)+Math.min(Number(lyric.dataset.length),local+at),x:edge,top:rect.top,height:rect.height};}}i+=step;
+    }local+=length;}
+  }
+  return result;
+}
+export const lyricOffsetAt=(line:HTMLElement,x:number,y:number)=>lyricPositionAt(line,x,y).offset;
 const visible = (node: HTMLElement) => !node.closest('[hidden]') && node.getClientRects().length > 0;
 /** Clip the actual selection to each lyric node, including across logical lines. */
 export function nativeLyricSpans(root: HTMLElement): TextSpan[] {
@@ -38,14 +51,14 @@ export function edgeScroll(y: () => number, moved: () => void) {
   };
   frame = requestAnimationFrame(tick); return () => cancelAnimationFrame(frame);
 }
-export function createHighlightEditor(root: HTMLElement, song: Song, personal: () => SongPersonal, update: (fn: (current: SongPersonal) => SongPersonal) => void, applied: () => void) {
+export function createHighlightEditor(root: HTMLElement, song: Song, personal: () => SongPersonal, update: (fn: (current: SongPersonal) => SongPersonal) => void, applied: () => void,toolFirst=false) {
   let active = false, selected: Selection | undefined, ignoreClick = false, pending: TextSpan[] = [];
   const controls = document.createElement('div'); controls.className = 'highlight-controls'; controls.hidden = true;
   const overlay = document.createElement('div'); overlay.className = 'selection-preview'; overlay.setAttribute('aria-hidden','true');
   const make = (text: string, label: string) => {const b = document.createElement('button'); b.type = 'button'; b.textContent = text; b.setAttribute('aria-label',label); return b;};
   const startHandle = make('‹','Dra starten på markeringen'), remove = make('×','Fjern markering'), endHandle = make('›','Dra slutten på markeringen');
   for (const [edge,handle] of [['start',startHandle],['end',endHandle]] as const) {handle.className = `highlight-handle handle-${edge}`; handle.dataset.edge = edge; handle.setAttribute('role','slider');}
-  controls.append(startHandle,remove,endHandle); root.append(overlay,controls);
+  controls.append(startHandle,remove,endHandle);remove.hidden=toolFirst; root.append(overlay,controls);
   function rows() {let offset = 0; return [...root.querySelectorAll<HTMLElement>('.song-line[data-occurrence]')].filter(line => visible(line)&&lyricText(line).length>0).map(line => {const text = lyricText(line), at = offset; offset += text.length+1; return {line,text,at};});}
   function inLyric(lyric: HTMLElement, offset: number) {
     const walker=document.createTreeWalker(lyric,NodeFilter.SHOW_TEXT);let node:Node|null,at=offset;
@@ -69,7 +82,8 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     const all = rows(),parts=selection.parts.filter(part=>visible(part.line)),first=parts[0] ?? selection.parts[0],last=parts.at(-1) ?? first;
     return {start:(all.find(row=>row.line===first.line)?.at ?? 0)+first.start,end:(all.find(row=>row.line===last.line)?.at ?? 0)+last.end};
   }
-  function spans(start: number, end: number) {return rows().flatMap(row => {const from=Math.max(0,start-row.at),to=Math.min(row.text.length,end-row.at); return to>from ? [{line:row.line,start:from,end:to}] : [];});}
+  function wholeWords(parts: TextSpan[]) {return parts.flatMap(part=>{const text=lyricText(part.line);let start=part.start,end=part.end;while(start<end&&/\s/u.test(text[start]))start++;while(end>start&&/\s/u.test(text[end-1]))end--;if(end<=start)return[];while(start>0&&!/\s/u.test(text[start-1]))start--;while(end<text.length&&!/\s/u.test(text[end]))end++;return[{line:part.line,start,end}];});}
+  function spans(start: number, end: number) {return wholeWords(rows().flatMap(row => {const from=Math.max(0,start-row.at),to=Math.min(row.text.length,end-row.at); return to>from ? [{line:row.line,start:from,end:to}] : [];}));}
   function atPoint(x: number, y: number): number | undefined {
     const all = rows();
     const doc=document as Document & {caretPositionFromPoint?:(x:number,y:number)=>{offsetNode:Node;offset:number}|null;caretRangeFromPoint?:(x:number,y:number)=>Range|null};
@@ -117,6 +131,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
   }
   function reference(part: TextSpan): LineAnchor {return anchorFor(song,Number(part.line.dataset.sourceLine),part.line.dataset.occurrence!,lyricText(part.line));}
   function replace(previous: Selection | undefined, next: TextSpan[], id=previous?.id ?? crypto.randomUUID()) {
+    next=wholeWords(next);
     const oldParts=previous?.parts ?? [], added=next.map(part=>({...part,anchor:reference(part)}));
     update(current=>{
       let state=current;
@@ -146,6 +161,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     if(event.pointerType==='touch')root.dataset.input='touch';else root.dataset.input='mouse';
     const handle=(event.target as Element).closest<HTMLElement>('.highlight-handle');
     if(handle&&selected){event.preventDefault();event.stopPropagation();getSelection()?.removeAllRanges();const original=selected;for(const part of original.parts){const range=domRange(part);part.line.querySelectorAll('mark').forEach(mark=>{if(range?.intersectsNode(mark))mark.setAttribute('data-highlight-muted','');});}handleGesture={pointer:event.pointerId,edge:handle.dataset.edge as 'start'|'end',original,x:event.clientX,y:event.clientY,stop:()=>{}};handleGesture.stop=edgeScroll(()=>handleGesture?.y ?? innerHeight/2,()=>{if(handleGesture){const at=atPoint(handleGesture.x,handleGesture.y);if(at!==undefined)moveHandle(at);}});root.setPointerCapture(event.pointerId);return;}
+    if(toolFirst&&!active)return;
     if(event.button!==0 || (event.target as Element).closest('button,.personal-note,.highlight-controls') || !active && (event.pointerType==='touch' || !(event.target as Element).closest('.lyric')))return;
     const at=atPoint(event.clientX,event.clientY);if(at===undefined)return;
     event.preventDefault();getSelection()?.removeAllRanges();clear();root.setPointerCapture(event.pointerId);
@@ -165,7 +181,8 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
         if(gesture.armed){delete overlay.dataset.pending;replace(undefined,parts);applied();}
         else{pending=parts;overlay.dataset.pending='';preview(parts);}
         ignoreClick=true;
-      }else if(cancel)clear();else if(gesture.mark){selectMark(gesture.mark);ignoreClick=true;}
+      }else if(cancel)clear();else if(gesture.mark){selectMark(gesture.mark);if(toolFirst)applied();ignoreClick=true;}
+      else if(gesture.armed){const parts=spans(gesture.start,gesture.start+1);if(parts.length){replace(undefined,parts);applied();ignoreClick=true;}}
     }
     if(handleGesture&&(!event||event.pointerId===handleGesture.pointer)){
       const gesture=handleGesture,next=selected;handleGesture=undefined;gesture.stop();overlay.replaceChildren();unmute();
@@ -174,12 +191,13 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     }
     if(event&&root.hasPointerCapture(event.pointerId))root.releasePointerCapture(event.pointerId);
   }
-  function click(event: MouseEvent) {if(ignoreClick){ignoreClick=false;event.preventDefault();event.stopImmediatePropagation();return;}if(controls.contains(event.target as Node))return;if(pending.length||nativeLyricSpans(root).length)return;const mark=(event.target as Element).closest<HTMLElement>('mark');if(mark){selectMark(mark);return;}if(!(event.target as Element).closest('.personal-note'))clear();}
+  function click(event: MouseEvent) {if(ignoreClick){ignoreClick=false;event.preventDefault();event.stopImmediatePropagation();return;}if(controls.contains(event.target as Node))return;if(pending.length||nativeLyricSpans(root).length)return;const mark=(event.target as Element).closest<HTMLElement>('mark');if(mark&&(!toolFirst||active)){selectMark(mark);if(toolFirst)applied();return;}if(!(event.target as Element).closest('.personal-note'))clear();}
   function key(event: KeyboardEvent) {
     const handle=(event.target as Element).closest<HTMLElement>('.highlight-handle');
     if(handle&&selected&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){
       event.preventDefault();const edge=handle.dataset.edge as 'start'|'end',b=bounds(selected),length=rows().at(-1)!,max=length.at+length.text.length;
-      const at=event.key==='Home'?(edge==='start'?0:b.start+1):event.key==='End'?(edge==='end'?max:b.end-1):b[edge]+(event.key==='ArrowRight'?1:-1);
+      const boundaries=rows().flatMap(row=>[...row.text.matchAll(/\S+/gu)].map(word=>row.at+word.index+(edge==='end'?word[0].length:0))).sort((a,b)=>a-b);
+      const at=event.key==='Home'?(edge==='start'?0:b.start+1):event.key==='End'?(edge==='end'?max:b.end-1):event.key==='ArrowRight'?boundaries.find(at=>at>b[edge])??max:[...boundaries].reverse().find(at=>at<b[edge])??0;
       if(at>=0&&at<=max){b[edge]=at;if(b.end>b.start){const parts=spans(b.start,b.end);if(parts.length)replace(selected,parts);}}
     }
     if(event.key==='Escape'){finish(undefined,true);clear();}

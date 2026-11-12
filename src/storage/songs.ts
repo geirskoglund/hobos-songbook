@@ -1,5 +1,4 @@
 import type {Song, SongPersonal} from '../domain/song.ts';
-import {originalChangeError} from '../domain/original.ts';
 import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
 import {standardSongbook, type Songbook} from '../domain/songbook.ts';
 import {setlistName, type Setlist} from '../domain/setlist.ts';
@@ -156,8 +155,7 @@ export function songStorage(namespace: string) {
                 songStore.add(song);
               } else if (baseline.original !== song.original) {
                 if (!current || current.original !== baseline.original) fail('Originalen er endret i en annen fane. Utkastet er beholdt; åpne sangen på nytt før videre lagring.');
-                const protection = originalChangeError(current!,song,personal) ?? originalChangeError(current!,song,next);
-                if (protection) fail(protection);
+                if(!song.title.trim())fail('Skriv en tittel før sangen lagres.');
                 songStore.put({...current,original:song.original,title:song.title,key:song.key});
               } else if (change && (!current || current.original !== baseline.original)) {
                 fail('Originalen er endret i en annen fane. Personutkastet er beholdt; åpne sangen på nytt.');

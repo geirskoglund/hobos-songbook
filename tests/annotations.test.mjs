@@ -79,3 +79,9 @@ test('an old tab cannot erase new positional notes merely by writing the older p
   const fromOldTab={...current,version:2,annotations:{'source/line:0':{anchor:{songId:'one',sourceLine:0,occurrence:'source/line:0',original:'gammel kilde'},note:'gammelt',highlights:[]}}};
   const cleaned=cleanPersonal(fromOldTab);assert.equal(cleaned.notes['new-note'].text,'Behold ny modell');assert.equal(cleaned.annotations,undefined);assert.equal(cleaned.version,3);
 });
+test('invalid new note targets are rejected; existing note text with a damaged position is retained safely',()=>{
+ const current=changeNote(empty(),'keep',{line:0,text:'Behold'});
+ for(const line of [NaN,undefined,-1,Infinity,1.5])assert.throws(()=>changeNote(current,'keep',{line,text:'Flytt'}),/tekstlinje/);
+ assert.equal(current.notes.keep.text,'Behold');
+ const cleaned=cleanPersonal({...current,notes:{keep:{line:NaN,text:'Behold'}}});assert.equal(cleaned.notes.keep.text,'Behold');assert.equal(Number.isSafeInteger(cleaned.notes.keep.line),true);
+});

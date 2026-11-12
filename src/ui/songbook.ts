@@ -4,9 +4,10 @@ import {navigation} from './navigation.ts';
 import {currentPage, showPage, type Page} from './layout.ts';
 import {createEditSession, type EditSession} from '../domain/edit-session.ts';
 import {classifyImport} from '../domain/import.ts';
-import {openOriginalEditor} from './original-editor.ts';
+import {openRawEditor} from './original-editor.ts';
 import {newSong} from '../domain/original.ts';
-import {createPersonalEditor, paintAnnotations, iconButton} from './personal-editor.ts';
+import {createSongEditor} from './song-editor.ts';
+import {paintAnnotations,attachAnnotationGeometry} from './annotations.ts';
 import {gripKey, transposeChord, transposeGrid} from '../domain/personal.ts';
 import {attachSongSpacing} from './song-spacing.ts';
 import {captureView, saveUpdateView, takeUpdateView, restoreUpdateView, focusUpdateView, type UpdateView} from './update-view.ts';
@@ -44,55 +45,60 @@ export function startSongbook() {
   catch {filterStatus.textContent = 'Sangbokvalget kunne ikke hentes. Viser alle sanger.';}
   let disposeView = () => {};
   let editing: UpdateView['editor'] | undefined;
-  let editor: ReturnType<typeof createPersonalEditor> | undefined;
+  let editor: ReturnType<typeof createSongEditor> | undefined;
   let readerPersonal: SongPersonal | undefined;
   let session: EditSession | undefined;
   const personalState = () => session?.personal ?? readerPersonal!;
   let saving: Promise<boolean> | undefined;
-  let originalModal: ReturnType<typeof openOriginalEditor> | undefined;
-  const originalDirty = () => Boolean(session?.originalDirty());
-  const dirty = () => Boolean(originalDirty() || editor?.dirty() || originalModal?.dirty());
-  function showOriginal(first = false) {
-    if (!active || !editor || originalModal) return;
-    originalModal = openOriginalEditor(active, () => editor!.snapshot(), next => {
-      originalModal = undefined;
-      const y = scrollY;session!.replaceOriginal(next);
-      void openSong(next, undefined, true).then(() => {window.scrollTo(0,y);query('edit-original').focus({preventScroll:true});});
-    }, () => {
-      originalModal = undefined;
-      if (first) {editing = undefined;back();}
-    }, query('edit-original'), session?.baselineSong ?? {...active,original:'',title:'',key:null});
+  let originalModal: ReturnType<typeof openRawEditor> | undefined;
+  const dirty = () => Boolean(session?.dirty() || editor?.dirty() || originalModal?.dirty());
+  let renderFrame=0,visualPersonal='';
+  let chartReleasedState=false;
+  function redraw(){
+    if(renderFrame)return;
+    renderFrame=requestAnimationFrame(()=>{renderFrame=0;if(!active||!session)return;const view=captureView(active.id,null);view.chartReleased=chartReleasedState;void openSong(session.song,view,true);});
+  }
+  function changed(source=false){
+    const state=session!.personal,key=JSON.stringify([state.capo,state.chordGrid]);
+    const tuning=reader.querySelector('.song-tuning');if(tuning)tuning.textContent=state.tuning||'Standard stemming';
+    if(source||visualPersonal!==key){visualPersonal=key;redraw();}else editor?.refresh();
+    void flush();
+  }
+  function showOriginal(first=false){
+    if(!active||!editor||originalModal?.isOpen())return;
+    editor.unmount();
+    originalModal=openRawEditor(session!,async()=>{
+      const ok=await flush(true);if(ok){const view=captureView(active!.id,null);view.chartReleased=chartReleasedState;await openSong(session!.song,view,true);}return ok;
+    },()=>{originalModal=undefined;if(first){editing=undefined;resetSong();showPage('library');void refreshLibrary();}else if(active&&session)redraw();},editor.element.querySelector<HTMLElement>('[data-editor-tool=raw]')!);
   }
   const chorusWrites = new Set<Promise<unknown>>();
   const saveRetry = element('button', 'Prøv lagring igjen'); saveRetry.type = 'button'; saveRetry.hidden = true;
-  status.after(saveRetry);
-  async function flush(): Promise<boolean> {
-    if (!editor?.isValid() || originalModal || !active) return false;
-    if (saving) return saving;
-    saving = (async () => {
-      const submitting = session!, snapshot = submitting.snapshot(), update = submitting.pendingChange(), songSnapshot = snapshot.song, base = submitting.baselineSong;
-      try {
-        if (update || originalDirty()) await storage.saveDraft(songSnapshot, base, update);
-        submitting.markSaved(snapshot);
-        const index = songs.findIndex(song => song.id === songSnapshot.id);
-        if (index < 0) songs.push(songSnapshot); else songs[index] = songSnapshot;
-        listPersonal.set(songSnapshot.id, snapshot.personal);
-        drawList();
-        saveRetry.hidden = true;
-        editor?.markSaved();
-        notify('Endringene er lagret på denne enheten.'); return true;
-      } catch (error) {
-        notify(error instanceof Error ? error.message : 'Kunne ikke lagre. Prøv igjen.', true);
-        saveRetry.hidden = false; return false;
-      }
+  const errorBar=element('div',undefined,'song-error');status.before(errorBar);errorBar.append(status,saveRetry);
+  async function flush(rawCommit=false):Promise<boolean>{
+    if(!session||!active||originalModal?.isOpen()&&!rawCommit)return false;
+    if(saving)return saving;
+    const submitting=session;
+    saving=(async()=>{
+      try{
+        while(submitting.dirty()){
+          const snapshot=submitting.snapshot(),update=submitting.pendingChange();
+          await storage.saveDraft(snapshot.song,submitting.baselineSong,update);
+          submitting.markSaved(snapshot);
+          const index=songs.findIndex(song=>song.id===snapshot.song.id);
+          if(index<0)songs.push(snapshot.song);else songs[index]=snapshot.song;
+          listPersonal.set(snapshot.song.id,snapshot.personal);drawList();
+        }
+        saveRetry.hidden=true;editor?.markSaved();notify('');return true;
+      }catch(error){notify(error instanceof Error?error.message:'Kunne ikke lagre. Prøv igjen.',true);saveRetry.hidden=false;return false;}
     })();
-    try {return await saving;} finally {saving = undefined;}
+    try{return await saving;}finally{saving=undefined;}
   }
   saveRetry.addEventListener('click', () => {void flush();});
-  const editMenu = actionButton('Rediger',()=>{if(active)void beginEdit(active,'reader');},'rediger'); editMenu.id='edit-song'; editMenu.hidden=true;
+  let switchingMode=false;
+  const editMenu=actionButton('Rediger',()=>{if(!active||switchingMode)return;switchingMode=true;editMenu.disabled=true;void(editing?finishEdit():beginEdit(active,'reader')).finally(()=>{switchingMode=false;editMenu.disabled=false;});},'rediger'); editMenu.id='edit-song'; editMenu.hidden=true;
   async function beginEdit(song: Song, from: 'reader' | 'library') {
     const returnView=captureView(from==='reader'?song.id:null,from==='reader'?'edit-song':null);returnView.menu.open=false;
-    nav.close(false);editing={from,returnView};await openSong(song,from==='reader'?returnView:undefined);
+    nav.close(false);editing={from,returnView};await openSong(song,from==='reader'?returnView:undefined,true);
     if (!document.body.classList.contains('editing-active')) editing = undefined;
   }
   let leaving = false;
@@ -106,21 +112,19 @@ export function startSongbook() {
     });
   }
   async function settleDraft(): Promise<boolean> {
-    if (saving) await saving;
-    if (!dirty()) return true;
+    if(saving)await saving;
+    if(session?.dirty()&&!originalModal?.isOpen()&&!editor?.dirty())await flush();
+    if(!dirty())return true;
     const choice = await confirmLeave();
     return choice === 'discard' || choice === 'save' && await flush();
   }
-  async function finishEdit() {
-    if (!active || leaving || saving) return;
-    leaving = true;
-    try {
-      if (!await settleDraft()) return;
-      const song = session?.baselineSong ?? active, returnTo = editing; editing = undefined;
-      editor?.dispose(); editor = undefined; saveRetry.hidden = true;
-      if (returnTo?.from === 'reader') await openSong(song, returnTo.returnView);
-      else {back();if(returnTo?.returnView)await restoreUpdateView(returnTo.returnView,()=>active===null);}
-    } finally {leaving = false;}
+  async function finishEdit(){
+    if(!active||leaving)return;leaving=true;
+    try{
+      if(session?.dirty()&&!await flush())return;
+      const view=captureView(active.id,'edit-song');view.chartReleased=chartReleasedState;delete view.editor;editing=undefined;
+      await openSong(session!.song,view,true);
+    }finally{leaving=false;}
   }
   let pendingUpdateView = takeUpdateView(__APP_ENV__.namespace);
   const originalScrollRestoration = history.scrollRestoration;
@@ -154,7 +158,7 @@ export function startSongbook() {
   let creating=false;
   async function beginNewSong(){
     if(creating||leaving)return;creating=true;nav.close(false);
-    try{if(editing&&!await settleDraft())return;const song=newSong();session=createEditSession(song,{songId:song.id,chorus:{},version:3},null);editing={from:'library'};await openSong(song,undefined,true);showOriginal(true);}finally{creating=false;}
+    try{if(session&&!await settleDraft())return;const song=newSong();session=createEditSession(song,{songId:song.id,chorus:{},version:3},null);editing={from:'library'};await openSong(song,undefined,true);showOriginal(true);}finally{creating=false;}
   }
   async function navigate(page:Page){
     if(leaving||creating)return;
@@ -165,7 +169,7 @@ export function startSongbook() {
     if(page===currentPage()){nav.close(false);return;}
     leaving=true;
     try{
-      if(editing&&!await settleDraft())return;
+      if(session&&!await settleDraft())return;
       editing=undefined;settingsReturn=undefined;resetSong();setlists.reset();showPage(page);editMenu.hidden=true;
       if(page==='library')void refreshLibrary();
       if(page==='setlists')void setlists.refresh();
@@ -259,14 +263,15 @@ export function startSongbook() {
     let personal: SongPersonal;
     try {personal = draft && session ? session.personal : await storage.personal(song.id) ?? {songId: song.id, chorus: {},version:3};}
     catch (error) {notify(error instanceof Error ? error.message : 'Kunne ikke hente personlig tilstand.', true); return;}
-    if (editing) {if (!draft || !session) session=createEditSession(song,personal);}
-    else {session=undefined;readerPersonal=personal;}
-    active = song;
-    editMenu.hidden = Boolean(editing);
+    if(!session||session.song.id!==song.id){editor?.dispose();editor=undefined;session=createEditSession(song,personal);chartReleasedState=Boolean(resume?.chartReleased);}
+    song=session.song;personal=session.personal;active=song;
+    visualPersonal=JSON.stringify([personal.capo,personal.chordGrid]);
+    editMenu.hidden=false;editMenu.replaceChildren(icon(editing?'visning':'rediger'),element('span',editing?'Visning':'Rediger'));
+    editMenu.setAttribute('aria-label',editing?'Visning':'Rediger');
     document.body.classList.toggle('editing-active', Boolean(editing));
     if (resume) reader.style.visibility = 'hidden';
     const parsed = parseChordPro(song.original, song.title), article = query('song-content');
-    disposeView(); editor?.dispose(); editor = undefined; article.replaceChildren();
+    disposeView();editor?.unmount();editor?.element.remove();article.replaceChildren();
     const title = element('h1', parsed.title); title.id = 'song-title'; title.tabIndex = -1; article.append(title);
     const metadata = element('div', undefined, 'song-metadata');
     if (parsed.key) {
@@ -275,21 +280,13 @@ export function startSongbook() {
       metadata.append(key);
     }
     const time = element('span', parsed.time, 'song-key'); time.setAttribute('aria-label', `Takt: ${parsed.time}`); metadata.append(time); article.append(metadata);
-    const showMetadata = () => {
-      const state = personalState();
-      if (editing) {
-        const capoPill = metadata.querySelector('#capo-pill');
-        const key = gripKey(parsed.key, state.capo ?? 0);
-        if (capoPill) capoPill.textContent = state.capo ? `Capo ${state.capo}${key ? `: ${key}` : ''}` : 'Uten capo';
-        const tuningPill = metadata.querySelector('#tuning-pill'); if (tuningPill) tuningPill.textContent = state.tuning || 'Standard stemming';
-      } else {
-        if (state.capo) {const key = gripKey(parsed.key, state.capo); metadata.append(element('span', `Capo ${state.capo}${key ? `: ${key}` : ''}`, 'song-key'));}
-        if (state.tuning) metadata.append(element('span', state.tuning, 'song-key'));
-      }
-      if (metadata.childElementCount && metadata.parentElement !== article) title.after(metadata);
+    const showMetadata=()=>{
+      const state=personalState();
+      if(state.capo||editing){const key=gripKey(parsed.key,state.capo??0);metadata.append(element('span',state.capo?`Capo ${state.capo}${key?`: ${key}`:''}`:'Uten capo','song-key'));}
+      if(state.tuning||editing)metadata.append(element('span',state.tuning||'Standard stemming','song-key song-tuning'));
     };
     let disposeDock = () => {};
-    let chartReleased = Boolean(resume?.chartReleased);
+    let chartReleased=chartReleasedState;
     const chartArea = element('div'); chartArea.className = 'chart-area'; article.append(chartArea);
     const showChart = () => {
       disposeDock(); chartArea.replaceChildren();
@@ -297,34 +294,13 @@ export function startSongbook() {
       const chosen = selectSongGrid(parsed, state);
       if (chosen) {
         const dock = createChartDock(chosen.grids.map(grid => transposeGrid(grid, capo)), chosen.source, {
-          sticky: !editing && !chartReleased, interactive: !editing, change: sticky => {chartReleased = !sticky;},
+          sticky: !editing && !chartReleased, interactive: !editing, change: sticky => {chartReleasedState=chartReleased = !sticky;},
         });
-        if (editing) {
-          const edit = actionButton('',undefined,'rediger'); edit.setAttribute('aria-label','Rediger akkordskjema'); edit.dataset.tooltip = 'Rediger akkordskjema'; edit.type = 'button'; edit.className = 'edit-chart';
-          edit.addEventListener('click', event => {event.stopPropagation(); editor?.openGrid(dock.element);}); dock.element.append(edit);
-        }
         chartArea.append(dock.element); disposeDock = dock.dispose;
-      } else if (editing) {
-        const add = element('button', 'Legg til akkordskjema', 'grid-placeholder'); add.type = 'button'; add.addEventListener('click', () => editor?.openGrid(add)); chartArea.append(add);
       }
     };
-    if (editing) {
-      let displayed = session!.personal;
-      editor = createPersonalEditor(song, session!, () => {
-        const previous = displayed;displayed = session!.personal;
-        notify('');
-        paintAnnotations(query('song-body'), song, displayed);
-        showMetadata();
-        if (previous.capo !== displayed.capo || previous.chordGrid !== displayed.chordGrid) {
-          showChart();
-          const capo = displayed.capo ?? 0;
-          query('song-body').querySelectorAll<HTMLElement>('.chord[data-original]').forEach(node => node.textContent = transposeChord(node.dataset.original!,capo));
-        }
-      }, () => {void flush();});
-      const originalButton=iconButton('Rediger sangtekst','text',()=>showOriginal());originalButton.id='edit-original';
-      editor.element.append(originalButton);
-      article.prepend(editor.element); editor.metadata(metadata);
-    }
+    if(!editor)editor=createSongEditor(session,changed,()=>showOriginal());
+    if(editing)article.prepend(editor.element);
     showMetadata(); showChart();
     const capo = personal.capo ?? 0;
     const bodyContent = element('div'); bodyContent.id = 'song-body'; article.append(bodyContent);
@@ -332,18 +308,18 @@ export function startSongbook() {
     for (const block of parsed.blocks) {
       dynamicsContext.occurrence = block.kind === 'reference' ? block.occurrence : 'source';
       if (block.kind === 'chorus') {
-        const section = element('section', undefined, 'chorus');
+        const section = element('section', undefined, 'chorus');section.dataset.chorusStart=String(block.sourceLine);
         const body = element('div', undefined, 'chorus-text'); body.append(renderContent(block.content, dynamicsContext));
-        section.append(element('h2', 'Refreng'), body); bodyContent.append(section);
+        const heading=element('h2','Refreng');heading.dataset.sourceLine=String(block.sourceLine);section.append(heading, body); bodyContent.append(section);
       } else if (block.kind === 'reference') {
-        if (!block.content) {bodyContent.append(element('p', 'Refreng — ingen tidligere refrengtekst er definert.', 'comment')); continue;}
-        const section = element('section', undefined, 'chorus reference');
-        const heading = element('h2'), button = element('button', 'Refreng'); button.type = 'button';
+        if(!block.content){const missing=element('section',undefined,'chorus reference'),heading=element('h2','Refreng');missing.dataset.referenceLine=heading.dataset.sourceLine=block.occurrence.replace('line:','');missing.append(heading);bodyContent.append(missing);continue;}
+        const section = element('section', undefined, 'chorus reference');section.dataset.referenceLine=block.occurrence.replace('line:','');
+        const heading = element('h2'), button = element('button', 'Refreng'); button.type = 'button';heading.dataset.sourceLine=block.occurrence.replace('line:','');
         button.setAttribute('aria-label', 'Refreng');
         const body = element('div', undefined, 'chorus-text'); body.id = `chorus-${block.occurrence.replace(':', '-')}`;
         body.append(renderContent(block.content, dynamicsContext));
         dynamicsContext.spokenLevel = undefined; // The following content stays accessible when this body is collapsed.
-        let expanded = personal.chorus[block.occurrence] === true;
+        let expanded = !editing && personal.chorus[block.occurrence] === true;
         const reflect = () => {button.setAttribute('aria-expanded', String(expanded)); body.hidden = !expanded;};
         button.setAttribute('aria-controls', body.id); reflect();
         button.addEventListener('click', async () => {
@@ -352,14 +328,14 @@ export function startSongbook() {
             const write = storage.updatePersonal(song.id, current => ({...current, chorus: {...current.chorus, [block.occurrence]: !expanded}}));
             chorusWrites.add(write);
             try {personal = await write;} finally {chorusWrites.delete(write);}
-            if (session) session.update(current=>({...current,chorus:personal.chorus}));else readerPersonal=personal;
+            if(session)session.updateView(personal.chorus);else readerPersonal=personal;
             expanded = !expanded; reflect();paintAnnotations(bodyContent,song,personalState());
             if (active?.id === song.id) notify('');
           }
           catch {if (active?.id === song.id) notify('Refrengvalget kunne ikke lagres. Prøv igjen; tidligere valg er beholdt.', true);}
           finally {button.disabled = false;}
         });
-        heading.append(button); section.append(heading, body); bodyContent.append(section);
+        if(editing)heading.textContent='Refreng';else heading.append(button); section.append(heading, body); bodyContent.append(section);
       } else bodyContent.append(renderContent([block], dynamicsContext));
     }
     paintAnnotations(bodyContent, song, personalState());
@@ -371,20 +347,23 @@ export function startSongbook() {
     if (editing) editor!.mount(bodyContent);
     showPage('reader');
     const disposeSpacing = attachSongSpacing(bodyContent);
-    const disposeProfile = attachDynamicsProfile(bodyContent, parsed.hasDynamics);
-    disposeView = () => {disposeSpacing(); disposeProfile(); disposeDock();};
+    const disposeProfile=attachDynamicsProfile(bodyContent,parsed.hasDynamics);
+    if(editing)bodyContent.dataset.editing='true';
+    const disposeAnnotations=attachAnnotationGeometry(bodyContent);
+    disposeView = () => {disposeSpacing(); disposeProfile(); disposeDock();disposeAnnotations();};
     if (resume) await restoreUpdateView(resume, () => active?.id === song.id);
     else {title.focus({preventScroll: true}); window.scrollTo(0, 0);}
     reader.style.removeProperty('visibility');
   }
   function resetSong(){
-    editMenu.hidden=true;document.body.classList.remove('editing-active');disposeView();disposeView=()=>{};editor?.dispose();editor=undefined;query('song-content').replaceChildren();session=undefined;readerPersonal=undefined;active=null;notify('');saveRetry.hidden=true;
+    cancelAnimationFrame(renderFrame);renderFrame=0;editMenu.hidden=true;document.body.classList.remove('editing-active');disposeView();disposeView=()=>{};editor?.dispose();editor=undefined;query('song-content').replaceChildren();session=undefined;readerPersonal=undefined;active=null;notify('');saveRetry.hidden=true;
   }
   function back(){
-    if(currentPage()==='settings'&&settingsReturn){const view=settingsReturn;settingsReturn=undefined;void restoreUpdateView(view,()=>true).then(()=>{editMenu.hidden=Boolean(editing)||!active;focusUpdateView(view);});return;}
+    if(currentPage()==='settings'&&settingsReturn){const view=settingsReturn;settingsReturn=undefined;void restoreUpdateView(view,()=>true).then(()=>{editMenu.hidden=!active;focusUpdateView(view);});return;}
     if(currentPage()==='setlist'){void setlists.back();return;}
-    if(editing){void finishEdit();return;}
-    resetSong();showPage('library');void refreshLibrary();query('library-title').focus({preventScroll:true});window.scrollTo(0,0);
+    if(leaving||switchingMode)return;
+    if(session&&(saving||session.dirty()||editor?.dirty())){leaving=true;void settleDraft().then(ok=>{if(ok){editing=undefined;resetSong();showPage('library');void refreshLibrary();}}).finally(()=>{leaving=false;});return;}
+    editing=undefined;resetSong();showPage('library');void refreshLibrary();query('library-title').focus({preventScroll:true});window.scrollTo(0,0);
   }
   query('back').addEventListener('click',back);
   file.addEventListener('change', async () => {
@@ -408,8 +387,9 @@ export function startSongbook() {
   void load();
   return {beforeUpdateReload: async (focusId: string | null) => {
     await setlists.beforeUpdate();
-    if (saving) await saving;
-    if (dirty()) throw new Error('Du har ulagrede endringer. Bruk Lagre eller avslutt redigeringen før oppdatering.');
+    if(saving)await saving;
+    if(session?.dirty()&&!originalModal?.isOpen())await flush();
+    if(dirty())throw new Error('Fullfør Råtekst eller den åpne kontrollen, og kontroller lokal lagring før oppdatering.');
     await Promise.all(chorusWrites);
     saveUpdateView(__APP_ENV__.namespace, active?.id ?? null, focusId, editing ? {...editing, annotation: editor?.selection()} : undefined, settingsReturn, setlists.context());
   }};

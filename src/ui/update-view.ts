@@ -54,7 +54,7 @@ export async function restoreUpdateView(view:UpdateView,isCurrent:()=>boolean) {
   await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
   if(!isCurrent())return;
   window.scrollTo(0,view.scrollY);
-  if(view.anchor){const content=rows(view.songId,view.page),row=view.anchor.itemId?content.find(r=>(r.dataset.songId??r.dataset.setlistId)===view.anchor!.itemId):content[view.anchor.index],rect=row?.getBoundingClientRect();if(rect?.height)window.scrollTo(0,Math.max(0,scrollY+rect.top-readingTop()-view.anchor.offset));}
+  if(view.anchor){const content=rows(view.songId,view.page),chosen=view.anchor.itemId?content.find(r=>(r.dataset.songId??r.dataset.setlistId)===view.anchor!.itemId):content[view.anchor.index],row=chosen?.closest('[hidden]')?chosen.closest('.reference')?.querySelector('h2'):chosen,rect=row?.getBoundingClientRect();if(rect?.height)window.scrollTo(0,Math.max(0,scrollY+rect.top-readingTop()-view.anchor.offset));}
   const menu=document.getElementById('main-menu')!;
   if(view.menu.open&&menu.hidden)document.getElementById('menu-button')!.click();
   menu.scrollTop=view.menu.scrollTop;

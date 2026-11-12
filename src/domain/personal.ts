@@ -74,5 +74,5 @@ export function validGrid(text: string): boolean {
     parsed.blocks.every(block => block.kind === 'grid' || block.kind === 'line' && block.segments.every(segment => !segment.text.trim() && !segment.chord));
 }
 export function sharedGridText(original: string): string {
-  return [...original.matchAll(/^\s*\{(?:start_of_grid|sog)(?:\s*[: ]\s*.*?)?\}\s*\r?\n[\s\S]*?^\s*\{(?:end_of_grid|eog)\}\s*$/gmi)].map(match => match[0]).join('\n');
+  return [...original.matchAll(/^[ \t]*\{(?:start_of_grid|sog)(?:[ \t]*[: ][ \t]*.*?)?\}[ \t]*(?:\r\n|\r|\n)[\s\S]*?^[ \t]*\{(?:end_of_grid|eog)\}[ \t]*/gmi)].map(match => match[0]).join('\n');
 }
