@@ -8,6 +8,8 @@ Runtimeikonene i `assets/ui-icons/` følger de bevarte referanseformene og bruke
 
 ## Navneindeks
 
+Målvarianten D10 komponerer samme valgkontroll som D09, med Ny sangbok og felles navnedialog. L01 kan ha den samme separate menyknappen som L02; H04 eier menyens fokus og lukking. #32 bruker disse variantene for sanghandlinger, kildeoppsett og Behold privat.
+
 Navn og stabile ID-er følger komponentbiblioteket. Arbeidsreglene står i [DESIGN](../DESIGN.md#bruk-av-designsystemet).
 
 | Navn i komponentbiblioteket | Stabil ID | Visuell referanse |

@@ -2,7 +2,7 @@
 
 ## Leveransegrense og kontroll
 
-Kodebasen har PWA/offline, miljøisolasjon og CI/CD, lokal sanglagring og kompakt ChordPro-visning fra issue #4, generell bevaring av lesested og Android-scrollregel fra #6 samt samlet sangredigering med lokal autosparing, felles historikk, musikalske verktøy og Råtekst/ny sang fra #30. Sangbokfilter og setlisteoversikt med lokal navneadministrasjon/tom detaljside er også implementert. Sangbokadministrasjon, konvertering, setlisteinnhold og Dropbox er senere arbeid. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
+Kodebasen har PWA/offline, miljøisolasjon og CI/CD, lokal sanglagring og kompakt ChordPro-visning fra issue #4, generell bevaring av lesested og Android-scrollregel fra #6 samt samlet sangredigering med lokal autosparing, felles historikk, musikalske verktøy og Råtekst/ny sang fra #30. Sangbokfilter og setlisteoversikt med lokal navneadministrasjon/tom detaljside er også implementert. Sangbokmål/opprettelse, Dropbox/OAuth, automatisk App folder-synk, manuelle lesekilder og sanghandlinger er implementert i #32. Konvertering, setlisteinnhold og full backup er senere arbeid. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
 
 Node.js 24 LTS og låst npm-fil brukes lokalt og i Actions. Eksempel på full kontroll ved behov:
 
@@ -17,9 +17,24 @@ npm run build
 
 `npm run test:e2e` bygger begge faktiske miljøer og to nye oppdateringer, og prøver dem under de nøyaktige `/hobos-songbook/app/`- og `/hobos-songbook/test/`-stiene på én origin. Det prøves 320px mobil, nettbrett og desktop, lokal ressurslasting, manifestidentiteter/ikonstørrelser, egne worker-scopes og caches, lukking/gjenåpning offline, localStorage-/IndexedDB-markører, bytte av PR/commit og oppdatering av begge miljøer mens søskenmiljøet er åpent. En uvedkommende cache beholdes som kontroll. Før-merge-sammensetning med ekte testapp og betrodd produksjonsplassholder prøves også. Markørdatabaser er separat testharness (`<namespace>-harness`). Den samme workerflyten kontrollerer også faktiske sanger, ID-er, originaltekst og personlige valg i produktets IndexedDB-skjema.
 
-Playwright bruker pinnet Chromium når installert. `CHROMIUM_PATH=/usr/bin/chromium npm run check` kan bruke en tilgjengelig systemnettleser; ellers velges installert Chromium/Google Chrome på kjente systemstier. CI installerer pinnet Playwright-nettleser. Bare den historiske reserveflyten kan kjøre en ekstra isolert sjekk med hosted-runnerens system-Chrome. Rapporter nettleserversjonen ved konkret verifikasjon. Browserbinær og npm-pakker må være installert/cachet før full offline-kontroll; selve appen har ingen kjøretidsnettavhengighet.
+Playwright bruker pinnet Chromium når installert. `CHROMIUM_PATH=/usr/bin/chromium npm run check` kan bruke en tilgjengelig systemnettleser; ellers velges installert Chromium/Google Chrome på kjente systemstier. CI installerer pinnet Playwright-nettleser. Bare den historiske reserveflyten kan kjøre en ekstra isolert sjekk med hosted-runnerens system-Chrome. Rapporter nettleserversjonen ved konkret verifikasjon. Browserbinær og npm-pakker må være installert/cachet før full offline-kontroll; lokal sangbruk har ingen kjøretidsnettavhengighet; Dropbox-handlinger krever nett.
 
 `Validate / validate` kjører automatisk på PR og master. Ved PR sjekkes PR-hodets SHA ut, ikke en midlertidig mergecommit. Bare den eksakte validerte kilden kan publiseres. Første bootstrap-deploy er et eget infrastrukturbevis, ikke fysisk PWA-verifikasjon.
+
+## Dropbox og synkronisering (#32)
+
+To App folder-registreringer brukes uten App secret/backend:
+
+| Miljø | Dropbox-app | Offentlig App key | Eksakt OAuth-returadresse |
+| --- | --- | --- | --- |
+| Produksjon | hobos.songbook.app | 9hivdq3nxrgtquz | https://geirskoglund.github.io/hobos-songbook/app/ |
+| Test | hobos.songbook.test.app | le5cddh388klcjz | https://geirskoglund.github.io/hobos-songbook/test/ |
+
+App keys er offentlige klientidentifikatorer. App secret eller bruker-/refresh-token skal aldri inn i repo eller issues. Begge registreringer trenger account_info.read, files.metadata.read, files.content.read, files.content.write, sharing.read og sharing.write. Returadressene må registreres i hver sin Dropbox-app. Innlogging skjer fra Synkronisering. Verifiser at hver faktisk registrering er App folder, at test/prod har adskilte Apps-mapper og at egne delingslenker gir viewer/nedlasting. Konfigurasjon i Dropbox-konsollen er ikke endret av kodeleveransen.
+
+`tests/sync.test.mjs` kontrollerer PKCE-vektor, revisjonsbetingelser, separate prosjektfiler/kollisjonsnavn, manuelle kilder, uferdig økt over restart, flere enheter, persondata, konfliktbevaring, slettet bandmappe og eldre opplastingskvitteringer. `tests/e2e/sync.spec.mjs` bruker de faktiske kontrollene, IndexedDB, autosparing og en avgrenset mock av Dropbox HTTP-transport. De prøver Standard-regelen/ny bok, publiser/avpubliser, eksport, modusgrense etter restart, Import-vernet, kildefjerning og Behold privat. Mocken er ikke en reell Dropbox-tjeneste eller test av registrerte rettigheter.
+
+Før integrasjonen regnes som praktisk verifisert: logg inn på testadressen, publiser til to bandbøker og kopier hver lenke. Les lenkene fra en annen Dropbox-konto med App folder-appen, inkludert undermapper/paginering. Verifiser at Private/.app ikke er tilgjengelige og at mottakeren ikke kan endre kildeoriginalen. Rediger på to enheter, synk i motsatt rekkefølge og kontroller konfliktalternativene uten overskriving. Avbryt/rediger offline, restart før modusavslutning og bekreft ingen uferdig opplasting. Slett Shared/A utenfor appen mens annen enhet har dirty arbeid, kontroller reserve, bokbevaring og ingen gjenopprettet bandmappe. Kontroller tilbakekalt lenke, frakobling/ny innlogging, mislykket tilbakekalling, utløpt token og blokkert kontobytte. Test clipboard-fallback og nedlasting på fysisk iPad/Safari og installert PWA. Gjenstående resultater rapporteres konkret i PR; ikke utled dem fra Chromium/mocker.
 
 ## GitHub-oppsett
 

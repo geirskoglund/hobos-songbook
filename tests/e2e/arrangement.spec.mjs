@@ -53,7 +53,7 @@ test('chart pin toggles both ways, keeps its icons and resets on reopening', asy
   await expect.poll(async()=>Math.abs((await page.locator('#chart-dock').boundingBox()).y-(await page.locator('.topbar').boundingBox()).height)).toBeLessThan(1);
   await pin.click();await expect(pin).toHaveAttribute('aria-pressed','false');
   await page.evaluate(()=>scrollTo(0,800)); await expect(page.locator('#chart-dock')).not.toBeInViewport();
-  await page.getByRole('button',{name:'← Mine sanger'}).click(); await page.getByRole('button',{name:/Lang sang/}).click();
+  await page.getByRole('button',{name:'← Mine sanger'}).click(); await page.locator('.song-choice').filter({hasText:'Lang sang'}).click();
   await expect(page.locator('#chart-dock')).toBeVisible(); await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','true');
   expect(await page.evaluate(()=>scrollY)).toBe(0);
   expect(await savedSongs(page)).toEqual(before);
@@ -160,7 +160,7 @@ test('settings stay in an accessible menu and persist offline without occupying 
   await page.keyboard.press('Escape'); await expect(page.locator('#main-menu')).not.toBeVisible();
   await setDisplay(page,{theme:'dark',fontSize:28,showGrids:false,showDynamics:false});
   await expect(page.locator('#chart-dock')).not.toBeVisible(); await expect(page.locator('#dynamics-profile')).not.toBeVisible();
-  await context.setOffline(true); await page.reload(); await page.getByRole('button',{name:/Akkordskjema og dynamikk/}).click();
+  await context.setOffline(true); await page.reload(); await page.locator('.song-choice').filter({hasText:'Akkordskjema og dynamikk'}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark'); await expect(page.locator('#font-size')).toHaveValue('28');
   await expect(page.locator('#show-grids')).not.toBeChecked(); await expect(page.locator('#show-dynamics')).not.toBeChecked();
   await expect(page.locator('#main-menu')).not.toBeVisible();

@@ -9,7 +9,7 @@ test('all destinations use one header and a toggled accessible right panel',asyn
   for(const [label,id] of [['Setlister','setlists'],['Synkronisering','sync'],['Filer','files'],['Innstillinger','settings'],['Sanger','library']]){
    await openMenu(page);const header=await page.locator('.topbar').boundingBox(),panel=await page.locator('#main-menu').boundingBox();expect(panel.y).toBe(header.y+header.height);expect(panel.y+panel.height).toBe(800);
    await page.getByRole('button',{name:label,exact:true}).click();await expect(page.locator('html')).toHaveAttribute('data-page',id);await expect(page.locator('#page-title')).toHaveText(label);
-   if(['sync','files'].includes(id)){await expect(page.locator(`#${id} button`)).toHaveCount(0);await expect(page.locator(`#${id}`)).toBeVisible();}
+   if(id==='files'){await expect(page.locator(`#${id} button`)).toHaveCount(0);await expect(page.locator(`#${id}`)).toBeVisible();}
    if(id==='setlists')await expect(page.locator('#add-setlist')).toBeEnabled();
    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
@@ -38,7 +38,7 @@ test('font files are precached and load after a new offline page',async({page,co
  await page.goto(url);await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');await importSong(page,'font.txt','{t: Norske tegn}\nÆrlig øving på åser');await page.evaluate(()=>document.fonts.ready);
  expect(await page.locator('.song-line').first().evaluate(e=>getComputedStyle(e).fontFamily)).toContain('Gentium Book Plus');
  const names=await page.evaluate(async()=>{const keys=await caches.keys();return (await Promise.all(keys.map(async k=>(await(await caches.open(k)).keys()).map(r=>r.url)))).flat();});expect(names.some(n=>n.endsWith('.woff2'))).toBe(true);
- await context.setOffline(true);await page.reload();await page.getByRole('button',{name:/Norske tegn/}).click();expect(await page.evaluate(async()=>{await document.fonts.load('22px "Gentium Book Plus"');await document.fonts.load('16px "Inter"');return document.fonts.check('22px "Gentium Book Plus"')&&document.fonts.check('16px "Inter"');})).toBe(true);
+ await context.setOffline(true);await page.reload();await page.locator('.song-choice').filter({hasText:'Norske tegn'}).click();expect(await page.evaluate(async()=>{await document.fonts.load('22px "Gentium Book Plus"');await document.fonts.load('16px "Inter"');return document.fonts.check('22px "Gentium Book Plus"')&&document.fonts.check('16px "Inter"');})).toBe(true);
 });
 test('a saved legacy update handoff with settings open restores its song context',async({page})=>{
  await page.goto(url);await importSong(page,'legacy.txt','{t: Eldre utgave}\nTekst');const song=(await savedSongs(page))[0];

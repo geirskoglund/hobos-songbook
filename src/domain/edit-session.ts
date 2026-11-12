@@ -1,6 +1,7 @@
 import type { Song, SongPersonal } from './song.ts';
 import { personalChanges } from './personal.ts';
 import { reconcilePersonal } from './annotations.ts';
+import {canEditSource} from './sync.ts';
 export interface DraftSnapshot {
   song: Song;
   personal: SongPersonal;
@@ -52,7 +53,7 @@ export function createEditSession(initial: Song, personal: SongPersonal, saved: 
       ...state,
       annotations: undefined
     }).chorus;
-    song = structuredClone(target.song);
+    song = {...song,original:target.song.original,title:target.song.title,key:target.song.key};
     state = {
       ...structuredClone(target.personal),
       chorus
@@ -90,6 +91,7 @@ export function createEditSession(initial: Song, personal: SongPersonal, saved: 
       };
     },
     replaceOriginal(next: Song, change?: (current: SongPersonal) => SongPersonal) {
+      if (!canEditSource(song) && next.original !== song.original) throw Error('Importerte sanger har skrivebeskyttet filinnhold.');
       const before = snapshot();
       state = reconcilePersonal(song, next, state);
       if (change) state = change(state);
@@ -136,6 +138,7 @@ export function createEditSession(initial: Song, personal: SongPersonal, saved: 
       return true;
     },
     snapshot,
+    updateContext(next: Song) {song={...next,original:song.original,title:song.title,key:song.key};if(baselineSong)baselineSong={...next,original:baselineSong.original,title:baselineSong.title,key:baselineSong.key};},
     pendingChange,
     markSaved(snapshot: DraftSnapshot) {
       baselineSong = snapshot.song;

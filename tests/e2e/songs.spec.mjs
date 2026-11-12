@@ -54,16 +54,16 @@ test('lyrics and chord anchors wrap at mobile/tablet/desktop at both font limits
 
   await page.getByRole('button', {name: '← Mine sanger'}).click();
   await importSong(page, 'ren.txt', 'Bare sangtekst\nuten akkorder');
-  await expect(page.locator('.song-metadata')).toHaveText('4/4');
+  await expect(page.locator('.song-metadata')).toHaveText('Privat4/4');
   await expect(page.locator('.chord')).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
   await expect(page.locator('#font-size')).toHaveValue('36'); await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
-  await page.getByRole('button', {name: /Lang sang/}).click();
+  await page.locator('.song-choice').filter({hasText:'Lang sang'}).click();
   await expect(page.locator('#song-title')).toHaveText('Lang sang');
   await page.evaluate(() => window.scrollTo(0, 1400)); expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
   await page.getByRole('button', {name: '← Mine sanger'}).click();
-  await page.getByRole('button', {name: /Lang sang/}).click();
+  await page.locator('.song-choice').filter({hasText:'Lang sang'}).click();
   await expect(page.locator('#song-title')).toHaveText('Lang sang');
   expect(await page.evaluate(() => scrollY)).toBe(0);
 });
@@ -138,7 +138,7 @@ test('closing the browser and reopening the same persistent profile offline pres
     page = context.pages()[0]; await page.goto('http://127.0.0.1:4173/hobos-songbook/test/');
     await expect(page.locator('#connection')).toHaveText('Uten nett');
     await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
-    await page.getByRole('button', {name: /Samme tittel/}).click();
+    await page.locator('.song-choice').filter({hasText:'Samme tittel'}).click();
     await expect(page.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('html')).toHaveAttribute('data-theme','dark'); await expect(page.locator('#font-size')).toHaveValue('28');
     expect(await savedSongs(page)).toEqual(before);

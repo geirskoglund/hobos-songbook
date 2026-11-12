@@ -122,7 +122,7 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   await expect(production.locator('html')).toHaveAttribute('data-theme','dark');
   await expect(preview.locator('html')).toHaveAttribute('data-theme','dark');
   await expect(preview.locator('#font-size')).toHaveValue('30');
-  await preview.getByRole('button', {name: /Samme tittel/}).click();
+  await preview.locator('.song-choice').filter({hasText:'Samme tittel'}).click();
   await expect(preview.getByRole('button', {name: 'Refreng', exact: true}).nth(0)).toHaveAttribute('aria-expanded', 'false');
   await expect(preview.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
 });

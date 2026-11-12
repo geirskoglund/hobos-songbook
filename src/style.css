@@ -13,6 +13,8 @@ button:disabled, input:disabled {opacity: .65; cursor: wait;}
 :where(button, a, input, select, summary):focus-visible {outline: 3px solid var(--accent); outline-offset: 4px;}
 #app {max-width: var(--frame-width); min-height: 100svh; margin: auto; display: flex; flex-direction: column; padding: 0 0 env(safe-area-inset-bottom);}
 .topbar {position: sticky;top: 0;z-index: var(--layer-header);display: grid;grid-template-columns: repeat(3,minmax(0,1fr));align-items: center;gap: 8px;min-height: calc(var(--header-min-height) + env(safe-area-inset-top));padding: env(safe-area-inset-top) var(--gutter) 0;background: var(--header);border-bottom: 1px solid color-mix(in srgb,var(--border) 45%,transparent);}
+html:not([data-page="library"]):not([data-page="reader"]) .topbar { grid-template-columns: minmax(0,1fr) auto; }
+html:not([data-page="library"]):not([data-page="reader"]) #header-actions { display: none; }
 .wordmark {text-decoration: none; font-size: .8rem; letter-spacing: .12em; font-weight: 750;}
 .wordmark span {font-weight: 400; color: var(--muted);}
 [data-channel="test"] .environment {color: var(--accent); border-color: var(--accent);}
@@ -284,3 +286,22 @@ main > section {flex:1;min-width:0}
 .range-control input[type=range]::-moz-range-thumb {width:24px;height:24px;border:0;border-radius:50%;background:var(--accent)}
 
 .range-control .range-heading label {font:inherit}
+
+/* Song access and synchronization reuse the shared rows, dialogs and controls. */
+.song-row .song-choice { flex: 1; min-width: 0; }
+.song-access { color: var(--muted); font-size: .8em; font-weight: 400; }
+.song-metadata .song-access { overflow-wrap: anywhere; }
+.song-more { margin-left: auto; padding: 8px; min-width: 44px; min-height: 44px; }
+.deleted-control { margin-block: var(--space-2); max-width: 18rem; font-size: .85em; }
+.sync-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-6); }
+#sync h2 { font-size: 1.1rem; margin-top: var(--space-6); }
+#sync { padding-bottom: 100px; }
+.source-fields { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.source-dialog { width: min(100% - 24px, 572px); }
+.source-dialog #source-songbook { max-width: 100%; overflow-wrap: anywhere; }
+#sync-status[data-error=true] { color: var(--accent); }
+
+.editor-tabs:has(button:only-child) { grid-template-columns: 1fr; }
+#sync .song-list { padding-bottom: var(--space-4); }
+
+.sync-controls button { display: inline-flex; align-items: center; gap: var(--space-2); }

@@ -3,14 +3,20 @@ import {openDialog} from './dialog.ts';
 import {placeOverlay} from './layout.ts';
 
 /** L01: presentation belongs here; the caller owns metadata and navigation. */
-export function metadataRow(title: string, metadata: string[], choose: () => void) {
+export function metadataRow(title: string, metadata: string[], choose: () => void, menu?: (opener: HTMLButtonElement) => void) {
   const row = document.createElement('li');
-  const button = actionButton('', choose); button.className = 'song-choice metadata-row';
+  if(menu)row.className='count-row song-row';
+  const button = actionButton('', choose); button.className = 'metadata-row';
   button.setAttribute('aria-label', [title, ...metadata].join(', '));
   const name = document.createElement('span'); name.className = 'song-name'; name.textContent = title;
   const details = document.createElement('span'); details.className = 'row-metadata';
   for (const text of metadata) {const part = document.createElement('span'); part.textContent = text; details.append(part);}
-  button.append(name, details); row.append(button); return {row, button};
+  button.append(name, details); row.append(button); const more=menu?rowMenu(title,menu):undefined;if(more)row.append(more);return {row, button, more};
+}
+
+export function rowMenu(name: string, menu: (opener: HTMLButtonElement)=>void) {
+  const more = actionButton('', () => menu(more), 'meny'); more.className = 'row-menu';
+  more.setAttribute('aria-label', `Handlinger for ${name}`); more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');return more;
 }
 
 /** L05: one selected state and checkmark implementation for every choice row. */
@@ -72,13 +78,13 @@ export function countRow(name: string, count: number, choose: () => void, menu: 
   const title = document.createElement('span'); title.className = 'song-name'; title.textContent = name;
   const detail = document.createElement('span'); detail.className = 'row-metadata'; detail.textContent = `${count} ${count === 1 ? 'sang' : 'sanger'}`;
   button.setAttribute('aria-label', `${name}, ${detail.textContent}`); button.append(title, detail);
-  const more = actionButton('', () => menu(more), 'meny'); more.className = 'row-menu';
-  more.setAttribute('aria-label', `Handlinger for ${name}`); more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');
+  const more = rowMenu(name,menu);
   row.append(button, more); return {row, button, more};
 }
 
 /** D09 composes L05. No creation action or confirmation footer. */
-export function choicePicker(options: {opener: HTMLButtonElement; name: string; value: string; choices: {id: string | null; name: string}[]; selected: string | null; choose: (id: string | null) => void}) {
+export function choicePicker(options: {opener: HTMLButtonElement; name: string; value: string; choices: {id: string | null; name: string}[]; selected: string | null; choose: (id: string | null) => void; create?: {name:string; run:()=>void}; cancel?: ()=>void; description?: string}) {
+  let chosen=false;
   const box = dialogFrame(options.name, 'choice-picker');
   if (options.opener.id) {box.id = `${options.opener.id}-picker`; options.opener.setAttribute('aria-controls', box.id);}
   const heading = document.createElement('h2'); heading.textContent = options.name;
@@ -89,13 +95,15 @@ export function choicePicker(options: {opener: HTMLButtonElement; name: string; 
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'm5 9 7 7 7-7'); chevron.append(path); value.append(chevron);
   const list = document.createElement('div'); list.className = 'choice-list'; list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', options.name);
   const buttons = options.choices.map(choice => {
-    const button = selectableRow(choice.name, choice.id === options.selected, () => {lifecycle.close(); options.choose(choice.id);});
+    const button = selectableRow(choice.name, choice.id === options.selected, () => {chosen=true;lifecycle.close(); options.choose(choice.id);});
     list.append(button); return button;
   });
   arrowNavigation(list, buttons); box.append(heading, value, list);
+  if(options.description){const text=document.createElement('p');text.className='hint';text.textContent=options.description;heading.after(text);}
+  if(options.create)box.append(actionButton(options.create.name,()=>{chosen=true;lifecycle.close();options.create!.run();},'ny'));
   options.opener.setAttribute('aria-expanded', 'true');
   const lifecycle = openDialog(box, {opener: options.opener, focus: buttons.find(button => button.getAttribute('aria-selected') === 'true'), outside: true,
     place: () => placeOverlay(box, options.opener, {align: 'center', width: 572}),
-    closed: () => options.opener.setAttribute('aria-expanded', 'false')});
+    closed: () => {options.opener.setAttribute('aria-expanded', 'false');if(!chosen)options.cancel?.();}});
   return lifecycle;
 }

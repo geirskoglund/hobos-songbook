@@ -123,7 +123,7 @@ test('update restores library scroll, settings dialog and its scroll position', 
   await expect(page.locator('#settings')).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(position.page);
   expect(await savedSongs(page)).toEqual(before);
-  await closeSettings(page); await page.getByRole('button',{name:'Sang 2',exact:false}).click();
+  await closeSettings(page); await page.locator('.song-choice').filter({hasText:'Sang 2'}).click();
   await expect(page.locator('#song-title')).toHaveText('Sang 2');
   expect(await page.evaluate(()=>scrollY)).toBe(0);
 });

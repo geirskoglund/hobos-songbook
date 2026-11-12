@@ -31,8 +31,8 @@ async function chooseBook(page, name) {
 
 test('v1 upgrades atomically, preserves every stored field and remains stable offline',async({page,context})=>{
   await seed(page);await page.goto(url);await expect(page.locator('.song-choice')).toHaveCount(1);
-  const state=await snapshot(page);expect(state).toEqual({version:3,songs:[{...legacy,songbookId:'standard'}],personal:[personal],songbooks:[{id:'standard',name:'Standard'}],setlists:[]});
-  await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#mStemming: DADGAD');
+  const state=await snapshot(page);expect(state).toEqual({version:4,sync:[],songs:[{...legacy,songbookId:'standard'}],personal:[personal],songbooks:[{id:'standard',name:'Standard'}],setlists:[]});
+  await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#mStemming: DADGADPrivat');
   await chooseBook(page,'Standard');await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');
   await page.reload();await expect(page.locator('#songbook-filter')).toHaveText('Standard');expect(await snapshot(page)).toEqual(state);
   await context.setOffline(true);await page.reload();await expect(page.locator('#songbook-filter')).toHaveText('Standard');
@@ -83,7 +83,7 @@ test('menu and picker use real keyboard/touch entrypoints, focus return and nati
 });
 
 test('rows reflect autosaved personal metadata and undone values without changing song identity',async({page})=>{
- await page.goto(url);await importSong(page,'meta.txt','{t: Metadata}\n{key: Am}\nTekst');await setCapo(page,3);await page.locator('#back').click();await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#m');
+ await page.goto(url);await importSong(page,'meta.txt','{t: Metadata}\n{key: Am}\nTekst');await setCapo(page,3);await page.locator('#back').click();await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#mPrivat');
  await page.locator('.song-choice').click();await setCapo(page,7);await page.getByRole('button',{name:'Angre',exact:true}).click();await goSongs(page);await expect(page.locator('.row-metadata')).toContainText('Capo 3: F#m');
  await importSong(page,'uten.txt','{t: Uten toneart}\nTekst');await setCapo(page,2);await page.locator('#back').click();await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).toContainText('Capo 2');await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).not.toContainText('Capo 2:');
 });

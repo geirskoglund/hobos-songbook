@@ -13,7 +13,9 @@ import { shiftChord, shiftGridText, sharedGridText, validGrid } from '../domain/
 import { sourceLines, sourceChords, sourceBlocks, setChord, moveChord, setMetadata, setDirective, insertDirective, patchSong, setChorus, removeSourceBlock, transposeSong, lineEnding, mergeRawSource, type SourceBlock } from '../domain/source-edit.ts';
 import type { Song, SongPersonal } from '../domain/song.ts';
 import type { EditSession } from '../domain/edit-session.ts';
+import {canEditSource} from '../domain/sync.ts';
 export function createSongEditor(session: EditSession, change: (source?: boolean) => void, raw: () => void) {
+  const writable = canEditSource(session.song);
   type ElementChoice = {
     kind: 'note';
     id: string;
@@ -37,7 +39,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     range: Highlight;
   } | undefined;
   let tool: string | undefined,
-    tab = 'file',
+    tab = writable ? 'file' : 'personal',
     popup: {
       close: () => void;
       dirty: () => boolean;
@@ -85,6 +87,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     change();
   };
   const original = (next: Song, fn?: (state: SongPersonal) => SongPersonal) => {
+    if (!writable) return;
     toolbar.querySelector('.editor-error')?.remove();
     session.replaceOriginal(next, fn);
     paintTools();
@@ -142,6 +145,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     });
   }
   function openGrid(anchor: HTMLElement, shared = false) {
+    if (shared && !writable) return;
     closePopup();
     setTool();
     if (shared && sourceBlocks(session.song.original, 'grid').some(block => !block.end)) {
@@ -263,6 +267,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       }
       return;
     }
+    if (!writable && ['title','key','time','raw','shared-grid','chord','chorus','reference','comment','dynamic'].includes(name)) return;
     if (['title', 'key', 'time'].includes(name)) {
       metadata(name as 'title', button);
       return;
@@ -306,6 +311,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
   const file: Entry[] = [['title', 'Tittel', 'felles'], ['key', 'Toneart', 'key'], ['time', 'Takt', 'time'], ['shared-grid', 'Akkordskjema', 'akkordskjema'], ['chord', 'Akkorder', 'akkord'], ['chorus', 'Refreng', 'refreng'], ['reference', 'Gjenta refreng', 'gjenta-refreng'], ['comment', 'Anvisninger', 'info'], ['dynamic', 'Dynamikk', 'dynamikk'], ['raw', 'Råtekst', 'ratekst']];
   const personal: Entry[] = [['capo', 'Capo', 'capo'], ['tuning', 'Stemming', 'stemming'], ['grid', 'Akkordskjema', 'akkordskjema'], ['note', 'Notater', 'notat'], ['highlight', 'Gulmarkering', 'gulmarkering']];
   for (const [panel, entries] of [[filePanel, file], [personalPanel, personal]] as const) {
+    if (panel === filePanel && !writable) continue;
     for (const [i, [name, label, iconName]] of [...common, ...entries].entries()) {
       if (i === 3) {
         const divider = document.createElement('span');
@@ -321,6 +327,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     }
   }
   for (const [id, name] of [['file', 'Filinnhold'], ['personal', 'Egentilpasning']]) {
+    if (id === 'file' && !writable) continue;
     const b = actionButton(name, () => {
       tab = id;
       reflectTab();
@@ -352,6 +359,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
   tabs.addEventListener('keydown', event => {
     if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
+      if (!writable) return;
       tab = event.key === 'Home' ? 'file' : event.key === 'End' ? 'personal' : tab === 'file' ? 'personal' : 'file';
       reflectTab();
       tabs.querySelector<HTMLElement>('[aria-selected=true]')?.focus();
@@ -438,6 +446,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     p.textContent = text;
   }
   function choiceAt(target: Element): ElementChoice | undefined {
+    if (!writable && !target.closest('.personal-note,mark')) return;
     const note = target.closest<HTMLElement>('.personal-note');
     if (note?.dataset.noteId) return {
       kind: 'note',
@@ -554,7 +563,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     }
   }
   function startChordDrag(node: HTMLElement, x: number, y: number, pointerType = 'mouse'): ElementDrag | undefined {
-    if (!node.matches('.chord[data-chord-start]') || !body) return;
+    if (!writable || !node.matches('.chord[data-chord-start]') || !body) return;
     const root = body,
       start = Number(node.dataset.chordStart),
       ghost = node.cloneNode(true) as HTMLElement;
@@ -811,7 +820,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
         selectElement(node);
         return;
       }
-      if (event.altKey && ['ArrowLeft', 'ArrowRight'].includes(event.key) && node?.matches('.chord[data-chord-start]')) {
+      if (writable && event.altKey && ['ArrowLeft', 'ArrowRight'].includes(event.key) && node?.matches('.chord[data-chord-start]')) {
         event.preventDefault();
         const row = node.closest<HTMLElement>('[data-source-line]')!,
           offset = Math.max(0, Math.min(lyricText(row).length, Number(node.dataset.chordOffset) + (event.key === 'ArrowRight' ? 1 : -1)));
