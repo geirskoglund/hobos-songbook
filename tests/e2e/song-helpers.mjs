@@ -51,7 +51,7 @@ export async function openSettings(page){
 export async function closeSettings(page){if(await page.locator('#settings').isVisible())await page.locator('#back').click();}
 export async function goSongs(page){await openMenu(page);await page.getByRole('button',{name:'Sanger',exact:true}).click();}
 
-export async function editSong(page){await expect(page.locator('#reader')).toBeVisible();await expect(page.locator('#song-title')).toBeVisible();if(!await page.locator('.edit-toolbar').count())await page.getByRole('button',{name:'Rediger',exact:true}).click();await expect(page.locator('.edit-toolbar')).toBeVisible();}
+export async function editSong(page){await expect(page.locator('#reader')).toBeVisible();await expect(page.locator('#song-title')).toBeVisible();await expect(page.locator('#edit-song')).toBeEnabled();if(!await page.locator('.edit-toolbar').count())await page.getByRole('button',{name:'Rediger',exact:true}).click();await expect(page.locator('.edit-toolbar')).toBeVisible();}
 export async function selectElement(page,element){await editSong(page);await page.keyboard.press('Escape');await element.focus();await element.press('Enter');await expect(page.locator('[data-element-selected]').first()).toBeVisible();await expect(page.getByRole('button',{name:'Fjern',exact:true})).toBeEnabled();}
 export async function tool(page,name,personal=false){await editSong(page);await page.getByRole('tab',{name:personal?'Egentilpasning':'Filinnhold',exact:true}).click();await page.getByRole('button',{name,exact:true}).click();}
 export async function rawEditor(page){await tool(page,'Råtekst');await expect(page.getByRole('dialog',{name:'Råtekst',exact:true})).toBeVisible();return page.locator('#original-text');}
