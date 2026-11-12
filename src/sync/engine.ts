@@ -70,8 +70,8 @@ export function createSync(storage: ReturnType<typeof songStorage>, options: {na
         if(sourceIds) {
           const sources=(await data()).state.config.sources.filter(source=>sourceIds.includes(source.id));
           for(const source of sources) {
-            try {await pullSource(source);await sourceResult(source.id);}
-            catch(error){await sourceResult(source.id,message(error));}
+            try {await pullSource(source);await sourceResult(source);}
+            catch(error){await sourceResult(source,message(error));}
           }
           await push();
         }
@@ -84,7 +84,7 @@ export function createSync(storage: ReturnType<typeof songStorage>, options: {na
     });
     try {await running;} finally {running=undefined;if(rerun){rerun=false;request();}}
   }
-  async function sourceResult(id: string,error?: string) {await mutate(data=>{const source=data.state.config.sources.find(source=>source.id===id);if(source){source.error=error;if(!error)source.lastSync=new Date().toISOString();data.state.config.dirty=true;data.state.config.generation++;}});}
+  async function sourceResult(expected: Source,error?: string) {await mutate(data=>{const source=data.state.config.sources.find(source=>source.id===expected.id&&source.url===expected.url&&source.songbookId===expected.songbookId);if(source){source.error=error;if(!error)source.lastSync=new Date().toISOString();data.state.config.dirty=true;data.state.config.generation++;}});}
   async function sharedBook(entry: Entry, entries: Entry[]) {
     const path=entry.path_display!, name=path.split('/')[2], folder=entries.find(item=>item['.tag']==='folder'&&item.path_display?.toLocaleLowerCase('en-US')===`/Shared/${name}`.toLocaleLowerCase('en-US'));
     return mutate(data=>{
@@ -245,22 +245,27 @@ export function createSync(storage: ReturnType<typeof songStorage>, options: {na
     }
   }
   async function pullSource(source: Source) {
+    const currentSource=(data:SyncData)=>data.state.config.sources.some(item=>item.id===source.id&&item.url===source.url&&item.songbookId===source.songbookId);
+    let deferred=false;
     const entries=(await api.sourceFiles(source.url)).filter(entry=>accepted(entry.name));
     const present=new Set(entries.map(entry=>entry.id));
     for(const entry of entries) {
       const snapshot=await data(), existing=snapshot.songs.find(song=>song.origin.sourceId===source.id&&song.origin.fileId===entry.id);
-      if(existing?.sync?.sourceRev===entry.rev&&!existing?.sync?.deleted||existing&&(snapshot.state.songs[existing.id]?.editing||options.protectedSong(existing.id)))continue;
+      if(!currentSource(snapshot))return;
+      if(existing&&(snapshot.state.songs[existing.id]?.editing||options.protectedSong(existing.id))){deferred=true;continue;}
+      if(existing?.sync?.sourceRev===entry.rev&&!existing?.sync?.deleted)continue;
       const text=await api.sourceText(source.url,entry), id=existing?.id??await stableId(`${snapshot.state.owner}:${source.id}:${entry.id}`);
       const next=withOriginal({...createSong(entry.name,new TextEncoder().encode(text)),id,songbookId:source.songbookId,origin:{kind:'external',filename:entry.name,importedAt:existing?.origin.importedAt??new Date().toISOString(),provider:'dropbox-read',sourceId:source.id,fileId:entry.id,relativePath:entry.relative},sync:{access:'import',sourceRev:entry.rev}},text);
       await mutate(data=>{
-        const track=data.state.songs[id];if(track?.editing||options.protectedSong(id))return;
+        if(!currentSource(data))return;const track=data.state.songs[id];if(track?.editing||options.protectedSong(id)){deferred=true;return;}
         const current=data.songs.find(song=>song.id===id), personal=data.personal.find(item=>item.songId===id)??emptyPersonal(id);
         if(current&&track?.importOriginal!==undefined&&current.original!==track.importOriginal){conflict(data,'Både importkopien og den eksterne kilden er endret.',{song:current,personal},{song:next},id);return;}
         const updated=current?reconcilePersonal(current,next,personal):personal;
         data.songs=[...data.songs.filter(song=>song.id!==id),next];data.personal=[...data.personal.filter(item=>item.songId!==id),updated];data.state.songs[id]={...dirtySong(id,track),importOriginal:next.original};
       });
     }
-    await mutate(data=>{for(const song of data.songs.filter(song=>song.origin.sourceId===source.id&&!present.has(song.origin.fileId!)&&!song.sync?.deleted)) {song.sync={...song.sync,access:'import',deleted:true};data.state.songs[song.id]=dirtySong(song.id,data.state.songs[song.id]);}});
+    await mutate(data=>{if(!currentSource(data))return;for(const song of data.songs.filter(song=>song.origin.sourceId===source.id&&!present.has(song.origin.fileId!)&&!song.sync?.deleted)) {song.sync={...song.sync,access:'import',deleted:true};data.state.songs[song.id]=dirtySong(song.id,data.state.songs[song.id]);}});
+    if(deferred)throw Error('Noen sanger er under redigering. Synkroniser kilden på nytt når du er ferdig.');
   }
   async function uploadConflicts() {
     for(const item of (await data()).state.conflicts.filter(item=>!item.uploaded)) {
