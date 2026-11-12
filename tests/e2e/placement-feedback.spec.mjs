@@ -35,3 +35,7 @@ test('touch chord preview is enlarged above the finger and shows the exact lyric
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source.replace('[C]abcdef','abc[C]def'));await page.getByRole('button',{name:'Angre',exact:true}).click();await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source);
  }finally{await context.close();}
 });
+
+test('inserting on a blank line before an instruction keeps the existing instruction intact',async({page})=>{
+ const source='{t: Behold anvisning}\nFør\n\n{comment: Behold denne}\nEtter';await importSong(page,'behold.cho',source);await tool(page,'Anvisninger');await page.locator('.song-space').first().focus();await page.keyboard.press('Enter');await expect(page.getByRole('textbox',{name:'Anvisning',exact:true})).toHaveValue('');await fillValue(page,'Anvisning','Ny anvisning');await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source.replace('{comment: Behold denne}','{comment: Ny anvisning}\n{comment: Behold denne}'));
+});

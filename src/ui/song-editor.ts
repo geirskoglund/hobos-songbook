@@ -400,7 +400,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       }, undefined, point);
     } else if (tool === 'comment') {
       const current = sourceLines(session.song.original)[index],
-        existing = ['comment', 'c'].includes(current?.directive?.name ?? '');
+        existing = sourceIndex === index && ['comment', 'c'].includes(current?.directive?.name ?? '');
       value('Anvisning', 'info', row, existing ? current.directive!.value : '', (text, submitted) => {
         if (!submitted) return;
         if (/[\r\n{}]/.test(text)) throw Error('Bruk én linje uten klammer.');
