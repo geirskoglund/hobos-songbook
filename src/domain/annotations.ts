@@ -30,6 +30,7 @@ export function noteAt(personal: SongPersonal, line: number): [string, PersonalN
   return Object.entries(personal.notes ?? {}).find(([, note]) => note.line === line);
 }
 export function changeNote(current: SongPersonal, id: string, note: PersonalNote | undefined): SongPersonal {
+  if(note&&(!Number.isSafeInteger(note.line)||note.line<0))throw Error('Velg en gyldig tekstlinje for notatet.');
   const notes = {...current.notes};
   if (note?.text.trim()) notes[id] = note; else delete notes[id];
   return {...current, notes: Object.keys(notes).length ? notes : undefined};
@@ -46,7 +47,7 @@ export function cleanPersonal(current: SongPersonal): SongPersonal {
   const {annotations: oldAnnotations, notes: oldNotes, ...rest} = current;
   let result: SongPersonal = {...rest, version: 3};
   for (const [id, note] of Object.entries(oldNotes ?? {})) {
-    if (note && Number.isInteger(note.line) && note.line >= 0 && typeof note.text === 'string') result = changeNote(result, id, {line: note.line, text: note.text});
+    if (note && typeof note.text === 'string') result = changeNote(result, id, {line:Number.isSafeInteger(note.line)&&note.line>=0?note.line:Number.MAX_SAFE_INTEGER,text:note.text});
   }
   for (const [key, annotation] of Object.entries(oldAnnotations ?? {})) {
     if (!annotation?.anchor || annotation.anchor.occurrence !== key || !Array.isArray(annotation.highlights)) continue;

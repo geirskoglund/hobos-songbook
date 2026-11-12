@@ -37,14 +37,14 @@ test('note tool and F05 leave lyrics in place; the connector follows a held move
  const positions=()=>page.locator('.song-line').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().y));const before=await positions();await tool(page,'Notater',true);expect(await positions()).toEqual(before);
  const row=page.locator('.song-line').nth(2),at=await row.boundingBox();await row.click({position:{x:10,y:at.height/2}});const popup=await page.locator('.value-control').boundingBox();expect(Math.abs(popup.y-(at.y+at.height/2))).toBeLessThan(2);await fillValue(page,'Notat','Her er et notat');expect(await positions()).toEqual(before);
  const note=page.locator('.personal-note'),a=await note.boundingBox(),target=await page.locator('.song-line').first().boundingBox();expect(a.height).toBeGreaterThanOrEqual(70);expect(await note.evaluate(n=>getComputedStyle(n).borderRadius)).toBe('10px');
- await page.mouse.move(a.x+15,a.y+15);await page.mouse.down();await page.waitForTimeout(500);await page.mouse.move(target.x+10,target.y+target.height/2,{steps:6});await expect(page.locator('.annotation-connectors line[data-dragging=true]')).toHaveCount(1);
+ await page.mouse.move(a.x+15,a.y+a.height/2);await page.mouse.down();await page.waitForTimeout(500);await page.mouse.move(target.x+10,target.y+target.height/2,{steps:6});await expect(page.locator('.annotation-connectors line[data-dragging=true]')).toHaveCount(1);
  const line=page.locator('.annotation-connectors line[data-dragging=true]');expect(await line.evaluate(n=>Number(n.getAttribute('y1')))).toBeLessThan(before[2]-before[0]);
  expect(await positions()).toEqual(before);await page.keyboard.press('Escape');await page.mouse.up();expect(Object.values((await savedPersonal(page))[0].notes)[0].line).toBe(2);
 });
 
 test('end target appends a chorus reference and instruction after the last source line',async({page})=>{
- const source='{t: Slutten}\n{soc}\nKor\n{eoc}\nSiste linje';await importSong(page,'end.cho',source);await tool(page,'Gjenta refreng');await page.locator('.song-end').click();await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source+'\n{chorus}\n');
- await tool(page,'Anvisninger');await page.locator('.song-end').click();await fillValue(page,'Anvisning','Slutt');await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source+'\n{chorus}\n{comment: Slutt}\n');
+ const source='{t: Slutten}\n{soc}\nKor\n{eoc}\nSiste linje';await importSong(page,'end.cho',source);await tool(page,'Gjenta refreng');await page.locator('.song-end').click({position:{x:10,y:8}});await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source+'\n{chorus}\n');
+ await tool(page,'Anvisninger');await page.locator('.song-end').click({position:{x:10,y:8}});await fillValue(page,'Anvisning','Slutt');await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source+'\n{chorus}\n{comment: Slutt}\n');
 });
 
 test('partial pointer spans and single word taps make whole word highlights',async({page})=>{

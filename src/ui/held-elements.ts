@@ -7,7 +7,7 @@ export interface ElementDrag {
 export function attachHeldElements(root: HTMLElement, options: {
   resolve: (target: Element) => HTMLElement | undefined;
   select: (target: HTMLElement) => void;
-  startDrag: (target: HTMLElement, x: number, y: number) => ElementDrag | undefined;
+  startDrag: (target: HTMLElement, x: number, y: number, pointerType:string) => ElementDrag | undefined;
 }) {
   let held: {
       node: HTMLElement;
@@ -62,7 +62,7 @@ export function attachHeldElements(root: HTMLElement, options: {
     if (held.armed) {
       event.preventDefault();
       if (!held.drag && Math.hypot(held.x - held.startX, held.y - held.startY) > 4) {
-        held.drag = options.startDrag(held.node, held.startX, held.startY);
+        held.drag = options.startDrag(held.node, held.startX, held.startY,held.type);
         if (held.drag) held.stop = edgeScroll(() => held?.y ?? innerHeight / 2, () => {
           if (held) held.drag?.move(held.x, held.y);
         });

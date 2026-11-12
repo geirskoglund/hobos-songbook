@@ -312,7 +312,7 @@ export function startSongbook() {
         const body = element('div', undefined, 'chorus-text'); body.append(renderContent(block.content, dynamicsContext));
         const heading=element('h2','Refreng');heading.dataset.sourceLine=String(block.sourceLine);section.append(heading, body); bodyContent.append(section);
       } else if (block.kind === 'reference') {
-        if(!block.content){const missing=element('section',undefined,'chorus reference');missing.dataset.referenceLine=block.occurrence.replace('line:','');missing.append(element('h2','Refreng'),element('p','Refreng — ingen tidligere refrengtekst er definert.','comment'));bodyContent.append(missing);continue;}
+        if(!block.content){const missing=element('section',undefined,'chorus reference'),heading=element('h2','Refreng');missing.dataset.referenceLine=heading.dataset.sourceLine=block.occurrence.replace('line:','');missing.append(heading);bodyContent.append(missing);continue;}
         const section = element('section', undefined, 'chorus reference');section.dataset.referenceLine=block.occurrence.replace('line:','');
         const heading = element('h2'), button = element('button', 'Refreng'); button.type = 'button';heading.dataset.sourceLine=block.occurrence.replace('line:','');
         button.setAttribute('aria-label', 'Refreng');

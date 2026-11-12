@@ -132,12 +132,12 @@ export function sourceChords(line: SourceLine) {
     return [result];
   });
 }
-export function setChord(song: Song, lineIndex: number, offset: number, value: string, existing?: number): Song {
+export function setChord(song: Song, lineIndex: number, offset: number, value: string, existing?: number, spaceBefore=false): Song {
   const rows = sourceLines(song.original), row = rows[lineIndex];
   const chord = value.trim();
   if (chord && !isChord(chord)) throw Error('Skriv en gyldig akkord, for eksempel C, F#m7 eller D/F#.');
   if (!row) {
-    if(lineIndex===rows.length&&existing===undefined&&chord)return insertDirective(song,lineIndex,`[${chord}]`);
+    if(lineIndex===rows.length&&existing===undefined&&chord)return insertDirective(song,lineIndex,`[${chord}]`,spaceBefore);
     throw Error('Tekstposisjonen finnes ikke lenger.');
   }
   if(row.directive)throw Error('Velg en posisjon i sangteksten.');
@@ -162,14 +162,14 @@ export function moveChord(song:Song,start:number,line:number,offset:number):{son
   if(!inserted)throw Error('Kunne ikke plassere akkorden.');
   return{song:next,start:inserted.start};
 }
-export function insertDirective(song: Song, lineIndex: number, text: string): Song {
-  const row = sourceLines(song.original)[lineIndex],
+export function insertDirective(song: Song, lineIndex: number, text: string, spaceBefore=false): Song {
+  const rows=sourceLines(song.original),row = rows[lineIndex],
     at = row?.start ?? song.original.length,
     nl = lineEnding(song.original);
   return patchSong(song, [{
     start: at,
     end: at,
-    text: (at === song.original.length && at && !/[\r\n]$/.test(song.original) ? nl : '') + text + nl
+    text: (at === song.original.length && at && !/[\r\n]$/.test(song.original) ? nl : '') + (spaceBefore&&at>0&&rows[lineIndex-1]?.text.trim()!==''?nl:'') + text + nl
   }]);
 }
 export function setDirective(song: Song, lineIndex: number, name: string, value: string): Song {

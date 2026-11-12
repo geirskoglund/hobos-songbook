@@ -63,3 +63,10 @@ test('raw field normalization preserves all unchanged original line endings and 
  assert.equal(mergeRawSource(original,original.replace(/\r\n|\r/g,'\n')),original);
  assert.equal(mergeRawSource(original,original.replace(/\r\n|\r/g,'\n').replace('Før','Etter')),original.replace('Før','Etter'));
 });
+test('line insertion can add one compact pause without duplicating existing blank lines or changing endings',()=>{
+ const source='\uFEFF{t: Luft}\r\nOrd',initial=song(source);
+ assert.equal(insertDirective(initial,2,'{chorus}',true).original,source+'\r\n\r\n{chorus}\r\n');
+ const paused=source+'\r\n\r\n';assert.equal(insertDirective(song(paused),3,'{comment: Slutt}',true).original,paused+'{comment: Slutt}\r\n');
+ assert.equal(insertDirective(song('Før\n\nEtter'),2,'{chorus}',true).original,'Før\n\n{chorus}\nEtter');
+ assert.equal(setChord(initial,2,0,'C',undefined,true).original,source+'\r\n\r\n[C]\r\n');
+});

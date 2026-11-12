@@ -2,8 +2,9 @@ import { actionButton, icon, textArea } from './controls.ts';
 import { dialogFrame, dialogFooter, openDialog } from './dialog.ts';
 import { valueControl } from './value-controls.ts';
 import { overlayWidth, placeOverlay, currentPage } from './layout.ts';
-import { createHighlightEditor, lyricText, lyricOffsetAt, edgeScroll } from './highlight-editor.ts';
+import { createHighlightEditor, lyricText, lyricOffsetAt, lyricPositionAt, edgeScroll } from './highlight-editor.ts';
 import { attachNoteDrag } from './note-drag.ts';
+import { nearestNoteTarget } from './note-position.ts';
 import { attachHeldElements, type ElementDrag } from './held-elements.ts';
 import { attachDynamicMarkers } from './dynamic-markers.ts';
 import { paintAnnotations } from './annotations.ts';
@@ -378,7 +379,9 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     if (target.closest('[data-remove-element],.highlight-controls,.chorus-handle')) return;
     const row = target.closest<HTMLElement>('[data-source-line]') ?? rowAt(event.clientY);
     if (!row || !body?.contains(row) || !tool) return;
-    const index = Number(row.closest<HTMLElement>('.reference')?.dataset.referenceLine ?? row.dataset.sourceLine);
+    const spaceBefore = row.classList.contains('song-space') || row.classList.contains('song-end') && event.clientY >= row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+    const sourceIndex = Number(row.closest<HTMLElement>('.reference')?.dataset.referenceLine ?? row.dataset.sourceLine),
+      index = row.classList.contains('song-space') && ['reference', 'comment', 'dynamic'].includes(tool ?? '') ? Math.min(sourceIndex + 1, sourceLines(session.song.original).length) : sourceIndex;
     if (tool === 'note') {
       note(target.closest<HTMLElement>('.personal-note') ?? row, point);
       return;
@@ -393,7 +396,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
         capo = session.personal.capo ?? 0;
       value('Akkord', 'akkord', chord ?? row, shiftChord(start, -capo), (text, submitted) => {
         if (!submitted) return;
-        original(setChord(session.song, index, offset, shiftChord(text.trim(), capo), existing));
+        original(setChord(session.song, index, offset, shiftChord(text.trim(), capo), existing, spaceBefore));
       }, undefined, point);
     } else if (tool === 'comment') {
       const current = sourceLines(session.song.original)[index],
@@ -401,26 +404,27 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       value('Anvisning', 'info', row, existing ? current.directive!.value : '', (text, submitted) => {
         if (!submitted) return;
         if (/[\r\n{}]/.test(text)) throw Error('Bruk én linje uten klammer.');
-        original(existing ? setDirective(session.song, index, 'comment', text) : insertDirective(session.song, index, `{comment: ${text}}`));
+        original(existing ? setDirective(session.song, index, 'comment', text) : insertDirective(session.song, index, `{comment: ${text}}`, spaceBefore));
       }, undefined, point);
     } else if (tool === 'dynamic') {
       const marker = target.closest<HTMLElement>('[data-dynamic-line]');
       let line = marker ? Number(marker.dataset.dynamicLine) : undefined;
       value('Dynamikk', 'dynamikk', marker ?? row, marker?.dataset.level ?? '3', text => {
-        original(line === undefined ? insertDirective(session.song, index, `{x_dyn: ${text}}`) : setDirective(session.song, line, 'x_dyn', text));
-        if (line === undefined) line = index;
+        const next = line === undefined ? insertDirective(session.song, index, `{x_dyn: ${text}}`, spaceBefore) : setDirective(session.song, line, 'x_dyn', text);
+        if (line === undefined) line = sourceLines(next.original)[index]?.directive?.name === 'x_dyn' ? index : index + 1;
+        original(next);
       }, {
         min: 1,
         max: 5
       }, point);
     } else if (tool === 'reference') {
       const definitions = sourceBlocks(session.song.original, 'chorus');
-      if (!definitions.some(b => b.end && b.end.index < index) || definitions.some(b => b.start.index < index && index < (b.end?.index ?? Infinity))) {
-        showError('Definer et refreng før du setter inn en henvisning.');
+      if (definitions.some(b => b.start.index < index && index < (b.end?.index ?? Infinity))) {
+        showError('Sett henvisningen utenfor refrengblokken.');
         return;
       }
       setTool();
-      original(insertDirective(session.song, index, '{chorus}'));
+      original(insertDirective(session.song, index, '{chorus}', spaceBefore));
     }
   }
   function showError(text: string) {
@@ -484,7 +488,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
   function selectable(target: Element): HTMLElement | undefined {
     if (target.closest('.highlight-controls,.chorus-handle')) return;
     const node = target.closest<HTMLElement>('.personal-note,.chord[data-chord-start],.dynamic-marker,mark,.comment[data-source-line],.chorus > h2');
-    if((tool==='highlight'||tool==='chorus')&&node?.matches('.chord'))return;
+    if ((tool === 'highlight' || tool === 'chorus') && node?.matches('.chord')) return;
     return node && body?.contains(node) && choiceAt(node) ? node : undefined;
   }
   function reflectSelection() {
@@ -549,12 +553,16 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       showError(error instanceof Error ? error.message : 'Kunne ikke fjerne elementet.');
     }
   }
-  function startChordDrag(node: HTMLElement, x: number, y: number): ElementDrag | undefined {
+  function startChordDrag(node: HTMLElement, x: number, y: number, pointerType = 'mouse'): ElementDrag | undefined {
     if (!node.matches('.chord[data-chord-start]') || !body) return;
     const root = body,
       start = Number(node.dataset.chordStart),
       ghost = node.cloneNode(true) as HTMLElement;
     ghost.className = 'chord-drag-ghost';
+    ghost.dataset.input = pointerType;
+    const context = document.createElement('span');
+    context.className = 'chord-drag-context';
+    if (pointerType !== 'mouse') ghost.append(context);
     ghost.removeAttribute('tabindex');
     ghost.removeAttribute('data-element-selected');
     ghost.setAttribute('aria-hidden', 'true');
@@ -568,8 +576,11 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       offset: number;
     } | undefined;
     const move = (x: number, y: number) => {
-      ghost.style.left = `${x + 12}px`;
-      ghost.style.top = `${y - 30}px`;
+      const positionGhost = () => {
+        ghost.style.left = `${pointerType === 'mouse' ? x + 12 : Math.max(8, Math.min(x - ghost.offsetWidth / 2, innerWidth - ghost.offsetWidth - 8))}px`;
+        ghost.style.top = `${Math.max(8, pointerType === 'mouse' ? y - 30 : y - ghost.offsetHeight - 56)}px`;
+      };
+      positionGhost();
       target = undefined;
       caret.hidden = true;
       const rows = [...root.querySelectorAll<HTMLElement>('.song-line,.song-space,.song-end')].filter(row => !row.closest('[hidden]'));
@@ -579,21 +590,26 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       });
       if (!row) {
         ghost.dataset.invalid = 'true';
+        context.textContent = 'Velg tekstposisjon';
+        positionGhost();
         return;
       }
       const line = Number(row.dataset.sourceLine),
-        offset = lyricOffsetAt(row, x, y);
+        position = lyricPositionAt(row, x, y),
+        offset = position.offset;
       target = {
         line,
         offset
       };
       ghost.dataset.invalid = 'false';
-      const bounds = root.getBoundingClientRect(),
-        rect = row.getBoundingClientRect();
+      const text = lyricText(row);
+      context.textContent = Array.from(text.slice(0, offset)).slice(-8).join('') + '│' + Array.from(text.slice(offset)).slice(0, 8).join('');
+      positionGhost();
+      const bounds = root.getBoundingClientRect();
       caret.hidden = false;
-      caret.style.left = `${Math.max(0, Math.min(x - bounds.left, root.clientWidth - 2))}px`;
-      caret.style.top = `${rect.top - bounds.top}px`;
-      caret.style.height = `${Math.max(20, rect.height)}px`;
+      caret.style.left = `${Math.max(0, Math.min(position.x - bounds.left, root.clientWidth - 2))}px`;
+      caret.style.top = `${position.top - bounds.top}px`;
+      caret.style.height = `${Math.max(20, position.height)}px`;
     };
     move(x, y);
     return {
@@ -625,6 +641,13 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     end.dataset.noteLine = String(logicalLines(session.song).length);
     end.tabIndex = 0;
     end.setAttribute('aria-label', 'Plassering etter sangteksten');
+    end.setAttribute('aria-description', 'Enter setter inn rett etter. Shift+Enter setter inn med luft.');
+    for (const label of ['Rett etter', 'Med luft']) {
+      const hint = document.createElement('span');
+      hint.className = 'song-end-option';
+      hint.textContent = label;
+      end.append(hint);
+    }
     body.append(end);
     for (const row of body.querySelectorAll<HTMLElement>('[data-source-line]')) {
       const source = rows[Number(row.dataset.sourceLine)];
@@ -649,7 +672,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       tool = undefined;
       paintTools();
     }, true);
-    const stopDrag = attachNoteDrag(root, update, rowAt, node => {
+    const stopDrag = attachNoteDrag(root, update, y => nearestNoteTarget(root, y), node => {
       if (tool === 'note') note(node);
     }, selectElement);
     decorate();
@@ -832,7 +855,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
           target.dispatchEvent(new MouseEvent('click', {
             bubbles: true,
             clientX: r.left + 1,
-            clientY: r.top + 1
+            clientY: event.shiftKey && target.classList.contains('song-end') ? r.bottom - 1 : r.top + 1
           }));
         }
       }

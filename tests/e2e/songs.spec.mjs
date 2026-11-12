@@ -110,7 +110,7 @@ test('invalid files, transaction abort, unavailable database and unavailable pre
 test('missing chorus is understandable and malformed blocks never swallow following text', async ({page}) => {
   await page.goto('/hobos-songbook/test/');
   await importSong(page, 'markører.txt', '{chorus}\n{eoc}\nBevart\n{soc}\nUferdig\n{x: ukjent}\nEtter');
-  await expect(page.locator('#song-content')).toContainText('ingen tidligere refrengtekst');
+  await expect(page.locator('.reference > h2')).toHaveText('Refreng');await expect(page.locator('#song-content')).not.toContainText('ingen tidligere refrengtekst');
   for (const text of ['Bevart','Uferdig','{x: ukjent}','Etter']) await expect(page.locator('#song-content')).toContainText(text);
 });
 
