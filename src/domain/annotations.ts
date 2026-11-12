@@ -109,7 +109,10 @@ function shiftRange(range: Highlight, before: string, after: string): Highlight 
 export function reconcilePersonal(before: Song, after: Song, personal: SongPersonal): SongPersonal {
   if (before.original === after.original) return personal;
   const oldRows = logicalLines(before), newRows = logicalLines(after), positions = align(oldRows, newRows);
-  let result: SongPersonal = {...personal, annotations: undefined};
+  const sourceRows=(song:Song)=>song.original.replace(/^\uFEFF/,'').split(/\r\n|\r|\n/).map((text,index)=>({text,sourceLine:index,occurrence:`line:${index}`}));
+  const oldSource=sourceRows(before),newSource=sourceRows(after),sourceMap=align(oldSource,newSource),chorus:Record<string,boolean>={};
+  for(const [key,value] of Object.entries(personal.chorus)){const index=Number(key.replace(/^line:/,'')),next=sourceMap.get(index);if(next!==undefined&&/^\s*\{chorus\s*\}\s*$/i.test(newSource[next]?.text??''))chorus[`line:${next}`]=value;}
+  let result: SongPersonal = {...personal, chorus, annotations: undefined};
   for (const annotation of Object.values(personal.annotations ?? {})) {
     const oldIndex = oldRows.findIndex(row => row.occurrence === annotation.anchor.occurrence), newIndex = positions.get(oldIndex);
     if (newIndex === undefined) continue;

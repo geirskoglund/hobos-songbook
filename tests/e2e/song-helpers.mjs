@@ -26,11 +26,13 @@ export async function openMenu(page) {
 export async function closeMenu(page) {
   if (await page.locator('#main-menu').isVisible()) await page.getByRole('button',{name:'Meny',exact:true}).click();
 }
-export async function setCapo(page, value) {
-  await page.locator('#capo-pill').click();
-  const current = Number(await page.getByRole('spinbutton',{name:'Capo',exact:true}).textContent());
-  for (let n = 0; n < Math.abs(value-current); n++) await page.getByRole('button',{name:value > current ? 'Øk capo' : 'Reduser capo',exact:true}).click();
-  await page.getByRole('button',{name:'OK',exact:true}).click();
+export async function setCapo(page,value){
+ await tool(page,'Capo',true);
+ const current=Number(await page.getByRole('spinbutton',{name:'Capo',exact:true}).textContent());
+ for(let n=0;n<Math.abs(value-current);n++)await page.getByRole('button',{name:value>current?'Øk capo':'Reduser capo',exact:true}).click();
+ await page.keyboard.press('Escape');
+ await expect(page.getByRole('dialog',{name:'Capo',exact:true})).not.toBeVisible();
+ await expect.poll(async()=>(await savedPersonal(page))[0]?.capo??0).toBe(value);
 }
 export async function setDisplay(page, {theme, fontSize, showGrids, showDynamics}) {
   await openSettings(page);
@@ -45,3 +47,9 @@ export async function openSettings(page){
 }
 export async function closeSettings(page){if(await page.locator('#settings').isVisible())await page.locator('#back').click();}
 export async function goSongs(page){await openMenu(page);await page.getByRole('button',{name:'Sanger',exact:true}).click();}
+
+export async function editSong(page){await expect(page.locator('#reader')).toBeVisible();await expect(page.locator('#song-title')).toBeVisible();if(!await page.locator('.edit-toolbar').count())await page.getByRole('button',{name:'Rediger',exact:true}).click();await expect(page.locator('.edit-toolbar')).toBeVisible();}
+export async function tool(page,name,personal=false){await editSong(page);await page.getByRole('tab',{name:personal?'Egentilpasning':'Filinnhold',exact:true}).click();await page.getByRole('button',{name,exact:true}).click();}
+export async function rawEditor(page){await tool(page,'Råtekst');await expect(page.getByRole('dialog',{name:'Råtekst',exact:true})).toBeVisible();return page.locator('#original-text');}
+export async function fillValue(page,name,value){const field=page.getByRole('textbox',{name,exact:true});await field.fill(value);await field.press(name==='Notat'?'ControlOrMeta+Enter':'Enter');await expect(page.getByRole('dialog',{name,exact:true})).not.toBeVisible();}
+export async function savedPersonal(page){return page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open(`hobos-songbook-${location.pathname.includes('/app/')?'production':'test'}`);r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal'),q=tx.objectStore('personal').getAll();tx.oncomplete=()=>{db.close();resolve(q.result);};};}));}

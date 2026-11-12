@@ -38,14 +38,14 @@ export function edgeScroll(y: () => number, moved: () => void) {
   };
   frame = requestAnimationFrame(tick); return () => cancelAnimationFrame(frame);
 }
-export function createHighlightEditor(root: HTMLElement, song: Song, personal: () => SongPersonal, update: (fn: (current: SongPersonal) => SongPersonal) => void, applied: () => void) {
+export function createHighlightEditor(root: HTMLElement, song: Song, personal: () => SongPersonal, update: (fn: (current: SongPersonal) => SongPersonal) => void, applied: () => void,toolFirst=false) {
   let active = false, selected: Selection | undefined, ignoreClick = false, pending: TextSpan[] = [];
   const controls = document.createElement('div'); controls.className = 'highlight-controls'; controls.hidden = true;
   const overlay = document.createElement('div'); overlay.className = 'selection-preview'; overlay.setAttribute('aria-hidden','true');
   const make = (text: string, label: string) => {const b = document.createElement('button'); b.type = 'button'; b.textContent = text; b.setAttribute('aria-label',label); return b;};
   const startHandle = make('‹','Dra starten på markeringen'), remove = make('×','Fjern markering'), endHandle = make('›','Dra slutten på markeringen');
   for (const [edge,handle] of [['start',startHandle],['end',endHandle]] as const) {handle.className = `highlight-handle handle-${edge}`; handle.dataset.edge = edge; handle.setAttribute('role','slider');}
-  controls.append(startHandle,remove,endHandle); root.append(overlay,controls);
+  controls.append(startHandle,remove,endHandle);remove.hidden=toolFirst; root.append(overlay,controls);
   function rows() {let offset = 0; return [...root.querySelectorAll<HTMLElement>('.song-line[data-occurrence]')].filter(line => visible(line)&&lyricText(line).length>0).map(line => {const text = lyricText(line), at = offset; offset += text.length+1; return {line,text,at};});}
   function inLyric(lyric: HTMLElement, offset: number) {
     const walker=document.createTreeWalker(lyric,NodeFilter.SHOW_TEXT);let node:Node|null,at=offset;
@@ -146,6 +146,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     if(event.pointerType==='touch')root.dataset.input='touch';else root.dataset.input='mouse';
     const handle=(event.target as Element).closest<HTMLElement>('.highlight-handle');
     if(handle&&selected){event.preventDefault();event.stopPropagation();getSelection()?.removeAllRanges();const original=selected;for(const part of original.parts){const range=domRange(part);part.line.querySelectorAll('mark').forEach(mark=>{if(range?.intersectsNode(mark))mark.setAttribute('data-highlight-muted','');});}handleGesture={pointer:event.pointerId,edge:handle.dataset.edge as 'start'|'end',original,x:event.clientX,y:event.clientY,stop:()=>{}};handleGesture.stop=edgeScroll(()=>handleGesture?.y ?? innerHeight/2,()=>{if(handleGesture){const at=atPoint(handleGesture.x,handleGesture.y);if(at!==undefined)moveHandle(at);}});root.setPointerCapture(event.pointerId);return;}
+    if(toolFirst&&!active)return;
     if(event.button!==0 || (event.target as Element).closest('button,.personal-note,.highlight-controls') || !active && (event.pointerType==='touch' || !(event.target as Element).closest('.lyric')))return;
     const at=atPoint(event.clientX,event.clientY);if(at===undefined)return;
     event.preventDefault();getSelection()?.removeAllRanges();clear();root.setPointerCapture(event.pointerId);
@@ -165,7 +166,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
         if(gesture.armed){delete overlay.dataset.pending;replace(undefined,parts);applied();}
         else{pending=parts;overlay.dataset.pending='';preview(parts);}
         ignoreClick=true;
-      }else if(cancel)clear();else if(gesture.mark){selectMark(gesture.mark);ignoreClick=true;}
+      }else if(cancel)clear();else if(gesture.mark){selectMark(gesture.mark);if(toolFirst)applied();ignoreClick=true;}
     }
     if(handleGesture&&(!event||event.pointerId===handleGesture.pointer)){
       const gesture=handleGesture,next=selected;handleGesture=undefined;gesture.stop();overlay.replaceChildren();unmute();
@@ -174,7 +175,7 @@ export function createHighlightEditor(root: HTMLElement, song: Song, personal: (
     }
     if(event&&root.hasPointerCapture(event.pointerId))root.releasePointerCapture(event.pointerId);
   }
-  function click(event: MouseEvent) {if(ignoreClick){ignoreClick=false;event.preventDefault();event.stopImmediatePropagation();return;}if(controls.contains(event.target as Node))return;if(pending.length||nativeLyricSpans(root).length)return;const mark=(event.target as Element).closest<HTMLElement>('mark');if(mark){selectMark(mark);return;}if(!(event.target as Element).closest('.personal-note'))clear();}
+  function click(event: MouseEvent) {if(ignoreClick){ignoreClick=false;event.preventDefault();event.stopImmediatePropagation();return;}if(controls.contains(event.target as Node))return;if(pending.length||nativeLyricSpans(root).length)return;const mark=(event.target as Element).closest<HTMLElement>('mark');if(mark&&(!toolFirst||active)){selectMark(mark);if(toolFirst)applied();return;}if(!(event.target as Element).closest('.personal-note'))clear();}
   function key(event: KeyboardEvent) {
     const handle=(event.target as Element).closest<HTMLElement>('.highlight-handle');
     if(handle&&selected&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){

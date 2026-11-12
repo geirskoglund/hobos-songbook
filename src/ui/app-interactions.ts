@@ -65,7 +65,7 @@ export function startAppInteractions() {
   function stopHold() {if(hold)clearTimeout(hold.timer);hold=undefined;}
   function down(event:PointerEvent) {
     pointerType=event.pointerType;hideTooltip();
-    if(!(event.target as Element).closest('input,textarea,.edit-toolbar,.app-text-actions,.highlight-controls,.popup-actions'))getSelection()?.removeAllRanges();if(menu?.contains(event.target as Node))return;closeMenu();stopHold();
+    if(!(event.target as Element).closest('input,textarea,.edit-toolbar,.app-text-actions,.highlight-controls,.popup-actions,[data-preserve-field-focus]'))getSelection()?.removeAllRanges();if(menu?.contains(event.target as Node))return;closeMenu();stopHold();
     const control=textControl(event.target);if(event.pointerType!=='touch'||!control)return;
     hold={control,pointer:event.pointerId,x:event.clientX,y:event.clientY,lastX:event.clientX,lastY:event.clientY,scrollX:scrollX,scrollY:scrollY,moved:false,opened:false,timer:setTimeout(()=>{
       if(!hold||hold.moved||!control.isConnected)return;hold.opened=true;select(control,caret(control,hold.x,hold.y));tools(control,hold.x,hold.y);

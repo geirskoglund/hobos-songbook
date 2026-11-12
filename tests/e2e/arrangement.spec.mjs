@@ -92,7 +92,7 @@ test('touch pin changes on release, remains usable when off and survives an edit
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});await expect(pin).toHaveAttribute('aria-pressed','true');
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await expect(pin).toHaveAttribute('aria-pressed','false');
     await expect(pin).toBeVisible();await expect(pin).toBeEnabled();await expect(pin.locator('svg > g')).toHaveAttribute('opacity','.20');
-    await page.locator('#edit-song').tap();await expect(pin).toBeHidden();await page.locator('#back').tap();
+    await page.locator('#edit-song').tap();await expect(pin).toBeHidden();await page.getByRole('button',{name:'Visning',exact:true}).tap();
     await expect(pin).toBeVisible();await expect(pin).toHaveAttribute('aria-pressed','false');await pin.tap();await expect(pin).toHaveAttribute('aria-pressed','true');
     const current=await pin.boundingBox();await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:current.x+current.width/2,y:current.y+current.height/2}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
     await expect(pin).toHaveAttribute('aria-pressed','true');await expect(pin.locator('svg > g')).toHaveAttribute('opacity','1');expect(await savedSongs(page)).toEqual(before);

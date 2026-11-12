@@ -82,13 +82,10 @@ test('menu and picker use real keyboard/touch entrypoints, focus return and nati
   await page.locator('#songbook-filter').click();await page.mouse.click(2,page.viewportSize().height-2);await expect(page.getByRole('dialog',{name:'Sangbok',exact:true})).toHaveCount(0);await expect(page.locator('#songbook-filter')).toHaveText('Standard');
 });
 
-test('rows use saved personal metadata; drafts and discarded edits never leak',async({page})=>{
-  await page.goto(url);await importSong(page,'meta.txt','{t: Metadata}\n{key: Am}\nTekst');await page.locator('#edit-song').click();await setCapo(page,3);
-  await page.locator('#edit-save').click();await expect(page.locator('#edit-save')).toBeDisabled();await page.locator('#back').click();await page.locator('#back').click();
-  await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#m');await expect(page.locator('.song-choice')).not.toContainText('Standard stemming');
-  await page.locator('.song-choice').click();await page.locator('#edit-song').click();await setCapo(page,7);await goSongs(page);await page.getByRole('button',{name:'Forkast endringer',exact:true}).click();await expect(page.locator('.row-metadata')).toContainText('Capo 3: F#m');
-  await importSong(page,'uten.txt','{t: Uten toneart}\nTekst');await page.locator('#edit-song').click();await setCapo(page,2);await page.locator('#edit-save').click();await expect(page.locator('#edit-save')).toBeDisabled();await page.locator('#back').click();await page.locator('#back').click();
-  await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).toContainText('Capo 2');await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).not.toContainText('Capo 2:');
+test('rows reflect autosaved personal metadata and undone values without changing song identity',async({page})=>{
+ await page.goto(url);await importSong(page,'meta.txt','{t: Metadata}\n{key: Am}\nTekst');await setCapo(page,3);await page.locator('#back').click();await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#m');
+ await page.locator('.song-choice').click();await setCapo(page,7);await page.getByRole('button',{name:'Angre',exact:true}).click();await goSongs(page);await expect(page.locator('.row-metadata')).toContainText('Capo 3: F#m');
+ await importSong(page,'uten.txt','{t: Uten toneart}\nTekst');await setCapo(page,2);await page.locator('#back').click();await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).toContainText('Capo 2');await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).not.toContainText('Capo 2:');
 });
 
 test('metadata read and filter storage errors remain truthful and retry keeps stored data',async({page})=>{

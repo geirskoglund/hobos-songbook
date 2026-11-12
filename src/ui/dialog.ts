@@ -24,13 +24,13 @@ export function openDialog(box: HTMLDialogElement, options: DialogOptions = {}) 
   const cancel = () => {if (options.cancel) options.cancel();else close();};
   box.addEventListener('cancel', event => {event.preventDefault();event.stopPropagation();cancel();});
   box.addEventListener('pointerdown', event => {
-    const action = (event.target as Element).closest('.popup-actions button');
+    const action = (event.target as Element).closest('.popup-actions button, [data-preserve-field-focus]');
     // Keep the active field and keyboard until a completed click has read the draft.
     if (action) event.preventDefault();
     down = {x: event.clientX, y: event.clientY, scroll: scrollY};
   }, true);
   box.addEventListener('touchstart', event => {
-    if ((event.target as Element).closest('.popup-actions button:disabled')) event.preventDefault();
+    if ((event.target as Element).closest('.popup-actions button:disabled, [data-preserve-field-focus]:disabled')) event.preventDefault();
   }, {capture: true, passive: false});
   box.addEventListener('pointercancel', () => {down = undefined;});
   box.addEventListener('click', event => {
