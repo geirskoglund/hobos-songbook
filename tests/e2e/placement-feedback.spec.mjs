@@ -20,6 +20,11 @@ test('dropping into an occupied note area keeps the original note and saved posi
  const note=page.locator('.personal-note').filter({hasText:'Første'}),target=await textPoint(page.locator('.song-line').nth(7));await beginMove(page,note);await page.mouse.move(target.x,target.y,{steps:8});await expect(page.locator('.note-drag-ghost')).toHaveAttribute('data-invalid','true');await page.mouse.up();expect((await savedPersonal(page))[0].notes).toEqual(before.notes);await expect(page.locator('.note-overflow')).toHaveCount(0);
 });
 
+test('an already crowded note cannot show a valid drop at an anchor still occupied by its neighbor',async({page})=>{
+ await importSong(page,'crowded.cho','{t: Tett}\n'+Array.from({length:12},(_,i)=>`Linje ${i}`).join('\n'));await addNote(page,page.locator('.song-line').nth(0),'Første');await addNote(page,page.locator('.song-line').nth(1),'Andre');const before=(await savedPersonal(page))[0];
+ const note=page.locator('.personal-note').filter({hasText:'Andre'}),target=await textPoint(page.locator('.song-line').nth(1));await beginMove(page,note);await page.mouse.move(target.x,target.y,{steps:8});await expect(page.locator('.note-drag-ghost')).toHaveAttribute('data-invalid','true');await page.mouse.up();expect((await savedPersonal(page))[0].notes).toEqual(before.notes);await expect(note).toHaveText('Andre');
+});
+
 test('end placement offers immediate insertion or one compact pause and accepts a standalone chorus label',async({page})=>{
  const source='\uFEFF{t: Luft}\r\n{comment: Outro}\r\n';await importSong(page,'air.cho',source);await tool(page,'Gjenta refreng');await page.locator('.song-end').click({position:{x:10,y:66}});await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source+'\r\n{chorus}\r\n');await expect(page.locator('.reference > h2')).toHaveText('Refreng');await expect(page.locator('#song-body')).not.toContainText('ingen tidligere');
  const previous=await page.locator('.comment').boundingBox();await expect.poll(async()=>{const r=await page.locator('.reference > h2').boundingBox();return r.y-previous.y-previous.height;}).toBeGreaterThan(8);

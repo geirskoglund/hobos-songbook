@@ -41,8 +41,8 @@ export function nearestNoteTarget(root: HTMLElement, y: number) {
   return noteTargets(root).reduce<HTMLElement | undefined>((best, row) => !best || Math.abs(noteAnchor(row).y - y) < Math.abs(noteAnchor(best).y - y) ? row : best, undefined);
 }
 export function canPlaceNote(root: HTMLElement, note: HTMLElement, row: HTMLElement) {
-  if (note.parentElement === row) return true;
-  if (row.querySelector('.personal-note')) return false;
+  const existing = row.querySelector('.personal-note');
+  if (existing && existing !== note) return false;
   const center = noteAnchor(row).y,
     height = note.getBoundingClientRect().height,
     top = center - height / 2,
