@@ -62,6 +62,8 @@ export function attachAnnotationGeometry(root: HTMLElement) {
     svg = document.createElementNS(ns, 'svg');
   svg.classList.add('annotation-connectors');
   svg.setAttribute('aria-hidden', 'true');
+  // Keep the overlay inside the live song width, also before the next measured draw.
+  svg.setAttribute('width', '100%');
   root.append(svg);
   let frame = 0,
     disposed = false,
@@ -83,7 +85,6 @@ export function attachAnnotationGeometry(root: HTMLElement) {
     }
     const contentBottom = Math.max(origin.top, ...[...root.querySelectorAll<HTMLElement>('.song-line,.comment,.unknown,.chorus > h2,.song-end,.note-overflow-row')].filter(row => !row.closest('[hidden]')).map(row => row.getBoundingClientRect().bottom));
     root.style.setProperty('--note-extra', `${Math.max(0, previousBottom - contentBottom)}px`);
-    svg.setAttribute('width', String(root.clientWidth));
     svg.setAttribute('height', String(Math.max(root.clientHeight, previousBottom - origin.top)));
     svg.replaceChildren();
     for (const note of root.querySelectorAll<HTMLElement>('.personal-note')) {
