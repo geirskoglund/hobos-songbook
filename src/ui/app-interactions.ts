@@ -64,6 +64,8 @@ export function startAppInteractions() {
   }
   function stopHold() {if(hold)clearTimeout(hold.timer);hold=undefined;}
   function down(event:PointerEvent) {
+    // A returned/programmatic focus after touch must not resemble an active control.
+    delete document.documentElement.dataset.keyboardFocus;
     pointerType=event.pointerType;hideTooltip();
     if(!(event.target as Element).closest('input,textarea,.edit-toolbar,.app-text-actions,.highlight-controls,.popup-actions,[data-preserve-field-focus]'))getSelection()?.removeAllRanges();if(menu?.contains(event.target as Node))return;closeMenu();stopHold();
     const control=textControl(event.target);if(event.pointerType!=='touch'||!control)return;
@@ -94,6 +96,7 @@ export function startAppInteractions() {
   document.addEventListener('dragstart',event=>event.preventDefault(),true);
   document.addEventListener('invalid',event=>event.preventDefault(),true);
   document.addEventListener('keydown',event=>{
+    if(['Tab','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key))document.documentElement.dataset.keyboardFocus='true';
     pointerType='keyboard';
     if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='a'&&!textControl(event.target))event.preventDefault();
     if(event.key==='Escape'){if(menu){event.preventDefault();event.stopImmediatePropagation();}stopHold();closeMenu(true);hideTooltip();}

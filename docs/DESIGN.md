@@ -13,6 +13,14 @@ Bruk [navneindeksen](design/README.md) for komponentnavn, ID-er og SVG-er. Entyd
 
 Oppgaven bestemmer funksjon og innhold; designets eksempeltekst utvider ikke bestillingen. Avklar bare manglende eller tvetydig design.
 
+### Fokus og tilstand på kontroller
+
+Gule eller gylne «aktiv»-rammer, fokusrammer og hoverrammer rundt kontroller skal ikke forekomme. Dette gjelder gjennomgående for menyer, rader, felt, verdikontroller og dialoghandlinger. Trykk med mus, berøring eller penn og programmatisk fokusretur skal ikke etterlate en dekorativ ramme. Fokus, fokusretur, markør og skjermtastatur beholdes funksjonelt.
+
+Tastaturnavigasjon har en diskret, 1 px fokusmarkering i den eksisterende Sekundærtekst-rollen, trukket 2 px inn for å unngå klipping og ekstra rammer utenfor kontrollen. Tab, piltaster, Home/End og Page Up/Down aktiverer markeringen; neste pekertrykk fjerner den. Samme regel brukes av alle felleskontroller, også felt som nettleseren ellers ville ha markert etter berøring. Ingen lokal gul/gyllen fokusvariant innføres. Fargerollen som heter Handling/fokus i det opprinnelige grunnlaget er ikke en tillatelse til slike rammer; denne uttrykkelige produktavklaringen styrer kontrollfokus.
+
+Vedtatte tilstander som valgt sangbok med flate/sjekkmerke, primærknappens fyll og sangredigeringens faktiske innholdsutvalg beholder sin betydning. De skal ikke brukes til å dekorere en kontroll som bare har fått fokus. Egensjekk prøver både direkte trykk, lukking med fokusretur og bytte mellom tastatur og berøring.
+
 ### Målregler for komponenter i bruk
 
 Alle mål er CSS-piksler. SVG-koordinater må leses relativt til selve komponenten, uten arkets ytterkant, eksempeltekst og oversettelsestransformasjoner. Normalgeometrien gjelder ved plass til vanlig enlinjet innhold. Høyder er minimum ved tekstbryting; bredder begrenses av viewport og safe-area. Lange navn/etiketter får vokse og brytes, og dialoginnhold rulles uten å krympe kontrollene eller skjule footeren. En responsiv tilpasning skal være felles for varianten og bevare fontroller, farger og form. Nettleserens avrunding av brøkstreker vurderes med liten måletoleranse.

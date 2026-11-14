@@ -7,12 +7,10 @@
 .row-metadata > span {max-width:100%;overflow-wrap:anywhere;}
 .row-metadata > span + span::before {content:'·';padding:0 8px;}
 .metadata-row:hover {background:color-mix(in srgb,var(--raised) 25%,transparent);}
-.metadata-row:focus-visible {outline-offset:-3px;}
 .song-list > .count-row {border-bottom-color:color-mix(in srgb,var(--border) 48%,transparent);}
 .count-row {display:grid;grid-template-columns:minmax(0,1fr) 60px;align-items:start;min-height:115px;}
 .count-choice {display:flex;flex-direction:column;gap:6px;width:100%;min-width:0;min-height:114px;padding:22px 0;border:0;border-radius:0;background:none;}
 .count-choice .song-name {font:400 22px/1.3 var(--font-ui);}
-.count-choice:focus-visible {outline-offset:-3px;}
 .row-menu {display:grid;place-items:center;min-height:74px;width:60px;padding:0;border:0;background:none;color:var(--muted);}
 .name-dialog {position:fixed;inset:auto;margin:0;width:572px;max-width:calc(100vw - 24px);}
 .name-dialog::backdrop {background:#0009;}
@@ -20,7 +18,6 @@
 .name-dialog form {display:flex;flex-direction:column;gap:12px;}
 .name-dialog label {font-size:17px;}
 .name-dialog .text-control {width:100%;min-width:0;min-height:59px;padding:16px 18px;background:var(--panel);font:400 18px/1.3 var(--font-ui);}
-.name-dialog .text-control:focus-visible {outline-offset:-4px;}
 .name-dialog > .dialog-footer {margin-top:24px;}
 .name-dialog p {overflow-wrap:anywhere;}
 .name-dialog .hint {min-height:1.4em;margin:0;}
@@ -46,7 +43,6 @@ body:has(#update-notice:not([hidden])) .floating-action {bottom:calc(204px + var
 .choice-picker h2 {font-weight:500;}
 .choice-value {display:flex;align-items:center;justify-content:space-between;gap:20px;flex:none;min-height:68px;width:100%;padding:16px 20px 16px 28px;border-radius:16px;background:var(--panel);font-size:23px;}
 .choice-value span {overflow-wrap:anywhere;min-width:0;}
-.choice-value:focus-visible {outline-offset:-4px;}
 .choice-value svg {width:24px;height:24px;flex:none;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 .choice-options {display:flex;flex-direction:column;min-height:0;padding:8px;border:1px solid var(--border);border-radius:17px;}
 /* Reserve one 64px choice and the 64px action before the dialog body scrolls. */
@@ -55,7 +51,6 @@ body:has(#update-notice:not([hidden])) .floating-action {bottom:calc(204px + var
 .selectable-row span {min-width:0;overflow-wrap:anywhere;}
 .selectable-row[aria-selected=true] {background:var(--raised);}
 .choice-check {width:24px;height:24px;flex:none;fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
-.selectable-row:focus-visible {outline-offset:-3px;}
 .control-heading {display:flex;align-items:center;gap:12px;}
 .control-heading .icon {flex:none;}
 .choice-create {position:relative;display:flex;align-items:center;gap:20px;flex:none;width:100%;min-height:64px;padding:16px 24px;border:0;border-radius:0;background:none;color:var(--accent);font:500 21px/1.3 var(--font-ui);}

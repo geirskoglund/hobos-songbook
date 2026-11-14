@@ -492,7 +492,7 @@
       "filename": "D04_Valgkontroll_radio.svg",
       "title": "Valgkontroll – ett valg",
       "family": "Verdier og inndata",
-      "description": "Radiovalg: ett alternativ om gangen. Fokus/aktivt valg kan vises med Handling/fokus.",
+      "description": "Radiovalg: ett alternativ om gangen. Valgt radiopunkt følger aksentrollen; kontrollfokus følger DESIGNs felles, dempede tastaturmarkering uten gul/gyllen aktiv- eller fokusramme.",
       "variants": "Valgt / ikke valgt",
       "example": "Kun ned / Opp og ned",
       "sources": [

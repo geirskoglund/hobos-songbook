@@ -8,9 +8,9 @@ button, input, select, summary {font: inherit; color: inherit; -webkit-tap-highl
 button, select, input[type="file"] {max-width: 100%;}
 button, select, input::file-selector-button {border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; background: var(--panel); min-height: 46px; cursor: pointer;}
 button {text-align: left; overflow-wrap: anywhere;}
-button:hover, summary:hover {border-color: var(--accent);}
 button:disabled, input:disabled {opacity: .65; cursor: wait;}
-:where(button, a, input, select, summary):focus-visible {outline: 3px solid var(--accent); outline-offset: 4px;}
+:where(button, a, input, textarea, select, summary, [role="spinbutton"]):focus {outline: none;}
+:root[data-keyboard-focus] :where(button, a, input, textarea, select, summary, [role="spinbutton"]):focus-visible {outline: 1px solid var(--muted); outline-offset: -2px;}
 #app {max-width: var(--frame-width); min-height: 100svh; margin: auto; display: flex; flex-direction: column; padding: 0 0 env(safe-area-inset-bottom);}
 .topbar {position: sticky;top: 0;z-index: var(--layer-header);display: grid;grid-template-columns: repeat(3,minmax(0,1fr));align-items: center;gap: 8px;min-height: calc(var(--header-min-height) + env(safe-area-inset-top));padding: env(safe-area-inset-top) var(--gutter) 0;background: var(--header);border-bottom: 1px solid color-mix(in srgb,var(--border) 45%,transparent);}
 .wordmark {text-decoration: none; font-size: .8rem; letter-spacing: .12em; font-weight: 750;}
@@ -259,7 +259,6 @@ body.menu-open {overflow:hidden}
 .dialog-footer button.primary {background:var(--accent);color:var(--bg);font-weight:600}
 .dialog-footer[data-count="3"] button.secondary + button.secondary::before {content:'';position:absolute;left:0;top:12px;bottom:12px;width:1px;background:var(--border)}
 .dialog-footer button:disabled {opacity:.4;cursor:default}
-.dialog-footer button:focus-visible {outline-offset:-4px}
 @media(max-width:420px){.topbar{gap:4px}#header-actions button{font-size:13px;gap:4px;padding:6px 2px}.environment{font-size:10px;padding:4px}#page-title{font-size:18px}.dialog-footer button{flex-direction:column}.display-settings{padding:12px 16px}}
 main {flex: 1; width: min(100%, var(--content-width)); padding: 18px var(--gutter); margin: 0 auto; min-width: 0;display:flex;flex-direction:column}
 main > section {flex:1;min-width:0}
