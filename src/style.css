@@ -23,7 +23,7 @@ h2 {font-size: 1.2rem; font-weight: 600; margin: 28px 0 12px;}
 input[type="file"] {width: 100%; font-size: .88rem;}
 input::file-selector-button {color: var(--text); margin-right: 10px;}
 #song-status {line-height: 1.6; color: var(--accent); overflow-wrap: anywhere;}
-#song-status:empty, #settings-status:empty, #filter-status:empty, #library-status:empty, #setlists-status:empty {display: none;}
+#song-status:empty, #settings-status:empty, #filter-status:empty, #library-status:empty, #setlists-status:empty, #songbooks-status:empty {display: none;}
 #back, #menu-button, #menu-close {min-height: var(--touch-target); width: 40px; padding: 4px; border: 0; background: none; text-align: center; font-size: 1.3rem; flex: none;}
 .nav-right {justify-self:end;justify-content:flex-end;width:100%;}
 .nav-left, .nav-right {display: flex; align-items: center; gap: 8px; min-width: 0;}

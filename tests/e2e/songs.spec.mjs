@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, original, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
+import {beginImport,importSong, savedSongs, original, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
 test.beforeEach(async ({request}) => {await request.post('/__test__/reset');});
 
 test('same titles and same files remain independent; exact originals and chorus state survive reopening', async ({page}) => {
@@ -73,6 +73,7 @@ test('invalid files, transaction abort, unavailable database and unavailable pre
   await page.getByRole('button', {name: '← Mine sanger'}).click();
   const before = await savedSongs(page);
   for (const [name, buffer] of [['tom.txt', Buffer.from('')], ['bin.CHO', Buffer.from([0,1,2])], ['feil.txt', Buffer.from([0xc3,0x28])], ['feil.pdf', Buffer.from('tekst')]]) {
+    await beginImport(page);
     await page.locator('#song-file').setInputFiles({name, mimeType: 'text/plain', buffer});
     await expect(page.locator('#song-status')).not.toContainText('Sangen er lagret');
     await expect(page.locator('#song-status')).not.toBeEmpty(); expect(await savedSongs(page)).toEqual(before);
@@ -83,6 +84,7 @@ test('invalid files, transaction abort, unavailable database and unavailable pre
     window.originalRead = File.prototype.arrayBuffer;
     File.prototype.arrayBuffer = async () => {throw new Error('File unavailable');};
   });
+  await beginImport(page);
   await page.locator('#song-file').setInputFiles({name:'uleselig.txt', mimeType:'text/plain', buffer:Buffer.from('tekst')});
   await expect(page.locator('#song-status')).toContainText('Filen kunne ikke leses');
   expect(await savedSongs(page)).toEqual(before);
@@ -91,6 +93,7 @@ test('invalid files, transaction abort, unavailable database and unavailable pre
     const add = IDBObjectStore.prototype.add;
     IDBObjectStore.prototype.add = function (...args) {this.transaction.abort(); return add.apply(this, args);};
   });
+  await beginImport(page);
   await page.locator('#song-file').setInputFiles({name:'gyldig.txt', mimeType:'', buffer:Buffer.from('Gyldig tekst')});
   await expect(page.locator('#song-status')).toContainText('utilgjengelig'); expect(await savedSongs(page)).toEqual(before);
   await page.reload(); await importSong(page, 'igjen.txt', 'Gyldig tekst');

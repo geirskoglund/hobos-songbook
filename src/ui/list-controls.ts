@@ -1,4 +1,4 @@
-import {actionButton, dialogFrame, icon} from './controls.ts';
+import {actionButton, controlHeading, dialogFrame, icon} from './controls.ts';
 import {openDialog} from './dialog.ts';
 import {placeOverlay} from './layout.ts';
 
@@ -28,6 +28,7 @@ export function selectableRow(name: string, selected: boolean, choose: () => voi
 
 function arrowNavigation(container: HTMLElement, buttons: HTMLButtonElement[]) {
   container.addEventListener('keydown', event => {
+    if (!buttons.length) return;
     const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
     let next: number;
     if (event.key === 'ArrowDown') next = (current + 1) % buttons.length;
@@ -77,25 +78,38 @@ export function countRow(name: string, count: number, choose: () => void, menu: 
   row.append(button, more); return {row, button, more};
 }
 
-/** D09 composes L05. No creation action or confirmation footer. */
-export function choicePicker(options: {opener: HTMLButtonElement; name: string; value: string; choices: {id: string | null; name: string}[]; selected: string | null; choose: (id: string | null) => void}) {
+/** D09/D10 compose the same L05 rows; D10 adds one separate creation action. */
+export function choicePicker(options: {opener: HTMLButtonElement; name: string; value: string; choices: {id: string | null; name: string}[]; selected: string | null; choose: (id: string | null) => void; create?: () => void}) {
   const box = dialogFrame(options.name, 'choice-picker');
   if (options.opener.id) {box.id = `${options.opener.id}-picker`; options.opener.setAttribute('aria-controls', box.id);}
-  const heading = document.createElement('h2'); heading.textContent = options.name;
-  const value = actionButton(options.value, () => lifecycle.close()); value.className = 'choice-value';
+  const heading = controlHeading(options.name, 'sangbok');
+  const value = choiceValue(options.value, () => lifecycle.close());
   value.setAttribute('aria-label', `Lukk ${options.name.toLocaleLowerCase('nb')}: ${options.value}`);
-  const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  chevron.setAttribute('viewBox', '0 0 24 24'); chevron.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'm5 9 7 7 7-7'); chevron.append(path); value.append(chevron);
   const list = document.createElement('div'); list.className = 'choice-list'; list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', options.name);
   const buttons = options.choices.map(choice => {
     const button = selectableRow(choice.name, choice.id === options.selected, () => {lifecycle.close(); options.choose(choice.id);});
     list.append(button); return button;
   });
-  arrowNavigation(list, buttons); box.append(heading, value, list);
+  const focused = buttons.find(button => button.getAttribute('aria-selected') === 'true') ?? buttons[0];
+  if (focused) focused.tabIndex = 0;
+  const choices = document.createElement('div'); choices.className = 'choice-options';
+  arrowNavigation(list, buttons); choices.append(list); box.append(heading, value, choices);
+  if (options.create) {
+    const create = actionButton('Ny sangbok', () => {lifecycle.close(); options.create!();}, 'ny');
+    create.className = 'choice-create'; choices.append(create);
+  }
   options.opener.setAttribute('aria-expanded', 'true');
-  const lifecycle = openDialog(box, {opener: options.opener, focus: buttons.find(button => button.getAttribute('aria-selected') === 'true'), outside: true,
+  const lifecycle = openDialog(box, {opener: options.opener, focus: focused, outside: true,
     place: () => placeOverlay(box, options.opener, {align: 'center', width: 572}),
     closed: () => options.opener.setAttribute('aria-expanded', 'false')});
   return lifecycle;
+}
+
+/** The collapsed value uses the same geometry in the picker and in a choice step. */
+export function choiceValue(name: string, choose: () => void) {
+  const button = actionButton(name || 'Velg sangbok', choose); button.className = 'choice-value';
+  const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  chevron.setAttribute('viewBox', '0 0 24 24'); chevron.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'm5 9 7 7 7-7'); chevron.append(path); button.append(chevron);
+  return button;
 }

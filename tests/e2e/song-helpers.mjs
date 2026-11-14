@@ -1,7 +1,7 @@
 import {expect} from '@playwright/test';
 export const original = '\uFEFF{title: Samme tittel}\r\n{key: D}\r\n{comment: Rolig <b>tekst</b>}\r\n[D]Hei på [A/C#]deg\r\n[Solo] beholdes\r\n{soc}\r\n[G]Syng med\r\n{eoc}\r\n{chorus}\r\n{chorus}\r\n{x_future: behold}\r\n<img src=x onerror="window.injected=true">\r\n';
 export async function importSong(page, name = 'sang.CHO', content = original) {
-  await closeMenu(page);
+  await beginImport(page);
   await page.locator('#song-file').setInputFiles({name, mimeType: '', buffer: Buffer.from(content)});
   await expect.poll(async()=>await page.locator('.import-copy').isVisible()||await page.locator('#song-status').textContent()==='Sangen er lagret på denne enheten.').toBe(true);
   if(await page.locator('.import-copy').isVisible())await page.getByRole('button',{name:'Importer',exact:true}).click();
@@ -57,3 +57,21 @@ export async function tool(page,name,personal=false){await editSong(page);await 
 export async function rawEditor(page){await tool(page,'Råtekst');await expect(page.getByRole('dialog',{name:'Råtekst',exact:true})).toBeVisible();return page.locator('#original-text');}
 export async function fillValue(page,name,value){const field=page.getByRole('textbox',{name,exact:true});await field.fill(value);await field.press(name==='Notat'?'ControlOrMeta+Enter':'Enter');await expect(page.getByRole('dialog',{name,exact:true})).not.toBeVisible();}
 export async function savedPersonal(page){return page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open(`hobos-songbook-${location.pathname.includes('/app/')?'production':'test'}`);r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal'),q=tx.objectStore('personal').getAll();tx.oncomplete=()=>{db.close();resolve(q.result);};};}));}
+
+export async function beginImport(page, book) {
+  await goSongs(page);
+  await page.locator('#add-song').click();
+  await page.getByRole('menuitem', {name:'Importer', exact:true}).click();
+  const step = page.getByRole('dialog', {name:'Importer sang', exact:true});
+  await expect(step).toBeVisible();
+  if (book || await step.getByRole('button', {name:'Fortsett', exact:true}).isDisabled()) {
+    await step.getByRole('button', {name:/^Sangbok:/}).click();
+    await page.getByRole('option', {name:book ?? 'Standard', exact:true}).click();
+  }
+  await step.getByRole('button', {name:'Fortsett', exact:true}).click();
+}
+export async function beginCreate(page) {
+  await page.locator('#add-song').click();
+  await page.getByRole('menuitem', {name:'Opprett', exact:true}).click();
+  await page.getByRole('dialog', {name:'Opprett sang', exact:true}).getByRole('button', {name:'Fortsett', exact:true}).click();
+}

@@ -1,6 +1,6 @@
 # Agentinngang
 
-- Ved UI-arbeid: følg [DESIGN](docs/DESIGN.md) for felles kontroller, layout og komponentreferanser.
+- Ved alt UI-arbeid er godkjent designgrunnlag, komponentkart og ikonbibliotek bindende. Følg [DESIGN](docs/DESIGN.md) med vedtatte navn, stabile ID-er, varianter, geometri og interaksjon. Nye eller avvikende kontrolltyper krever uttrykkelig produktavklaring. Passende eksisterende komponenter skal implementeres én gang som felles kontroller og gjenbrukes; ikke lag lokale kopier.
 
 - Appen skal eie tekst- og kontekstbetjening på alle skjermer, også i tekstfelter. Unngå nettleserens tekst-/lenkemenyer, native verktøytips og valideringsballonger. Bevar nødvendig filvalg, skjermtastatur og tilgjengelig betjening; nettleserens hovedmenyer og systemdialoger er utenfor nettsidens kontroll. Se DESIGN for felles løsning.
 - Svar på bokmål. Bruk aktuell GitHub-issue som oppgavegrunnlag; bevar brukerkrav og stabile ID-er.

@@ -12,14 +12,14 @@ export interface UpdateView {
   menu:{open:boolean;scrollTop:number;infoOpen:boolean};focusId:string|null;
 }
 const stateKey=(namespace:string)=>`${namespace}:update-view`;
-const rows=(songId:string|null,page?:Page)=>[...document.querySelectorAll<HTMLElement>(page==='setlists'?'#setlist-list .count-choice':songId?'#song-body .song-line, #song-body .comment, #song-body .unknown, #song-body .chorus > h2':'#song-list .song-choice')];
+const rows=(songId:string|null,page?:Page)=>[...document.querySelectorAll<HTMLElement>(page==='setlists'?'#setlist-list .count-choice':page==='songbooks'?'#songbook-list .count-choice':songId?'#song-body .song-line, #song-body .comment, #song-body .unknown, #song-body .chorus > h2':'#song-list .song-choice')];
 export type SetlistView = Pick<UpdateView, 'setlistId' | 'setlistsReturn'>;
 export function captureView(songId:string|null,focusId:string|null,editor?:UpdateView['editor'],settingsReturn?:UpdateView,setlist?:SetlistView):UpdateView {
   const panel=document.getElementById('main-menu')!;
   const view:UpdateView={version:1,page:currentPage(),songId,scrollY,chartReleased:Boolean(songId&&document.getElementById('chart-dock')?.dataset.sticky==='false'),menu:{open:!panel.hidden,scrollTop:panel.scrollTop,infoOpen:true},focusId,editor,settingsReturn,...setlist};
-  if(scrollY>0&&['library','reader','setlists'].includes(currentPage())) {
+  if(scrollY>0&&['library','reader','setlists','songbooks'].includes(currentPage())) {
     const content=rows(songId,currentPage()),top=readingTop(),index=content.findIndex(row=>{const r=row.getBoundingClientRect();return r.height>0&&r.bottom>top&&r.top<innerHeight;});
-    if(index>=0)view.anchor={index,offset:content[index].getBoundingClientRect().top-top,itemId:content[index].dataset.songId ?? content[index].dataset.setlistId};
+    if(index>=0)view.anchor={index,offset:content[index].getBoundingClientRect().top-top,itemId:content[index].dataset.songId ?? content[index].dataset.setlistId ?? content[index].dataset.songbookId};
   }
   return view;
 }
@@ -54,7 +54,7 @@ export async function restoreUpdateView(view:UpdateView,isCurrent:()=>boolean) {
   await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
   if(!isCurrent())return;
   window.scrollTo(0,view.scrollY);
-  if(view.anchor){const content=rows(view.songId,view.page),chosen=view.anchor.itemId?content.find(r=>(r.dataset.songId??r.dataset.setlistId)===view.anchor!.itemId):content[view.anchor.index],row=chosen?.closest('[hidden]')?chosen.closest('.reference')?.querySelector('h2'):chosen,rect=row?.getBoundingClientRect();if(rect?.height)window.scrollTo(0,Math.max(0,scrollY+rect.top-readingTop()-view.anchor.offset));}
+  if(view.anchor){const content=rows(view.songId,view.page),chosen=view.anchor.itemId?content.find(r=>(r.dataset.songId??r.dataset.setlistId??r.dataset.songbookId)===view.anchor!.itemId):content[view.anchor.index],row=chosen?.closest('[hidden]')?chosen.closest('.reference')?.querySelector('h2'):chosen,rect=row?.getBoundingClientRect();if(rect?.height)window.scrollTo(0,Math.max(0,scrollY+rect.top-readingTop()-view.anchor.offset));}
   const menu=document.getElementById('main-menu')!;
   if(view.menu.open&&menu.hidden)document.getElementById('menu-button')!.click();
   menu.scrollTop=view.menu.scrollTop;
