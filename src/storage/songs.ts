@@ -9,34 +9,55 @@ export function songStorage(namespace: string) {
   async function open(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       let failed = false;
-      let request: IDBOpenDBRequest;
-      try {request = indexedDB.open(namespace, schemaVersion);}
-      catch {reject(new Error('Kunne ikke åpne sanglageret. Nettleseren tillater ikke lokal lagring.')); return;}
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        // Additive, versioned schema: never reset existing data.
-        if (!db.objectStoreNames.contains('songs')) db.createObjectStore('songs', {keyPath: 'id'});
-        if (!db.objectStoreNames.contains('personal')) db.createObjectStore('personal', {keyPath: 'songId'});
-        if (!db.objectStoreNames.contains('songbooks')) {
-          const books = db.createObjectStore('songbooks', {keyPath: 'id'});
-          books.add({...standardSongbook});
-          const cursor = request.transaction!.objectStore('songs').openCursor();
-          cursor.onsuccess = () => {
-            const entry = cursor.result;
-            if (!entry) return;
-            if (!entry.value.songbookId) entry.update({...entry.value, songbookId: standardSongbook.id});
-            entry.continue();
-          };
-        }
-        if (!db.objectStoreNames.contains('setlists')) db.createObjectStore('setlists', {keyPath: 'id'});
-      };
-      request.onblocked = () => {failed = true; reject(new Error('Sanglageret er blokkert. Lukk andre faner med appen og prøv igjen.'));};
-      request.onerror = () => reject(new Error('Kunne ikke åpne sanglageret. Kontroller at nettleseren tillater lokal lagring, og prøv igjen.'));
-      request.onsuccess = () => {
-        const db = request.result;
-        if (failed) {db.close(); return;}
-        db.onversionchange = () => db.close(); resolve(db);
-      };
+      const newerDatabase = () => new Error('Sanglageret er opprettet av en nyere apputgave som denne utgaven ikke støtter. Lagrede data er beholdt. Åpne apputgaven som opprettet lageret.');
+      function connect(existingVersion = false) {
+        let request: IDBOpenDBRequest;
+        try {request = existingVersion ? indexedDB.open(namespace) : indexedDB.open(namespace, schemaVersion);}
+        catch {reject(new Error('Kunne ikke åpne sanglageret. Nettleseren tillater ikke lokal lagring.')); return;}
+        request.onupgradeneeded = () => {
+          // A database removed between attempts must not be replaced with a new v1 store.
+          if (existingVersion) {request.transaction!.abort(); return;}
+          const db = request.result;
+          // Additive, versioned schema: never reset existing data.
+          if (!db.objectStoreNames.contains('songs')) db.createObjectStore('songs', {keyPath: 'id'});
+          if (!db.objectStoreNames.contains('personal')) db.createObjectStore('personal', {keyPath: 'songId'});
+          if (!db.objectStoreNames.contains('songbooks')) {
+            const books = db.createObjectStore('songbooks', {keyPath: 'id'});
+            books.add({...standardSongbook});
+            const cursor = request.transaction!.objectStore('songs').openCursor();
+            cursor.onsuccess = () => {
+              const entry = cursor.result;
+              if (!entry) return;
+              if (!entry.value.songbookId) entry.update({...entry.value, songbookId: standardSongbook.id});
+              entry.continue();
+            };
+          }
+          if (!db.objectStoreNames.contains('setlists')) db.createObjectStore('setlists', {keyPath: 'id'});
+        };
+        request.onblocked = () => {failed = true; reject(new Error('Sanglageret er blokkert. Lukk andre faner med appen og prøv igjen.'));};
+        request.onerror = event => {
+          if (!failed && !existingVersion && request.error?.name === 'VersionError') {
+            event.preventDefault(); connect(true); return;
+          }
+          reject(new Error('Kunne ikke åpne sanglageret. Kontroller at nettleseren tillater lokal lagring, og prøv igjen.'));
+        };
+        request.onsuccess = () => {
+          const db = request.result;
+          if (failed) {db.close(); return;}
+          if (existingVersion) {
+            // The previously published sync preview added only the sync store in v4.
+            // Reuse its known additive layout, without downgrading or touching extra data.
+            const stores = [['songs', 'id'], ['personal', 'songId'], ['songbooks', 'id'], ['setlists', 'id'], ['sync', 'id']] as const;
+            try {
+              if (db.version !== 4 || stores.some(([name]) => !db.objectStoreNames.contains(name))) throw newerDatabase();
+              const tx = db.transaction(stores.map(([name]) => name), 'readonly');
+              if (stores.some(([name, key]) => {const store = tx.objectStore(name); return store.keyPath !== key || store.autoIncrement;})) throw newerDatabase();
+            } catch {db.close(); reject(newerDatabase()); return;}
+          }
+          db.onversionchange = () => db.close(); resolve(db);
+        };
+      }
+      connect();
     });
   }
   async function transaction<T>(store: string, mode: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
