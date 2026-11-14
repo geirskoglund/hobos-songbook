@@ -6,7 +6,7 @@ test('all destinations use one header and a toggled accessible right panel',asyn
  await page.goto(url);
  for(const width of [320,768,1440]){
   await page.setViewportSize({width,height:800});
-  for(const [label,id] of [['Setlister','setlists'],['Synkronisering','sync'],['Filer','files'],['Innstillinger','settings'],['Sanger','library']]){
+  for(const [label,id] of [['Setlister','setlists'],['Synkronisering','sync'],['Sangbøker','songbooks'],['Filer','files'],['Innstillinger','settings'],['Sanger','library']]){
    await openMenu(page);const header=await page.locator('.topbar').boundingBox(),panel=await page.locator('#main-menu').boundingBox();expect(panel.y).toBe(header.y+header.height);expect(panel.y+panel.height).toBe(800);
    await page.getByRole('button',{name:label,exact:true}).click();await expect(page.locator('html')).toHaveAttribute('data-page',id);await expect(page.locator('#page-title')).toHaveText(label);
    if(['sync','files'].includes(id)){await expect(page.locator(`#${id} button`)).toHaveCount(0);await expect(page.locator(`#${id}`)).toBeVisible();}

@@ -1,6 +1,6 @@
 # Hobo’s Songbook – ikonregister v3
 
-Visuell arbeidsretning: Organisk. Oppdatert etter brukerens kommentarer til ark 01, 02 og 03 samt siste avklaringer.
+Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende designgrunnlag, med oppdateringer etter produktansvarligs avklaringer.
 
 ## Prinsipper og beslutninger
 
@@ -16,14 +16,14 @@ Visuell arbeidsretning: Organisk. Oppdatert etter brukerens kommentarer til ark 
 
 ## Status
 
-- Dette er et revidert **designutkast**, ikke en endring i repositoryet eller en endelig kodebestilling.
+- Dette er det **godkjente ikonbiblioteket**, bevart i repositoryet og gjenbrukt gjennom appens felles ikonregister. Biblioteket er designgrunnlag; funksjonsimplementering bestilles fortsatt særskilt.
 - «Akkord» bruker den avtalte enkle, åpne noten (i stedet for teknisk `[C]`).
 - «Kommentar» og «Informasjon» bruker nøyaktig samme `info.svg`-symbol.
 - «Toneart» viser ren G-nøkkel uten ekstra fortegn; «Stemming» viser stemmegaffel med lange armer og skaft.
 - «Påminnelse» er kun «NB!» uten ramme. «Gulmarkering» viser bare merkepennen, uten strek/underlag.
 - «Legg i setliste» holder pluss og setliste adskilt. «Dupliser» viser to ark og en pil opp mot høyre.
 - «Festet» og «Frigjort» deler én symmetrisk, skråstilt pin-form. Frigjort er tydelig dempet.
-- «Taktart» har den foreslåtte metronomen med ledeteksten «Taktart». Ikonets musikalske tvetydighet er kjent, men vi endrer ikke dette uten ny avklaring.
+- «Taktart» har den vedtatte metronomen med ledeteksten «Taktart». Ikonets musikalske tvetydighet er kjent, men vi endrer ikke dette uten ny avklaring.
 
 ## Ikoner
 
@@ -90,6 +90,7 @@ Visuell arbeidsretning: Organisk. Oppdatert etter brukerens kommentarer til ark 
 | `info.svg` | Informasjon | Systeminformasjon |
 | `varsel.svg` | Advarsel | Ved behov |
 | `songlist.svg` | Sangbibliotek | Liste over sanger |
+| [sangbok.svg](ikoner/sangbok.svg) | Sangbøker / Sangbok | Åpen bok; hovedmenyens Sangbøker, sangbokfilter og Sangbok-headeren i D09 og den kontekstuelle headeren i D10 (Opprett i sangbok, Importer i sangbok, Slett sangbok). Godkjent SVG-kilde fra #35; runtime bruker samme kilde. |
 | `setliste.svg` | Setlister | Ordnet sangliste |
 | `visning.svg` | Visning | Sang kan spilles |
 | `personlig.svg` | Personlig data | Privat datalag |

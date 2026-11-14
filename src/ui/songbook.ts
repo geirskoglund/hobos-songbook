@@ -20,9 +20,11 @@ import {createSong, type Song, type SongPersonal} from '../domain/song.ts';
 import {songStorage} from '../storage/songs.ts';
 import {applyPreferences, defaultPreferences, readPreferences, savePreferences} from '../storage/preferences.ts';
 import {readSongbookFilter, saveSongbookFilter} from '../storage/songbook-filter.ts';
-import type {Songbook} from '../domain/songbook.ts';
+import {MissingSongbookError, suggestedSongbook, type Songbook} from '../domain/songbook.ts';
+import type {LibrarySnapshot} from '../storage/songs.ts';
 import {choicePicker, contextMenu, floatingAction, metadataRow} from './list-controls.ts';
 import {startSetlists} from './setlists.ts';
+import {startSongbooks} from './songbooks.ts';
 
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) => {
   const node = document.createElement(tag);
@@ -40,9 +42,13 @@ export function startSongbook() {
   let songs: Song[] = [], importing = false, active: Song | null = null;
   let songbooks: Songbook[] = [], listPersonal = new Map<string, Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>>();
   let selectedBook: string | null = null, libraryReady = false, readGeneration = 0;
+  let lastUsedBook: string | null = null, importBook: string | null = null;
   const filterStatus = query('filter-status');
   try {selectedBook = readSongbookFilter(__APP_ENV__.namespace);}
   catch {filterStatus.textContent = 'Sangbokvalget kunne ikke hentes. Viser alle sanger.';}
+  const bookManager = startSongbooks(storage, {changed: acceptLibrary, openBook: id => {
+    selectFilter(id); void navigate('library');
+  }});
   let disposeView = () => {};
   let editing: UpdateView['editor'] | undefined;
   let editor: ReturnType<typeof createSongEditor> | undefined;
@@ -82,7 +88,16 @@ export function startSongbook() {
       try{
         while(submitting.dirty()){
           const snapshot=submitting.snapshot(),update=submitting.pendingChange();
-          await storage.saveDraft(snapshot.song,submitting.baselineSong,update);
+          try {await storage.saveDraft(snapshot.song,submitting.baselineSong,update);}
+          catch (cause) {
+            if (!(cause instanceof MissingSongbookError) || submitting.baselineSong) throw cause;
+            if (!await refreshLibrary()) throw cause;
+            const id = await new Promise<string | null>(resolve => bookManager.chooseTarget('Velg sangbok', originalModal?.isOpen() ? query('original-text') : saveRetry,
+              suggestedSongbook(songbooks, lastUsedBook, selectedBook), resolve, () => resolve(null)));
+            if (!id) throw cause;
+            submitting.assignNewSongbook(id); continue;
+          }
+          if (!submitting.baselineSong) lastUsedBook = snapshot.song.songbookId;
           submitting.markSaved(snapshot);
           const index=songs.findIndex(song=>song.id===snapshot.song.id);
           if(index<0)songs.push(snapshot.song);else songs[index]=snapshot.song;
@@ -136,19 +151,14 @@ export function startSongbook() {
     const name = songbooks.find(book => book.id === selectedBook)?.name ?? 'Alle';
     choicePicker({opener: filter, name: 'Sangbok', value: name, selected: selectedBook,
       choices: [{id: null, name: 'Alle'}, ...[...songbooks].sort((a, b) => a.name.localeCompare(b.name, 'nb'))],
-      choose: id => {
-        selectedBook = id;
-        try {saveSongbookFilter(__APP_ENV__.namespace, id); filterStatus.textContent = '';}
-        catch {filterStatus.textContent = 'Filteret er endret, men sangbokvalget kunne ikke lagres til neste oppstart.';}
-        drawList();
-      }});
-  }, 'filter');
+      choose: selectFilter});
+  }, 'sangbok');
   filter.id = 'songbook-filter'; filter.dataset.pageAction = 'library'; filter.disabled = true;
   filter.setAttribute('aria-haspopup', 'dialog'); filter.setAttribute('aria-expanded', 'false');
   const add = floatingAction('Legg til sang', () => {
     contextMenu(add, [
-      {name: 'Opprett', icon: 'ny', run: () => {void beginNewSong();}},
-      {name: 'Importer', icon: 'importer', run: () => file.click()},
+      {name: 'Opprett', icon: 'ny', run: () => {void beginSongChoice('create');}},
+      {name: 'Importer', icon: 'importer', run: () => {void beginSongChoice('import');}},
     ]);
   });
   add.id = 'add-song'; add.disabled = true; add.setAttribute('aria-haspopup', 'menu'); add.setAttribute('aria-expanded', 'false');
@@ -156,9 +166,17 @@ export function startSongbook() {
   query('header-actions').append(filter,editMenu);
   query('back').replaceChildren(icon('tilbake'));
   let creating=false;
-  async function beginNewSong(){
+  async function beginSongChoice(action: 'create' | 'import') {
+    if (creating || leaving || importing) return;
+    if (!await refreshLibrary()) return;
+    bookManager.chooseTarget(action === 'create' ? 'Opprett i sangbok' : 'Importer i sangbok', add, suggestedSongbook(songbooks, lastUsedBook, selectedBook), id => {
+      if (action === 'create') void beginNewSong(id);
+      else {importBook = id; file.click();}
+    });
+  }
+  async function beginNewSong(songbookId: string){
     if(creating||leaving)return;creating=true;nav.close(false);
-    try{if(session&&!await settleDraft())return;const song=newSong();session=createEditSession(song,{songId:song.id,chorus:{},version:3},null);editing={from:'library'};await openSong(song,undefined,true);showOriginal(true);}finally{creating=false;}
+    try{if(session&&!await settleDraft())return;const song=newSong(songbookId);session=createEditSession(song,{songId:song.id,chorus:{},version:3},null);editing={from:'library'};await openSong(song,undefined,true);showOriginal(true);}finally{creating=false;}
   }
   async function navigate(page:Page){
     if(leaving||creating)return;
@@ -173,6 +191,7 @@ export function startSongbook() {
       editing=undefined;settingsReturn=undefined;resetSong();setlists.reset();showPage(page);editMenu.hidden=true;
       if(page==='library')void refreshLibrary();
       if(page==='setlists')void setlists.refresh();
+      if(page==='songbooks')void bookManager.refresh();
       query(page==='library'?'library-title':`${page}-title`).focus({preventScroll:true});window.scrollTo(0,0);
     }finally{leaving=false;}
   }
@@ -194,7 +213,19 @@ export function startSongbook() {
     try{savePreferences(__APP_ENV__.namespace,preferences);query('settings-status').textContent='';}
     catch{query('settings-status').textContent='Visningen er endret, men valget kunne ikke lagres til neste oppstart.';}
   };
-  window.addEventListener('beforeunload', event => {if (dirty() || setlists.dirty()) {event.preventDefault(); event.returnValue = '';}});
+  window.addEventListener('beforeunload', event => {if (dirty() || setlists.dirty() || bookManager.dirty()) {event.preventDefault(); event.returnValue = '';}});
+  function selectFilter(id: string | null) {
+    selectedBook = id;
+    try {saveSongbookFilter(__APP_ENV__.namespace, id); filterStatus.textContent = '';}
+    catch {filterStatus.textContent = 'Filteret er endret, men sangbokvalget kunne ikke lagres til neste oppstart.';}
+    drawList();
+  }
+  function acceptLibrary(snapshot: LibrarySnapshot) {
+    songs = snapshot.songs; songbooks = snapshot.songbooks;
+    listPersonal = new Map(snapshot.personal.map(state => [state.songId, state]));
+    if (selectedBook && !songbooks.some(book => book.id === selectedBook)) selectFilter(null);
+    bookManager.accept(snapshot); drawList();
+  }
   function drawList() {
     list.replaceChildren();
     const bookName = songbooks.find(book => book.id === selectedBook)?.name ?? 'Alle';
@@ -209,7 +240,7 @@ export function startSongbook() {
       const {row, button} = metadataRow(song.title, metadata, () => {void openSong(song);});
       button.dataset.songId = song.id; list.append(row);
     }
-    libraryStatus.textContent = visible.length ? '' : songs.length ? `Ingen sanger i ${bookName}. Velg en annen sangbok, eller bruk Legg til sang for å opprette eller importere til Standard.` : 'Ingen sanger ennå. Bruk Legg til sang for å opprette eller importere din første sang.';
+    libraryStatus.textContent = visible.length ? '' : songs.length ? `Ingen sanger i ${bookName}. Velg en annen sangbok, eller bruk Legg til sang for å opprette eller importere en sang.` : 'Ingen sanger ennå. Bruk Legg til sang for å opprette eller importere din første sang.';
     libraryStatus.classList.toggle('empty-library', !visible.length);
   }
   async function refreshLibrary(): Promise<boolean> {
@@ -218,9 +249,7 @@ export function startSongbook() {
     try {
       const snapshot = await storage.library();
       if (generation !== readGeneration) return false;
-      songs = snapshot.songs; songbooks = snapshot.songbooks;
-      listPersonal = new Map(snapshot.personal.map(state => [state.songId, state]));
-      if (selectedBook && !songbooks.some(book => book.id === selectedBook)) selectedBook = null;
+      acceptLibrary(snapshot);
       libraryReady = true; filter.disabled = false; add.disabled = importing;
       drawList(); return true;
     } catch (error) {
@@ -241,6 +270,9 @@ export function startSongbook() {
         if (song) await openSong(song, resume);
       } else if (resume){
         settingsReturn=resume.settingsReturn;
+        if (resume.page === 'songbooks' || resume.settingsReturn?.page === 'songbooks') {
+          if (!await bookManager.refresh(true)) {showPage('songbooks'); return;}
+        }
         if (['setlists','setlist'].includes(resume.page ?? '') || resume.setlistId || resume.settingsReturn?.page === 'setlists') {
           if (!await setlists.restore(resume)) {showPage('setlists'); return;}
         }
@@ -367,16 +399,27 @@ export function startSongbook() {
   }
   query('back').addEventListener('click',back);
   file.addEventListener('change', async () => {
-    const selected = file.files?.[0]; if (!selected || importing) return;
+    const selected = file.files?.[0]; if (!selected || importing || !importBook) return;
     importing = true; file.disabled = add.disabled = true; notify('Leser og lagrer sangen…');
     try {
       let bytes: ArrayBuffer;
       try {bytes = await selected.arrayBuffer();}
       catch {throw new Error('Filen kunne ikke leses. Velg filen på nytt og prøv igjen.');}
-      const song = createSong(selected.name, new Uint8Array(bytes));
+      const song = createSong(selected.name, new Uint8Array(bytes), importBook);
       const existing = await storage.list();
       if (classifyImport({filename:selected.name},existing)==='possible-copy' && !await confirmImportCopy(selected.name,add)) {notify('');return;}
-      await storage.add(song);
+      for (;;) {
+        try {await storage.add(song); break;}
+        catch (cause) {
+          if (!(cause instanceof MissingSongbookError)) throw cause;
+          if (!await refreshLibrary()) throw cause;
+          const id = await new Promise<string | null>(resolve => bookManager.chooseTarget('Velg sangbok', add,
+            suggestedSongbook(songbooks, lastUsedBook, selectedBook), resolve, () => resolve(null)));
+          if (!id) {notify('Importen er avbrutt. Ingen sang er lagret.'); return;}
+          song.songbookId = id;
+        }
+      }
+      lastUsedBook = song.songbookId;
       songs.push(song); drawList();
       await openSong(song);
       if (active?.id === song.id) notify('Sangen er lagret på denne enheten.');
@@ -387,6 +430,8 @@ export function startSongbook() {
   void load();
   return {beforeUpdateReload: async (focusId: string | null) => {
     await setlists.beforeUpdate();
+    await bookManager.beforeUpdate();
+    if (importing) throw new Error('Vent til importen er fullført før oppdatering.');
     if(saving)await saving;
     if(session?.dirty()&&!originalModal?.isOpen())await flush();
     if(dirty())throw new Error('Fullfør Råtekst eller den åpne kontrollen, og kontroller lokal lagring før oppdatering.');

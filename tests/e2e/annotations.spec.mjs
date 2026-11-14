@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {importSong,savedSongs,savedPersonal,tool,fillValue,rawEditor} from './song-helpers.mjs';
+import {beginImport,importSong,savedSongs,savedPersonal,tool,fillValue,rawEditor} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
 const state=savedPersonal;
 async function note(page,index,text){await tool(page,'Notater',true);await page.locator(`[data-note-line="${index}"]`).first().click();await fillValue(page,'Notat',text);}
@@ -22,6 +22,6 @@ test('legacy annotations are cleaned while songs, capo, tuning and grids survive
  await page.reload();await page.locator('.song-choice').click();await expect(page.locator('mark,.personal-note')).toHaveCount(0);const data=(await state(page))[0];expect(data.version).toBe(3);expect(data.annotations).toBeUndefined();expect(data.capo).toBe(2);expect(data.tuning).toBe('Drop D');expect(data.chordGrid).toBe('| D |');expect((await savedSongs(page))[0]).toEqual(song);await note(page,0,'Nytt notat');await expect.poll(async()=>Object.values((await state(page))[0].notes??{})[0]?.text).toBe('Nytt notat');
 });
 test('repeated filenames prompt for a copy and preserve original IDs and contents',async({page})=>{
- await importSong(page,'samme.cho','{t: Første}\nTekst');const before=(await savedSongs(page))[0];await page.locator('#back').click();const choose=()=>page.locator('#song-file').setInputFiles({name:'samme.cho',mimeType:'',buffer:Buffer.from('{t: Annen}\nHelt annet innhold')});
+ await importSong(page,'samme.cho','{t: Første}\nTekst');const before=(await savedSongs(page))[0];await page.locator('#back').click();const choose=async()=>{await beginImport(page);return page.locator('#song-file').setInputFiles({name:'samme.cho',mimeType:'',buffer:Buffer.from('{t: Annen}\nHelt annet innhold')});};
  await choose();const box=page.getByRole('dialog',{name:'Importer kopi',exact:true});await expect(box).toContainText('Vil du importere en kopi?');await box.getByRole('button',{name:'Avbryt',exact:true}).click();expect(await savedSongs(page)).toEqual([before]);await choose();await box.getByRole('button',{name:'Importer',exact:true}).click();await expect(page.locator('#song-title')).toHaveText('Annen');const songs=await savedSongs(page);expect(songs).toHaveLength(2);expect(songs.find(s=>s.id===before.id)).toEqual(before);
 });

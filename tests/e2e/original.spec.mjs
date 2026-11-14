@@ -4,7 +4,7 @@ const url='/hobos-songbook/test/';
 const save=page=>page.getByRole('dialog',{name:'Råtekst',exact:true}).getByRole('button',{name:'Lagre',exact:true}).click();
 test.beforeEach(async({page,request})=>{await request.post('/__test__/reset');await page.goto(url);});
 test('raw creation transaction abort rolls back both stores and retry creates exactly one stable song',async({page})=>{
- await page.getByRole('button',{name:'Legg til sang',exact:true}).click();await page.getByRole('menuitem',{name:'Opprett',exact:true}).click();await page.locator('#original-text').fill('{title: Ny}\nOrd');
+ await page.getByRole('button',{name:'Legg til sang',exact:true}).click();await page.getByRole('menuitem',{name:'Opprett',exact:true}).click();await page.getByRole('dialog',{name:'Opprett i sangbok',exact:true}).getByRole('button',{name:'Fortsett',exact:true}).click();await page.locator('#original-text').fill('{title: Ny}\nOrd');
  await page.evaluate(()=>{const put=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(...args){const result=put.apply(this,args);if(this.name==='personal'){this.transaction.abort();IDBObjectStore.prototype.put=put;}return result;};});
  await save(page);await expect(page.locator('.raw-editor .field-error')).toContainText('Kunne ikke lagre');expect(await savedSongs(page)).toHaveLength(0);expect(await savedPersonal(page)).toHaveLength(0);await expect(page.locator('#original-text')).toHaveValue('{title: Ny}\nOrd');
  await save(page);await expect(page.locator('.raw-editor')).toHaveCount(0);expect(await savedSongs(page)).toHaveLength(1);expect(await savedPersonal(page)).toHaveLength(1);

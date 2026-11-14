@@ -14,7 +14,7 @@ test('duplicate title aliases update together; free time saves and invalid input
 });
 
 test('new raw source starts inside title; brackets preserve focus, caret and local history',async({page})=>{
- await page.locator('#add-song').click();await page.getByRole('menuitem',{name:'Opprett',exact:true}).click();const field=page.locator('#original-text');
+ await page.locator('#add-song').click();await page.getByRole('menuitem',{name:'Opprett',exact:true}).click();await page.getByRole('dialog',{name:'Opprett i sangbok',exact:true}).getByRole('button',{name:'Fortsett',exact:true}).click();const field=page.locator('#original-text');
  await expect(field).toHaveValue('{t: }\n');await expect(field).toBeFocused();expect(await field.evaluate(f=>f.selectionStart)).toBe(4);
  await field.fill('{t: Ny}\nOrd');await field.evaluate(f=>{f.setSelectionRange(f.value.length,f.value.length);window.blurs=0;f.addEventListener('blur',()=>window.blurs++);});
  await page.getByRole('button',{name:'Sett inn []',exact:true}).click();await expect(field).toHaveValue('{t: Ny}\nOrd[]');await expect(field).toBeFocused();expect(await page.evaluate(()=>window.blurs)).toBe(0);expect(await field.evaluate(f=>f.selectionStart)).toBe('{t: Ny}\nOrd['.length);

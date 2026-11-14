@@ -69,6 +69,10 @@ export function createEditSession(initial: Song, personal: SongPersonal, saved: 
     get baselineSong() {
       return baselineSong;
     },
+    assignNewSongbook(id: string) {
+      if (baselineSong) throw new Error('Bare et nytt sangutkast kan få sangbok her.');
+      song = {...song, songbookId: id};
+    },
     originalDirty: () => !baselineSong || baselineSong.original !== song.original,
     dirty: () => !baselineSong || baselineSong.original !== song.original || Boolean(pendingChange()),
     update(change: (current: SongPersonal) => SongPersonal) {

@@ -1,6 +1,5 @@
 import type {Annotation, PersonalNote} from './annotations.ts';
 import {parseChordPro} from './chordpro.ts';
-import {standardSongbook} from './songbook.ts';
 export interface SongOrigin {
   kind: 'local' | 'external';
   filename: string;
@@ -21,10 +20,10 @@ export function decodeSong(bytes: Uint8Array): string {
   if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/u.test(original)) throw new Error('Filen ser ut til å være binær. Velg en tekstfil i ChordPro- eller TXT-format.');
   return original;
 }
-export function createSong(filename: string, bytes: Uint8Array): Song {
+export function createSong(filename: string, bytes: Uint8Array, songbookId: string): Song {
   if (!acceptedExtensions.split(',').some(extension => filename.toLowerCase().endsWith(extension))) throw new Error('Velg en ChordPro-fil (.cho, .chordpro, .chopro, .crd, .pro, .chord) eller .txt.');
   const original = decodeSong(bytes);
   const parsed = parseChordPro(original, filename.replace(/\.[^.]+$/, '') || filename);
-  return {id: crypto.randomUUID(), songbookId: standardSongbook.id, original, title: parsed.title, key: parsed.key,
+  return {id: crypto.randomUUID(), songbookId, original, title: parsed.title, key: parsed.key,
     origin: {kind: 'local', filename, importedAt: new Date().toISOString()}};
 }

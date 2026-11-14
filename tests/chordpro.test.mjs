@@ -5,17 +5,17 @@ import {createSong, decodeSong} from '../src/domain/song.ts';
 
 test('imports keep exact original and unique identity independently of metadata', () => {
   const original = '\uFEFF{t: Blå sang}\r\n{key: D}\r\n\r\n[x] æøå [D/F#]ord\n{x_dyn: 3}\n';
-  const a = createSong('A.CHO', new TextEncoder().encode(original));
-  const b = createSong('A.CHO', new TextEncoder().encode(original));
+  const a = createSong('A.CHO', new TextEncoder().encode(original), 'standard');
+  const b = createSong('A.CHO', new TextEncoder().encode(original), 'standard');
   assert.notEqual(a.id, b.id); assert.equal(a.original, original);
   assert.equal(a.title, 'Blå sang'); assert.equal(a.key, 'D');
   assert.equal(a.origin.filename, 'A.CHO'); assert.equal(a.origin.kind, 'local');
   assert.ok(!Number.isNaN(Date.parse(a.origin.importedAt)));
-  assert.equal(createSong('Vanlig.TXT', new TextEncoder().encode('Ren tekst')).title, 'Vanlig');
+  assert.equal(createSong('Vanlig.TXT', new TextEncoder().encode('Ren tekst'), 'standard').title, 'Vanlig');
 });
 test('strict decoding rejects empty, binary, corrupt and unsupported files', () => {
   for (const bytes of [[], [0], [0xff, 0xfe], [0xc3, 0x28], [32, 10]]) assert.throws(() => decodeSong(new Uint8Array(bytes)));
-  assert.throws(() => createSong('test.pdf', new TextEncoder().encode('tekst')));
+  assert.throws(() => createSong('test.pdf', new TextEncoder().encode('tekst'), 'standard'));
   assert.equal(decodeSong(new TextEncoder().encode('æøå\r\n')), 'æøå\r\n');
 });
 test('chord tokens preserve musical spelling and legacy markers remain text', () => {
@@ -51,7 +51,7 @@ test('grid bars retain beat cells, repeats, margins and multi-chord cells withou
   assert.deepEqual(gridOptions('2x4 Mellomspill'), {columns:2, beats:4, label:'Mellomspill'});
   assert.deepEqual(gridOptions('', {columns:2, beats:3, label:'Tidligere'}), {columns:2, beats:3, label:null});
   const original = '\uFEFF{t: Skjema}\r\n{start_of_grid shape="2x4" label="Intro"}\r\n| D . . . | A . . . |\r\n{end_of_grid}\r\nTekst';
-  const song = createSong('skjema.cho', new TextEncoder().encode(original));
+  const song = createSong('skjema.cho', new TextEncoder().encode(original), 'standard');
   assert.equal(song.original, original);
   const parsed = parseChordPro(song.original, song.title);
   assert.equal(parsed.blocks[0].kind, 'grid'); assert.equal(parsed.blocks[0].options.columns, 2);
@@ -100,7 +100,7 @@ test('one chart prefers personal content, falls back to shared grids, and never 
 test('time is derived from source, defaults to 4/4, and later changes remain at their position', () => {
   assert.equal(parseChordPro('Tekst','T').time,'4/4');
   const original='\uFEFF{time: 3 / 4}\r\nVals\r\n{time: 6/8}\r\nVidere';
-  const song=createSong('takt.cho',new TextEncoder().encode(original)), parsed=parseChordPro(song.original,'T');
+  const song=createSong('takt.cho',new TextEncoder().encode(original), 'standard'), parsed=parseChordPro(song.original,'T');
   assert.equal(song.original,original);assert.equal(parsed.time,'3/4');
   assert.deepEqual(parsed.blocks.map(block=>block.text ?? block.segments?.[0].text),['Vals','6/8','Videre']);
   assert.equal(parseChordPro('{time: 3+2/8}','T').time,'3+2/8');

@@ -1,6 +1,7 @@
 import type {songStorage} from '../storage/songs.ts';
-import type {Setlist} from '../domain/setlist.ts';
-import {dialogFooter, dialogFrame, textInput} from './controls.ts';
+import {setlistName, type Setlist} from '../domain/setlist.ts';
+import {nameDialog} from './name-dialog.ts';
+import {dialogFooter, dialogFrame} from './controls.ts';
 import {openDialog} from './dialog.ts';
 import {contextMenu, countRow, floatingAction} from './list-controls.ts';
 import {currentPage, showPage} from './layout.ts';
@@ -10,7 +11,7 @@ export function startSetlists(storage: ReturnType<typeof songStorage>) {
   const query = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const list = query('setlist-list'), status = query('setlists-status'), retry = query<HTMLButtonElement>('retry-setlists');
   let items: Setlist[] = [], selected: string | undefined, returnView: UpdateView | undefined;
-  let generation = 0, writing: Promise<void> | undefined, nameDirty = () => false;
+  let generation = 0, writing: Promise<void> | undefined, nameEditor: ReturnType<typeof nameDialog> | undefined;
   const add = floatingAction('Ny setliste', () => edit(add)); add.id = 'add-setlist'; add.disabled = true;
   query('setlists').append(add);
 
@@ -50,47 +51,15 @@ export function startSetlists(storage: ReturnType<typeof songStorage>) {
   retry.addEventListener('click', () => {void refresh();});
 
   function edit(opener: HTMLElement, item?: Setlist) {
-    const id = item?.id ?? crypto.randomUUID(), initial = item?.name ?? '';
-    const box = dialogFrame(item ? 'Rediger setliste' : 'Ny setliste', 'name-dialog');
-    const heading = document.createElement('h2'); heading.textContent = item ? 'Rediger setliste' : 'Ny setliste';
-    const content = document.createElement('form'); content.noValidate = true;
-    const label = document.createElement('label'); label.htmlFor = 'setlist-name'; label.textContent = 'Navn';
-    const field = textInput('setlist-name', initial); field.setAttribute('aria-describedby', 'setlist-name-error');
-    const error = document.createElement('p'); error.id = 'setlist-name-error'; error.setAttribute('role', 'alert'); error.className = 'hint';
-    const valid = () => Boolean(field.value.trim());
-    nameDirty = () => field.value !== initial;
-    const cancel = () => {if (!writing) lifecycle.close();};
-    const actions = dialogFooter([
-      {id: 'cancel', label: 'Avbryt', icon: 'avbryt', run: cancel},
-      {id: 'save', label: 'Lagre', icon: 'lagre', primary: true, disabled: !valid(), run: () => {void save();}},
-    ]);
-    const saveButton = actions.querySelector<HTMLButtonElement>('[data-action=save]')!;
-    field.addEventListener('input', () => {
-      saveButton.disabled = !valid(); field.setAttribute('aria-invalid', String(!valid()));
-      error.textContent = valid() ? '' : 'Skriv inn et navn på setlisten.';
+    const id = item?.id ?? crypto.randomUUID();
+    nameEditor = nameDialog({title: item ? 'Rediger setliste' : 'Ny setliste', id: 'setlist-name', initial: item?.name, opener,
+      validate: setlistName,
+      save: async name => {
+        const saved = await (item ? storage.renameSetlist(id, name) : storage.createSetlist(id, name));
+        items = [...items.filter(current => current.id !== id), saved!]; draw();
+      },
+      saved: () => {if (item) query(`setlist-menu-${id}`).focus({preventScroll: true}); else openSetlist(id, true);},
     });
-    content.addEventListener('submit', event => {event.preventDefault(); void save();});
-    content.append(label, field, error); box.append(heading, content, actions);
-    const lifecycle = openDialog(box, {opener, focus: field, cancel, closed: () => {nameDirty = () => false;}});
-    async function save() {
-      if (writing || !valid()) return;
-      const name = field.value;
-      field.readOnly = true; actions.querySelectorAll('button').forEach(button => {button.disabled = true;}); error.textContent = '';
-      writing = (async () => {
-        try {
-          const saved = await (item ? storage.renameSetlist(id, name) : storage.createSetlist(id, name));
-          items = [...items.filter(current => current.id !== id), saved!];
-          draw(); lifecycle.close();
-          if (item) query(`setlist-menu-${id}`).focus({preventScroll: true});
-          else openSetlist(id, true);
-        } catch (cause) {
-          error.textContent = cause instanceof Error ? cause.message : 'Kunne ikke lagre setlisten. Prøv igjen.';
-          field.readOnly = false; actions.querySelectorAll('button').forEach(button => {button.disabled = false;});
-          saveButton.disabled = !valid();
-        }
-      })();
-      try {await writing;} finally {writing = undefined;}
-    }
   }
   function remove(opener: HTMLElement, item: Setlist) {
     const box = dialogFrame('Slett setliste', 'name-dialog');
@@ -123,7 +92,7 @@ export function startSetlists(storage: ReturnType<typeof songStorage>) {
   }
   return {
     refresh,
-    dirty: () => nameDirty() || Boolean(writing),
+    dirty: () => Boolean(nameEditor?.dirty() || writing),
     context: (): SetlistView => ({setlistId: selected, setlistsReturn: returnView}),
     reset: () => {selected = undefined; returnView = undefined;},
     restore: async (view: UpdateView) => {
@@ -144,7 +113,7 @@ export function startSetlists(storage: ReturnType<typeof songStorage>) {
     },
     beforeUpdate: async () => {
       if (writing) await writing;
-      if (nameDirty()) throw new Error('Du har et ulagret setlistenavn. Lagre eller avbryt før oppdatering.');
+      await nameEditor?.beforeUpdate('Du har et ulagret setlistenavn. Lagre eller avbryt før oppdatering.');
     },
   };
 }

@@ -1,6 +1,6 @@
 # Komponentkart – katalog og kilder
 
-**Prinsipp:** Generelle UI-konsepter. Navn og varianter er normative for designreferansen; eksempler er bare illustrative. Enkelt-SVG er fasit for geometrien.
+**Prinsipp:** Generelle UI-konsepter. Navn og varianter er normative for designreferansen; eksempler er bare illustrative. Enkelt-SVG er fasit for geometrien. Kildeansvar, normalmål, minimumsmål og responsiv oppførsel for implementerte varianter står samlet i [DESIGN](../../DESIGN.md#målregler-for-komponenter-i-bruk). Komponentvariantens geometri gjelder foran generelle standardverdier. Gule/gylne aktiv-, fokus- og hoverrammer på kontroller er ikke tillatt; den uttrykkelige fokusavklaringen i DESIGN gjelder foran eldre aksenteksempler. Valgt flate/sjekkmerke og andre faktiske verdier er egne tilstander. Issueskisser er illustrasjoner og overstyrer ikke eksisterende avklart design.
 
 **Designgrunnlag:** `01_Designgrunnlag_oppdatert.svg` i `Design/Opprydding`. Kun de tolv navngitte fargene er brukt i komponentfilene. Ingen eldre originaler utenfor Opprydding er endret.
 
@@ -173,7 +173,7 @@
 
 ### Valgkontroll – ett valg (D04_Valgkontroll_radio)
 - **Fil:** `Komponenter/D04_Valgkontroll_radio.svg` (+ PNG)
-- **Definisjon:** Radiovalg: ett alternativ om gangen. Fokus/aktivt valg kan vises med Handling/fokus.
+- **Definisjon:** Radiovalg: ett alternativ om gangen. Valgt radiopunkt følger aksentrollen; kontrollfokus følger den felles, dempede tastaturmarkeringen i DESIGN. Ingen gul/gyllen aktiv- eller fokusramme rundt kontrollen.
 - **Variant:** Valgt / ikke valgt
 - **Eksempel:** Kun ned / Opp og ned (ikke del av definisjonen)
 - **Farger:** Appbakgrunn (`#272421`), Overflate (`#322E2A`), Kontur (`#8F7B69`), Sekundærtekst (`#C7BAA9`), Handling / fokus (`#E2C097`), Primærtekst (`#F4EDE3`).
@@ -210,7 +210,8 @@
 ### Sangbokvelger – med handling (D10_Sangbokvelger_med_handling)
 - **Fil:** `Komponenter/07_Sangbokvelger.svg` (+ PNG)
 - **Definisjon:** Samme valgkontroll med separat tillegghandling nederst.
-- **Variant:** Valg + opprettelse
+- **Variant:** Valg + opprettelse; kontekstuell overskrift og integrert E03-footer ved bekreftet målvalg.
+- **Sammensetning i appen:** D10 er selve popupen i Opprett i sangbok, Importer i sangbok og Slett sangbok. Headeren viser sangbokikon én gang. Ett verdifelt utvides med valglisten og Ny sangbok i samme ramme. Avbryt/Fortsett eller Avbryt/Slett bruker felles E03; det legges ingen ekstra velgerpopup eller Sangbok-overskrift rundt komponenten.
 - **Eksempel:** Ny sangbok (ikke del av definisjonen)
 - **Farger:** Appbakgrunn (`#272421`), Overflate (`#322E2A`), Hevet flate (`#403831`), Kontur (`#8F7B69`), Sekundærtekst (`#C7BAA9`), Handling / fokus (`#E2C097`), Akkorder (`#E5BD8D`), Primærtekst (`#F4EDE3`).
 - **Kilder:** [Ny_sangbok.svg](https://drive.google.com/file/d/1mzkCq5oXqKulUrdN45juxw3S3veRdDLp/view).

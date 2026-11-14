@@ -1,7 +1,7 @@
 /** Shared viewport and app geometry. Consumers never copy header/toolbar heights. */
-export const pages = ['library', 'reader', 'settings', 'setlists', 'setlist', 'sync', 'files'] as const;
+export const pages = ['library', 'reader', 'settings', 'setlists', 'setlist', 'songbooks', 'sync', 'files'] as const;
 export type Page = typeof pages[number];
-export const pageNames: Record<Page, string> = {library:'Sanger', reader:'', settings:'Innstillinger', setlists:'Setlister', setlist:'Setliste', sync:'Synkronisering', files:'Filer'};
+export const pageNames: Record<Page, string> = {library:'Sanger', reader:'', settings:'Innstillinger', setlists:'Setlister', setlist:'Setliste', songbooks:'Sangbøker', sync:'Synkronisering', files:'Filer'};
 let layoutFrame=0;
 export function flushLayout(){cancelAnimationFrame(layoutFrame);layoutFrame=0;document.dispatchEvent(new Event('app-layout'));}
 export function requestLayout(){if(!layoutFrame)layoutFrame=requestAnimationFrame(flushLayout);}

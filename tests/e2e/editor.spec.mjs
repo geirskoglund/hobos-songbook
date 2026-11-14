@@ -23,7 +23,7 @@ test('raw tag insertion preserves pointer focus, selection, local undo and persi
 });
 
 test('new song creates once on raw Save and returns to editing; Cancel leaves no orphan',async({page})=>{
- const fresh=async()=>{await page.getByRole('button',{name:'Legg til sang',exact:true}).click();await page.getByRole('menuitem',{name:'Opprett',exact:true}).click();};
+ const fresh=async()=>{await page.getByRole('button',{name:'Legg til sang',exact:true}).click();await page.getByRole('menuitem',{name:'Opprett',exact:true}).click();await page.getByRole('dialog',{name:'Opprett i sangbok',exact:true}).getByRole('button',{name:'Fortsett',exact:true}).click();};
  await fresh();await expect(page.locator('.edit-toolbar')).toBeVisible();expect(await savedSongs(page)).toHaveLength(0);await page.getByRole('button',{name:'Avbryt',exact:true}).click();expect(await savedSongs(page)).toHaveLength(0);
  await fresh();await page.locator('#original-text').fill('{title: Ny}\nOrd æøå 😀');await saveRaw(page);await expect(page.getByRole('button',{name:'Visning',exact:true})).toBeVisible();expect(await savedSongs(page)).toHaveLength(1);const id=(await savedSongs(page))[0].id;
  await tool(page,'Tittel');await fillValue(page,'Tittel','Endret');await expect.poll(async()=>(await savedSongs(page))[0].title).toBe('Endret');expect((await savedSongs(page))[0].id).toBe(id);

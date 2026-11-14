@@ -32,6 +32,12 @@ export function dialogFrame(name:string, variant='') {
   const box=document.createElement('dialog');box.className=`dialog-frame ${variant}`;box.setAttribute('aria-label',name);return box;
 }
 
+export function controlHeading(name: string, glyph?: string) {
+  const heading = document.createElement('h2'); heading.className = 'control-heading';
+  if (glyph) heading.append(icon(glyph));
+  const text = document.createElement('span'); text.textContent = name; heading.append(text); return heading;
+}
+
 export function switchControl(id:string,label:string,change:(checked:boolean)=>void) {
   const element=document.createElement('label');element.className='check-option';element.htmlFor=id;
   const text=document.createElement('span');text.textContent=label;

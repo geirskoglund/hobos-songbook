@@ -151,6 +151,17 @@ test('dynamics reserve no margin without valid tags, when switched off, or below
   await setDisplay(page,{showDynamics:true});await expect(page.locator('#dynamics-profile')).toBeVisible();await expect(page.locator('#song-body')).toHaveCSS('padding-left','30px');
 });
 
+test('annotation overlay follows a narrower viewport before its deferred geometry draw', async ({page}) => {
+  await page.goto(base); await importSong(page, 'bredde.txt', '{t: Bredde}\nKort tekst');
+  await expect(page.locator('.annotation-connectors')).toHaveAttribute('height', /\d/);
+  await page.evaluate(() => {
+    window.requestAnimationFrame = () => 1;
+  });
+  await page.setViewportSize({width: 319, height: 800});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await page.locator('.annotation-connectors').evaluate(svg => svg.getBoundingClientRect().width <= svg.parentElement.clientWidth)).toBe(true);
+});
+
 test('settings stay in an accessible menu and persist offline without occupying the reader', async ({page,context})=>{
   await page.goto(base); await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');
   await importSong(page,'prøve.cho',await readFile('examples/akkordskjema-og-dynamikk.cho','utf8'));
