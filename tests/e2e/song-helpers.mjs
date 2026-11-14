@@ -62,7 +62,7 @@ export async function beginImport(page, book) {
   await goSongs(page);
   await page.locator('#add-song').click();
   await page.getByRole('menuitem', {name:'Importer', exact:true}).click();
-  const step = page.getByRole('dialog', {name:'Importer sang', exact:true});
+  const step = page.getByRole('dialog', {name:'Importer i sangbok', exact:true});
   await expect(step).toBeVisible();
   if (book || await step.getByRole('button', {name:'Fortsett', exact:true}).isDisabled()) {
     await step.getByRole('button', {name:/^Sangbok:/}).click();
@@ -73,5 +73,5 @@ export async function beginImport(page, book) {
 export async function beginCreate(page) {
   await page.locator('#add-song').click();
   await page.getByRole('menuitem', {name:'Opprett', exact:true}).click();
-  await page.getByRole('dialog', {name:'Opprett sang', exact:true}).getByRole('button', {name:'Fortsett', exact:true}).click();
+  await page.getByRole('dialog', {name:'Opprett i sangbok', exact:true}).getByRole('button', {name:'Fortsett', exact:true}).click();
 }

@@ -26,8 +26,9 @@ export function selectableRow(name: string, selected: boolean, choose: () => voi
   return button;
 }
 
-function arrowNavigation(container: HTMLElement, buttons: HTMLButtonElement[]) {
+function arrowNavigation(container: HTMLElement, items: HTMLButtonElement[] | (() => HTMLButtonElement[])) {
   container.addEventListener('keydown', event => {
+    const buttons = typeof items === 'function' ? items() : items;
     if (!buttons.length) return;
     const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
     let next: number;
@@ -78,30 +79,66 @@ export function countRow(name: string, count: number, choose: () => void, menu: 
   row.append(button, more); return {row, button, more};
 }
 
-/** D09/D10 compose the same L05 rows; D10 adds one separate creation action. */
-export function choicePicker(options: {opener: HTMLButtonElement; name: string; value: string; choices: {id: string | null; name: string}[]; selected: string | null; choose: (id: string | null) => void; create?: () => void}) {
+type Choice = {id: string | null; name: string};
+
+/** D09/D10 share one value, one list and the optional creation action within their own popup. */
+export function choiceControl(options: {name: string; choices: Choice[]; selected: string | null; choose: (id: string | null) => void; create?: () => void; expanded?: boolean; valueAction?: () => void}) {
+  let choices = options.choices, selected = options.selected, expanded = Boolean(options.expanded), disabled = false;
+  let buttons: HTMLButtonElement[] = [];
+  const element = document.createElement('div'); element.className = 'choice-control';
+  const value = choiceValue('', () => {if (options.valueAction) options.valueAction(); else setExpanded(!expanded, true);});
+  value.setAttribute('aria-haspopup', 'listbox');
+  const panel = document.createElement('div'); panel.className = 'choice-options'; panel.id = `choice-options-${crypto.randomUUID()}`;
+  value.setAttribute('aria-controls', panel.id);
+  const list = document.createElement('div'); list.className = 'choice-list'; list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', options.name);
+  arrowNavigation(list, () => buttons); panel.append(list);
+  const create = options.create ? actionButton('Ny sangbok', () => {setExpanded(false); options.create!();}, 'ny') : undefined;
+  if (create) {create.className = 'choice-create'; panel.append(create);}
+  element.append(value, panel);
+  const focusedChoice = () => buttons.find(button => button.getAttribute('aria-selected') === 'true') ?? buttons[0];
+  function setExpanded(next: boolean, focus = false) {
+    expanded = next; panel.hidden = !next; value.setAttribute('aria-expanded', String(next));
+    if (focus) (next ? focusedChoice() ?? create ?? value : value).focus({preventScroll: true});
+  }
+  function draw() {
+    const name = choices.find(choice => choice.id === selected)?.name ?? 'Velg sangbok';
+    value.querySelector('span')!.textContent = name; value.setAttribute('aria-label', `${options.name}: ${name}`);
+    buttons = choices.map(choice => {
+      const button = selectableRow(choice.name, choice.id === selected, () => {
+        setExpanded(false); options.choose(choice.id);
+        if (value.isConnected) value.focus({preventScroll: true});
+      });
+      button.disabled = disabled; return button;
+    });
+    list.replaceChildren(...buttons);
+    const focused = focusedChoice(); if (focused) focused.tabIndex = 0;
+    setExpanded(expanded);
+  }
+  element.addEventListener('keydown', event => {
+    if (options.valueAction || disabled) return;
+    if (event.key === 'Escape' && expanded) {event.preventDefault(); event.stopPropagation(); setExpanded(false, true);}
+    else if (event.target === value && ['ArrowDown', 'ArrowUp'].includes(event.key)) {event.preventDefault(); setExpanded(true, true);}
+  });
+  draw();
+  return {element, value, setExpanded,
+    focus: () => (expanded ? focusedChoice() ?? value : value).focus({preventScroll: true}),
+    update: (next: {choices: Choice[]; selected: string | null}) => {choices = next.choices; selected = next.selected; draw();},
+    setDisabled: (next: boolean) => {disabled = next; value.disabled = next; buttons.forEach(button => {button.disabled = next;}); if (create) create.disabled = next;},
+  };
+}
+
+/** D09: standalone immediate filter choice, without creation or confirmation footer. */
+export function choicePicker(options: {opener: HTMLButtonElement; name: string; value: string; choices: Choice[]; selected: string | null; choose: (id: string | null) => void}) {
   const box = dialogFrame(options.name, 'choice-picker');
   if (options.opener.id) {box.id = `${options.opener.id}-picker`; options.opener.setAttribute('aria-controls', box.id);}
-  const heading = controlHeading(options.name, 'sangbok');
-  const value = choiceValue(options.value, () => lifecycle.close());
-  value.setAttribute('aria-label', `Lukk ${options.name.toLocaleLowerCase('nb')}: ${options.value}`);
-  const list = document.createElement('div'); list.className = 'choice-list'; list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', options.name);
-  const buttons = options.choices.map(choice => {
-    const button = selectableRow(choice.name, choice.id === options.selected, () => {lifecycle.close(); options.choose(choice.id);});
-    list.append(button); return button;
-  });
-  const focused = buttons.find(button => button.getAttribute('aria-selected') === 'true') ?? buttons[0];
-  if (focused) focused.tabIndex = 0;
-  const choices = document.createElement('div'); choices.className = 'choice-options';
-  arrowNavigation(list, buttons); choices.append(list); box.append(heading, value, choices);
-  if (options.create) {
-    const create = actionButton('Ny sangbok', () => {lifecycle.close(); options.create!();}, 'ny');
-    create.className = 'choice-create'; choices.append(create);
-  }
+  const control = choiceControl({...options, expanded: true, valueAction: () => lifecycle.close(), choose: id => {lifecycle.close(); options.choose(id);}});
+  control.value.setAttribute('aria-label', `Lukk ${options.name.toLocaleLowerCase('nb')}: ${options.value}`);
+  box.append(controlHeading(options.name, 'sangbok'), control.element);
   options.opener.setAttribute('aria-expanded', 'true');
-  const lifecycle = openDialog(box, {opener: options.opener, focus: focused, outside: true,
+  const lifecycle = openDialog(box, {opener: options.opener, outside: true,
     place: () => placeOverlay(box, options.opener, {align: 'center', width: 572}),
     closed: () => options.opener.setAttribute('aria-expanded', 'false')});
+  control.focus();
   return lifecycle;
 }
 

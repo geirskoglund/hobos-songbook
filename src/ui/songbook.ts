@@ -157,8 +157,8 @@ export function startSongbook() {
   filter.setAttribute('aria-haspopup', 'dialog'); filter.setAttribute('aria-expanded', 'false');
   const add = floatingAction('Legg til sang', () => {
     contextMenu(add, [
-      {name: 'Opprett', icon: 'ny', run: () => {void beginSongChoice('Opprett sang');}},
-      {name: 'Importer', icon: 'importer', run: () => {void beginSongChoice('Importer sang');}},
+      {name: 'Opprett', icon: 'ny', run: () => {void beginSongChoice('create');}},
+      {name: 'Importer', icon: 'importer', run: () => {void beginSongChoice('import');}},
     ]);
   });
   add.id = 'add-song'; add.disabled = true; add.setAttribute('aria-haspopup', 'menu'); add.setAttribute('aria-expanded', 'false');
@@ -166,11 +166,11 @@ export function startSongbook() {
   query('header-actions').append(filter,editMenu);
   query('back').replaceChildren(icon('tilbake'));
   let creating=false;
-  async function beginSongChoice(title: 'Opprett sang' | 'Importer sang') {
+  async function beginSongChoice(action: 'create' | 'import') {
     if (creating || leaving || importing) return;
     if (!await refreshLibrary()) return;
-    bookManager.chooseTarget(title, add, suggestedSongbook(songbooks, lastUsedBook, selectedBook), id => {
-      if (title === 'Opprett sang') void beginNewSong(id);
+    bookManager.chooseTarget(action === 'create' ? 'Opprett i sangbok' : 'Importer i sangbok', add, suggestedSongbook(songbooks, lastUsedBook, selectedBook), id => {
+      if (action === 'create') void beginNewSong(id);
       else {importBook = id; file.click();}
     });
   }

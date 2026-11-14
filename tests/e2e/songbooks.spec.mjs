@@ -36,7 +36,7 @@ async function createBook(page, name) {
 }
 async function choose(page, name, scope=page) {await scope.getByRole('button',{name:/^Sangbok:/}).click();await page.getByRole('option',{name,exact:true}).click();}
 async function newStep(page, kind='Opprett') {
-  await page.locator('#add-song').click();await page.getByRole('menuitem',{name:kind,exact:true}).click();const step=dialog(page,`${kind} sang`);await expect(step).toBeVisible();return step;
+  await page.locator('#add-song').click();await page.getByRole('menuitem',{name:kind,exact:true}).click();const step=dialog(page,`${kind} i sangbok`);await expect(step).toBeVisible();return step;
 }
 async function injectAbort(page, storeName, method, nth=1) {
   await page.evaluate(({storeName,method,nth})=>{
@@ -107,8 +107,8 @@ for(const flow of ['Opprett','Importer','Slett'])test(`a book saved from D10 in 
   await seed(page);const before=await snapshot(page);let parent;
   if(flow==='Slett'){await goBooks(page);await rowMenu(page,'standard','Slett');parent=dialog(page,'Slett sangbok');await choose(page,'Band',parent);}
   else {parent=await newStep(page,flow);await choose(page,'Band',parent);}
-  await parent.getByRole('button',{name:/^Sangbok:/}).click();await expect(dialog(page,'Sangbok').locator('h2 .icon')).toHaveCount(1);await button(dialog(page,'Sangbok'),'Ny sangbok').click();await page.getByLabel('Navn',{exact:true}).fill('Ikke lagret');await page.keyboard.press('Escape');await expect(parent.getByRole('button',{name:'Sangbok: Band',exact:true})).toBeFocused();
-  await parent.getByRole('button',{name:/^Sangbok:/}).click();await button(dialog(page,'Sangbok'),'Ny sangbok').click();await page.getByLabel('Navn',{exact:true}).fill('Selvstendig');await button(dialog(page,'Ny sangbok'),'Lagre').click();await expect(parent.getByRole('button',{name:'Sangbok: Selvstendig',exact:true})).toBeVisible();await button(parent,'Avbryt').click();
+  await parent.getByRole('button',{name:/^Sangbok:/}).click();await expect(page.locator('dialog[open]')).toHaveCount(1);await expect(parent.locator('h2 .icon')).toHaveCount(1);await button(parent,'Ny sangbok').click();await page.getByLabel('Navn',{exact:true}).fill('Ikke lagret');await page.keyboard.press('Escape');await expect(parent.getByRole('button',{name:'Sangbok: Band',exact:true})).toBeFocused();
+  await parent.getByRole('button',{name:/^Sangbok:/}).click();await button(parent,'Ny sangbok').click();await page.getByLabel('Navn',{exact:true}).fill('Selvstendig');await button(dialog(page,'Ny sangbok'),'Lagre').click();await expect(parent.getByRole('button',{name:'Sangbok: Selvstendig',exact:true})).toBeVisible();await button(parent,'Avbryt').click();
   const after=await snapshot(page);expect(after.songbooks).toHaveLength(4);expect(after.songbooks.some(b=>b.name==='Ikke lagret')).toBe(false);expect(after.songs).toEqual(before.songs);expect(after.personal).toEqual(before.personal);expect(after.setlists).toEqual(before.setlists);
 });
 
@@ -131,7 +131,7 @@ for(const width of [320,768,1440])test(`shared list and D10 fit ${width}px with 
   await page.setViewportSize({width,height:700});await page.goto(url);await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');await context.setOffline(true);await goBooks(page);
   const name='Langt navn æøå '.repeat(9).trim();const book=await createBook(page,name);await expect(page.locator(`#songbook-${book.id}`)).toBeInViewport();expect(await page.locator('#songbooks').evaluate(n=>n.scrollWidth<=n.clientWidth)).toBe(true);
   await page.locator(`#songbook-${book.id}`).click();const step=await newStep(page);await step.getByRole('button',{name:/^Sangbok:/}).click();await page.keyboard.press('End');await page.keyboard.press('Enter');await expect(step).toBeVisible();await expect(button(step,'Fortsett')).toBeEnabled();
-  await step.getByRole('button',{name:/^Sangbok:/}).click();const picker=dialog(page,'Sangbok');expect(await picker.evaluate(n=>n.scrollWidth<=n.clientWidth)).toBe(true);await button(picker,'Ny sangbok').click();await page.getByLabel('Navn',{exact:true}).fill('Offline');await page.setViewportSize({width,height:420});await expect(button(dialog(page,'Ny sangbok'),'Lagre')).toBeInViewport();await button(dialog(page,'Ny sangbok'),'Lagre').click();await expect(step.getByRole('button',{name:'Sangbok: Offline',exact:true})).toBeVisible();await button(step,'Avbryt').click();await page.reload();await goBooks(page);expect((await snapshot(page)).songbooks).toHaveLength(3);
+  await step.getByRole('button',{name:/^Sangbok:/}).click();const picker=step;expect(await picker.evaluate(n=>n.scrollWidth<=n.clientWidth)).toBe(true);await button(picker,'Ny sangbok').click();await page.getByLabel('Navn',{exact:true}).fill('Offline');await page.setViewportSize({width,height:420});await expect(button(dialog(page,'Ny sangbok'),'Lagre')).toBeInViewport();await button(dialog(page,'Ny sangbok'),'Lagre').click();await expect(step.getByRole('button',{name:'Sangbok: Offline',exact:true})).toBeVisible();await button(step,'Avbryt').click();await page.reload();await goBooks(page);expect((await snapshot(page)).songbooks).toHaveLength(3);
   const production=await context.newPage();await context.setOffline(false);await production.goto('/hobos-songbook/app/');await goBooks(production);await expect(production.locator('#songbook-list .count-choice')).toHaveText(['Standard0 sanger']);await production.close();
 });
 
@@ -155,4 +155,52 @@ test('failed and cancelled imports keep the suggestion; filename-copy confirmati
   await expect(page.locator('#song-title')).toHaveText('Kopi');const copies=await savedSongs(page);expect(copies).toHaveLength(2);expect(copies.find(s=>s.id===first.id)).toEqual(first);expect(copies.find(s=>s.id!==first.id).songbookId).toBe('empty');
   await beginImport(page,'Standard');const other=await context.newPage();await other.goto(url);await goBooks(other);await rowMenu(other,'standard','Slett');await button(dialog(other,'Slett sangbok'),'Slett').click();await expect(dialog(other,'Slett sangbok')).toHaveCount(0);
   await page.locator('#song-file').setInputFiles({name:'venter.txt',mimeType:'',buffer:Buffer.from('{t: Behold import}\nOrd')});const recovery=dialog(page,'Velg sangbok');await expect(recovery).toBeVisible();await choose(page,'Band',recovery);await button(recovery,'Fortsett').click();await expect(page.locator('#song-title')).toHaveText('Behold import');const after=await savedSongs(page);expect(after).toHaveLength(3);expect(after.find(s=>s.title==='Behold import').songbookId).toBe('band');await other.close();
+});
+
+for (const width of [320, 768, 1440]) test(`D10 uses one popup, heading and value when choosing a book at ${width}px`, async ({page}) => {
+  await page.setViewportSize({width, height:800}); await seed(page);
+  for (const flow of ['Opprett', 'Importer', 'Slett']) {
+    let box;
+    if (flow === 'Slett') {await goBooks(page); await rowMenu(page, 'standard', 'Slett'); box = dialog(page, 'Slett sangbok');}
+    else {await goSongs(page); box = await newStep(page, flow);}
+    const title = flow === 'Slett' ? 'Slett sangbok' : `${flow} i sangbok`;
+    await expect(box.getByRole('heading')).toHaveText([title]);
+    await expect(box.locator('h2 .icon')).toHaveCount(1);
+    await expect(box.locator('.choice-value')).toHaveCount(1);
+    await box.getByRole('button', {name:/^Sangbok:/}).click();
+    await expect(page.locator('dialog[open]')).toHaveCount(1);
+    await expect(box.getByRole('heading')).toHaveText([title]);
+    await expect(box.locator('.choice-value')).toHaveCount(1);
+    await expect(box.getByRole('listbox', {name:'Sangbok', exact:true})).toBeVisible();
+    await expect(button(box, 'Ny sangbok')).toBeVisible();
+    const bounds = await box.boundingBox(), choices = await box.locator('.choice-options').boundingBox(), footer = await box.locator('.dialog-footer').boundingBox();
+    expect(choices.x).toBeGreaterThanOrEqual(bounds.x); expect(choices.x + choices.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+    expect(choices.y + choices.height).toBeLessThanOrEqual(footer.y);
+    expect(await box.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+    if (width === 320) {
+      await page.setViewportSize({width, height:420});
+      const first = box.getByRole('option').first(); await first.scrollIntoViewIfNeeded();
+      await expect(first).toBeInViewport();
+      expect(await box.getByRole('listbox').evaluate(node => node.clientHeight)).toBeGreaterThanOrEqual(44);
+      await expect(button(box, 'Avbryt')).toBeInViewport();
+      await button(box, 'Ny sangbok').scrollIntoViewIfNeeded(); await expect(button(box, 'Ny sangbok')).toBeInViewport();
+      await page.setViewportSize({width, height:800});
+    }
+    await page.getByRole('option', {name:'Band', exact:true}).click();
+    await expect(box.getByRole('button', {name:'Sangbok: Band', exact:true})).toBeFocused();
+    await expect(box.getByRole('listbox')).toBeHidden();
+    await button(box, 'Avbryt').click();
+  }
+});
+
+test('D10 expands and collapses with the keyboard, while a second Escape cancels the flow', async ({page}) => {
+  await seed(page, false); const box = await newStep(page), value = box.getByRole('button', {name:'Sangbok: Velg sangbok', exact:true});
+  await expect(button(box, 'Fortsett')).toBeDisabled();
+  await value.press('ArrowDown'); await expect(page.getByRole('option', {name:'Band', exact:true})).toBeFocused();
+  await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+  const chosen = box.getByRole('button', {name:'Sangbok: Standard', exact:true});
+  await expect(chosen).toBeFocused(); await expect(button(box, 'Fortsett')).toBeEnabled();
+  await chosen.press('Space'); await expect(box.getByRole('listbox')).toBeVisible(); await page.keyboard.press('Escape');
+  await expect(chosen).toBeFocused(); await expect(chosen).toHaveAttribute('aria-expanded', 'false'); await expect(box).toBeVisible();
+  await page.keyboard.press('Escape'); await expect(box).toHaveCount(0); await expect(page.locator('#add-song')).toBeFocused(); expect(await savedSongs(page)).toEqual([]);
 });

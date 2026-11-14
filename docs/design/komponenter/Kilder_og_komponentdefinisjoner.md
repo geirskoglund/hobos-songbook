@@ -210,7 +210,8 @@
 ### Sangbokvelger – med handling (D10_Sangbokvelger_med_handling)
 - **Fil:** `Komponenter/07_Sangbokvelger.svg` (+ PNG)
 - **Definisjon:** Samme valgkontroll med separat tillegghandling nederst.
-- **Variant:** Valg + opprettelse
+- **Variant:** Valg + opprettelse; kontekstuell overskrift og integrert E03-footer ved bekreftet målvalg.
+- **Sammensetning i appen:** D10 er selve popupen i Opprett i sangbok, Importer i sangbok og Slett sangbok. Headeren viser sangbokikon én gang. Ett verdifelt utvides med valglisten og Ny sangbok i samme ramme. Avbryt/Fortsett eller Avbryt/Slett bruker felles E03; det legges ingen ekstra velgerpopup eller Sangbok-overskrift rundt komponenten.
 - **Eksempel:** Ny sangbok (ikke del av definisjonen)
 - **Farger:** Appbakgrunn (`#272421`), Overflate (`#322E2A`), Hevet flate (`#403831`), Kontur (`#8F7B69`), Sekundærtekst (`#C7BAA9`), Handling / fokus (`#E2C097`), Akkorder (`#E5BD8D`), Primærtekst (`#F4EDE3`).
 - **Kilder:** [Ny_sangbok.svg](https://drive.google.com/file/d/1mzkCq5oXqKulUrdN45juxw3S3veRdDLp/view).

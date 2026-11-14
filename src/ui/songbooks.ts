@@ -2,7 +2,7 @@ import {songbookName, type Songbook} from '../domain/songbook.ts';
 import type {LibrarySnapshot, songStorage} from '../storage/songs.ts';
 import {controlHeading, dialogFooter, dialogFrame} from './controls.ts';
 import {openDialog} from './dialog.ts';
-import {choicePicker, choiceValue, contextMenu, countRow, floatingAction} from './list-controls.ts';
+import {choiceControl, contextMenu, countRow, floatingAction} from './list-controls.ts';
 import {nameDialog} from './name-dialog.ts';
 import {currentPage} from './layout.ts';
 
@@ -63,21 +63,17 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
   }
   function targetControl(initial: string | null, change: () => void, exclude?: string) {
     let selected = initial;
-    const value = choiceValue('', () => {
-      choicePicker({opener: value, name: 'Sangbok', value: name(), choices: books(exclude), selected,
-        choose: id => {selected = id; update();}, create: () => edit(value, undefined, id => {selected = id; update();})});
+    const control = choiceControl({name: 'Sangbok', choices: books(exclude), selected,
+      choose: id => {selected = id; update();},
+      create: () => edit(control.value, undefined, id => {selected = id; update();}),
     });
-    value.setAttribute('aria-haspopup', 'dialog'); value.setAttribute('aria-expanded', 'false');
-    const name = () => books(exclude).find(book => book.id === selected)?.name ?? 'Velg sangbok';
     const valid = () => books(exclude).some(book => book.id === selected);
-    const update = () => {value.querySelector('span')!.textContent = name(); value.setAttribute('aria-label', `Sangbok: ${name()}`); change();};
-    return {element: value, update, valid, selected: () => valid() ? selected : null};
+    const update = () => {control.update({choices: books(exclude), selected}); change();};
+    return {...control, update, valid, selected: () => valid() ? selected : null};
   }
   /** Continue runs directly in the click handler, preserving Safari file-picker activation. */
   function chooseTarget(title: string, opener: HTMLElement, initial: string | null, accepted: (id: string) => void, cancelled?: () => void) {
-    const box = dialogFrame(title, 'name-dialog');
-    const heading = document.createElement('h2'); heading.textContent = title;
-    const content = document.createElement('div'); content.className = 'target-choice';
+    const box = dialogFrame(title, 'choice-picker');
     const target = targetControl(initial, () => {proceed.disabled = !target.valid();});
     const cancel = () => {lifecycle.close(); cancelled?.();};
     const actions = dialogFooter([
@@ -85,17 +81,18 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
       {id: 'continue', label: 'Fortsett', icon: 'ok', primary: true, run: () => {const id = target.selected(); if (id) {lifecycle.close(); accepted(id);}}},
     ]);
     const proceed = actions.querySelector<HTMLButtonElement>('[data-action=continue]')!;
-    target.update(); content.append(controlHeading('Sangbok', 'sangbok'), target.element); box.append(heading, content, actions);
-    const lifecycle = openDialog(box, {opener, focus: target.element, cancel});
+    target.update(); box.append(controlHeading(title, 'sangbok'), target.element, actions);
+    const lifecycle = openDialog(box, {opener, focus: target.value, cancel});
   }
   function remove(opener: HTMLElement, book: Songbook) {
-    const box = dialogFrame('Slett sangbok', 'name-dialog');
-    const heading = document.createElement('h2'); heading.textContent = 'Slett sangbok';
+    const box = dialogFrame('Slett sangbok', 'choice-picker');
+    const heading = controlHeading('Slett sangbok', 'sangbok');
     const content = document.createElement('div'), text = document.createElement('p'), error = document.createElement('p');
+    content.className = 'choice-picker-body';
     error.setAttribute('role', 'alert');
     let affected = count(book.id), last = snapshot.songbooks.length <= 1;
     const target = targetControl(null, update, book.id);
-    const targetArea = document.createElement('div'); targetArea.className = 'target-choice'; targetArea.append(controlHeading('Sangbok', 'sangbok'), target.element);
+    const targetArea = target.element;
     const cancel = () => {if (!writing) lifecycle.close();};
     const actions = dialogFooter([
       {id: 'cancel', label: 'Avbryt', icon: 'avbryt', run: cancel},
@@ -112,7 +109,7 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
     const lifecycle = openDialog(box, {opener, focus: actions.querySelector('button')!, cancel});
     async function confirm() {
       if (writing || deleteButton.disabled) return;
-      actions.querySelectorAll('button').forEach(button => {button.disabled = true;}); target.element.disabled = true;
+      actions.querySelectorAll('button').forEach(button => {button.disabled = true;}); target.setDisabled(true);
       writing = (async () => {
         try {
           await storage.deleteSongbook(book.id, target.selected());
@@ -123,7 +120,7 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
         } catch (cause) {
           await refresh(); affected = count(book.id); last = snapshot.songbooks.length <= 1;
           error.textContent = cause instanceof Error ? cause.message : 'Kunne ikke slette sangboken. Prøv igjen.';
-          actions.querySelectorAll('button').forEach(button => {button.disabled = false;}); target.element.disabled = false; target.update();
+          actions.querySelectorAll('button').forEach(button => {button.disabled = false;}); target.setDisabled(false); target.update();
         }
       })();
       try {await writing;} finally {writing = undefined;}

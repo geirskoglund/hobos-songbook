@@ -90,7 +90,7 @@ Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende design
 | `info.svg` | Informasjon | Systeminformasjon |
 | `varsel.svg` | Advarsel | Ved behov |
 | `songlist.svg` | Sangbibliotek | Liste over sanger |
-| [sangbok.svg](ikoner/sangbok.svg) | Sangbøker / Sangbok | Åpen bok; hovedmenyens Sangbøker, sangbokfilter og overskriften Sangbok i D09/D10. Godkjent SVG-kilde fra #35; runtime bruker samme kilde. |
+| [sangbok.svg](ikoner/sangbok.svg) | Sangbøker / Sangbok | Åpen bok; hovedmenyens Sangbøker, sangbokfilter og Sangbok-headeren i D09 og den kontekstuelle headeren i D10 (Opprett i sangbok, Importer i sangbok, Slett sangbok). Godkjent SVG-kilde fra #35; runtime bruker samme kilde. |
 | `setliste.svg` | Setlister | Ordnet sangliste |
 | `visning.svg` | Visning | Sang kan spilles |
 | `personlig.svg` | Personlig data | Privat datalag |

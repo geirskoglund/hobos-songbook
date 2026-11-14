@@ -6,7 +6,7 @@ Gjeldende avklaringer: F06s kryss er historisk referanse; sangredigeringen bruke
 
 Runtimeikonene i `assets/ui-icons/` følger de bevarte referanseformene og brukes gjennom appens felles ikonregister. Fontfiler og lisenser ligger i `assets/fonts/` (Fontsource Inter, Gentium Book Plus og Cousine, latin med norske tegn). Referansearkene er ikke runtime-ressurser.
 
-Sangbøker gjenbruker Setlisters L02, H01/H04 og felles D02/E03-navnedialog. D09 og D10 deler velger og L05-rader; D10 har separat Ny sangbok-handling. Opprett/Importer har D10 med Avbryt/Fortsett før Råtekst/filvalg, og bok med sanger krever D10-mål før sletting. Sangbokikonet brukes i hovedmenyen, filterutløseren og begge popupoverskrifter. Menyrekkefølgen er Sanger, Setlister, Synkronisering, Sangbøker, Filer, bunnforankret Innstillinger. Gjeldende flyter og fokusregler står i [DESIGN](../DESIGN.md).
+Sangbøker gjenbruker Setlisters L02, H01/H04 og felles D02/E03-navnedialog. D09 og D10 deler verdifelt og L05-rader; D10 har separat Ny sangbok-handling. D10 er selve popupen med kontekstuell overskrift og integrert E03-footer: Opprett i sangbok / Importer i sangbok med Avbryt/Fortsett før Råtekst/filvalg, eller Slett sangbok med konsekvensbeskrivelse og Avbryt/Slett. Feltet og den utvidbare listen ligger i samme popup, uten en ekstra Sangbok-header eller verdikopi. Sangbokikonet brukes i hovedmenyen, filterutløseren og én gang i hver popupheader. Menyrekkefølgen er Sanger, Setlister, Synkronisering, Sangbøker, Filer, bunnforankret Innstillinger. Gjeldende flyter og fokusregler står i [DESIGN](../DESIGN.md).
 
 ## Navneindeks
 
