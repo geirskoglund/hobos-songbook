@@ -4,14 +4,31 @@
 
 Bruk [navneindeksen](design/README.md) for komponentnavn, ID-er og SVG-er. Entydige navn er tilstrekkelig. Bevar navn og ID-er.
 
-- Godkjent designgrunnlag, komponentkart og ikonbibliotek er bindende ved alt UI-arbeid. Nye eller avvikende kontrolltyper krever uttrykkelig produktavklaring. Designgrunnlaget styrer farger og typografi; enkelt-SVG-en styrer geometrien.
-- Avvikende komponenter, farger eller menyknapper i skjermbildeskisser er ikke bestillinger på designendringer.
+- Godkjent designgrunnlag, komponentkart og ikonbibliotek er bindende ved alt UI-arbeid. Nye eller avvikende kontrolltyper krever uttrykkelig produktavklaring. Seneste uttrykkelige produktavklaring styrer og innarbeides i gjeldende dokumentasjon. Designgrunnlaget styrer farge- og fontroller; riktig enkelt-SVG og komponentvariant styrer geometri og komponentens tekststørrelser. Ikonregisteret styrer ikonform og betydning. Reell motstrid som disse reglene ikke løser, avklares før en lokal utforming innføres.
+- Skjermbildeskisser ved nåværende og fremtidige issues beskriver ønsket funksjon, innhold og flyt. Dersom skissen avviker fra eksisterende avklart design, legges det avklarte designet til grunn. Avvikende farger, former, marger eller menyknapper i en skisse er ikke en designendring; det krever en uttrykkelig produktbeslutning.
 - Innfør komponenter ved konkret behov. Katalogen skal ikke implementeres på forhånd.
 - Sjekk først om komponenten finnes. Hvis ikke, implementer den én gang som en felles, gjenbrukbar komponent.
 - Alle brukssteder bruker samme implementasjon med parametere og varianter. Ikke lag lokale kopier.
 - Overordnet layout vedlikeholdes ett sted. Se [arkitekturen](ARCHITECTURE.md#felles-ui-og-layout).
 
 Oppgaven bestemmer funksjon og innhold; designets eksempeltekst utvider ikke bestillingen. Avklar bare manglende eller tvetydig design.
+
+### Målregler for komponenter i bruk
+
+Alle mål er CSS-piksler. SVG-koordinater må leses relativt til selve komponenten, uten arkets ytterkant, eksempeltekst og oversettelsestransformasjoner. Normalgeometrien gjelder ved plass til vanlig enlinjet innhold. Høyder er minimum ved tekstbryting; bredder begrenses av viewport og safe-area. Lange navn/etiketter får vokse og brytes, og dialoginnhold rulles uten å krympe kontrollene eller skjule footeren. En responsiv tilpasning skal være felles for varianten og bevare fontroller, farger og form. Nettleserens avrunding av brøkstreker vurderes med liten måletoleranse.
+
+| Komponent / variant | Normalgeometri og roller | Tilpasning og kilde |
+| --- | --- | --- |
+| D02, navnefelt i felles navnedialog | Minst 59 px høyt, 18 px Inter Regular, radius 8 px, Overflate, Kontur og Primærtekst. Etikett 17 px. Innvendig tekstluft følger feltreferansen. | Feltet bruker tilgjengelig bredde og beholder høyden. Etiketten fokuserer feltet; feltgeometri og samlet betjeningsflate vurderes hver for seg. [D02](design/komponenter/Komponenter/D02_Tekstfelt_enlinjet.svg). D07/D08s små verdikontroller er egne varianter. |
+| E02/E03/E04, dialog med 1/2/3 handlinger | Samme integrerte footer: minst 80 px handlinger, 18 px Inter, sekundærtekst på Overflate, primær Handling/fokus med Appbakgrunn som tekst. Normal ramme har radius 24 px og 32 px innvendig luft; vanlig dialogoverskrift er 26 px/500. | Bredden begrenses av viewport. Ikon/tekst kan stables ved smal bredde; lang tekst kan øke høyden. Skillelinje i E04 bare mellom likestilte sekundærhandlinger, med 12 px luft øverst/nederst. [E02](design/komponenter/Komponenter/02_Dialog_footer_1_handling.svg), [E03](design/komponenter/Komponenter/02_Dialog_footer_2_handlinger.svg), [E04](design/komponenter/Komponenter/02_Dialog_footer_3_handlinger.svg). |
+| E01, fullskjerm | Rette ytterhjørner og samme footerhandlinger. | Full viewport med safe-area; ingen radius på skjermrammen. [E01](design/komponenter/Komponenter/E01_Dialog_fullskjerm.svg). |
+| H04, kontekstmeny | Hevet flate, radius 16 px, 265 px bredde, 17 px Inter Regular. To enlinjede valg gir omtrent 139 px panelhøyde, med 24 px ikoner og inntrukket separator. | Menyen holdes innenfor viewport; lange handlingsnavn kan øke radhøyden. [H04](design/komponenter/Komponenter/06_Kontekstmeny.svg). |
+| D09/D10, verdifelt | Minst 68 px høyt, 23 px Inter Regular, radius 16 px, Overflate/Kontur. Ett felles felt og én valgliste. Kontekstuell ikonoverskrift er 22 px/500, også når D10 komponeres med E03-footer. | Feltet fyller popupens innholdsbredde. Lange navn kan brytes og øke høyden. D10s separator over Ny sangbok er trukket 22 px inn fra listens ytterramme på begge sider. [D09](design/komponenter/Komponenter/07_Sangbokvelger_kun_valg.svg), [D10](design/komponenter/Komponenter/07_Sangbokvelger.svg). |
+| L02, tittel og antall | 22 px Inter Regular, antall 15 px Sekundærtekst og minst 115 px radsteg inkludert bunnkontur. Navn og antall har kompakt avstand som i referansen; separat radmeny. | Lange titler øker radhøyden; normal tekststørrelse og minimumshøyde krympes ikke ved mobilbredde. [L02](design/komponenter/Komponenter/L02_Listerad_tittel_antall.svg). |
+
+Disse reglene presiserer implementerte komponenter; øvrige typer innføres først ved behov. Komponentvariantenes konkrete radier gjelder foran den generelle panel-/feltradien. En komponert D10 bruker dialogrammens 24 px når den har E03-footer, feltets 16 px og listens 17 px. En selvstendig D09 beholder picker-rammen. Alle brukssteder bruker de samme reglene; sidevise CSS-unntak skal ikke reparere en feil i felleskomponenten.
+
+Gjenbruk er ikke et samsvarsbevis. Hver UI-leveranse har nummerert egensjekk med komponent-ID, normativ referanse, faktisk måling/visuell kontroll og resultat, etter [TESTING](TESTING.md#designsystem-og-appskall-23). Arvede avvik og gjenværende plattformkontroller oppgis. Grønne tester og et skjermbilde av dagens app erstatter ikke kontroll mot vedtatt design.
 
 ## Implementert sangflyt
 

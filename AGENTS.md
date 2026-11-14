@@ -1,6 +1,6 @@
 # Agentinngang
 
-- Ved alt UI-arbeid er godkjent designgrunnlag, komponentkart og ikonbibliotek bindende. Følg [DESIGN](docs/DESIGN.md) med vedtatte navn, stabile ID-er, varianter, geometri og interaksjon. Nye eller avvikende kontrolltyper krever uttrykkelig produktavklaring. Passende eksisterende komponenter skal implementeres én gang som felles kontroller og gjenbrukes; ikke lag lokale kopier.
+- Ved alt UI-arbeid er godkjent designgrunnlag, komponentkart og ikonbibliotek bindende. Følg [DESIGN](docs/DESIGN.md#bruk-av-designsystemet) med kildeansvar, vedtatte navn, stabile ID-er, varianter og målregler. Skjermbildeskisser i nåværende og fremtidige issues er skisser; ved avvik legges eksisterende avklart design til grunn. En skisse endrer ikke design uten uttrykkelig produktbeslutning. Nye eller avvikende kontrolltyper krever uttrykkelig produktavklaring. Passende kontroller implementeres én gang og gjenbrukes. Gjenbruk fritar ikke fra kontroll: lever en nummerert, sporbar visuell egensjekk etter [TESTING](docs/TESTING.md#designsystem-og-appskall-23), også for arvede avvik.
 
 - Appen skal eie tekst- og kontekstbetjening på alle skjermer, også i tekstfelter. Unngå nettleserens tekst-/lenkemenyer, native verktøytips og valideringsballonger. Bevar nødvendig filvalg, skjermtastatur og tilgjengelig betjening; nettleserens hovedmenyer og systemdialoger er utenfor nettsidens kontroll. Se DESIGN for felles løsning.
 - Svar på bokmål. Bruk aktuell GitHub-issue som oppgavegrunnlag; bevar brukerkrav og stabile ID-er.

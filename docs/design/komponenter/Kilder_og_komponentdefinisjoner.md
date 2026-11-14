@@ -1,6 +1,6 @@
 # Komponentkart – katalog og kilder
 
-**Prinsipp:** Generelle UI-konsepter. Navn og varianter er normative for designreferansen; eksempler er bare illustrative. Enkelt-SVG er fasit for geometrien.
+**Prinsipp:** Generelle UI-konsepter. Navn og varianter er normative for designreferansen; eksempler er bare illustrative. Enkelt-SVG er fasit for geometrien. Kildeansvar, normalmål, minimumsmål og responsiv oppførsel for implementerte varianter står samlet i [DESIGN](../../DESIGN.md#målregler-for-komponenter-i-bruk). Komponentvariantens geometri gjelder foran generelle standardverdier. Issueskisser er illustrasjoner og overstyrer ikke eksisterende avklart design.
 
 **Designgrunnlag:** `01_Designgrunnlag_oppdatert.svg` i `Design/Opprydding`. Kun de tolv navngitte fargene er brukt i komponentfilene. Ingen eldre originaler utenfor Opprydding er endret.
 

@@ -10,6 +10,7 @@
   --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-6:24px; --space-8:32px;
   --touch-target:44px; --popup-value-width:220px; --popup-note-width:360px;
   --radius-field:8px; --radius-panel:12px;
+  --radius-dialog:24px; --dialog-inset:32px; --dialog-footer-height:80px;
   --frame-width:1360px; --content-width:1000px; --gutter:clamp(12px,3vw,32px);
   --content-gutter:max(var(--gutter),calc((100vw - var(--content-width)) / 2 + var(--gutter)));
   --header-min-height:68px; --header-height:calc(var(--header-min-height) + env(safe-area-inset-top)); --toolbar-height:0px;

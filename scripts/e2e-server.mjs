@@ -14,6 +14,10 @@ const server = createServer(async (request, response) => {
     const channel = url.searchParams.get('channel'); variants[channel] = channel === 'app' ? 'production-v2' : url.searchParams.get('variant') === 'same' ? 'test-v1-repacked' : 'test-v2'; response.end('updated'); return;
   }
   if (url.pathname === '/__test__/ready') {response.end('ready'); return;}
+  if (url.pathname === '/__test__/controls.js') {
+    response.writeHead(200, {'Content-Type':types['.js'], 'Cache-Control':'no-store'});
+    response.end(await readFile(join(root,'design-fixture','controls.js'))); return;
+  }
   const match = /^\/hobos-songbook\/(app|test)\/(.*)$/.exec(decodeURIComponent(url.pathname));
   if (!match || match[2].split('/').some(part => part === '..')) {response.writeHead(404).end(); return;}
   const path = join(root, variants[match[1]], match[2] || 'index.html');

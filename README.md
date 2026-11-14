@@ -29,7 +29,7 @@ Råtekst åpner hele ChordPro-kilden i fullskjerm med egen scroll og Avbryt/Lagr
 - Produksjonsadresse: https://geirskoglund.github.io/hobos-songbook/app/
 - Testadresse: https://geirskoglund.github.io/hobos-songbook/test/
 
-Produksjon følger godkjent master, mens valgt implementerings-PR prøves på testadressen. Publisert PR/SHA kontrolleres i appens meny og `build-info.json`. Grønn CI betyr ikke produktgodkjenning.
+Produksjon følger godkjent master, mens valgt implementerings-PR prøves på testadressen. Publisert PR/SHA kontrolleres i appens meny og `build-info.json`. Grønn CI betyr ikke produktgodkjenning. Ved UI-arbeid følges [kildeansvar og komponentmål](docs/DESIGN.md#bruk-av-designsystemet), med nummerert visuell egensjekk og noen sentrale automatiserte designkontroller. Issueskisser er illustrasjoner; eksisterende avklart design legges til grunn ved avvik.
 
 Bruk Node.js 24 LTS:
 

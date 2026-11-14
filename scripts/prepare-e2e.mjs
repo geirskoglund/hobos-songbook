@@ -8,6 +8,12 @@ import {repository} from './pages-plan.mjs';
 const root = resolve('work/e2e');
 await rm(root, {recursive: true, force: true});
 await mkdir(root, {recursive: true});
+// Test the real shared controls with app CSS, including unused footer variants.
+// This fixture is served only by e2e-server and never enters a product build.
+await build({configFile:false, logLevel:'warn', build:{
+  lib:{entry:resolve('src/ui/controls.ts'), formats:['es'], fileName:()=>'controls.js'},
+  outDir:join(root,'design-fixture'), emptyOutDir:true,
+}});
 const variants = [
   {target: 'production-v1', channel: 'production', sha: 'a'.repeat(40), pr: ''},
   {target: 'test-v1', channel: 'test', sha: 'b'.repeat(40), pr: '7'},
