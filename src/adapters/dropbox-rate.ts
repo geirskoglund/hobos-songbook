@@ -8,7 +8,7 @@ export class DropboxError extends SyncFailure {
     this.name='DropboxError';this.status=status;this.summary=summary;
   }
 }
-const mutations=new Set(['files/upload','files/create_folder_v2','files/move_v2','files/delete_v2']);
+const mutations=new Set(['files/upload','files/upload_session/finish_batch_v2','files/create_folder_v2','files/move_v2','files/delete_v2']);
 const reasons=new Set<RateLimitReason>(['too_many_requests','too_many_write_operations','unknown']);
 const maxWait=30000,maxRetries=2;
 interface Cooldown {version:1;accountId:string;until:number;reason:RateLimitReason}
@@ -78,7 +78,8 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
         try{response=await perform(attempt,()=>wait(ticket,id));}catch(cause){if(cause instanceof DeferredSync||cause instanceof SyncFailure)throw cause;emit({operation,status:0,durationMs:Math.round(performance.now()-start)});throw new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'Dropbox-forespørselen kunne ikke fullføres.',cause);}
         const durationMs=Math.round(performance.now()-start);
         if(response.status===429)rate=await rateInfo(response,attempt);
-        emit({operation,status:response.status,durationMs,...(rate?{...rate,retryAttempt:attempt}:{})});
+        const entryLimit=(response as Response&{entryLimit?:boolean}).entryLimit===true;
+        emit({operation,status:entryLimit?200:response.status,durationMs,...(entryLimit?{entryLimit:true}:{}),...(rate?{...rate,retryAttempt:attempt}:{})});
         if(recover){if(rate){remember(id,rate);await guard(ticket);writeLimit=1;if(!retries||attempt>=maxRetries)throw stop(rate);}else checkTicket(ticket);}
       }finally{release();}
       if(!recover||response.status!==429)return response;

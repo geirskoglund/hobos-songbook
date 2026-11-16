@@ -46,7 +46,9 @@ export function syncIdentities(source:SyncSnapshot){
     if(!first()||emptySeed()&&Object.keys(remote.books).length)return false;let changed=false;
     for(const book of source.songbooks){
       const id=wireId('books',book.id);
-      if(state.bindings?.books[book.id]||state.manifest.books[id])continue;
+      // A confirmed folder owns this identity even before its first manifest.
+      // Its later rename must not trigger the independently seeded Standard rule.
+      if(state.bindings?.books[book.id]||state.manifest.books[id]||state.folders[id]?.folderId&&state.folders[id].folderId===remote.books[id]?.folderId)continue;
       // Standard is independently seeded on every installation, not a global identity.
       if(remote.books[id]&&id!=='standard')continue;
       const matches=Object.values(remote.books).filter(other=>!other.deleted&&nameKey(other.name)===nameKey(book.name));
@@ -78,6 +80,34 @@ export function syncIdentities(source:SyncSnapshot){
     }
     return changed;
   }
+  /** A published Dropbox ID wins over an unpublished reservation, on every retry.
+   * This is physical identity, independent of the first-join filename heuristic. */
+  function reconcile(remote:Manifest){
+    let changed=false;
+    for(const [id,book]of Object.entries(state.folders)){
+      if(state.manifest.books[id]||!book.folderId)continue;
+      const winner=Object.values(remote.books).find(other=>!other.deleted&&other.folderId===book.folderId&&other.id!==id);
+      if(!winner)continue;
+      for(const local of source.songbooks)if(wireId('books',local.id)===id)bind('books',local.id,winner.id);
+      for(const link of Object.values(state.reservations))if(link.songbookId===id)link.songbookId=winner.id;
+      delete state.folders[id];state.folders[winner.id]={...winner};changed=true;
+    }
+    for(const local of source.songs){
+      const id=wireId('songs',local.id),reserved=state.reservations[id];
+      if(state.manifest.songs[id]||!reserved?.fileId)continue;
+      const winner=Object.values(remote.songs).find(other=>other.fileId===reserved.fileId&&other.id!==id);
+      if(!winner)continue;
+      if(source.songs.some(other=>other.id!==local.id&&wireId('songs',other.id)===winner.id))throw new Error('Ambiguous local Dropbox identity');
+      bind('songs',local.id,winner.id);
+      // No invented common personal basis: independently created sidecars may differ.
+      delete state.bases[id];delete state.reservations[id];delete state.originals?.[id];
+      delete state.decisions[`${id}:content`];delete state.decisions[`${id}:personal`];
+      for(const [key,job]of Object.entries(state.uploads??{}))if(job.songId===id)delete state.uploads![key];
+      state.conflicts=state.conflicts.filter(conflict=>conflict.songId!==id);
+      state.reservations[winner.id]={...winner};changed=true;
+    }
+    return changed;
+  }
   function restore(changes:Changes={}):Changes{
     const songId=(id:string)=>localId('songs',id),bookId=(id:string)=>localId('books',id);
     return{...changes,
@@ -88,5 +118,5 @@ export function syncIdentities(source:SyncSnapshot){
       ...(changes.deleteSongs?{deleteSongs:changes.deleteSongs.map(songId)}:{}),
     };
   }
-  return{project,books,songs,restore,emptySeed};
+  return{project,books,songs,reconcile,restore,emptySeed};
 }

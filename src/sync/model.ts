@@ -9,11 +9,16 @@ export interface DeletedSong {id: string; fileId?: string; songbookId?: string}
 export interface Manifest {version: 1; books: Record<string, BookLink>; songs: Record<string, SongLink>; deletedSongs?: Record<string, DeletedSong>}
 export interface PersonalFile {version: 1; songId: string; original: {rev: string; hash: string}; data: SongPersonal}
 export interface FileValue {text: string; rev: string; id: string; path: string}
-export interface RemoteEntry {id?: string; path: string; folder?: boolean; rev?: string; deleted?: boolean}
+export interface RemoteEntry {id?: string; path: string; folder?: boolean; rev?: string; deleted?: boolean; size?:number}
+export interface UploadIntent {key:string; songId:string; kind:'content'|'personal'|'original'|'seed'; path:string; text:string; rev:string|null; base:{original:string;personal:PersonalFile}}
+export interface UploadJob extends UploadIntent {status:'planned'|'committing'|'done'; session?:{id:string;created:number}; value?:FileValue}
+export type UploadResult={value:FileValue}|{failure:FailureInfo;resetSession?:boolean};
 export interface RemoteIndex {cursor: string; entries: Record<string, RemoteEntry>; beforeUpdates?:Record<string,RemoteEntry|null>}
 export interface RemoteFiles {
   read(path: string, knownPath?:string): Promise<FileValue | null>;
   write(path: string, text: string, rev: string | null): Promise<FileValue>;
+  beginUpload?(text:string):Promise<{id:string;created:number}>;
+  commitBatch?(jobs:UploadJob[]):Promise<UploadResult[]>;
   folder(path: string, expectedId?: string, knownMissing?: boolean): Promise<{id: string; path: string}>;
   locateFolder(id: string): Promise<{id: string; path: string} | null>;
   move(from: string, to: string, known?:{id:string;path:string}): Promise<{id: string; path: string}>;
@@ -35,6 +40,8 @@ export interface SyncState {
   remote?: RemoteIndex;
   library?: {rev: string; id: string; value: Manifest};
   originals?: Record<string, boolean>;
+  uploads?:Record<string,UploadJob>;
+  skipped?:Record<string,boolean>;
   held?:Record<string,boolean>;
   joined?:boolean;
   // Account-local links preserve local IDs while using one cloud identity.
@@ -72,8 +79,10 @@ function readManifest(text: string): Manifest {
   for (const [id, book] of Object.entries(value.books) as [string, BookLink][]) {
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id) || book.id !== id || !book.name || /[\\/]/.test(book.name) || book.path && !book.path.toLowerCase().startsWith('/songbooks/')) throw new Error('Ugyldig sangbokmetadata i Dropbox.');
   }
+  const fileIds=new Set<string>();
   for (const [id, song] of Object.entries(value.songs) as [string, SongLink][]) {
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id) || song.id !== id || !song.origin || !value.books[song.songbookId] || !/^\/Songbooks\/[^/]+\/Private\/[^/]+\.cho$/i.test(song.path)) throw new Error('Ugyldig sangkobling i Dropbox.');
+    if(song.fileId){if(fileIds.has(song.fileId))throw new Error('Dropbox-filen har flere sangidentiteter.');fileIds.add(song.fileId);}
   }
   if(value.deletedSongs!==undefined){
     if(!value.deletedSongs||typeof value.deletedSongs!=='object'||Array.isArray(value.deletedSongs))throw new Error('Ugyldige slettemarkeringer.');
@@ -119,5 +128,7 @@ export function mergeManifest(base: Manifest, local: Manifest, remote: Manifest)
     names.set(key, book.id);
   }
   for (const song of Object.values(result.songs)) if (result.books[song.songbookId]?.deleted) throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.book-state'},'En sangkobling peker på en slettet bok.');
+  const fileIds=new Set<string>();
+  for(const song of Object.values(result.songs))if(song.fileId){if(fileIds.has(song.fileId))throw new SyncFailure({code:failureCodes.manifest,stage:'sync.manifest'},'Dropbox-filen har flere sangidentiteter.');fileIds.add(song.fileId);}
   return result;
 }

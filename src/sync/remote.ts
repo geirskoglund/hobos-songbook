@@ -1,5 +1,6 @@
 import {DeferredSync,failureCodes,SyncFailure} from './failure.ts';
 import {parseManifest,type FileValue,type RemoteEntry,type RemoteFiles,type SyncState} from './model.ts';
+import {checkSize,textBytes} from './limits.ts';
 
 export const pathKey=(path:string)=>path.normalize('NFC').toLowerCase();
 /** A complete metadata index, advanced only after every page has been received. */
@@ -26,6 +27,7 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
     async read(path){
       if(path.startsWith('rev:')){const match=Object.entries(state.bases).find(([,base])=>base.contentRev===path.slice(4));if(match){const link=state.manifest.songs[match[0]]??state.reservations[match[0]];if(link?.fileId)return{text:match[1].original,id:link.fileId,rev:path.slice(4),path};}}
       const entry=find(path);
+      if(entry?.size!==undefined)checkSize(entry.size);
       if(state.remote&&!entry&&!path.startsWith('rev:'))return null;
       if(entry?.id&&entry.rev){
         let text:string|undefined;
@@ -41,6 +43,8 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
       return result;
     },
     async write(path,text,rev){const result=await raw.write(path,text,rev);put({id:result.id,path:result.path,rev:result.rev,folder:false});if(pathKey(path)==='/.app/library.json')state.library={id:result.id,rev:result.rev,value:parseManifest(text)};return result;},
+    ...(raw.beginUpload?{beginUpload:raw.beginUpload}:{}),
+    ...(raw.commitBatch?{async commitBatch(jobs){const results=await raw.commitBatch!(jobs);for(const result of results)if('value'in result)put({id:result.value.id,path:result.value.path,rev:result.value.rev,folder:false,size:textBytes(result.value.text)});return results;}}:{}),
     async folder(path,expectedId){
       const current=find(expectedId??path);
       if(current){

@@ -1,5 +1,6 @@
 import type {AppEnvironment} from '../environment.ts';
-import type {FileValue, RemoteFiles, RemoteEntry} from '../sync/model.ts';
+import type {FileValue, RemoteFiles, RemoteEntry,UploadResult} from '../sync/model.ts';
+import {checkSize,textBytes,maxFileBytes,SkippedFile} from '../sync/limits.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../sync/failure.ts';
 import type {ApiEvent} from '../sync/diagnostics.ts';
 import {DropboxError,dropboxRate} from './dropbox-rate.ts';
@@ -23,11 +24,13 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     if(typeof AbortSignal.timeout==='function')return AbortSignal.timeout(30000);
     const controller=new AbortController();setTimeout(()=>controller.abort(),30000);return controller.signal;
   }
-  async function send(operation: string, options: RequestInit) {
+  async function send(operation: string, source: RequestInit|(()=>RequestInit), transform?:(response:Response)=>Promise<Response>) {
     return rate.send(operation,async(attempt,check)=>{
+      const options=typeof source==='function'?source():source;
       const headers=attempt?{...(options.headers as Record<string,string>),Authorization:`Bearer ${await access()}`}:options.headers;
       if(attempt)await check();
-      return request(`https://${operation==='files/download'||operation==='files/upload'?'content':'api'}.dropboxapi.com/${operation==='oauth2/token'?'':'2/'}${operation}`,{...options,headers,signal:options.signal??deadline()});
+      const response=await request(`https://${operation==='files/download'||operation==='files/upload'||operation==='files/upload_session/start'?'content':'api'}.dropboxapi.com/${operation==='oauth2/token'?'':'2/'}${operation}`,{...options,headers,signal:options.signal??deadline()});
+      return transform?transform(response):response;
     });
   }
   async function json(response: Response, stage = 'dropbox.request') {
@@ -123,7 +126,8 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
         for(const entry of page.entries){
           const path=displayPath(entry),tag=entry?.['.tag'];
           if(typeof path!=='string'||!path.startsWith('/')||!['file','folder','deleted'].includes(tag)||tag!=='deleted'&&(typeof entry.id!=='string'||!entry.id)||tag==='file'&&(typeof entry.rev!=='string'||!entry.rev))throw new SyncFailure({code:failureCodes.response,stage:'dropbox.list'},'Ugyldig oppføring i endringsoversikten.');
-          entries.push(tag==='deleted'?{path,deleted:true}:{id:entry.id,path,folder:tag==='folder',...(tag==='file'?{rev:entry.rev}:{})});
+          if(tag==='file'&&entry.size!==undefined&&(!Number.isSafeInteger(entry.size)||entry.size<0))throw new SyncFailure({code:failureCodes.response,stage:'dropbox.list'},'Ugyldig filstørrelse.');
+          entries.push(tag==='deleted'?{path,deleted:true}:{id:entry.id,path,folder:tag==='folder',...(tag==='file'?{rev:entry.rev,...(entry.size!==undefined?{size:entry.size}:{})}:{})});
         }
         if(!page.has_more)return{entries,cursor:page.cursor,reset};
         page=await rpc('files/list_folder/continue',{cursor:page.cursor});
@@ -135,15 +139,57 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       await beforeRequest();
       if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); const error = new DropboxError(response.status, value.error_summary ?? 'download'); if (missing(error)) return null; throw error;}
       let meta;try{meta=JSON.parse(response.headers.get('Dropbox-API-Result')??'null');}catch(cause){throw new SyncFailure({code:failureCodes.response,stage:'dropbox.download'},'Ugyldig metadataheader.',cause);}
-      return fileValue(meta, new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(await response.arrayBuffer()),knownPath??path);
+      if(meta?.size>maxFileBytes){await response.body?.cancel();throw new SkippedFile();}
+      const reader=response.body?.getReader(),chunks:Uint8Array[]=[];let size=0;
+      if(reader)for(;;){const chunk=await reader.read();if(chunk.done)break;size+=chunk.value.byteLength;if(size>maxFileBytes){await reader.cancel();throw new SkippedFile();}chunks.push(chunk.value);}
+      const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+      return fileValue(meta, new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(bytes),knownPath??path);
     },
     async write(path, text, rev) {
+      checkSize(textBytes(text));
       await beforeRequest(); const accessToken = await access(); await beforeRequest();
       const args = {path, mode: rev ? {'.tag': 'update', update: rev} : {'.tag': 'add'}, autorename: false, strict_conflict: true, mute: true};
       const response = await send('files/upload', {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/octet-stream', 'Dropbox-API-Arg': apiArg(args)}, body: new TextEncoder().encode(text), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
       await beforeRequest();
       if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); throw new DropboxError(response.status, value.error_summary ?? 'upload');}
       return fileValue(await json(response,'dropbox.upload'), text,path);
+    },
+    async beginUpload(text){
+      checkSize(textBytes(text));await beforeRequest();const accessToken=await access();await beforeRequest();
+      const response=await send('files/upload_session/start',{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/octet-stream','Dropbox-API-Arg':apiArg({close:true})},body:new TextEncoder().encode(text),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'});
+      await beforeRequest();if(!response.ok){if([401,403].includes(response.status))localStorage.removeItem(authKey);throw new DropboxError(response.status,'session','dropbox.upload');}
+      const value=await json(response,'dropbox.upload');
+      if(typeof value?.session_id!=='string'||!value.session_id)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.upload'},'Ugyldig opplastingsøkt.');
+      return{id:value.session_id,created:Date.now()};
+    },
+    async commitBatch(jobs){
+      if(!jobs.length||jobs.length>1000||jobs.some(job=>!job.session))throw new SyncFailure({code:failureCodes.response,stage:'dropbox.batch'},'Ugyldig opplastingsgruppe.');
+      for(const job of jobs)checkSize(textBytes(job.text));
+      await beforeRequest();const accessToken=await access();await beforeRequest();
+      let pending=jobs.map((_,i)=>i);const results:UploadResult[]=new Array(jobs.length);
+      const response=await send('files/upload_session/finish_batch_v2',()=>({method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({entries:pending.map(i=>{const job=jobs[i];return{cursor:{session_id:job.session!.id,offset:textBytes(job.text)},commit:{path:job.path,mode:job.rev?{'.tag':'update',update:job.rev}:{'.tag':'add'},autorename:false,strict_conflict:true,mute:true}};})}),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'}),async reply=>{
+        if(!reply.ok)return reply;
+        const value=await json(reply,'dropbox.batch');
+        if(!Array.isArray(value?.entries)||value.entries.length!==pending.length)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.batch'},'Ufullstendig batchrespons.');
+        const throttled:number[]=[];
+        for(let n=0;n<pending.length;n++){
+          const i=pending[n],entry=value.entries[n],job=jobs[i];
+          if(entry?.['.tag']==='success')results[i]={value:fileValue(entry,job.text,job.path)};
+          else if(entry?.['.tag']==='failure'&&entry.failure&&typeof entry.failure['.tag']==='string'){
+            const tag=entry.failure['.tag'];
+            if(tag==='too_many_write_operations'||tag==='path'&&entry.failure.path?.['.tag']==='too_many_write_operations'){throttled.push(i);continue;}
+            const resetSession=tag==='lookup_failed'&&['not_found','closed'].includes(entry.failure.lookup_failed?.['.tag']);
+            const conflict=tag==='path'&&entry.failure.path?.['.tag']==='conflict';
+            results[i]={failure:{code:conflict?failureCodes.changed:failureCodes.request,stage:'dropbox.batch',status:409},...(resetSession?{resetSession:true}:{})};
+          }else throw new SyncFailure({code:failureCodes.response,stage:'dropbox.batch'},'Ugyldig batchoppføring.');
+        }
+        pending=throttled;
+        // Per-entry lock contention uses the same bounded shared backpressure as HTTP 429.
+        if(pending.length){const limited=new Response(JSON.stringify({error:{reason:{'.tag':'too_many_write_operations'},retry_after:0}}),{status:429,headers:{'Retry-After':'0','Content-Type':'application/json'}});Object.defineProperty(limited,'entryLimit',{value:true});return limited;}
+        return new Response(JSON.stringify({entries:results}),{headers:{'Content-Type':'application/json'}});
+      });
+      await beforeRequest();if(!response.ok){if([401,403].includes(response.status))localStorage.removeItem(authKey);throw new DropboxError(response.status,'batch','dropbox.batch');}
+      return (await json(response,'dropbox.batch')).entries;
     },
     async folder(path, expectedId, knownMissing) {
       let current = knownMissing&&!expectedId?null:await metadata(expectedId ?? path);

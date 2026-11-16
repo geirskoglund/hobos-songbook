@@ -2,8 +2,8 @@ import type {AppEnvironment} from '../environment.ts';
 import type {RemoteFiles} from './model.ts';
 import {failureCodes, failureInfo, userActions, type FailureCode, type FailureInfo,type RateInfo} from './failure.ts';
 
-const operations = ['oauth2/token','users/get_current_account','auth/token/revoke','files/get_metadata','files/create_folder_v2','files/list_folder','files/list_folder/continue','files/download','files/upload','files/move_v2','files/delete_v2'] as const;
-export interface ApiEvent extends RateInfo {operation: string; status: number; durationMs: number;retryAttempt?:number}
+const operations = ['oauth2/token','users/get_current_account','auth/token/revoke','files/get_metadata','files/create_folder_v2','files/list_folder','files/list_folder/continue','files/download','files/upload','files/upload_session/start','files/upload_session/finish_batch_v2','files/move_v2','files/delete_v2'] as const;
+export interface ApiEvent extends RateInfo {operation: string; status: number; durationMs: number;retryAttempt?:number;entryLimit?:boolean}
 type EnvironmentInfo = Record<string, string | number | boolean | null>;
 export interface SyncLog {
   version: 1; id: string; timestamp: string;
@@ -15,7 +15,7 @@ interface LogStore {version: 1; active: string | null; entries: SyncLog[]; pendi
 const limit = 20;
 const codes = new Set<string>(Object.values(failureCodes));
 const errorTypes = new Set(['Error','SyncFailure','DropboxError','TypeError','SyntaxError','AbortError','QuotaExceededError','InvalidStateError','SecurityError','UnknownError','DataError','NotFoundError','ConstraintError','TransactionInactiveError','DataCloneError','TimeoutError']);
-const stages = new Set(['sync','sync.run','sync.song','sync.manifest','sync.personal','sync.original','sync.book-name','sync.book-state','sync.file','sync.storage','app.start','app.connect','app.disconnect','app.storage','app.capability','dropbox.request','dropbox.token','dropbox.account','dropbox.oauth','dropbox.file-metadata','dropbox.create-folder','dropbox.ensure-folder','dropbox.locate-folder','dropbox.move','dropbox.list','dropbox.download','dropbox.upload','dropbox.revoke']);
+const stages = new Set(['sync','sync.run','sync.song','sync.manifest','sync.personal','sync.original','sync.book-name','sync.book-state','sync.file','sync.storage','app.start','app.connect','app.disconnect','app.storage','app.capability','dropbox.request','dropbox.token','dropbox.account','dropbox.oauth','dropbox.file-metadata','dropbox.create-folder','dropbox.ensure-folder','dropbox.locate-folder','dropbox.move','dropbox.list','dropbox.download','dropbox.upload','dropbox.batch','dropbox.revoke']);
 const version = (value: unknown) => typeof value === 'string' && /^\d[\d.]{0,39}$/.test(value);
 const numericKeys = new Set(['viewportWidth','viewportHeight','screenWidth','screenHeight','pixelRatio','touchPoints','logicalProcessors','storageUsageBytes','storageQuotaBytes','rttMs','downlinkMbps']);
 const booleanKeys = new Set(['online','secureContext','standalone','webLocks','indexedDB','serviceWorker','clipboardWrite','storagePersisted','saveData','cookiesEnabled']);
@@ -68,7 +68,7 @@ function safeLog(value: SyncLog): SyncLog {
       ...(value.failure.causeType&&errorTypes.has(value.failure.causeType)?{causeType:value.failure.causeType}:{}),
       stack:value.failure.stack.filter(p=>Number.isSafeInteger(p.line)&&p.line>0&&Number.isSafeInteger(p.column)&&p.column>0).slice(0,8).map(p=>({line:p.line,column:p.column}))},
     manual:Boolean(value.manual),environment:safeEnvironment(value.environment),
-    operations:value.operations.filter(o=>operations.includes(o.operation as typeof operations[number])&&Number.isInteger(o.status)&&o.status>=0&&o.status<=599&&Number.isFinite(o.durationMs)&&o.durationMs>=0).slice(-30).map(o=>({operation:o.operation,status:o.status,durationMs:o.durationMs,...safeRate(o,o.status),...(o.status===429&&Number.isInteger(o.retryAttempt)&&o.retryAttempt!>=0&&o.retryAttempt!<=2?{retryAttempt:o.retryAttempt}:{})})),
+    operations:value.operations.filter(o=>operations.includes(o.operation as typeof operations[number])&&Number.isInteger(o.status)&&o.status>=0&&o.status<=599&&Number.isFinite(o.durationMs)&&o.durationMs>=0).slice(-30).map(o=>({operation:o.operation,status:o.status,durationMs:o.durationMs,...(o.status===200&&o.operation==='files/upload_session/finish_batch_v2'&&o.entryLimit===true?{entryLimit:true}:{}),...safeRate(o,o.status===200&&o.operation==='files/upload_session/finish_batch_v2'&&o.entryLimit===true?429:o.status),...((o.status===429||o.status===200&&o.operation==='files/upload_session/finish_batch_v2'&&o.entryLimit===true)&&Number.isInteger(o.retryAttempt)&&o.retryAttempt!>=0&&o.retryAttempt!<=2?{retryAttempt:o.retryAttempt}:{})})),
   };
 }
 function stackPositions(error:unknown) {
