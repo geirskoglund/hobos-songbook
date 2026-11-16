@@ -24,6 +24,8 @@ import {MissingSongbookError, suggestedSongbook, type Songbook} from '../domain/
 import type {LibrarySnapshot} from '../storage/songs.ts';
 import {choicePicker, contextMenu, floatingAction, metadataRow} from './list-controls.ts';
 import {startSetlists} from './setlists.ts';
+import {syncController} from '../sync/controller.ts';
+import {syncPage} from './sync.ts';
 import {startSongbooks} from './songbooks.ts';
 
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) => {
@@ -65,6 +67,7 @@ export function startSongbook() {
     renderFrame=requestAnimationFrame(()=>{renderFrame=0;if(!active||!session)return;const view=captureView(active.id,null);view.chartReleased=chartReleasedState;void openSong(session.song,view,true);});
   }
   function changed(source=false){
+    sessionEdited = true; if(active) void cloud.begin(active.id, true).catch(error => notify(error instanceof Error ? error.message : 'Synkpausen kunne ikke lagres.', true));
     const state=session!.personal,key=JSON.stringify([state.capo,state.chordGrid]);
     const tuning=reader.querySelector('.song-tuning');if(tuning)tuning.textContent=state.tuning||'Standard stemming';
     if(source||visualPersonal!==key){visualPersonal=key;redraw();}else editor?.refresh();
@@ -75,7 +78,7 @@ export function startSongbook() {
     editor.unmount();
     originalModal=openRawEditor(session!,async()=>{
       const ok=await flush(true);if(ok){const view=captureView(active!.id,null);view.chartReleased=chartReleasedState;await openSong(session!.song,view,true);}return ok;
-    },()=>{originalModal=undefined;if(first){editing=undefined;resetSong();showPage('library');void refreshLibrary();}else if(active&&session)redraw();},editor.element.querySelector<HTMLElement>('[data-editor-tool=raw]')!);
+    },()=>{originalModal=undefined;if(first){editing=undefined;void resetSong().then(()=>{showPage('library');void refreshLibrary();});}else if(active&&session)redraw();},editor.element.querySelector<HTMLElement>('[data-editor-tool=raw]')!);
   }
   const chorusWrites = new Set<Promise<unknown>>();
   const saveRetry = element('button', 'Prøv lagring igjen'); saveRetry.type = 'button'; saveRetry.hidden = true;
@@ -165,6 +168,10 @@ export function startSongbook() {
   library.append(add);
   query('header-actions').append(filter,editMenu);
   query('back').replaceChildren(icon('tilbake'));
+  const cloud = syncController(storage, {busy: () => Boolean(active || importing || creating || leaving || openingSong), downloaded: refreshLibrary, notify: () => cloudPage?.render(), connected: () => {void navigate('sync');}});
+  let cloudPage: ReturnType<typeof syncPage> | undefined;
+  cloudPage = syncPage(cloud);
+  let openingSong = false, sessionEdited = false;
   let creating=false;
   async function beginSongChoice(action: 'create' | 'import') {
     if (creating || leaving || importing) return;
@@ -188,12 +195,12 @@ export function startSongbook() {
     leaving=true;
     try{
       if(session&&!await settleDraft())return;
-      editing=undefined;settingsReturn=undefined;resetSong();setlists.reset();showPage(page);editMenu.hidden=true;
+      editing=undefined;settingsReturn=undefined;await resetSong();setlists.reset();showPage(page);editMenu.hidden=true;
       if(page==='library')void refreshLibrary();
       if(page==='setlists')void setlists.refresh();
       if(page==='songbooks')void bookManager.refresh();
       query(page==='library'?'library-title':`${page}-title`).focus({preventScroll:true});window.scrollTo(0,0);
-    }finally{leaving=false;}
+    }finally{leaving=false;cloud.resume();}
   }
   const notify = (message: string, error = false) => {status.textContent = message; status.dataset.error = String(error);};
   let preferences = {...defaultPreferences};
@@ -289,12 +296,15 @@ export function startSongbook() {
   }
   retry.addEventListener('click', () => {void load();});
   async function openSong(song: Song, resume?: UpdateView, draft = false) {
+    openingSong = true;
+    try {await cloud.begin(song.id, sessionEdited || Boolean(editing));} catch(error) {openingSong=false;notify(error instanceof Error ? error.message : 'Kunne ikke pause synkronisering.',true);return;}
+    openingSong = false;
     notify('');
     if (resume?.editor) editing = resume.editor;
     if(resume?.settingsReturn)settingsReturn=resume.settingsReturn;
     let personal: SongPersonal;
     try {personal = draft && session ? session.personal : await storage.personal(song.id) ?? {songId: song.id, chorus: {},version:3};}
-    catch (error) {notify(error instanceof Error ? error.message : 'Kunne ikke hente personlig tilstand.', true); return;}
+    catch (error) {await cloud.end(false);notify(error instanceof Error ? error.message : 'Kunne ikke hente personlig tilstand.', true); return;}
     if(!session||session.song.id!==song.id){editor?.dispose();editor=undefined;session=createEditSession(song,personal);chartReleasedState=Boolean(resume?.chartReleased);}
     song=session.song;personal=session.personal;active=song;
     visualPersonal=JSON.stringify([personal.capo,personal.chordGrid]);
@@ -387,15 +397,21 @@ export function startSongbook() {
     else {title.focus({preventScroll: true}); window.scrollTo(0, 0);}
     reader.style.removeProperty('visibility');
   }
-  function resetSong(){
+  async function resetSong(){
+    await Promise.all(chorusWrites);
+    const edited = sessionEdited; sessionEdited = false;
     cancelAnimationFrame(renderFrame);renderFrame=0;editMenu.hidden=true;document.body.classList.remove('editing-active');disposeView();disposeView=()=>{};editor?.dispose();editor=undefined;query('song-content').replaceChildren();session=undefined;readerPersonal=undefined;active=null;notify('');saveRetry.hidden=true;
+    await cloud.end(edited);
   }
-  function back(){
-    if(currentPage()==='settings'&&settingsReturn){const view=settingsReturn;settingsReturn=undefined;void restoreUpdateView(view,()=>true).then(()=>{editMenu.hidden=!active;focusUpdateView(view);});return;}
+  async function back(){
+    if(currentPage()==='settings'&&settingsReturn){const view=settingsReturn;settingsReturn=undefined;await restoreUpdateView(view,()=>true);editMenu.hidden=!active;focusUpdateView(view);return;}
     if(currentPage()==='setlist'){void setlists.back();return;}
     if(leaving||switchingMode)return;
-    if(session&&(saving||session.dirty()||editor?.dirty())){leaving=true;void settleDraft().then(ok=>{if(ok){editing=undefined;resetSong();showPage('library');void refreshLibrary();}}).finally(()=>{leaving=false;});return;}
-    editing=undefined;resetSong();showPage('library');void refreshLibrary();query('library-title').focus({preventScroll:true});window.scrollTo(0,0);
+    leaving=true;
+    try {
+      if(session&&!await settleDraft())return;
+      editing=undefined;await resetSong();showPage('library');await refreshLibrary();query('library-title').focus({preventScroll:true});window.scrollTo(0,0);
+    } finally {leaving=false;cloud.resume();}
   }
   query('back').addEventListener('click',back);
   file.addEventListener('change', async () => {
@@ -427,7 +443,7 @@ export function startSongbook() {
     finally {importing = false; file.disabled = false; add.disabled = !libraryReady; file.value = '';}
   });
   showPage('library');
-  void load();
+  void load().then(() => cloud.start());
   return {beforeUpdateReload: async (focusId: string | null) => {
     await setlists.beforeUpdate();
     await bookManager.beforeUpdate();

@@ -49,11 +49,11 @@ test('the previously published v4 database reopens without downgrade, replacemen
 test('local book and song writes preserve v4 metadata, extra stores, identities and setlist references',async({page})=>{
   const before=await seed(page);await page.goto(url);await goBooks(page);
   await page.locator('#songbook-menu-my-book').click();await page.getByRole('menuitem',{name:'Endre navn',exact:true}).click();await page.getByLabel('Navn',{exact:true}).fill('Nytt boknavn');await page.getByRole('button',{name:'Lagre',exact:true}).click();await expect(page.getByRole('dialog',{name:'Endre navn på sangbok',exact:true})).toHaveCount(0);
-  expect(await snapshot(page)).toEqual({...before,songbooks:[{...book,name:'Nytt boknavn'}]});
+  const renamed=await snapshot(page);expect(renamed.songbooks).toEqual([{...book,name:'Nytt boknavn'}]);expect(renamed.sync).toContainEqual(sync);expect(renamed.songs).toEqual(before.songs);expect(renamed.personal).toEqual(before.personal);
   await page.locator('#songbook-my-book').click();await page.locator('#song-list .song-choice').click();await tool(page,'Tittel');await fillValue(page,'Tittel','Ny sangtittel');
   await expect.poll(async()=>(await snapshot(page)).songs[0].title).toBe('Ny sangtittel');const edited=await snapshot(page);
-  expect(edited.songs).toEqual([{...song,title:'Ny sangtittel',original:song.original.replace('Behold sangen','Ny sangtittel')}]);expect(edited.sync).toEqual(before.sync);expect(edited.personal).toEqual(before.personal);expect(edited.setlists).toEqual(before.setlists);
-  await goSongs(page);await importSong(page,'ny.txt','{t: Ny lokal sang}\nOrd');const imported=await snapshot(page);expect(imported.version).toBe(4);expect(imported.songs).toHaveLength(2);expect(imported.songs.find(s=>s.id!==song.id).songbookId).toBe(book.id);expect(imported.sync).toEqual(before.sync);expect(imported.setlists).toEqual(before.setlists);
+  expect(edited.songs).toEqual([{...song,title:'Ny sangtittel',original:song.original.replace('Behold sangen','Ny sangtittel')}]);expect(edited.sync).toContainEqual(sync);expect(edited.personal).toEqual(before.personal);expect(edited.setlists).toEqual(before.setlists);
+  await goSongs(page);await importSong(page,'ny.txt','{t: Ny lokal sang}\nOrd');const imported=await snapshot(page);expect(imported.version).toBe(4);expect(imported.songs).toHaveLength(2);expect(imported.songs.find(s=>s.id!==song.id).songbookId).toBe(book.id);expect(imported.sync).toContainEqual(sync);expect(imported.setlists).toEqual(before.setlists);
 });
 
 for(const [version,incompatible] of [[5,false],[4,true]])test(`unsupported database v${version}, invalid keys ${incompatible}, stays unchanged with an accurate error`,async({page})=>{

@@ -8,6 +8,7 @@ export function requestLayout(){if(!layoutFrame)layoutFrame=requestAnimationFram
 export function currentPage(): Page {return (document.documentElement.dataset.page as Page) || 'library';}
 export function showPage(page: Page, canGoBack = page === 'reader' || page === 'setlist') {
   document.documentElement.dataset.page = page;
+  document.querySelector('.topbar')!.classList.toggle('has-center-action', page === 'library' || page === 'reader');
   document.getElementById('back')!.hidden = !canGoBack;
   document.getElementById('back')!.setAttribute('aria-label',page==='setlist'?'Tilbake til Setlister':page==='settings'?'Tilbake':'← Mine sanger');
   for (const id of pages) document.getElementById(id)!.hidden = id !== page;

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F4EDE3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" role="img">
+  <title>status-slettet</title>
+  <!-- Samme dokument og X som i v13; skrå avslutninger på dokumentkonturen følger X-diagonalene. -->
+  <g fill="#F4EDE3" stroke="none">
+    <!-- topp: kapp ved venstre X-ende følger \ -->
+    <path d="M7.38 2.55H13.90V4.25H8.62Z"/>
+    <!-- venstre: øvre kapp følger \, nedre kapp følger / -->
+    <path d="M4.15 6.39L5.85 7.63V16.89L4.15 18.11Z"/>
+    <!-- høyre: øvre kapp følger /, nedre kapp følger \ -->
+    <path d="M17.15 8.12L18.85 6.88V18.10L17.15 16.88Z"/>
+    <!-- bunn: venstre kapp følger /, høyre kapp følger \ -->
+    <path d="M8.62 20.25H14.38L15.60 21.95H7.40Z"/>
+  </g>
+  <!-- dokumentets brettelinje er den samme som i v13 -->
+  <g stroke-linecap="butt">
+    <path d="M13.90 3.40L14.66 4.16"/>
+  </g>
+  <!-- X er helt uendret fra v13 -->
+  <path d="M5.5 3.95L17.5 20.55M17.5 3.95L5.5 20.55"/>
+</svg>
