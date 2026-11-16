@@ -11,6 +11,7 @@ export interface RemoteFiles {
   read(path: string): Promise<FileValue | null>;
   write(path: string, text: string, rev: string | null): Promise<FileValue>;
   folder(path: string, expectedId?: string): Promise<{id: string; path: string}>;
+  locateFolder(id: string): Promise<{id: string; path: string} | null>;
   move(from: string, to: string): Promise<{id: string; path: string}>;
   list(path: string): Promise<{id: string; path: string; folder: boolean}[]>;
   removeEmpty(path: string): Promise<boolean>;
@@ -22,9 +23,10 @@ export interface SyncState {
   conflicts: Conflict[]; pending: boolean; awaitingDownload?: boolean; localGeneration?: number; error?: string; lastManual?: string;
   // Durable reservations make retry after a lost response use the same names/identities.
   decisions: Record<string, {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'}>;
+  renames?: Record<string, {from: string; to: string}>;
   reservations: Record<string, SongLink>; folders: Record<string, BookLink>;
 }
-export interface LocalJournal {id: 'private-local-v1'; version: 1; generation: number; deletedBooks: Record<string, BookLink>; sessions: Record<string, {songId: string; edited: boolean}>}
+export interface LocalJournal {id: 'private-local-v1'; version: 1; generation: number; recoveryRequired?: boolean; deletedBooks: Record<string, BookLink>; sessions: Record<string, {songId: string; edited: boolean}>}
 export const emptyManifest = (): Manifest => ({version: 1, books: {}, songs: {}});
 export const emptyJournal = (): LocalJournal => ({id: 'private-local-v1', version: 1, generation: 0, deletedBooks: {}, sessions: {}});
 export const newSyncState = (accountId: string): SyncState => ({id: `private-account-v1:${accountId}`, version: 1, accountId, manifest: emptyManifest(), bases: {}, conflicts: [], pending: true, decisions: {}, reservations: {}, folders: {}});

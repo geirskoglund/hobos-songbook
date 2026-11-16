@@ -15,7 +15,7 @@ const random = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint
 export async function pkceChallenge(verifier: string) {
   return btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))))).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 }
-export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetch, beforeRequest: () => void = () => {}) {
+export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetch, beforeRequest: () => void | Promise<void> = () => {}) {
   const config = dropboxConfig(env.channel), authKey = `${env.namespace}:dropbox-auth-v1`, pendingKey = `${env.namespace}:dropbox-pkce-v1`;
   let invalidated = 0;
   function credentials(): Credentials | null {
@@ -72,7 +72,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     return true;
   }
   async function rpc(path: string, body: unknown) {
-    beforeRequest(); const accessToken = await access(); beforeRequest();
+    await beforeRequest(); const accessToken = await access(); await beforeRequest();
     const response = await request(`https://api.dropboxapi.com/2/${path}`, {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json'}, body: JSON.stringify(body), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
     if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const problem = await response.json().catch(() => ({})); throw new DropboxError(response.status, problem.error_summary ?? 'request');}
     return response.json();
@@ -82,14 +82,14 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
   const fileValue = (data: any, text: string): FileValue => ({text, id: data.id, rev: data.rev, path: data.path_display});
   const files: RemoteFiles = {
     async read(path) {
-      beforeRequest(); const accessToken = await access(); beforeRequest();
+      await beforeRequest(); const accessToken = await access(); await beforeRequest();
       const response = await request('https://content.dropboxapi.com/2/files/download', {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Dropbox-API-Arg': apiArg({path})}, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
       if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); const error = new DropboxError(response.status, value.error_summary ?? 'download'); if (missing(error)) return null; throw error;}
       const meta = JSON.parse(response.headers.get('Dropbox-API-Result') ?? 'null'); if (!meta?.rev) throw new Error('Dropbox ga ingen filversjon.');
       return fileValue(meta, new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(await response.arrayBuffer()));
     },
     async write(path, text, rev) {
-      beforeRequest(); const accessToken = await access(); beforeRequest();
+      await beforeRequest(); const accessToken = await access(); await beforeRequest();
       const args = {path, mode: rev ? {'.tag': 'update', update: rev} : {'.tag': 'add'}, autorename: false, strict_conflict: true, mute: true};
       const response = await request('https://content.dropboxapi.com/2/files/upload', {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/octet-stream', 'Dropbox-API-Arg': apiArg(args)}, body: new TextEncoder().encode(text), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
       if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); throw new DropboxError(response.status, value.error_summary ?? 'upload');}
@@ -97,13 +97,19 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     },
     async folder(path, expectedId) {
       let current = await metadata(expectedId ?? path);
-      if (expectedId && (!current || current.path_display.toLowerCase() !== path.toLowerCase())) throw new Error('En kjent sangbokmappe er flyttet eller endret utenfor appen. Ingen ny mappe opprettes; innholdet er beholdt.');
+      if (expectedId && (!current || current.path_display.toLowerCase() !== path.toLowerCase())) throw new Error('Sangbokmappen er endret i Dropbox. Trykk Synkroniser for å hente navneendringen.');
       if (!current) {
         try {current = (await rpc('files/create_folder_v2', {path, autorename: false})).metadata;}
         catch (error) {if (!(error instanceof DropboxError && error.status === 409)) throw error; current = await metadata(path);}
       }
       if (current?.['.tag'] !== 'folder') throw new Error('Dropbox-stien er opptatt av en fil. Ingen data overskrives.');
       return {id: current.id, path: current.path_display};
+    },
+    async locateFolder(id) {
+      const value = await metadata(id);
+      if (!value) return null;
+      if (value['.tag'] !== 'folder') throw new Error('Den kjente sangbokmappen er ikke en mappe.');
+      return {id: value.id, path: value.path_display};
     },
     async move(from, to) {
       const current = await metadata(from);

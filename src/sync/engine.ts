@@ -15,12 +15,12 @@ function fromRemote(link: SongLink, text: string): Song {
 function project(personal: SongPersonal, source: Song, target: Song) {return personalData(source.original === target.original ? personal : reconcilePersonal(source, target, personal));}
 export interface SyncHooks {valid(): boolean; changed(): void}
 export function syncEngine(storage: ReturnType<typeof syncStorage>, files: RemoteFiles, accountId: string, hooks: SyncHooks) {
-  let snapshot: SyncSnapshot, state: SyncState, generation = 0;
+  let snapshot: SyncSnapshot, state: SyncState, generation = 0, manualRecovery = false;
   const valid = () => hooks.valid();
   async function check() {
     if (!valid()) throw new PausedSync();
     const latest = await storage.snapshot(accountId);
-    if (Object.keys(latest.journal.sessions).some(id => id.startsWith('interrupted:'))) throw new Error('En avbrutt redigeringsøkt venter. Åpne og forlat sangen før synkronisering.');
+    if (latest.journal.recoveryRequired && !manualRecovery) throw new Error('Lagrede endringer etter avbrudd venter på Synkroniser.');
     if (Object.keys(latest.journal.sessions).length) throw new PausedSync();
     if (latest.journal.generation !== generation) throw new Error('Nyere lokale endringer venter. Synkroniseringen må fortsette fra nyeste versjon.');
     if (!valid()) throw new PausedSync();
@@ -44,6 +44,24 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     }
     return local;
   }
+  async function refreshBookNames(remote: Manifest) {
+    for (const book of Object.values(remote.books).filter(book => !book.deleted && book.folderId)) {
+      const current = await step(() => files.locateFolder(book.folderId!));
+      if (!current) throw new Error(`Sangbokmappen for «${book.name}» mangler. Lokale data er beholdt.`);
+      const intent = state.renames?.[book.id];
+      if (intent) {
+        if ([intent.from, intent.to, `/Songbooks/.rename-${book.id}`].includes(current.path)) continue;
+        throw new Error('Sangbokmappen er endret under en uferdig navneendring. Begge endringene er beholdt.');
+      }
+      if (!/^\/Songbooks\/[^/]+$/i.test(current.path)) throw new Error('En kjent sangbokmappe ligger utenfor Songbooks. Innholdet er beholdt.');
+      if (book.path === current.path) continue;
+      const previousPath = book.path ?? `/Songbooks/${book.name}`;
+      book.name = songbookName(current.path.split('/').at(-1)!, Object.values(remote.books).filter(other => !other.deleted), book.id);
+      book.path = current.path;
+      for (const song of Object.values(remote.songs)) if (song.songbookId === book.id && song.path.toLowerCase().startsWith(previousPath.toLowerCase() + '/')) song.path = current.path + song.path.slice(previousPath.length);
+      state.folders[book.id] = {...book}; await save();
+    }
+  }
   async function ensureBooks(merged: Manifest) {
     await folder('/.app'); await folder('/.app/songs'); await folder('/Songbooks');
     for (const book of Object.values(merged.books).filter(b => !b.deleted)) {
@@ -51,11 +69,12 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       const prior = Object.values(merged.books).find(other => other.id !== book.id && other.path?.toLowerCase() === target.toLowerCase());
       if (prior) {
         const entries = await step(() => files.list('/Songbooks'));
-        if (entries.some(entry => entry.path.toLowerCase() === target.toLowerCase())) throw new Error(`Mappen for «${book.name}» tilhører en annen eller slettet sangbok. Velg et annet navn; innholdet er beholdt.`);
+        if (entries.some(entry => entry.path.toLowerCase() === target.toLowerCase() && (!prior.folderId || entry.id === prior.folderId))) throw new Error(`Mappen for «${book.name}» tilhører en annen eller slettet sangbok. Velg et annet navn; innholdet er beholdt.`);
       }
       const known = state.folders[book.id] ?? state.manifest.books[book.id] ?? book;
       let binding: {id: string; path: string};
       if (known.folderId && known.path !== target) {
+        (state.renames ??= {})[book.id] = {from: known.path ?? target, to: target}; await save();
         // Dropbox paths are case-insensitive; a temporary name preserves case-only renames.
         if (known.path !== target && known.path?.toLowerCase() === target.toLowerCase()) {
           const intermediate = `/Songbooks/.rename-${book.id}`;
@@ -64,14 +83,14 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         binding = await step(() => files.move(known.folderId!, target));
       } else binding = await folder(target, known.folderId);
       book.folderId = binding.id; book.path = binding.path;
-      state.folders[book.id] = {...book}; await save();
+      state.folders[book.id] = {...book}; delete state.renames?.[book.id]; await save();
       for (const kind of ['Private', 'Shared', 'Import', 'Originals']) await folder(`${target}/${kind}`);
     }
   }
   async function discover(remote: Manifest) {
     // Inspect only book directories and Private/. Contents of other subfolders stay out of sync.
     for (const entry of await step(() => files.list('/Songbooks'))) {
-      if (!entry.folder || Object.values(remote.books).some(book => book.folderId === entry.id || book.path?.toLowerCase() === entry.path.toLowerCase())) continue;
+      if (!entry.folder || Object.values(remote.books).some(book => book.folderId ? book.folderId === entry.id : book.path?.toLowerCase() === entry.path.toLowerCase())) continue;
       let known = Object.values(state.folders).find(book => book.folderId === entry.id);
       if (!known) {
         const name = entry.path.split('/').at(-1)!;
@@ -177,10 +196,12 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     return !waitingRemote;
   }
   async function run(manual: boolean, resolution?: {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'}) {
+    manualRecovery = manual;
     await start(); state.error = undefined; state.pending = true; state.awaitingDownload = false;
     try {
       const manifestFile = await read('/.app/library.json');
       const remote = manifestFile ? parseManifest(manifestFile.text) : emptyManifest();
+      if (manual) await refreshBookNames(remote);
       let local = localManifest();
       // The automatically seeded Standard book is not a conflicting user edit on a new device.
       if (!snapshot.songs.length && snapshot.songbooks.length === 1 && snapshot.songbooks[0].id === 'standard' && snapshot.songbooks[0].name === 'Standard' && !snapshot.journal.generation && Object.keys(remote.books).length) local.books = {};
@@ -222,16 +243,18 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         const deleted = snapshot.songbooks.filter(b => merged.books[b.id]?.deleted || !local.books[b.id] && !merged.books[b.id]).map(b => b.id);
         state.manifest = structuredClone(merged); await save({books, deleteBooks: deleted});
       }
-      for (const book of Object.values(merged.books).filter(b => b.deleted && b.path)) {
-        // Every deletion uses a fresh, fully paginated listing. Nonempty remnants are expected.
-        for (const kind of ['Private', 'Shared', 'Import', 'Originals']) await step(() => files.removeEmpty(`${book.path}/${kind}`));
-        await step(() => files.removeEmpty(book.path!));
+      for (const book of Object.values(merged.books).filter(b => b.deleted && b.folderId)) {
+        const remaining = await step(() => files.locateFolder(book.folderId!));
+        if (!remaining || !/^\/Songbooks\/[^/]+$/i.test(remaining.path)) continue;
+        // The deleted folder's ID must still own this path; a reused name is a new identity.
+        for (const kind of ['Private', 'Shared', 'Import', 'Originals']) await step(() => files.removeEmpty(`${remaining.path}/${kind}`));
+        await step(() => files.removeEmpty(remaining.path));
       }
       complete &&= !state.conflicts.length && !snapshot.songs.some(song => privateSong(song) && !readySongs[song.id]);
       state.pending = !complete;
       if (complete) state.localGeneration = generation;
       if (manual && complete) state.lastManual = new Date().toISOString();
-      await save(); return state;
+      await save({recoveryComplete: manual && complete}); return state;
     } catch (error) {
       state.error = error instanceof Error ? error.message : 'Synkronisering feilet.'; state.pending = true;
       // A stale run must not acknowledge work or overwrite state belonging to a newer session.

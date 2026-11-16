@@ -28,7 +28,7 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
       tx.onabort = tx.onerror = () => {db.close(); reject(new Error('Kunne ikke lese synktilstanden.'));};
     });
   }
-  async function commit(generation: number, state: SyncState, changes: {songs?: Song[]; personal?: SongPersonal[]; books?: Songbook[]; deleteBooks?: string[]} = {}, guard: () => boolean = () => true) {
+  async function commit(generation: number, state: SyncState, changes: {songs?: Song[]; personal?: SongPersonal[]; books?: Songbook[]; deleteBooks?: string[]; recoveryComplete?: boolean} = {}, guard: () => boolean = () => true) {
     const db = await open();
     return new Promise<void>((resolve, reject) => {
       const tx = db.transaction(['songs', 'songbooks', 'personal', 'sync'], 'readwrite'), store = tx.objectStore('sync'), read = store.get(journalId);
@@ -36,6 +36,7 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
         const journal: LocalJournal = read.result ?? emptyJournal();
         if (journal.generation !== generation || Object.keys(journal.sessions).length || !guard()) {tx.abort(); return;}
         store.put(state);
+        if (changes.recoveryComplete) {journal.recoveryRequired = false; store.put(journal);}
         for (const song of changes.songs ?? []) tx.objectStore('songs').put(song);
         for (const personal of changes.personal ?? []) tx.objectStore('personal').put(personal);
         for (const book of changes.books ?? []) tx.objectStore('songbooks').put(book);
@@ -51,9 +52,7 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
       const tx = db.transaction('sync', 'readwrite'), store = tx.objectStore('sync'), read = store.get(journalId);
       read.onsuccess = () => {
         const journal: LocalJournal = read.result ?? emptyJournal();
-        // Reopening an interrupted song explicitly recovers its existing local work.
         if (songId) {
-          for (const [key, entry] of Object.entries(journal.sessions)) if (key.startsWith('interrupted:') && entry.songId === songId) delete journal.sessions[key];
           journal.sessions[owner] = {songId, edited: edited || journal.sessions[owner]?.edited || false};
         } else delete journal.sessions[owner];
         journal.generation++; store.put(journal);
@@ -62,16 +61,16 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
       tx.onabort = tx.onerror = () => {db.close(); reject(new Error('Kunne ikke lagre sangøktens synkpause. Prøv igjen.'));};
     });
   }
-  async function recoverSessions(liveOwners: string[]) {
+  async function recoverSessions(liveOwners: string[], restoredSongId: string | null = null) {
     const db = await open();
     return new Promise<void>((resolve, reject) => {
       const tx = db.transaction('sync', 'readwrite'), store = tx.objectStore('sync'), read = store.get(journalId);
       read.onsuccess = () => {
         if (!read.result) return;
         const journal: LocalJournal = read.result;
-        for (const [owner, entry] of Object.entries(journal.sessions)) if (!owner.startsWith('interrupted:') && !liveOwners.includes(owner)) {
+        for (const [owner, entry] of Object.entries(journal.sessions)) if (owner.startsWith('interrupted:') || !liveOwners.includes(owner)) {
           delete journal.sessions[owner];
-          if (entry.edited) journal.sessions[`interrupted:${entry.songId}`] = entry;
+          if (entry.edited && (owner.startsWith('interrupted:') || entry.songId !== restoredSongId)) journal.recoveryRequired = true;
         }
         store.put(journal);
       };

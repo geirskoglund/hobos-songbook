@@ -26,5 +26,5 @@ export async function dropboxMock(context, {connected=true}={}) {
     if(endpoint.endsWith('/delete_v2')){const value=find(args.path);if(!value)return missing();entries.delete(key(value.path_display));return ok({metadata:metadata(value)});}
     throw Error('Unexpected Dropbox endpoint '+endpoint);
   });
-  return {entries,calls,find,put,fault(endpoint,status){fault={endpoint,status};},hold(endpoint){let release;const resolve=new Promise(r=>release=r);hold={endpoint,resolve};return ()=>release();}};
+  return {entries,calls,find,put,rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status){fault={endpoint,status};},hold(endpoint){let release;const resolve=new Promise(r=>release=r);hold={endpoint,resolve};return ()=>release();}};
 }

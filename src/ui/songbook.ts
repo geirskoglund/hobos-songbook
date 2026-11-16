@@ -145,6 +145,7 @@ export function startSongbook() {
     }finally{leaving=false;}
   }
   let pendingUpdateView = takeUpdateView(__APP_ENV__.namespace);
+  const restoredSongId = pendingUpdateView?.songId ?? null;
   const originalScrollRestoration = history.scrollRestoration;
   const app = query('app');
   if (pendingUpdateView) {history.scrollRestoration = 'manual'; app.style.visibility = 'hidden';}
@@ -443,7 +444,7 @@ export function startSongbook() {
     finally {importing = false; file.disabled = false; add.disabled = !libraryReady; file.value = '';}
   });
   showPage('library');
-  void load().then(() => cloud.start());
+  void load().then(() => cloud.start(active?.id === restoredSongId ? restoredSongId : null));
   return {beforeUpdateReload: async (focusId: string | null) => {
     await setlists.beforeUpdate();
     await bookManager.beforeUpdate();
