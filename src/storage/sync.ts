@@ -15,7 +15,7 @@ export function trackLocal(tx: IDBTransaction, change?: (journal: LocalJournal) 
   tx.addEventListener('complete', () => {document.dispatchEvent(new Event('library-local-change'));});
 }
 export function syncStorage(open: () => Promise<IDBDatabase>) {
-  async function database(){try{return await open();}catch(cause){throw new SyncFailure({code:failureCodes.storage,stage:'sync.storage'},'Kunne ikke åpne lokal synklagring.',cause);}}
+  async function database(){try{return await open();}catch(cause){if(cause instanceof SyncFailure)throw cause;throw new SyncFailure({code:failureCodes.storage,stage:'sync.storage'},'Kunne ikke åpne lokal synklagring.',cause);}}
   async function snapshot(accountId: string): Promise<SyncSnapshot> {
     const db = await database();
     return new Promise((resolve, reject) => {

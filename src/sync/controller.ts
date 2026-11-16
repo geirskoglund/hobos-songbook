@@ -28,7 +28,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
     let acquired!: () => void;
     ready = new Promise<void>(resolve => {acquired = resolve;});
     void navigator.locks.request(`${env.namespace}:song-owner:${owner}`, async () => {acquired(); await new Promise(() => {});});
-  } else ready = Promise.reject(new SyncFailure({code:failureCodes.browser,stage:'app.capability'},'Nettleseren mangler Web Locks.'));
+  } else ready = Promise.reject(new SyncFailure({code:failureCodes.browser,stage:'app.capability',action:'update-browser'},'Nettleseren mangler Web Locks.'));
   // Observe a rejection immediately; the message is reported when startup runs.
   void ready.catch(() => {});
   function report(cause:unknown,stage:string,manual=false,accountId?:string){if(cause instanceof DeferredSync)return;if(!accountId){try{accountId=adapter.account()?.id;}catch{/* No account identity is copied into a report. */}}const result=diagnostics.record(cause,stage,manual,events,accountId);error=result.info;errorEntry=result.entry;}
@@ -127,8 +127,8 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
     const accountId=account()?.id;
     epoch++; requestedManual = false;
     clearFailure();
-    try {const revoked = await adapter.disconnect(); state = undefined;if(!revoked)report(new SyncFailure({code:failureCodes.revoke,stage:'dropbox.revoke'},'Dropbox bekreftet ikke tilbakekalling.'),'app.disconnect',false,accountId);}
-    catch(cause) {state = undefined;report(cause,'app.disconnect',false,accountId);}
+    try {const revoked = await adapter.disconnect(); state = undefined;if(!revoked)report(new SyncFailure({code:failureCodes.revoke,stage:'dropbox.revoke',action:'check-revoke'},'Dropbox bekreftet ikke tilbakekalling.'),'app.disconnect',false,accountId);}
+    catch(cause) {state = undefined;report(new SyncFailure({code:failureCodes.revoke,stage:'dropbox.revoke',action:'check-revoke'},'Dropbox bekreftet ikke tilbakekalling.',cause),'app.disconnect',false,accountId);}
     notify(); channel.postMessage('changed');
   }
   function status() {

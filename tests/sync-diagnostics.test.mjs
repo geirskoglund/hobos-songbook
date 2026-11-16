@@ -23,7 +23,7 @@ test('Dropbox CreateFolderResult has untagged FolderMetadata; repeat uses tagged
 }));
 test('a genuine file collision and malformed creation response remain real failures',()=>browser(async()=>{
  const occupied=dropboxAdapter(env,async()=>Response.json({'.tag':'file',id:'id:file',path_display:'/Songbooks'}));
- await assert.rejects(occupied.files.folder('/Songbooks'),e=>e.info.code===failureCodes.folderOccupied);
+ await assert.rejects(occupied.files.folder('/Songbooks'),e=>e.info.code===failureCodes.folderOccupied&&e.info.action==='folder-layout');
  const malformed=dropboxAdapter(env,async url=>url.endsWith('/get_metadata')?Response.json({error_summary:'path/not_found/'},{status:409}):Response.json({metadata:{name:'Songbooks'}}));
  await assert.rejects(malformed.files.folder('/Songbooks'),e=>e.info.code===failureCodes.folderResponse);
 }));

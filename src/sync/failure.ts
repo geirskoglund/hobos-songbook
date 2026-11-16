@@ -16,6 +16,10 @@ export const userActions = {
   'book-names': 'Gi sangbøkene ulike navn og trykk Synkroniser.',
   'remote-book-names': 'Gi sangbokmappene i Dropbox gyldige og ulike navn og trykk Synkroniser.',
   'free-space': 'Frigjør plass på enheten og prøv igjen.',
+  'folder-layout': 'Kontroller mappene i Dropbox. En fil står på en nødvendig mappeplassering; flytt filen eller endre filnavnet og prøv igjen.',
+  'close-tabs': 'Lukk andre faner med appen og prøv igjen.',
+  'update-browser': 'Åpne appen i en oppdatert nettleser og prøv igjen.',
+  'check-revoke': 'Du er koblet fra lokalt. Kontroller appens tilgang under tilkoblede apper i Dropbox.',
 } as const;
 export interface FailureInfo {code: FailureCode; stage: string; status?: number; action?: keyof typeof userActions}
 export class SyncFailure extends Error {
@@ -24,7 +28,7 @@ export class SyncFailure extends Error {
 }
 /** Normal interruption; never reported or logged as a sync failure. */
 export class DeferredSync extends Error {
-  readonly reason: 'session' | 'changed' | 'recovery' | 'connection';
+  readonly reason: 'session' | 'changed' | 'recovery' | 'connection' | 'remote';
   constructor(reason: DeferredSync['reason'], message: string) {super(message); this.name = 'DeferredSync'; this.reason = reason;}
 }
 export function failureInfo(error: unknown, stage = 'sync'): FailureInfo {

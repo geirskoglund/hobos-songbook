@@ -133,7 +133,8 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     },
     async folder(path, expectedId) {
       let current = await metadata(expectedId ?? path);
-      if (expectedId && (!current || typeof current.path_display!=='string'||current.path_display.toLowerCase() !== path.toLowerCase())) throw new SyncFailure({code:failureCodes.missingFolder,stage:'dropbox.ensure-folder'},'Kjent sangbokmappe mangler eller har endret sti.');
+      if(expectedId&&!current)throw new SyncFailure({code:failureCodes.missingFolder,stage:'dropbox.ensure-folder'},'Kjent sangbokmappe mangler.');
+      if(expectedId&&current?.['.tag']==='folder'&&typeof current.path_display==='string'&&current.path_display.normalize('NFC').toLowerCase()!==path.normalize('NFC').toLowerCase())throw new DeferredSync('remote','Dropbox har endringer som venter på manuell synk.');
       if (!current) {
         try {
           // CreateFolderResult.metadata is FolderMetadata, not the tagged Metadata union.
@@ -148,7 +149,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
           current = await metadata(path); if (!current) throw error;
         }
       }
-      if (current?.['.tag'] !== 'folder') throw new SyncFailure({code: failureCodes.folderOccupied, stage: 'dropbox.ensure-folder'}, 'Dropbox-stien er opptatt av en fil.');
+      if (current?.['.tag'] !== 'folder') throw new SyncFailure({code: failureCodes.folderOccupied, stage: 'dropbox.ensure-folder',action:'folder-layout'}, 'Dropbox-stien er opptatt av en fil.');
       if(typeof current.id!=='string'||!current.id||typeof current.path_display!=='string')throw new SyncFailure({code:failureCodes.response,stage:'dropbox.ensure-folder'},'Ugyldig mappemetadata.');
       return {id: current.id, path: current.path_display};
     },

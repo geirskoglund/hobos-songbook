@@ -3,6 +3,7 @@ import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
 import {standardSongbook, songbookName, MissingSongbookError, type Songbook} from '../domain/songbook.ts';
 import {setlistName, type Setlist} from '../domain/setlist.ts';
 import {syncStorage, trackLocal} from './sync.ts';
+import {failureCodes, SyncFailure} from '../sync/failure.ts';
 export const schemaVersion = 4;
 export interface LibrarySnapshot {songs: Song[]; songbooks: Songbook[]; personal: Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>[]}
 export function songStorage(namespace: string) {
@@ -36,7 +37,7 @@ export function songStorage(namespace: string) {
           if (!db.objectStoreNames.contains('setlists')) db.createObjectStore('setlists', {keyPath: 'id'});
           if (!db.objectStoreNames.contains('sync')) db.createObjectStore('sync', {keyPath: 'id'});
         };
-        request.onblocked = () => {failed = true; reject(new Error('Sanglageret er blokkert. Lukk andre faner med appen og prøv igjen.'));};
+        request.onblocked = () => {failed = true; reject(new SyncFailure({code:failureCodes.storage,stage:'app.storage',action:'close-tabs'},'Sanglageret er blokkert. Lukk andre faner med appen og prøv igjen.'));};
         request.onerror = event => {
           if (!failed && !existingVersion && request.error?.name === 'VersionError') {
             event.preventDefault(); connect(true); return;

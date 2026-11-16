@@ -56,3 +56,16 @@ test('disconnecting during a retry cannot resurrect its earlier failure or leave
  await expect(page.locator('#dropbox-connect')).toBeVisible();await expect(page.locator('.sync-connect [role=status]')).toBeHidden();await expect(page.getByRole('button',{name:'Kopier feillogg',exact:true})).toBeHidden();
  const button=await page.locator('#dropbox-connect').boundingBox(),container=await page.locator('.sync-connect').boundingBox();expect(Math.abs(button.y+button.height/2-container.y-container.height/2)).toBeLessThan(2);
 });
+test('an ordinary Dropbox folder rename waits for manual sync without generating an error or log',async({page,context})=>{
+ const mock=await dropboxMock(context);await page.goto(url);await expect.poll(()=>Boolean(mock.find('/.app/library.json'))).toBe(true);await syncPage(page);await expect(page.locator('#dropbox-sync')).toBeEnabled();
+ const book=JSON.parse(mock.find('/.app/library.json').text).books.standard;mock.rename(book.folderId,'/Songbooks/Nytt navn');await page.evaluate(()=>dispatchEvent(new Event('online')));
+ await expect(page.locator('#sync-status')).toContainText('Dropbox har endringer. Trykk Synkroniser for å hente dem.');await expect(page.locator('#sync-status')).not.toContainText('feilet');await expect(page.getByRole('button',{name:'Kopier feillogg',exact:true})).toBeHidden();expect(mock.find('/.app/sync-errors.json')).toBeUndefined();
+ await page.locator('#dropbox-sync').click();await expect(page.locator('#sync-status')).toContainText('Sist synkronisert:');expect(JSON.parse(mock.find('/.app/library.json').text).books.standard.name).toBe('Nytt navn');expect(mock.find('/.app/sync-errors.json')).toBeUndefined();
+});
+test('a real folder collision and unconfirmed revocation give concrete user guidance',async({page,context})=>{
+ const mock=await dropboxMock(context);await page.goto(url);await expect.poll(()=>Boolean(mock.find('/.app/library.json'))).toBe(true);await syncPage(page);await expect(page.locator('#dropbox-sync')).toBeEnabled();
+ mock.entries.delete('/.app/songs');mock.put('/.app/songs','PRIVATE_FILE_CONTENT');await page.locator('#dropbox-sync').click();
+ await expect(page.locator('#sync-status')).toContainText('Feilkode SYNC-010');await expect(page.locator('#sync-status')).toContainText('flytt filen eller endre filnavnet');expect(mock.find('/.app/songs').text).toBe('PRIVATE_FILE_CONTENT');
+ await page.setViewportSize({width:320,height:800});await expect(page.getByRole('button',{name:'Kopier feillogg',exact:true})).toBeInViewport();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);await page.screenshot({path:'work/sync-diagnostics/folder-collision-320.png'});
+ mock.fault('/token/revoke',500);await page.locator('#dropbox-disconnect').click();await page.getByRole('dialog',{name:'Koble fra Dropbox',exact:true}).getByRole('button',{name:'Koble fra',exact:true}).click();await expect(page.locator('.sync-connect [role=status]')).toContainText('Feilkode SYNC-023');await expect(page.locator('.sync-connect [role=status]')).toContainText('Kontroller appens tilgang under tilkoblede apper i Dropbox.');
+});

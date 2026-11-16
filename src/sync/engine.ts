@@ -261,7 +261,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       await save({recoveryComplete: manual && complete}); return state;
     } catch (error) {
       delete state.error; state.pending = true;
-      if(error instanceof DeferredSync)delete state.failure;
+      if(error instanceof DeferredSync){delete state.failure;if(error.reason==='remote')state.awaitingDownload=true;}
       else {state.failure=failureInfo(error,'sync.run');hooks.failed?.(error);}
       // A stale run must not acknowledge work or overwrite state belonging to a newer session.
       try {await save();} catch { /* The next safe run starts from durable progress. */ }
