@@ -297,7 +297,7 @@ export function startSongbook() {
   retry.addEventListener('click', () => {void load();});
   async function openSong(song: Song, resume?: UpdateView, draft = false) {
     openingSong = true;
-    try {await cloud.begin(song.id, sessionEdited || Boolean(editing));} catch(error) {openingSong=false;notify(error instanceof Error ? error.message : 'Kunne ikke pause synkronisering.',true);return;}
+    try {if(active?.id !== song.id) await cloud.begin(song.id, sessionEdited || Boolean(editing));} catch(error) {openingSong=false;notify(error instanceof Error ? error.message : 'Kunne ikke pause synkronisering.',true);return;}
     openingSong = false;
     notify('');
     if (resume?.editor) editing = resume.editor;

@@ -166,7 +166,7 @@ test('settings stay in an accessible menu and persist offline without occupying 
   await page.goto(base); await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');
   await importSong(page,'prøve.cho',await readFile('examples/akkordskjema-og-dynamikk.cho','utf8'));
   await expect(page.locator('#main-menu')).not.toBeVisible();
-  await expect(page.locator('.display-settings')).not.toBeVisible();
+  await expect(page.locator('.display-settings:visible')).toHaveCount(0);
   await openMenu(page); await expect(page.getByRole('navigation',{name:'Hovedmeny'})).toBeVisible();
   await page.keyboard.press('Escape'); await expect(page.locator('#main-menu')).not.toBeVisible();
   await setDisplay(page,{theme:'dark',fontSize:28,showGrids:false,showDynamics:false});
@@ -192,7 +192,7 @@ test('compact reader and charts fit all widths and the dark theme at both font l
       expect(await page.locator('.grid-measure, .grid-cell').evaluateAll(nodes=>nodes.every(node=>node.scrollWidth<=node.clientWidth+1))).toBe(true);
       const profile=await page.locator('#dynamics-profile').boundingBox(); expect(profile.width).toBe(25);await expect(page.locator('#song-body')).toHaveCSS('padding-left','30px');
       expect((await page.locator('.topbar').boundingBox()).height).toBe(await page.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height'))));
-      await expect(page.locator('.display-settings')).not.toBeVisible();
+      await expect(page.locator('.display-settings:visible')).toHaveCount(0);
     }
   }
 });
