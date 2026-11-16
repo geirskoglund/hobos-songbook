@@ -30,7 +30,14 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
       tx.onabort = tx.onerror = () => {db.close(); reject(new SyncFailure({code:failureCodes.storage,stage:'sync.storage'},'Kunne ikke lese synktilstanden.'));};
     });
   }
-  async function commit(generation: number, state: SyncState, changes: {songs?: Song[]; personal?: SongPersonal[]; books?: Songbook[]; deleteBooks?: string[]; recoveryComplete?: boolean} = {}, guard: () => boolean = () => true) {
+  async function status(accountId?: string): Promise<{journal:LocalJournal;state:SyncState|undefined}>{
+    const db=await database();return new Promise((resolve,reject)=>{
+      const tx=db.transaction('sync'),store=tx.objectStore('sync'),journal=store.get(journalId),state=accountId?store.get(`private-account-v1:${accountId}`):undefined;
+      tx.oncomplete=()=>{db.close();if(state?.result&&(state.result.version!==1||state.result.accountId!==accountId)){reject(new SyncFailure({code:failureCodes.storage,stage:'sync.storage'},'Ukjent synkformat.'));return;}resolve({journal:journal.result??emptyJournal(),state:state?.result??(accountId?newSyncState(accountId):undefined)});};
+      tx.onabort=tx.onerror=()=>{db.close();reject(new SyncFailure({code:failureCodes.storage,stage:'sync.storage'},'Kunne ikke lese synktilstanden.'));};
+    });
+  }
+  async function commit(generation: number, state: SyncState, changes: {songs?: Song[]; personal?: SongPersonal[]; books?: Songbook[]; deleteBooks?: string[]; deleteSongs?:string[]; recoveryComplete?: boolean} = {}, guard: () => boolean = () => true) {
     const db = await database();
     return new Promise<void>((resolve, reject) => {
       const tx = db.transaction(['songs', 'songbooks', 'personal', 'sync'], 'readwrite'), store = tx.objectStore('sync'), read = store.get(journalId);let deferred=false;
@@ -43,6 +50,7 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
         for (const personal of changes.personal ?? []) tx.objectStore('personal').put(personal);
         for (const book of changes.books ?? []) tx.objectStore('songbooks').put(book);
         for (const id of changes.deleteBooks ?? []) tx.objectStore('songbooks').delete(id);
+        for(const id of changes.deleteSongs??[]){tx.objectStore('songs').delete(id);tx.objectStore('personal').delete(id);}
       };
       tx.oncomplete = () => {db.close(); resolve();};
       tx.onabort = tx.onerror = () => {db.close(); reject(deferred?new DeferredSync('changed','Synkroniseringen er utsatt av nyere lokal tilstand.'):new SyncFailure({code:failureCodes.storage,stage:'sync.storage',...(tx.error?.name==='QuotaExceededError'?{action:'free-space'}:{})},'Kunne ikke lagre synktilstanden.',tx.error));};
@@ -80,5 +88,5 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
       tx.onabort = tx.onerror = () => {db.close(); reject(new SyncFailure({code:failureCodes.storage,stage:'sync.storage'},'Kunne ikke kontrollere avbrutte sangøkter.'));};
     });
   }
-  return {snapshot, commit, session, recoverSessions};
+  return {snapshot, status, commit, session, recoverSessions};
 }

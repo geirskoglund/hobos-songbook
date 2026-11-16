@@ -3,25 +3,8 @@ import assert from 'node:assert/strict';
 import {direction, mergeManifest, emptyManifest, newSyncState, emptyJournal, hash, parsePersonal} from '../src/sync/model.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 import {pkceChallenge, dropboxConfig} from '../src/adapters/dropbox.ts';
-const song = (id='one',book='standard',original='{t: En sang}\n[C]Hei') => ({id,songbookId:book,original,title:'En sang',key:null,origin:{kind:'local',filename:'en.txt',importedAt:'2026-01-01'}});
-function fixture() {
-  let generation=0, rev=0, valid=true, failAfter='', failed=false;
-  let data={songs:[song()],songbooks:[{id:'standard',name:'Standard'}],personal:[{songId:'one',version:3,chorus:{},capo:2}],journal:emptyJournal(),state:newSyncState('account')};
-  const entries=new Map(),history=new Map(),calls=[];
-  const find=path=>path.startsWith('rev:')?history.get(path.slice(4)):path.startsWith('id:')?[...entries.values()].find(e=>e.id===path):entries.get(path.toLowerCase());
-  const files={
-    async read(path){calls.push(['read',path]);const item=find(path);return item&&!item.folder?structuredClone(item):null;},
-    async write(path,text,expected){calls.push(['write',path]);const old=find(path);if(expected?old?.rev!==expected:old)throw Error('409');const value={path,text,rev:String(++rev),id:old?.id??`id:${rev}`};entries.set(path.toLowerCase(),value);history.set(value.rev,structuredClone(value));if(failAfter===path&&!failed){failed=true;throw Error('lost response');}return structuredClone(value);},
-    async folder(path,expectedId){let value=find(expectedId??path);if(expectedId&&(!value||value.path.toLowerCase()!==path.toLowerCase()))throw Error('kjent mappe flyttet');if(!value){value={id:`id:${++rev}`,path,folder:true};entries.set(path.toLowerCase(),value);}return structuredClone(value);},
-    async locateFolder(id){const value=find(id);return value?.folder?{id:value.id,path:value.path}:null;},
-    async move(from,to){calls.push(['move',from,to]);const value=find(from);if(!value)throw Error('missing');if(value.path===to)return structuredClone(value);if(find(to))throw Error('409');const prefix=value.path;for(const [key,e] of [...entries])if(e.path===prefix||e.path.startsWith(prefix+'/')){entries.delete(key);e.path=to+e.path.slice(prefix.length);entries.set(e.path.toLowerCase(),e);}return structuredClone(value);},
-    async list(path){calls.push(['list',path]);return [...entries.values()].filter(e=>e.path.toLowerCase().startsWith(path.toLowerCase()+'/')&&!e.path.slice(path.length+1).includes('/')).map(e=>({...e}));},
-    async removeEmpty(path){calls.push(['removeEmpty',path]);if((await files.list(path)).length)return false;entries.delete(path.toLowerCase());return true;},
-  };
-  const storage={async snapshot(){return structuredClone(data);},async commit(expected,state,changes={}){assert.equal(expected,data.journal.generation);if(!valid||Object.keys(data.journal.sessions).length)throw Error('paused');data.state=structuredClone(state);if(changes.recoveryComplete)data.journal.recoveryRequired=false;for(const [field,items,key]of[['songs',changes.songs,'id'],['songbooks',changes.books,'id'],['personal',changes.personal,'songId']])for(const item of items??[]){const i=data[field].findIndex(x=>x[key]===item[key]);if(i<0)data[field].push(structuredClone(item));else data[field][i]=structuredClone(item);}data.songbooks=data.songbooks.filter(b=>!changes.deleteBooks?.includes(b.id));}};
-  const run=(manual=true,resolution)=>syncEngine(storage,files,'account',{valid:()=>valid,changed(){}}).run(manual,resolution);
-  return {files,storage,run,entries,calls,change(fn){fn(data);data.journal.generation=++generation;},get data(){return data;},set data(value){data=structuredClone(value);},fail(path){failAfter=path;failed=false;},pause(){valid=false;}};
-}
+import {fixture,song} from './sync-fixture.mjs';
+
 test('AK37-01: official clients and RFC7636 S256 vector',async()=>{
   assert.equal(await pkceChallenge('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'),'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
   assert.notEqual(dropboxConfig('production').key,dropboxConfig('test').key);
@@ -50,7 +33,7 @@ test('AK37-02/03: empty cloud, BOM/CRLF text, personal sidecar, repeat and new d
 test('AK37-04: auto upload preserves timestamp and does not apply remote edits',async()=>{
   const f=fixture();await f.run();const time=f.data.state.lastManual,link=f.data.state.manifest.songs.one;
   let remote=await f.files.read(link.path);await f.files.write(link.path,'{t: Fra Dropbox}\nNy tekst',remote.rev);
-  await f.run(false);assert.equal(f.data.songs[0].title,'En sang');assert.equal(f.data.state.lastManual,time);assert.equal(f.data.state.pending,true);
+  const before=f.calls.length;await f.run(false);assert.equal(f.data.songs[0].title,'En sang');assert.equal(f.data.state.lastManual,time);assert.equal(f.data.state.pending,false);assert.equal(f.calls.length,before);
   await f.run(true);assert.equal(f.data.songs[0].title,'Fra Dropbox');
 });
 test('AK37-05: lost upload response retries same path with no duplicates',async()=>{
@@ -67,7 +50,7 @@ test('AK37-06: independent simultaneous conflicts can be deferred and chosen seq
   c=f.data.state.conflicts[0];await f.run(true,{conflict:c,choice:'local'});assert.equal(f.data.state.conflicts.length,0);assert.equal(f.data.songs[0].title,'Sky');assert.equal(f.data.personal[0].capo,7);
 });
 test('AK37-07: paused or stale generation cannot apply an incoming response',async()=>{
-  const f=fixture();await f.run();const before=structuredClone(f.data.songs);const read=f.files.read;f.files.read=async path=>{const result=await read(path);f.pause();return result;};
+  const f=fixture();await f.run();const before=structuredClone(f.data.songs);const changes=f.files.changes;f.files.changes=async cursor=>{const result=await changes(cursor);f.pause();return result;};
   await assert.rejects(f.run(),/pauset/);assert.deepEqual(f.data.songs,before);
 });
 test('AK37-08: rename and deletion preserve unknown Originals and book tombstone',async()=>{

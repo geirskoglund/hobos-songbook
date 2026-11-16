@@ -1,5 +1,5 @@
 import type {AppEnvironment} from '../environment.ts';
-import type {FileValue, RemoteFiles} from '../sync/model.ts';
+import type {FileValue, RemoteFiles, RemoteEntry} from '../sync/model.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../sync/failure.ts';
 import type {ApiEvent} from '../sync/diagnostics.ts';
 export const requiredScopes = ['account_info.read', 'files.metadata.read', 'files.content.read', 'files.content.write'];
@@ -107,21 +107,38 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
   }
   const missing = (error: unknown) => error instanceof DropboxError && error.status === 409 && /^path\/not_found/.test(error.summary);
   async function metadata(path: string) {try {return await rpc('files/get_metadata', {path});} catch (error) {if (missing(error)) return null; throw error;}}
+  const displayPath=(data:any,fallback?:string):string|undefined=>data?.path_display??(typeof data?.path_lower==='string'?(typeof data.name==='string'?data.path_lower.slice(0,data.path_lower.lastIndexOf('/')+1)+data.name:data.path_lower):fallback);
   const fileValue = (data: any, text: string, requestedPath: string): FileValue => {
     // Metadata.path_display is optional. A literal/revision lookup or strict upload
     // already identifies its path; an ID lookup needs the returned location.
-    const path=data?.path_display??(/^(\/|rev:)/.test(requestedPath)?requestedPath:undefined);
+    const path=displayPath(data,/^(\/|rev:)/.test(requestedPath)?requestedPath:undefined);
     if (!data || typeof data.id !== 'string' || !data.id || typeof data.rev !== 'string' || !data.rev || typeof path !== 'string') throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.file-metadata'}, 'Dropbox returnerte ugyldig filmetadata.');
     return {text, id: data.id, rev: data.rev, path};
   };
   const files: RemoteFiles = {
-    async read(path) {
+    async changes(cursor){
+      let reset=!cursor,page:any;
+      try{page=await rpc(cursor?'files/list_folder/continue':'files/list_folder',cursor?{cursor}:{path:'',recursive:true,include_deleted:true});}
+      catch(error){if(!cursor||!(error instanceof DropboxError)||error.status!==409||!/^reset(?:\/|$)/.test(error.summary))throw error;reset=true;page=await rpc('files/list_folder',{path:'',recursive:true,include_deleted:true});}
+      const entries:RemoteEntry[]=[];
+      for(;;){
+        if(!Array.isArray(page?.entries)||typeof page.has_more!=='boolean'||typeof page.cursor!=='string'||!page.cursor)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.list'},'Ugyldig endringsoversikt.');
+        for(const entry of page.entries){
+          const path=displayPath(entry),tag=entry?.['.tag'];
+          if(typeof path!=='string'||!path.startsWith('/')||!['file','folder','deleted'].includes(tag)||tag!=='deleted'&&(typeof entry.id!=='string'||!entry.id)||tag==='file'&&(typeof entry.rev!=='string'||!entry.rev))throw new SyncFailure({code:failureCodes.response,stage:'dropbox.list'},'Ugyldig oppføring i endringsoversikten.');
+          entries.push(tag==='deleted'?{path,deleted:true}:{id:entry.id,path,folder:tag==='folder',...(tag==='file'?{rev:entry.rev}:{})});
+        }
+        if(!page.has_more)return{entries,cursor:page.cursor,reset};
+        page=await rpc('files/list_folder/continue',{cursor:page.cursor});
+      }
+    },
+    async read(path,knownPath) {
       await beforeRequest(); const accessToken = await access(); await beforeRequest();
       const response = await send('files/download', {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Dropbox-API-Arg': apiArg({path})}, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
       await beforeRequest();
       if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); const error = new DropboxError(response.status, value.error_summary ?? 'download'); if (missing(error)) return null; throw error;}
       let meta;try{meta=JSON.parse(response.headers.get('Dropbox-API-Result')??'null');}catch(cause){throw new SyncFailure({code:failureCodes.response,stage:'dropbox.download'},'Ugyldig metadataheader.',cause);}
-      return fileValue(meta, new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(await response.arrayBuffer()),path);
+      return fileValue(meta, new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(await response.arrayBuffer()),knownPath??path);
     },
     async write(path, text, rev) {
       await beforeRequest(); const accessToken = await access(); await beforeRequest();
@@ -131,8 +148,9 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); throw new DropboxError(response.status, value.error_summary ?? 'upload');}
       return fileValue(await json(response,'dropbox.upload'), text,path);
     },
-    async folder(path, expectedId) {
-      let current = await metadata(expectedId ?? path);
+    async folder(path, expectedId, knownMissing) {
+      let current = knownMissing&&!expectedId?null:await metadata(expectedId ?? path);
+      if(current)current={...current,path_display:displayPath(current,expectedId?undefined:path)};
       if(expectedId&&!current)throw new SyncFailure({code:failureCodes.missingFolder,stage:'dropbox.ensure-folder'},'Kjent sangbokmappe mangler.');
       if(expectedId&&current?.['.tag']==='folder'&&typeof current.path_display==='string'&&current.path_display.normalize('NFC').toLowerCase()!==path.normalize('NFC').toLowerCase())throw new DeferredSync('remote','Dropbox har endringer som venter på manuell synk.');
       if (!current) {
@@ -154,14 +172,16 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       return {id: current.id, path: current.path_display};
     },
     async locateFolder(id) {
-      const value = await metadata(id);
+      let value = await metadata(id);
       if (!value) return null;
+      value={...value,path_display:displayPath(value,id.startsWith('/')?id:undefined)};
       if (value['.tag'] !== 'folder'||typeof value.id!=='string'||typeof value.path_display!=='string') throw new SyncFailure({code:failureCodes.response,stage:'dropbox.locate-folder'},'Ugyldig kjent mappemetadata.');
       return {id: value.id, path: value.path_display};
     },
-    async move(from, to) {
-      const current = await metadata(from);
+    async move(from, to, known) {
+      let current = known?{id:known.id,path_display:known.path}:await metadata(from);
       if (!current) throw new SyncFailure({code:failureCodes.missingFile,stage:'dropbox.move'},'Oppføringen som skal flyttes mangler.');
+      current={...current,path_display:displayPath(current,from.startsWith('/')?from:undefined)};
       if (current.path_display === to) return {id: current.id, path: current.path_display};
       const result = await rpc('files/move_v2', {from_path: from, to_path: to, autorename: false});
       if(typeof result?.metadata?.id!=='string'||result.metadata.path_display!=null&&typeof result.metadata.path_display!=='string')throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move'},'Ugyldig flytterespons.');
@@ -183,6 +203,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       // Product-approved limitation: Dropbox has no atomic empty-only folder delete.
       await rpc('files/delete_v2', {path}); return true;
     },
+    async deleteFile(path,rev){try{await rpc('files/delete_v2',{path,parent_rev:rev});}catch(error){if(!missing(error)&&!(error instanceof DropboxError&&error.status===409&&/^path_lookup\/not_found/.test(error.summary)))throw error;}},
   };
   async function disconnect() {
     invalidated++;

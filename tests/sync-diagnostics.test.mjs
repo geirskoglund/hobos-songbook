@@ -12,6 +12,15 @@ async function browser(run){
  values.set(`${env.namespace}:dropbox-auth-v1`,JSON.stringify({version:1,accountId:'PRIVATE_ACCOUNT',refreshToken:'PRIVATE_REFRESH',accessToken:'PRIVATE_ACCESS',expires:Date.now()+3600000}));
  try{await run(values);await new Promise(setImmediate);}finally{globalThis.localStorage=old.localStorage;if(old.navigator)Object.defineProperty(globalThis,'navigator',old.navigator);else delete globalThis.navigator;}
 }
+test('a download by ID accepts optional response paths when the metadata index already identifies the file',()=>browser(async()=>{
+ const adapter=dropboxAdapter(env,async()=>new Response('text',{headers:{'Dropbox-API-Result':JSON.stringify({id:'id:file',rev:'current'})}}));assert.equal((await adapter.files.read('id:file','/Songbooks/A/Private/a.cho')).path,'/Songbooks/A/Private/a.cho');
+}));
+test('a sidecar already deleted by another device is a normal delete_v2 result',()=>browser(async()=>{
+ let body;const adapter=dropboxAdapter(env,async(_url,options)=>{body=JSON.parse(options.body);return Response.json({error_summary:'path_lookup/not_found/'},{status:409});});await adapter.files.deleteFile('id:sidecar','revision');assert.deepEqual(body,{path:'id:sidecar',parent_rev:'revision'});
+}));
+test('optional path_display falls back to path_lower and preserves the documented folder name',()=>browser(async()=>{
+ const adapter=dropboxAdapter(env,async()=>Response.json({'.tag':'folder',id:'id:book',path_lower:'/songbooks/mixed name',name:'Mixed Name'}));assert.deepEqual(await adapter.files.locateFolder('id:book'),{id:'id:book',path:'/songbooks/Mixed Name'});assert.deepEqual(await adapter.files.folder('/Songbooks/Mixed Name','id:book'),{id:'id:book',path:'/songbooks/Mixed Name'});
+}));
 test('Dropbox CreateFolderResult has untagged FolderMetadata; repeat uses tagged get_metadata',()=>browser(async()=>{
  let created=false,creates=0;const meta={id:'id:folder',name:'Songbooks',path_display:'/Songbooks',path_lower:'/songbooks'};
  const adapter=dropboxAdapter(env,async url=>{

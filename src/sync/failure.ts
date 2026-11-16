@@ -31,6 +31,7 @@ export class DeferredSync extends Error {
   readonly reason: 'session' | 'changed' | 'recovery' | 'connection' | 'remote';
   constructor(reason: DeferredSync['reason'], message: string) {super(message); this.name = 'DeferredSync'; this.reason = reason;}
 }
+export class RetrySync extends DeferredSync {constructor(){super('changed','Dropbox-versjonen endret seg under overføringen.');}}
 export function failureInfo(error: unknown, stage = 'sync'): FailureInfo {
   return error instanceof SyncFailure ? error.info : {code: failureCodes.unexpected, stage};
 }

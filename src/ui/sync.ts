@@ -19,8 +19,8 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
   const disconnect = actionButton('Koble fra', confirmDisconnect); disconnect.id = 'dropbox-disconnect'; disconnect.className = 'secondary'; accountPanel.append(identity, disconnect);
   connected.append(panel, accountPanel); root.append(disconnected, connected);
   const messages=[connectionStatus,status].map(node=>{
-    const text=document.createTextNode(''),code=document.createElement('span'),tail=document.createTextNode(''),feedback=document.createElement('span');code.className='sync-error-code';feedback.className='sync-copy-feedback';feedback.setAttribute('aria-live','polite');
-    const copy=actionButton('',()=>{void copyReport();},'kopier');copy.className='sync-error-copy';copy.setAttribute('aria-label','Kopier feillogg');copy.dataset.tooltip='Kopier feillogg';copy.hidden=true;node.append(text,code,tail,copy,feedback);let last='';
+    const text=document.createTextNode(''),code=document.createElement('span'),tail=document.createTextNode('');code.className='sync-error-code';
+    const copy=actionButton('',()=>{void copyReport();},'kopier');copy.className='sync-error-copy';copy.setAttribute('aria-label','Kopier feillogg');copy.dataset.tooltip='Kopier feillogg';copy.hidden=true;node.append(text,code,tail,copy);
     async function copyReport(){
       const report=controller.reportText();if(!report)return;copy.disabled=true;
       try{
@@ -30,18 +30,17 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
           try{field.select();copied=document.execCommand('copy');}finally{field.remove();if(focus instanceof HTMLElement&&focus.isConnected)focus.focus({preventScroll:true});}
           if(!copied)throw new Error();
         }
-        feedback.textContent='Kopiert.';
-      }catch{feedback.textContent='Kopiering mislyktes. Prøv igjen.';}finally{copy.disabled=false;}
+      }catch{/* Copying has no additional status message. */}finally{copy.disabled=false;}
     }
     return {render(message:string,enabled:boolean){
-      if(message!==last)feedback.textContent='';last=message;const parts=enabled?/^(.*?)(SYNC-\d{3}\))(.*)$/.exec(message):null;
+      const parts=enabled?/^(.*?)(SYNC-\d{3}\))(.*)$/.exec(message):null;
       text.data=parts?parts[1]:message;code.textContent=parts?.[2]??'';tail.data=parts?.[3]??'';copy.hidden=!enabled;node.hidden=!message;
     }};
   });
   function render() {
     const account = controller.account(); disconnected.hidden = Boolean(account); connected.hidden = !account;
     identity.textContent = account ? `${account.name} · ${account.email}` : '';
-    sync.disabled = controller.running();const message=controller.status(),hasReport=Boolean(controller.reportText());
+    sync.disabled = controller.running()||navigator.onLine===false;const message=controller.status(),hasReport=Boolean(controller.reportText());
     messages[0].render(account?'':message,!account&&hasReport);messages[1].render(account?message:'',Boolean(account)&&hasReport);
   }
   function confirmDisconnect() {

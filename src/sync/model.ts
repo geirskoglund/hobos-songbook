@@ -5,17 +5,22 @@ import {failureCodes, SyncFailure, type FailureInfo} from './failure.ts';
 /** Wire formats deliberately exclude credentials and local operation/session state. */
 export interface BookLink {id: string; name: string; deleted?: boolean; folderId?: string; path?: string}
 export interface SongLink {id: string; songbookId: string; origin: Song['origin']; fileId?: string; path: string}
-export interface Manifest {version: 1; books: Record<string, BookLink>; songs: Record<string, SongLink>}
+export interface DeletedSong {id: string; fileId?: string; songbookId?: string}
+export interface Manifest {version: 1; books: Record<string, BookLink>; songs: Record<string, SongLink>; deletedSongs?: Record<string, DeletedSong>}
 export interface PersonalFile {version: 1; songId: string; original: {rev: string; hash: string}; data: SongPersonal}
 export interface FileValue {text: string; rev: string; id: string; path: string}
+export interface RemoteEntry {id?: string; path: string; folder?: boolean; rev?: string; deleted?: boolean}
+export interface RemoteIndex {cursor: string; entries: Record<string, RemoteEntry>; beforeUpdates?:Record<string,RemoteEntry|null>}
 export interface RemoteFiles {
-  read(path: string): Promise<FileValue | null>;
+  read(path: string, knownPath?:string): Promise<FileValue | null>;
   write(path: string, text: string, rev: string | null): Promise<FileValue>;
-  folder(path: string, expectedId?: string): Promise<{id: string; path: string}>;
+  folder(path: string, expectedId?: string, knownMissing?: boolean): Promise<{id: string; path: string}>;
   locateFolder(id: string): Promise<{id: string; path: string} | null>;
-  move(from: string, to: string): Promise<{id: string; path: string}>;
+  move(from: string, to: string, known?:{id:string;path:string}): Promise<{id: string; path: string}>;
   list(path: string): Promise<{id: string; path: string; folder: boolean}[]>;
   removeEmpty(path: string): Promise<boolean>;
+  deleteFile?(path:string,rev:string):Promise<void>;
+  changes?(cursor?: string): Promise<{entries: RemoteEntry[]; cursor: string; reset: boolean}>;
 }
 export interface SongBase {original: string; personal: PersonalFile; contentRev: string; personalRev: string}
 export interface Conflict {songId: string; kind: 'content' | 'personal'; title: string; local: Song; localPersonal: SongPersonal; remote: Song; remotePersonal: SongPersonal; remotePersonalOriginal: string; contentRev: string; personalRev: string; personalFile: PersonalFile; generation: number}
@@ -27,6 +32,10 @@ export interface SyncState {
   decisions: Record<string, {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'}>;
   renames?: Record<string, {from: string; to: string}>;
   reservations: Record<string, SongLink>; folders: Record<string, BookLink>;
+  remote?: RemoteIndex;
+  library?: {rev: string; id: string; value: Manifest};
+  originals?: Record<string, boolean>;
+  held?:Record<string,boolean>;
 }
 export interface LocalJournal {id: 'private-local-v1'; version: 1; generation: number; recoveryRequired?: boolean; deletedBooks: Record<string, BookLink>; sessions: Record<string, {songId: string; edited: boolean}>}
 export const emptyManifest = (): Manifest => ({version: 1, books: {}, songs: {}});
@@ -63,6 +72,10 @@ function readManifest(text: string): Manifest {
   for (const [id, song] of Object.entries(value.songs) as [string, SongLink][]) {
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id) || song.id !== id || !song.origin || !value.books[song.songbookId] || !/^\/Songbooks\/[^/]+\/Private\/[^/]+\.cho$/i.test(song.path)) throw new Error('Ugyldig sangkobling i Dropbox.');
   }
+  if(value.deletedSongs!==undefined){
+    if(!value.deletedSongs||typeof value.deletedSongs!=='object'||Array.isArray(value.deletedSongs))throw new Error('Ugyldige slettemarkeringer.');
+    for(const [id,entry]of Object.entries(value.deletedSongs)as[string,DeletedSong][])if(!/^[a-zA-Z0-9_-]{1,128}$/.test(id)||['__proto__','constructor','prototype'].includes(id)||entry?.id!==id||entry.fileId!==undefined&&typeof entry.fileId!=='string'||entry.songbookId!==undefined&&typeof entry.songbookId!=='string')throw new Error('Ugyldig slettemarkering.');
+  }
   return value;
 }
 export function parseManifest(text: string): Manifest {
@@ -82,8 +95,12 @@ function logicalSong(song: SongLink | undefined) {return song && {id: song.id, s
 /** Per-identity three-way merge; absence in a local snapshot never deletes remote identities. */
 export function mergeManifest(base: Manifest, local: Manifest, remote: Manifest): Manifest {
   const result: Manifest = structuredClone(remote);
+  const deleted={...base.deletedSongs,...local.deletedSongs,...remote.deletedSongs};
+  if(Object.keys(deleted).length)result.deletedSongs=deleted;
   for (const [kind, logical] of [['books', logicalBook], ['songs', logicalSong]] as const) {
     for (const [id, entry] of Object.entries(local[kind])) {
+      if(kind==='songs'&&(deleted[id]||remote.books[(entry as SongLink).songbookId]?.deleted))continue;
+      if(kind==='books'&&remote.books[id]?.deleted)continue;
       const previous = base[kind][id], other = remote[kind][id];
       const a = logical(entry as never), b = logical(other as never), p = logical(previous as never);
       if (same(a, b) || same(a, p)) {if (other) (result[kind] as Record<string, unknown>)[id] = {...entry, ...other};}
@@ -91,6 +108,7 @@ export function mergeManifest(base: Manifest, local: Manifest, remote: Manifest)
       else throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.book-state'},'Bibliotekendringer kan ikke samordnes trygt.');
     }
   }
+  for(const id of Object.keys(deleted))delete result.songs[id];
   const names = new Map<string, string>();
   for (const book of Object.values(result.books).filter(b => !b.deleted)) {
     const key = book.name.normalize('NFC').toLocaleLowerCase('nb');
