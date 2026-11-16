@@ -28,11 +28,12 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
   function confirmDisconnect() {
     const box = dialogFrame('Koble fra Dropbox', 'name-dialog sync-dialog');
     const text = document.createElement('p'); text.textContent = 'Lokale sanger og tilpasninger beholdes. Synkronisering stopper.';
-    const footer = dialogFooter([{id: 'cancel', label: 'Avbryt', icon: 'kryss', run: () => lifecycle.close()}, {id: 'disconnect', label: 'Koble fra', primary: true, run: () => {lifecycle.close(); void controller.disconnect();}}]);
+    const footer = dialogFooter([{id: 'cancel', label: 'Avbryt', icon: 'kryss', run: () => lifecycle.close()}, {id: 'disconnect', label: 'Koble fra', primary: true, run: () => {lifecycle.close(); void controller.disconnect().then(() => {if (connect.offsetParent) connect.focus({preventScroll:true});});}}]);
     box.append(controlHeading('Koble fra Dropbox'), text, footer);
     const lifecycle = openDialog(box, {opener: disconnect, focus: footer.querySelector('button')!, outside: true});
   }
   controller.conflictHandler((conflict: Conflict) => new Promise(resolve => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : sync;
     const box = dialogFrame('Synkroniseringskonflikt', 'name-dialog sync-dialog');
     const heading = controlHeading('Synkroniseringskonflikt', 'synkroniser'); heading.tabIndex = -1;
     const text = document.createElement('p'); text.textContent = conflict.kind === 'content' ? `Sangen "${conflict.title}" er endret både i Dropbox og her lokalt. Hvilken versjon skal gjelde?` : `Personlige tilpasninger av "${conflict.title}" er endret både i Dropbox og her lokalt. Hvilken versjon skal gjelde?`;
@@ -40,7 +41,7 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
     const actions: DialogAction[] = [{id: 'local', label: 'Lokal versjon', run: () => finish('local')}, {id: 'dropbox', label: 'Dropbox', primary: conflict.kind === 'personal', run: () => finish('dropbox')}];
     if (conflict.kind === 'content') actions.push({id: 'copy', label: 'Opprett ny fil', primary: true, run: () => finish('copy')});
     box.append(heading, text, dialogFooter(actions));
-    const lifecycle = openDialog(box, {opener: sync, focus: heading, outside: true, cancel: () => finish(null)});
+    const lifecycle = openDialog(box, {opener, focus: heading, outside: true, cancel: () => finish(null)});
   }));
   render(); return {render};
 }
