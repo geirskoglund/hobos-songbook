@@ -36,6 +36,9 @@ export interface SyncState {
   library?: {rev: string; id: string; value: Manifest};
   originals?: Record<string, boolean>;
   held?:Record<string,boolean>;
+  joined?:boolean;
+  // Account-local links preserve local IDs while using one cloud identity.
+  bindings?:{books:Record<string,string>;songs:Record<string,string>};
 }
 export interface LocalJournal {id: 'private-local-v1'; version: 1; generation: number; recoveryRequired?: boolean; deletedBooks: Record<string, BookLink>; sessions: Record<string, {songId: string; edited: boolean}>}
 export const emptyManifest = (): Manifest => ({version: 1, books: {}, songs: {}});

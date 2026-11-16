@@ -6,6 +6,7 @@ import type {syncStorage, SyncSnapshot} from '../storage/sync.ts';
 import {direction, emptyManifest, hash, mergeManifest, parseManifest, parsePersonal, personalData, same, type BookLink, type Conflict, type FileValue, type Manifest, type PersonalFile, type RemoteFiles, type SongLink, type SyncState} from './model.ts';
 import {DeferredSync, failureCodes, failureInfo, SyncFailure,RetrySync} from './failure.ts';
 import {indexedFiles,pathKey} from './remote.ts';
+import {syncIdentities} from './identities.ts';
 export class PausedSync extends DeferredSync {constructor() {super('session','Synkronisering er pauset mens en sang er åpen.');}}
 const safeName = (name: string) => name.replace(/\.[^.]+$/, '').replace(/[\\/<>:"|?*\u0000-\u001f]/g, '_').slice(0, 100) || 'Sang';
 const privateSong = (song: Song) => song.origin.kind === 'local' || song.origin.provider === 'dropbox' && !(song.origin as any).sourceId;
@@ -19,6 +20,7 @@ export interface SyncHooks {valid(): boolean; changed(): void; failed?(error: un
 export function syncEngine(storage: ReturnType<typeof syncStorage>, files: RemoteFiles, accountId: string, hooks: SyncHooks) {
   const rawFiles=files;
   let index:ReturnType<typeof indexedFiles>;
+  let identities:ReturnType<typeof syncIdentities>;
   let interruption:unknown;
   let snapshot: SyncSnapshot, state: SyncState, generation = 0, manualRecovery = false;
   const valid = () => hooks.valid();
@@ -33,9 +35,10 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   }
   async function step<T>(operation: () => Promise<T>): Promise<T> {await check();let result:T;try{result=await operation();}catch(error){if(error instanceof SyncFailure&&[failureCodes.changed,failureCodes.missingFolder,failureCodes.missingFile].some(code=>code===error.info.code))throw new RetrySync();throw error;}await check();return result;}
   async function parallel<T>(entries:T[],operation:(entry:T)=>Promise<void>){let next=0;await Promise.all(Array.from({length:Math.min(4,entries.length)},async()=>{while(next<entries.length&&!interruption){const entry=entries[next++];try{await operation(entry);}catch(error){interruption=error;}}}));if(interruption)throw interruption;}
-  async function save(changes: Parameters<typeof storage.commit>[2] = {}) {await check(); await storage.commit(generation, state, changes, valid); hooks.changed();}
+  async function save(changes: Parameters<typeof storage.commit>[2] = {}) {await check(); await storage.commit(generation, state, identities.restore(changes), valid); hooks.changed();}
   async function start() {
     snapshot = await storage.snapshot(accountId); state = snapshot.state; generation = snapshot.journal.generation;
+    identities=syncIdentities(snapshot);snapshot=identities.project();
     index=indexedFiles(rawFiles,state);files=index.files;
     await check();
   }
@@ -190,6 +193,9 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     const remoteSong = content && fromRemote(link, content.text);
     const fresh = !remoteKnown || !state.manifest.songs[link.id] && Boolean(state.reservations[link.id]?.fileId);
     const person = content ? await personalFile(link, content, fresh) : null;
+    // A newly discovered file has no sidecar yet; establish its default remote
+    // layer so the existing conflict dialog can reference a concrete revision.
+    if(person&&!person.value&&local&&Object.values(state.bindings?.songs??{}).includes(link.id))person.value=await write(`/.app/songs/${link.id}.json`,JSON.stringify(person.file),null);
     const remotePersonal = person?.value ? personalData(person.file.data) : undefined;
     if (resolution && (!content || content.rev !== resolution.conflict.contentRev || person?.value?.rev !== resolution.conflict.personalRev || !same(local, resolution.conflict.local) || !same(localPersonal, resolution.conflict.localPersonal))) {
       // A dialog choice belongs to the displayed snapshots, never to a later revision.
@@ -262,12 +268,22 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       const remote = manifestFile ? parseManifest(manifestFile.text) : emptyManifest();
       await inspectRemovals(remote);
       if (manual) await refreshBookNames(remote);
+      const joinedBooks=identities.books(remote),joinedSongs=identities.songs(remote,privateSong);
+      if(joinedBooks||joinedSongs){snapshot=identities.project();await save();}
       let local = localManifest();
       // The automatically seeded Standard book is not a conflicting user edit on a new device.
-      if (!snapshot.songs.length && snapshot.songbooks.length === 1 && snapshot.songbooks[0].id === 'standard' && snapshot.songbooks[0].name === 'Standard' && !snapshot.journal.generation && Object.keys(remote.books).length) local.books = {};
+      if (identities.emptySeed()&&Object.keys(remote.books).length) local.books = {};
       let merged = mergeManifest(state.manifest, local, remote);
       await ensureBooks(merged);
-      if (manual) {await discover(merged); merged = mergeManifest(state.manifest, local, merged);}
+      if (manual) {
+        await discover(merged);
+        if(identities.songs(merged,privateSong)){
+          const previous=local;snapshot=identities.project();local=localManifest();
+          for(const id of Object.keys(previous.songs))if(!local.songs[id]&&!remote.songs[id])delete merged.songs[id];
+          await save();
+        }
+        merged = mergeManifest(state.manifest, local, merged);
+      }
       // Reserve all new file paths before contacting Dropbox, including ambiguous-response retries.
       for (const song of snapshot.songs.filter(privateSong)) {
         const entry = merged.songs[song.id]; if (!entry) continue;
@@ -328,6 +344,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       state.pending = !complete;
       if (complete) state.localGeneration = generation;
       if (manual && complete) state.lastManual = new Date().toISOString();
+      if(manual&&complete)state.joined=true;
       await save({recoveryComplete: manual && complete}); return state;
     } catch (error) {
       delete state.error; state.pending = true;
