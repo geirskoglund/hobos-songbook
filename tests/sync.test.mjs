@@ -12,7 +12,7 @@ function fixture() {
   const files={
     async read(path){calls.push(['read',path]);const item=find(path);return item&&!item.folder?structuredClone(item):null;},
     async write(path,text,expected){calls.push(['write',path]);const old=find(path);if(expected?old?.rev!==expected:old)throw Error('409');const value={path,text,rev:String(++rev),id:old?.id??`id:${rev}`};entries.set(path.toLowerCase(),value);history.set(value.rev,structuredClone(value));if(failAfter===path&&!failed){failed=true;throw Error('lost response');}return structuredClone(value);},
-    async folder(path){let value=find(path);if(!value){value={id:`id:${++rev}`,path,folder:true};entries.set(path.toLowerCase(),value);}return structuredClone(value);},
+    async folder(path,expectedId){let value=find(expectedId??path);if(expectedId&&(!value||value.path.toLowerCase()!==path.toLowerCase()))throw Error('kjent mappe flyttet');if(!value){value={id:`id:${++rev}`,path,folder:true};entries.set(path.toLowerCase(),value);}return structuredClone(value);},
     async move(from,to){calls.push(['move',from,to]);const value=find(from);if(!value)throw Error('missing');if(value.path===to)return structuredClone(value);if(find(to))throw Error('409');const prefix=value.path;for(const [key,e] of [...entries])if(e.path===prefix||e.path.startsWith(prefix+'/')){entries.delete(key);e.path=to+e.path.slice(prefix.length);entries.set(e.path.toLowerCase(),e);}return structuredClone(value);},
     async list(path){calls.push(['list',path]);return [...entries.values()].filter(e=>e.path.toLowerCase().startsWith(path.toLowerCase()+'/')&&!e.path.slice(path.length+1).includes('/')).map(e=>({...e}));},
     async removeEmpty(path){calls.push(['removeEmpty',path]);if((await files.list(path)).length)return false;entries.delete(path.toLowerCase());return true;},
@@ -136,4 +136,7 @@ test('AK37-08: real adapter checks all listing pages and keeps a folder with lat
  });
  try {assert.equal(await adapter.files.removeEmpty('/Songbooks/Bok'),false);assert.ok(calls.some(url=>url.endsWith('/list_folder/continue')));assert.ok(!calls.some(url=>url.endsWith('/delete_v2')));}
  finally {globalThis.localStorage=old;if(descriptor)Object.defineProperty(globalThis,'navigator',descriptor);else delete globalThis.navigator;}
+});
+test('AK37-08: a known folder moved outside the app cannot be replaced with a parallel folder',async()=>{
+ const f=fixture();await f.run();const book=f.data.state.manifest.books.standard;await f.files.move(book.folderId,'/Songbooks/Flyttet utenfor appen');await assert.rejects(f.run(),/kjent mappe flyttet/);assert.equal((await f.files.list('/Songbooks/Flyttet utenfor appen/Originals')).length,1);assert.equal([...f.entries.values()].some(e=>e.path.startsWith('/Songbooks/Standard')),false);assert.equal(f.data.state.manifest.books.standard.folderId,book.folderId);
 });

@@ -10,7 +10,7 @@ export interface FileValue {text: string; rev: string; id: string; path: string}
 export interface RemoteFiles {
   read(path: string): Promise<FileValue | null>;
   write(path: string, text: string, rev: string | null): Promise<FileValue>;
-  folder(path: string): Promise<{id: string; path: string}>;
+  folder(path: string, expectedId?: string): Promise<{id: string; path: string}>;
   move(from: string, to: string): Promise<{id: string; path: string}>;
   list(path: string): Promise<{id: string; path: string; folder: boolean}[]>;
   removeEmpty(path: string): Promise<boolean>;

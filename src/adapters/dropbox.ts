@@ -95,8 +95,9 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); throw new DropboxError(response.status, value.error_summary ?? 'upload');}
       return fileValue(await response.json(), text);
     },
-    async folder(path) {
-      let current = await metadata(path);
+    async folder(path, expectedId) {
+      let current = await metadata(expectedId ?? path);
+      if (expectedId && (!current || current.path_display.toLowerCase() !== path.toLowerCase())) throw new Error('En kjent sangbokmappe er flyttet eller endret utenfor appen. Ingen ny mappe opprettes; innholdet er beholdt.');
       if (!current) {
         try {current = (await rpc('files/create_folder_v2', {path, autorename: false})).metadata;}
         catch (error) {if (!(error instanceof DropboxError && error.status === 409)) throw error; current = await metadata(path);}

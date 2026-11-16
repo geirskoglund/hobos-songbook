@@ -33,7 +33,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   }
   async function read(path: string) {return step(() => files.read(path));}
   async function write(path: string, text: string, rev: string | null) {return step(() => files.write(path, text, rev));}
-  async function folder(path: string) {return step(() => files.folder(path));}
+  async function folder(path: string, expectedId?: string) {return step(() => files.folder(path, expectedId));}
   function localManifest(): Manifest {
     const local = emptyManifest();
     for (const book of snapshot.songbooks) local.books[book.id] = {...state.manifest.books[book.id], ...state.folders[book.id], ...book};
@@ -57,12 +57,12 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       let binding: {id: string; path: string};
       if (known.folderId && known.path !== target) {
         // Dropbox paths are case-insensitive; a temporary name preserves case-only renames.
-        if (known.path?.toLowerCase() === target.toLowerCase()) {
+        if (known.path !== target && known.path?.toLowerCase() === target.toLowerCase()) {
           const intermediate = `/Songbooks/.rename-${book.id}`;
           await step(() => files.move(known.folderId!, intermediate));
         }
         binding = await step(() => files.move(known.folderId!, target));
-      } else binding = await folder(target);
+      } else binding = await folder(target, known.folderId);
       book.folderId = binding.id; book.path = binding.path;
       state.folders[book.id] = {...book}; await save();
       for (const kind of ['Private', 'Shared', 'Import', 'Originals']) await folder(`${target}/${kind}`);
@@ -79,6 +79,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         known = {id: crypto.randomUUID(), name, path: entry.path, folderId: entry.id}; state.folders[known.id] = known; await save();
       }
       remote.books[known.id] = {...known};
+      for (const kind of ['Private', 'Shared', 'Import', 'Originals']) await folder(`${entry.path}/${kind}`);
     }
     for (const book of Object.values(remote.books).filter(book => !book.deleted)) {
       for (const file of await step(() => files.list(`${book.path ?? `/Songbooks/${book.name}`}/Private`))) {
