@@ -8,6 +8,8 @@ button, input, select, summary {font: inherit; color: inherit; -webkit-tap-highl
 button, select, input[type="file"] {max-width: 100%;}
 button, select, input::file-selector-button {border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; background: var(--panel); min-height: 46px; cursor: pointer;}
 button {text-align: left; overflow-wrap: anywhere;}
+/* Defaults must leave each component's alignment and spacing in control. */
+button:where(:has(> .icon), :has(> img)) {display:inline-flex;align-items:center;gap:8px}
 button:disabled, input:disabled {opacity: .65; cursor: wait;}
 :where(button, a, input, textarea, select, summary, [role="spinbutton"]):focus {outline: none;}
 :root[data-keyboard-focus] :where(button, a, input, textarea, select, summary, [role="spinbutton"]):focus-visible {outline: 1px solid var(--muted); outline-offset: -2px;}
@@ -232,7 +234,7 @@ body.original-open {overflow:hidden;}
 #menu-backdrop {position:fixed;inset:var(--header-height) 0 0;z-index:var(--layer-backdrop);background:#0008}
 #main-menu {position:fixed;right:0;top:var(--header-height);bottom:0;z-index:var(--layer-menu);width:min(350px,calc(100vw - 16px));padding:8px 0 max(12px,env(safe-area-inset-bottom));background:var(--header);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:auto}
 .menu-open #main-menu {bottom:var(--update-notice-space,0px)}
-#main-menu button {display:flex;align-items:center;gap:20px;width:100%;min-height:54px;padding:12px 24px;border:0;border-radius:0;background:none;flex:none}
+#main-menu button {display:flex;align-items:center;justify-content:flex-start;gap:20px;width:100%;min-height:54px;padding:12px 24px;border:0;border-radius:0;background:none;flex:none;font-size:19px}
 #main-menu button[aria-current=page] {background:var(--raised);font-weight:600}
 #main-menu [data-destination=sync] {border-top:1px solid color-mix(in srgb,var(--border) 40%,transparent);margin-top:8px}
 #main-menu [data-destination=settings] {margin-top:auto;border-top:1px solid color-mix(in srgb,var(--border) 40%,transparent)}
@@ -287,12 +289,9 @@ main > section {flex:1;min-width:0}
 
 .topbar.has-center-action {grid-template-columns:repeat(3,minmax(0,1fr))}
 .topbar:not(.has-center-action) #header-actions {display:none}
-button:has(> .icon), button:has(> img) {display:inline-flex;align-items:center;justify-content:center;gap:8px}
 #sync .sync-connect {min-height:calc(100svh - var(--header-height) - 36px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
 .sync-connect .hint:empty {display:none}
 #dropbox-account {overflow-wrap:anywhere;color:var(--text)}
 .sync-dialog p {line-height:1.6;overflow-wrap:anywhere}
 
 .display-settings > button {justify-self:start}
-
-.dialog-frame::backdrop {background:#0009}

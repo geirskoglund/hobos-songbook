@@ -8,6 +8,8 @@ const dialog=(page,name)=>page.getByRole('dialog',{name,exact:true});
 const button=(scope,name)=>scope.getByRole('button',{name,exact:true});
 const go=async(page,name)=>{await openMenu(page);await button(page,name).click();};
 const height=async node=>(await node.boundingBox()).height;
+// Product feedback keeps the existing weak dimming for contextual controls.
+const weakBackdrop=async box=>expect(await box.evaluate(n=>getComputedStyle(n,'::backdrop').backgroundColor)).toBe('rgba(0, 0, 0, 0.133)');
 async function footer(box){
   const actions=box.locator('.dialog-footer');
   await expect(actions).toHaveCSS('background-color','rgb(50, 46, 42)');
@@ -50,14 +52,21 @@ for(const width of [320,768,1440])test(`shared design contracts at ${width}px`,a
     await page.locator(add).click();const create=dialog(page,id==='setlist'?'Ny setliste':'Ny sangbok');await field(create);await button(create,'Avbryt').click();
     await first.locator('.row-menu').click();const menu=page.locator('.context-menu');
     await expect(menu).toHaveCSS('background-color','rgb(64, 56, 49)');await expect(menu).toHaveCSS('border-radius','16px');
+    await weakBackdrop(menu);
     expect((await menu.boundingBox()).width).toBeCloseTo(265,0);expect(await height(menu)).toBeCloseTo(139,0);
     await expect(menu.getByRole('menuitem').first()).toHaveCSS('font-size','17px');
+    for(const action of await menu.getByRole('menuitem').all()){
+      const columns=await action.evaluate(n=>{const r=n.getBoundingClientRect(),i=n.querySelector('.icon').getBoundingClientRect();return [i.left-r.left,n.querySelector('span').getBoundingClientRect().left-i.right];});
+      expect(columns[0]).toBeCloseTo(23,0);expect(columns[1]).toBeCloseTo(17,0);
+    }
     await menu.getByRole('menuitem',{name:edit,exact:true}).click();await field(page.locator('dialog[open]'));await button(page.locator('dialog[open]'),'Avbryt').click();
   }
   await goSongs(page);await page.locator('#songbook-filter').click();const filter=dialog(page,'Sangbok');
+  await weakBackdrop(filter);
   await expect(filter.locator('.choice-value')).toHaveCSS('font-size','23px');expect(await height(filter.locator('.choice-value'))).toBeCloseTo(68,0);
   await page.getByRole('option',{name:'Standard',exact:true}).click();
-  await page.locator('#add-song').click();await page.getByRole('menuitem',{name:'Opprett',exact:true}).click();const step=dialog(page,'Opprett i sangbok');
+  await page.locator('#add-song').click();await weakBackdrop(page.locator('.context-menu'));await page.getByRole('menuitem',{name:'Opprett',exact:true}).click();const step=dialog(page,'Opprett i sangbok');
+  await weakBackdrop(step);
   await expect(step).toHaveCSS('border-radius','24px');await footer(step);
   const value=step.locator('.choice-value');expect(await height(value)).toBeCloseTo(68,0);await expect(value).toHaveCSS('font-size','23px');await value.click();
   await expect(page.locator('dialog[open]')).toHaveCount(1);await expect(step.getByRole('heading')).toHaveCount(1);
