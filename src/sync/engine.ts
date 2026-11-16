@@ -4,7 +4,8 @@ import {songbookName} from '../domain/songbook.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
 import type {syncStorage, SyncSnapshot} from '../storage/sync.ts';
 import {direction, emptyManifest, hash, mergeManifest, parseManifest, parsePersonal, personalData, same, type BookLink, type Conflict, type FileValue, type Manifest, type PersonalFile, type RemoteFiles, type SongLink, type SyncState} from './model.ts';
-export class PausedSync extends Error {constructor() {super('Synkronisering er pauset mens en sang er åpen.');}}
+import {DeferredSync, failureCodes, failureInfo, SyncFailure} from './failure.ts';
+export class PausedSync extends DeferredSync {constructor() {super('session','Synkronisering er pauset mens en sang er åpen.');}}
 const safeName = (name: string) => name.replace(/\.[^.]+$/, '').replace(/[\\/<>:"|?*\u0000-\u001f]/g, '_').slice(0, 100) || 'Sang';
 const privateSong = (song: Song) => song.origin.kind === 'local' || song.origin.provider === 'dropbox' && !(song.origin as any).sourceId;
 const personalOf = (snapshot: SyncSnapshot, id: string) => personalData(snapshot.personal.find(p => p.songId === id) ?? {songId: id, version: 3, chorus: {}});
@@ -13,16 +14,16 @@ function fromRemote(link: SongLink, text: string): Song {
   return {id: link.id, songbookId: link.songbookId, origin: link.origin, original: text, title: parsed.title, key: parsed.key};
 }
 function project(personal: SongPersonal, source: Song, target: Song) {return personalData(source.original === target.original ? personal : reconcilePersonal(source, target, personal));}
-export interface SyncHooks {valid(): boolean; changed(): void}
+export interface SyncHooks {valid(): boolean; changed(): void; failed?(error: unknown): void}
 export function syncEngine(storage: ReturnType<typeof syncStorage>, files: RemoteFiles, accountId: string, hooks: SyncHooks) {
   let snapshot: SyncSnapshot, state: SyncState, generation = 0, manualRecovery = false;
   const valid = () => hooks.valid();
   async function check() {
     if (!valid()) throw new PausedSync();
     const latest = await storage.snapshot(accountId);
-    if (latest.journal.recoveryRequired && !manualRecovery) throw new Error('Lagrede endringer etter avbrudd venter på Synkroniser.');
+    if (latest.journal.recoveryRequired && !manualRecovery) throw new DeferredSync('recovery','Lagrede endringer etter avbrudd venter på Synkroniser.');
     if (Object.keys(latest.journal.sessions).length) throw new PausedSync();
-    if (latest.journal.generation !== generation) throw new Error('Nyere lokale endringer venter. Synkroniseringen må fortsette fra nyeste versjon.');
+    if (latest.journal.generation !== generation) throw new DeferredSync('changed','Nyere lokale endringer venter. Synkroniseringen må fortsette fra nyeste versjon.');
     if (!valid()) throw new PausedSync();
   }
   async function step<T>(operation: () => Promise<T>): Promise<T> {await check(); const result = await operation(); await check(); return result;}
@@ -34,6 +35,9 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   async function read(path: string) {return step(() => files.read(path));}
   async function write(path: string, text: string, rev: string | null) {return step(() => files.write(path, text, rev));}
   async function folder(path: string, expectedId?: string) {return step(() => files.folder(path, expectedId));}
+  function remoteBookName(value: string, books: BookLink[], ownId?: string) {
+    try{return songbookName(value,books,ownId);}catch(cause){throw new SyncFailure({code:failureCodes.bookName,stage:'sync.book-name',action:'remote-book-names'},'Ugyldig sangboknavn i Dropbox.',cause);}
+  }
   function localManifest(): Manifest {
     const local = emptyManifest();
     for (const book of snapshot.songbooks) local.books[book.id] = {...state.manifest.books[book.id], ...state.folders[book.id], ...book};
@@ -47,16 +51,16 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   async function refreshBookNames(remote: Manifest) {
     for (const book of Object.values(remote.books).filter(book => !book.deleted && book.folderId)) {
       const current = await step(() => files.locateFolder(book.folderId!));
-      if (!current) throw new Error(`Sangbokmappen for «${book.name}» mangler. Lokale data er beholdt.`);
+      if (!current) throw new SyncFailure({code:failureCodes.missingFolder,stage:'sync.book-state'},'Kjent sangbokmappe mangler.');
       const intent = state.renames?.[book.id];
       if (intent) {
         if ([intent.from, intent.to, `/Songbooks/.rename-${book.id}`].includes(current.path)) continue;
-        throw new Error('Sangbokmappen er endret under en uferdig navneendring. Begge endringene er beholdt.');
+        throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.book-state'},'Sangbokmappen er endret under en uferdig navneendring.');
       }
-      if (!/^\/Songbooks\/[^/]+$/i.test(current.path)) throw new Error('En kjent sangbokmappe ligger utenfor Songbooks. Innholdet er beholdt.');
+      if (!/^\/Songbooks\/[^/]+$/i.test(current.path)) throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.book-state'},'En kjent sangbokmappe ligger utenfor Songbooks.');
       if (book.path === current.path) continue;
       const previousPath = book.path ?? `/Songbooks/${book.name}`;
-      book.name = songbookName(current.path.split('/').at(-1)!, Object.values(remote.books).filter(other => !other.deleted), book.id);
+      book.name = remoteBookName(current.path.split('/').at(-1)!, Object.values(remote.books).filter(other => !other.deleted), book.id);
       book.path = current.path;
       for (const song of Object.values(remote.songs)) if (song.songbookId === book.id && song.path.toLowerCase().startsWith(previousPath.toLowerCase() + '/')) song.path = current.path + song.path.slice(previousPath.length);
       state.folders[book.id] = {...book}; await save();
@@ -69,7 +73,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       const prior = Object.values(merged.books).find(other => other.id !== book.id && other.path?.toLowerCase() === target.toLowerCase());
       if (prior) {
         const entries = await step(() => files.list('/Songbooks'));
-        if (entries.some(entry => entry.path.toLowerCase() === target.toLowerCase() && (!prior.folderId || entry.id === prior.folderId))) throw new Error(`Mappen for «${book.name}» tilhører en annen eller slettet sangbok. Velg et annet navn; innholdet er beholdt.`);
+        if (entries.some(entry => entry.path.toLowerCase() === target.toLowerCase() && (!prior.folderId || entry.id === prior.folderId))) throw new SyncFailure({code:failureCodes.bookName,stage:'sync.book-name',action:'book-names'},'Mappen tilhører en annen eller slettet sangbok.');
       }
       const known = state.folders[book.id] ?? state.manifest.books[book.id] ?? book;
       let binding: {id: string; path: string};
@@ -94,7 +98,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       let known = Object.values(state.folders).find(book => book.folderId === entry.id);
       if (!known) {
         const name = entry.path.split('/').at(-1)!;
-        songbookName(name, Object.values(remote.books).filter(b => !b.deleted));
+        remoteBookName(name, Object.values(remote.books).filter(b => !b.deleted));
         known = {id: crypto.randomUUID(), name, path: entry.path, folderId: entry.id}; state.folders[known.id] = known; await save();
       }
       remote.books[known.id] = {...known};
@@ -115,14 +119,14 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   async function personalFile(link: SongLink, content: FileValue, fresh: boolean): Promise<{file: PersonalFile; value: FileValue | null; original: string}> {
     const value = await read(`/.app/songs/${link.id}.json`);
     if (!value) {
-      if (!fresh) throw new Error(`Personfilen for «${link.origin.filename}» mangler. Lokale data er beholdt.`);
+      if (!fresh) throw new SyncFailure({code:failureCodes.personal,stage:'sync.personal'},'Personfilen for en kjent sang mangler.');
       return {value: null, original: content.text, file: {version: 1, songId: link.id, original: {rev: content.rev, hash: await hash(content.text)}, data: {songId: link.id, version: 3, chorus: {}}}};
     }
     const file = parsePersonal(value.text, link.id);
     let original = content.text;
     if (await hash(content.text) !== file.original.hash) {
       const previous = await read(`rev:${file.original.rev}`);
-      if (!previous || await hash(previous.text) !== file.original.hash) throw new Error('Persondataenes originalgrunnlag er utilgjengelig. Ingen data overskrives.');
+      if (!previous || await hash(previous.text) !== file.original.hash) throw new SyncFailure({code:failureCodes.original,stage:'sync.original'},'Persondataenes originalgrunnlag er utilgjengelig.');
       original = previous.text;
     }
     return {value, file, original};
@@ -130,8 +134,8 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   async function transferSong(link: SongLink, remoteKnown: boolean, manual: boolean, resolution?: {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'}) {
     const local = snapshot.songs.find(song => song.id === link.id), basis = state.bases[link.id];
     let content = await read(link.fileId ?? link.path);
-    if (!content && remoteKnown) throw new Error(`Sangfilen «${link.origin.filename}» mangler. Ingen fil gjenopprettes eller slettes automatisk.`);
-    if (!content && !local) throw new Error('Sangfilen mangler i Dropbox.');
+    if (!content && remoteKnown) throw new SyncFailure({code:failureCodes.missingFile,stage:'sync.file'},'En kjent sangfil mangler.');
+    if (!content && !local) throw new SyncFailure({code:failureCodes.missingFile,stage:'sync.file'},'Sangfilen mangler i Dropbox.');
     const localPersonal = local && personalOf(snapshot, local.id);
     const remoteSong = content && fromRemote(link, content.text);
     const fresh = !remoteKnown || !state.manifest.songs[link.id] && Boolean(state.reservations[link.id]?.fileId);
@@ -175,7 +179,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     if (contentChoice === 'upload') {
       content = await write(link.path, chosenSong.original, content?.rev ?? null);
     }
-    if (!content) throw new Error('Ingen trygg sangfilversjon er tilgjengelig.');
+    if (!content) throw new SyncFailure({code:failureCodes.missingFile,stage:'sync.file'},'Ingen sangfilversjon er tilgjengelig.');
     const target = `${state.folders[link.songbookId]?.path ?? `/Songbooks/${snapshot.songbooks.find(b => b.id === link.songbookId)?.name}`}/Private/${link.path.split('/').at(-1)}`;
     if (content.path !== target) {
       const moved = await step(() => files.move(content!.id, target)); content = {...content, ...moved};
@@ -197,7 +201,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   }
   async function run(manual: boolean, resolution?: {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'}) {
     manualRecovery = manual;
-    await start(); state.error = undefined; state.pending = true; state.awaitingDownload = false;
+    await start(); delete state.error; delete state.failure; state.pending = true; state.awaitingDownload = false;
     try {
       const manifestFile = await read('/.app/library.json');
       const remote = manifestFile ? parseManifest(manifestFile.text) : emptyManifest();
@@ -225,11 +229,11 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         try {
           if (await transferSong(entry, Boolean(remote.songs[entry.id]), manual, resolution?.conflict.songId === entry.id ? resolution : undefined)) readySongs[entry.id] = entry;
           else complete = false;
-        } catch (error) {if (error instanceof PausedSync) throw error; complete = false; state.error = error instanceof Error ? error.message : 'Dropbox-operasjonen feilet.'; await save();}
+        } catch (error) {if (error instanceof DeferredSync) throw error; complete = false; state.failure = failureInfo(error,'sync.song'); hooks.failed?.(error); await save();}
       }
       merged.songs = readySongs;
       for (const [id, book] of Object.entries(merged.books)) if (book.deleted && Object.values(readySongs).some(song => song.songbookId === id)) {
-        if (!remote.books[id]) throw new Error('Flytting av sangene er ikke fullført. Sangbokmappen beholdes.');
+        if (!remote.books[id]) throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.book-state'},'Flytting av sangene er ikke fullført.');
         merged.books[id] = remote.books[id]; complete = false;
       }
       const finalText = JSON.stringify(merged);
@@ -256,7 +260,9 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       if (manual && complete) state.lastManual = new Date().toISOString();
       await save({recoveryComplete: manual && complete}); return state;
     } catch (error) {
-      state.error = error instanceof Error ? error.message : 'Synkronisering feilet.'; state.pending = true;
+      delete state.error; state.pending = true;
+      if(error instanceof DeferredSync)delete state.failure;
+      else {state.failure=failureInfo(error,'sync.run');hooks.failed?.(error);}
       // A stale run must not acknowledge work or overwrite state belonging to a newer session.
       try {await save();} catch { /* The next safe run starts from durable progress. */ }
       throw error;

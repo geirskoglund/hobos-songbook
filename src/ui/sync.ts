@@ -5,7 +5,7 @@ import type {Conflict} from '../sync/model.ts';
 export function syncPage(controller: ReturnType<typeof syncController>) {
   const root = document.getElementById('sync')!;
   const disconnected = document.createElement('div'); disconnected.className = 'sync-connect';
-  const connect = actionButton('Koble til Dropbox', () => {void controller.connect().catch(showError);}); connect.id = 'dropbox-connect';
+  const connect = actionButton('Koble til Dropbox', () => {void controller.connect();}); connect.id = 'dropbox-connect';
   // The separately supplied Dropbox brand asset keeps its approved colors.
   const logo = document.createElement('img'); logo.src = new URL('../../assets/dropbox-glyph-blue.svg', import.meta.url).href; logo.alt = ''; logo.width = logo.height = 24; connect.prepend(logo);
   const connectionStatus = document.createElement('p'); connectionStatus.className = 'hint'; connectionStatus.setAttribute('role', 'status');
@@ -18,12 +18,31 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
   const identity = document.createElement('p'); identity.id = 'dropbox-account';
   const disconnect = actionButton('Koble fra', confirmDisconnect); disconnect.id = 'dropbox-disconnect'; disconnect.className = 'secondary'; accountPanel.append(identity, disconnect);
   connected.append(panel, accountPanel); root.append(disconnected, connected);
-  function showError(cause: unknown) {connectionStatus.textContent = cause instanceof Error ? cause.message : 'Dropbox-tilkoblingen feilet.';}
+  const messages=[connectionStatus,status].map(node=>{
+    const text=document.createTextNode(''),code=document.createElement('span'),tail=document.createTextNode(''),feedback=document.createElement('span');code.className='sync-error-code';feedback.className='sync-copy-feedback';feedback.setAttribute('aria-live','polite');
+    const copy=actionButton('',()=>{void copyReport();},'kopier');copy.className='sync-error-copy';copy.setAttribute('aria-label','Kopier feillogg');copy.dataset.tooltip='Kopier feillogg';copy.hidden=true;node.append(text,code,tail,copy,feedback);let last='';
+    async function copyReport(){
+      const report=controller.reportText();if(!report)return;copy.disabled=true;
+      try{
+        try{if(!navigator.clipboard?.writeText)throw new Error();await navigator.clipboard.writeText(report);}
+        catch{
+          const focus=document.activeElement,field=document.createElement('textarea');field.value=report;field.readOnly=true;field.className='sr-only';node.append(field);let copied=false;
+          try{field.select();copied=document.execCommand('copy');}finally{field.remove();if(focus instanceof HTMLElement&&focus.isConnected)focus.focus({preventScroll:true});}
+          if(!copied)throw new Error();
+        }
+        feedback.textContent='Kopiert.';
+      }catch{feedback.textContent='Kopiering mislyktes. Prøv igjen.';}finally{copy.disabled=false;}
+    }
+    return {render(message:string,enabled:boolean){
+      if(message!==last)feedback.textContent='';last=message;const parts=enabled?/^(.*?)(SYNC-\d{3}\))(.*)$/.exec(message):null;
+      text.data=parts?parts[1]:message;code.textContent=parts?.[2]??'';tail.data=parts?.[3]??'';copy.hidden=!enabled;node.hidden=!message;
+    }};
+  });
   function render() {
     const account = controller.account(); disconnected.hidden = Boolean(account); connected.hidden = !account;
     identity.textContent = account ? `${account.name} · ${account.email}` : '';
-    sync.disabled = controller.running(); status.textContent = controller.status();
-    if (!account) connectionStatus.textContent = controller.status();
+    sync.disabled = controller.running();const message=controller.status(),hasReport=Boolean(controller.reportText());
+    messages[0].render(account?'':message,!account&&hasReport);messages[1].render(account?message:'',Boolean(account)&&hasReport);
   }
   function confirmDisconnect() {
     const box = dialogFrame('Koble fra Dropbox', 'name-dialog sync-dialog');

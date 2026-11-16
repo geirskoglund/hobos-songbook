@@ -67,6 +67,7 @@ Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende design
 | `fjern.svg` | Fjern fra liste | Fjerner bare referansen |
 | `slett.svg` | Slett | Faktisk sletting |
 | `dupliser.svg` | Dupliser | To ark med pil ↗ |
+| [kopier.svg](ikoner/kopier.svg) | Kopier | To overlappende, avlange rektangler uten dokumentbrett eller pil. Godkjent av produktansvarlig 16. november 2026; Kopier feillogg bruker samme SVG i runtime. |
 | `filter.svg` | Filter | Bibliotek / kilde |
 | `innstillinger.svg` | Innstillinger | Appvalg |
 | `kryss.svg` | Lukk | Lukk panel |

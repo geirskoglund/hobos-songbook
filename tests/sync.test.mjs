@@ -104,7 +104,7 @@ test('AK37-01: single-use callback, exact environment, granted scopes, refresh, 
   });
   try {
     pending.set('hobos-songbook-test:dropbox-pkce-v1',JSON.stringify({state:'known',verifier:'verifier',redirect:dropboxConfig('test').redirect,created:Date.now()}));assert.equal(await adapter.callback(),true);assert.equal(loc.search,'');assert.equal(await adapter.callback(),false);assert.equal(adapter.account().id,'dbid:one');
-    await assert.rejects(adapter.files.read('/.app/library.json'),/Koble til på nytt/);assert.equal(adapter.account(),null);assert.ok(requests.some(r=>r.options.body instanceof URLSearchParams&&r.options.body.get('grant_type')==='refresh_token'));
+    await assert.rejects(adapter.files.read('/.app/library.json'),error=>error.info?.code==='SYNC-004'&&error.info.action==='reconnect');assert.equal(adapter.account(),null);assert.ok(requests.some(r=>r.options.body instanceof URLSearchParams&&r.options.body.get('grant_type')==='refresh_token'));
     globalThis.location=new URL(dropboxConfig('test').redirect+'?code=replay&state=known');await assert.rejects(adapter.callback(),/ugyldig eller utløpt/);
     values.set('hobos-songbook-test:dropbox-auth-v1',JSON.stringify({version:1,accountId:'dbid:one',refreshToken:'refresh',accessToken:'access'}));assert.equal(await adapter.disconnect(),true);assert.equal(revoked,true);assert.equal(values.size,0);
     assert.equal(dropboxAdapter({...env,channel:'production',namespace:'hobos-songbook-production'}).account(),null);
