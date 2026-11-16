@@ -21,7 +21,9 @@ export const userActions = {
   'update-browser': 'Åpne appen i en oppdatert nettleser og prøv igjen.',
   'check-revoke': 'Du er koblet fra lokalt. Kontroller appens tilgang under tilkoblede apper i Dropbox.',
 } as const;
-export interface FailureInfo {code: FailureCode; stage: string; status?: number; action?: keyof typeof userActions}
+export type RateLimitReason='too_many_requests'|'too_many_write_operations'|'unknown';
+export interface RateInfo {limitReason?:RateLimitReason;retryAfterMs?:number}
+export interface FailureInfo extends RateInfo {code: FailureCode; stage: string; status?: number; action?: keyof typeof userActions}
 export class SyncFailure extends Error {
   readonly info: FailureInfo;
   constructor(info: FailureInfo, message: string, cause?: unknown) {super(message, {cause}); this.name = 'SyncFailure'; this.info = info;}

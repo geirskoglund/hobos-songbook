@@ -8,12 +8,14 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
   const env = __APP_ENV__, owner = crypto.randomUUID();
   const events:ApiEvent[]=[],diagnostics=syncDiagnostics(env,()=>hooks.notify());let logging=false;
   let requestEpoch = -1, requestAccount: string | null = null, requestManual = false;
+  let requestGeneration:number|null=null;
   const adapter = dropboxAdapter(env, fetch, async () => {
     if(navigator.onLine===false)throw new DeferredSync('connection','Venter på nett.');
     const allowed = () => !paused && !hooks.busy() && requestEpoch === epoch && requestAccount === account()?.id;
     if (!allowed() || !requestAccount) throw new PausedSync();
     const snapshot = await storage.sync.status();
     if (!allowed() || Object.keys(snapshot.journal.sessions).length) throw new PausedSync();
+    if(requestGeneration!==null&&snapshot.journal.generation!==requestGeneration)throw new DeferredSync('changed','Nyere lokale endringer venter.');
     if (snapshot.journal.recoveryRequired && !requestManual) throw new DeferredSync('recovery','Lagrede endringer etter avbrudd venter på Synkroniser.');
   },event=>{if(!logging){events.push(event);if(events.length>30)events.shift();}});
   let paused = false, epoch = 0, running = false, started = false, requestedManual = false, immediate = false, localPending = false;
@@ -42,7 +44,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
     if(error&&[failureCodes.network,failureCodes.authentication,failureCodes.permission,failureCodes.throttled].some(code=>code===error!.code))return;
     void navigator.locks.request(`${env.namespace}:dropbox-sync`,async()=>{
       if(ticket!==epoch||paused||hooks.busy()||account()?.id!==accountId)return;
-      requestEpoch=ticket;requestAccount=accountId;requestManual=manual;logging=true;
+      requestEpoch=ticket;requestAccount=accountId;requestManual=manual;requestGeneration=null;adapter.beginRun(false);logging=true;
       try{await diagnostics.flush(adapter.files,accountId);}finally{logging=false;}
     }).catch(()=>{/* Diagnostics cannot block or change sync results. */});
   }
@@ -65,7 +67,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
         await recover();
         const latest = await storage.sync.status(); recoveryRequired = Boolean(latest.journal.recoveryRequired);
         if (recoveryRequired && !wasManual) return;
-        requestEpoch = ticket; requestAccount = user.id; requestManual = wasManual;
+        requestEpoch = ticket; requestAccount = user.id; requestManual = wasManual;requestGeneration=latest.journal.generation;adapter.beginRun();
         for(let attempt=0;attempt<3;attempt++){
           let idle=false;
           try{state=await syncEngine(storage.sync,adapter.files,user.id,{valid:()=>ticket===epoch&&!paused&&!hooks.busy()&&account()?.id===user.id,changed:notify,failed,idle:()=>{idle=true;}}).run(wasManual,resolution);completed=!idle;break;}
@@ -100,11 +102,11 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
   async function manual() {
     await execute(true);
   }
-  function localChanged() {if (running) changedDuringRun = true; localPending = true; notify(); if (!popup) void execute();}
+  function localChanged() {adapter.cancelPending();if (running) changedDuringRun = true; localPending = true; notify(); if (!popup) void execute();}
   document.addEventListener('library-local-change', localChanged);
   window.addEventListener('online', () => {void execute();});
-  window.addEventListener('offline',notify);
-  window.addEventListener('storage', event => {if (event.key === `${env.namespace}:dropbox-auth-v1`) {epoch++;requestedManual=false;clearFailure();void refresh();}});
+  window.addEventListener('offline',()=>{adapter.cancelPending();notify();});
+  window.addEventListener('storage', event => {if (event.key === `${env.namespace}:dropbox-auth-v1`) {epoch++;adapter.cancelPending();requestedManual=false;clearFailure();void refresh();}});
   channel.onmessage = event => {void refresh();if(event.data === 'session-ended' && requestedManual) void execute();};
   async function recover(restoredSongId: string | null = null) {
     const locks = await navigator.locks.query();
@@ -120,7 +122,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
   }
   function begin(songId: string, edited = false) {
     if(running&&activeManual&&activeEpoch===epoch)requestedManual=true;
-    paused = true; epoch++; notify();
+    paused = true; epoch++;adapter.cancelPending(); notify();
     if (!navigator.locks) return Promise.resolve();
     opening = opening.catch(() => {}).then(async () => {await ready; await storage.sync.session(owner, songId, edited);});
     return opening;

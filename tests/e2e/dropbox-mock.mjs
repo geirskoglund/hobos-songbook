@@ -2,6 +2,9 @@
 export async function dropboxMock(context, {connected=true,pageSize=2000,backend}={}) {
   let sequence=0;const entries=backend?.entries??new Map(),history=backend?.history??new Map(),calls=[];let fault=null,hold=null;
   let latency=0,active=0,maximum=0;
+  let limitWrites=false,activeWrites=0,rateCount=0;
+  const mutating=endpoint=>['/upload','/create_folder_v2','/move_v2','/delete_v2'].some(value=>endpoint.endsWith(value));
+  const rateResponse=async(route,seconds=0,reason='too_many_write_operations')=>{rateCount++;return route.fulfill({status:429,headers:{'Retry-After':String(seconds)},json:{error_summary:reason+'/',error:{reason:{'.tag':reason},retry_after:seconds}}});};
   const key=path=>path.toLowerCase();
   const find=path=>path.startsWith('id:')?[...entries.values()].find(e=>e.id===path):path.startsWith('rev:')?history.get(path.slice(4)):entries.get(key(path));
   function put(path,text,folder=false){if(backend)return backend.put(path,text,folder);const old=find(path),value={'.tag':folder?'folder':'file',id:old?.id??`id:${++sequence}`,path_display:path,path_lower:key(path),rev:String(++sequence),text};entries.set(key(path),value);history.set(value.rev,{...value});return value;}
@@ -16,10 +19,11 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
   await context.route(/https:\/\/(api|content)\.dropboxapi\.com\//,async route=>{
     const request=route.request(),url=new URL(request.url()),endpoint=url.pathname;const body=request.postData();
     const args=request.headers()['dropbox-api-arg']?JSON.parse(request.headers()['dropbox-api-arg']):request.headers()['content-type']?.includes('application/json')?JSON.parse(body??'null'):null;calls.push({endpoint,args});
-    active++;maximum=Math.max(maximum,active);try{
+    const writing=mutating(endpoint);active++;if(writing)activeWrites++;maximum=Math.max(maximum,active);try{
+    if(limitWrites&&writing&&activeWrites>1)return await rateResponse(route);
     if(latency)await new Promise(resolve=>setTimeout(resolve,latency));
     if(hold&&endpoint.endsWith(hold.endpoint)){const waiting=hold;if(!waiting.all)hold=null;await waiting.resolve;}
-    if(fault&&endpoint.endsWith(fault.endpoint)){if(fault.skip)fault.skip--;else{const status=fault.status;fault=null;if(status===0)return route.abort('failed');await route.fulfill({status,json:{error_summary:status===409?'path/conflict/file/':'error/'}});return;}}
+    if(fault&&endpoint.endsWith(fault.endpoint)){if(fault.skip)fault.skip--;else{const current=fault,status=current.status;if(--current.remaining<=0)fault=null;if(status===0)return route.abort('failed');if(status===429)return await rateResponse(route,current.retryAfter,current.reason);await route.fulfill({status,json:{error_summary:status===409?'path/conflict/file/':'error/'}});return;}}
     const ok=async value=>route.fulfill({status:200,json:value}),missing=async()=>route.fulfill({status:409,json:{error_summary:'path/not_found/'}});
     if(endpoint==='/oauth2/token')return ok({access_token:'fixture-access',refresh_token:'fixture-refresh',expires_in:3600,account_id:'dbid:fixture',scope:'account_info.read files.metadata.read files.content.read files.content.write'});
     if(endpoint.endsWith('/get_current_account'))return ok({account_id:'dbid:fixture',name:{display_name:'Prøvebruker'},email:'bruker@eksempel.no'});
@@ -33,7 +37,7 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
     if(endpoint.endsWith('/move_v2')){const value=find(args.from_path);if(!value)return missing();if(find(args.to_path))return route.fulfill({status:409,json:{error_summary:'to/conflict/'}});const prefix=value.path_display;for(const [k,e]of[...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=args.to_path+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}return ok({metadata:metadata(value)});}
     if(endpoint.endsWith('/delete_v2')){const value=find(args.path);if(!value)return route.fulfill({status:409,json:{error_summary:'path_lookup/not_found/'}});if(args.parent_rev&&args.parent_rev!==value.rev)return route.fulfill({status:409,json:{error_summary:'path_lookup/conflict/'}});entries.delete(key(value.path_display));return ok({metadata:metadata(value)});}
     throw Error('Unexpected Dropbox endpoint '+endpoint);
-    }finally{active--;}
+    }finally{active--;if(writing)activeWrites--;}
   });
-  return {entries,history,calls,find,put,latency(ms){latency=ms;maximum=0;},maximum:()=>maximum,resetCursors(){cursors.clear();},rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status,skip=0){fault={endpoint,status,skip};},hold(endpoint,all=false){let release;const resolve=new Promise(r=>release=r),waiting={endpoint,resolve,all};hold=waiting;return ()=>{if(hold===waiting)hold=null;release();};}};
+  return {entries,history,calls,find,put,latency(ms){latency=ms;maximum=0;},maximum:()=>maximum,throttled:()=>rateCount,limitConcurrentWrites(){limitWrites=true;},resetCursors(){cursors.clear();},rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status,skip=0,{repeat=1,retryAfter=0,reason='too_many_write_operations'}={}){fault={endpoint,status,skip,remaining:repeat,retryAfter,reason};},hold(endpoint,all=false){let release;const resolve=new Promise(r=>release=r),waiting={endpoint,resolve,all};hold=waiting;return ()=>{if(hold===waiting)hold=null;release();};}};
 }

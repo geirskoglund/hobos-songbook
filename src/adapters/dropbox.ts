@@ -2,19 +2,14 @@ import type {AppEnvironment} from '../environment.ts';
 import type {FileValue, RemoteFiles, RemoteEntry} from '../sync/model.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../sync/failure.ts';
 import type {ApiEvent} from '../sync/diagnostics.ts';
+import {DropboxError,dropboxRate} from './dropbox-rate.ts';
+export {DropboxError} from './dropbox-rate.ts';
 export const requiredScopes = ['account_info.read', 'files.metadata.read', 'files.content.read', 'files.content.write'];
 export function dropboxConfig(channel: AppEnvironment['channel']) {
   return {key: channel === 'production' ? '9hivdq3nxrgtquz' : 'le5cddh388klcjz', redirect: `https://geirskoglund.github.io/hobos-songbook/${channel === 'production' ? 'app' : 'test'}/`};
 }
 interface Credentials {version: 1; accountId: string; name: string; email: string; accessToken: string; refreshToken: string; expires: number}
 interface Pending {state: string; verifier: string; redirect: string; created: number}
-export class DropboxError extends SyncFailure {
-  status: number; summary: string;
-  constructor(status: number, summary: string, stage = 'dropbox.request') {
-    super({code: status === 401 ? failureCodes.authentication : status === 403 ? failureCodes.permission : status === 409 ? failureCodes.changed : status === 429 ? failureCodes.throttled : failureCodes.request, stage, status, ...(status === 401 ? {action: 'reconnect'} : {})}, 'Dropbox avviste forespørselen.');
-    this.name = 'DropboxError'; this.status = status; this.summary = summary;
-  }
-}
 const apiArg = (value: unknown) => JSON.stringify(value).replace(/[^\u0000-\u007f]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
 const random = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 export async function pkceChallenge(verifier: string) {
@@ -23,15 +18,17 @@ export async function pkceChallenge(verifier: string) {
 export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetch, beforeRequest: () => void | Promise<void> = () => {}, observe: (event: ApiEvent) => void = () => {}) {
   const config = dropboxConfig(env.channel), authKey = `${env.namespace}:dropbox-auth-v1`, pendingKey = `${env.namespace}:dropbox-pkce-v1`;
   let invalidated = 0;
+  const rate=dropboxRate(env.namespace,()=>credentials()?.accountId??null,beforeRequest,observe);
   function deadline(){
     if(typeof AbortSignal.timeout==='function')return AbortSignal.timeout(30000);
     const controller=new AbortController();setTimeout(()=>controller.abort(),30000);return controller.signal;
   }
   async function send(operation: string, options: RequestInit) {
-    const start = performance.now(); let response: Response;
-    try {response = await request(`https://${operation === 'files/download' || operation === 'files/upload' ? 'content' : 'api'}.dropboxapi.com/${operation === 'oauth2/token' ? '' : '2/'}${operation}`, {...options,signal:options.signal??deadline()});}
-    catch (cause) {try {observe({operation,status:0,durationMs:Math.round(performance.now()-start)});} catch {} throw new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'Dropbox-forespørselen kunne ikke fullføres.',cause);}
-    try {observe({operation,status:response.status,durationMs:Math.round(performance.now()-start)});} catch {} return response;
+    return rate.send(operation,async(attempt,check)=>{
+      const headers=attempt?{...(options.headers as Record<string,string>),Authorization:`Bearer ${await access()}`}:options.headers;
+      if(attempt)await check();
+      return request(`https://${operation==='files/download'||operation==='files/upload'?'content':'api'}.dropboxapi.com/${operation==='oauth2/token'?'':'2/'}${operation}`,{...options,headers,signal:options.signal??deadline()});
+    });
   }
   async function json(response: Response, stage = 'dropbox.request') {
     try {return await response.json();} catch (cause) {throw new SyncFailure({code:failureCodes.response,stage,status:response.status},'Dropbox returnerte ugyldig JSON.',cause);}
@@ -206,11 +203,11 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     async deleteFile(path,rev){try{await rpc('files/delete_v2',{path,parent_rev:rev});}catch(error){if(!missing(error)&&!(error instanceof DropboxError&&error.status===409&&/^path_lookup\/not_found/.test(error.summary)))throw error;}},
   };
   async function disconnect() {
-    invalidated++;
+    invalidated++;rate.cancel();
     const value = credentials(); localStorage.removeItem(authKey); sessionStorage.removeItem(pendingKey);
     if (!value) return true;
     const response = await send('auth/token/revoke', {method: 'POST', headers: {Authorization: `Bearer ${value.accessToken}`}, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
     return response.ok;
   }
-  return {account, connect, callback, disconnect, files};
+  return {account, connect, callback, disconnect, files,beginRun:rate.begin,cancelPending:rate.cancel};
 }
