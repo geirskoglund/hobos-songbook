@@ -23,7 +23,8 @@ async function retry(f){for(let n=0;n<3;n++)try{return await f.run();}catch(erro
 test('bulk: hundreds of songs use bounded batch commits and sidecars reference confirmed content revisions',async()=>{
   const f=bulkFixture(240);await f.run();
   assert.deepEqual(f.batches.map(b=>b.length),[100,100,40,100,100,40]);
-  assert.deepEqual(f.singles.filter(path=>path!=='/.app/upload-index.json'),['/.app/library.json']);
+  assert.deepEqual(f.singles.filter(path=>!['/.app/upload-index.json','/.app/mutation.json'].includes(path)),['/.app/library.json']);
+  assert.equal(f.singles.filter(path=>path==='/.app/mutation.json').length,2,'one global CAS acquire and one release per run, not per song');
   assert.equal(f.singles.filter(path=>path==='/.app/upload-index.json').length,4,'one provenance commit per content group, then one cleanup, rather than per file');
   const manifest=JSON.parse(f.entries.get('/.app/library.json').text);assert.equal(Object.keys(manifest.songs).length,240);
   for(const link of Object.values(manifest.songs)){
@@ -57,7 +58,7 @@ test('bulk: partial revision failure retains successes, rechecks the conflict an
 test('bulk: generation interruption during staging sends no namespace commit and later resumes',async()=>{
   const f=bulkFixture(),begin=f.files.beginUpload;let interrupted=false;
   f.files.beginUpload=async text=>{const result=await begin(text);if(!interrupted){interrupted=true;f.change(()=>{});}return result;};
-  await assert.rejects(f.run());assert.equal(f.batches.length,0);assert.equal([...f.entries.values()].filter(e=>!e.folder).length,0);
+  await assert.rejects(f.run());assert.equal(f.batches.length,0);assert.deepEqual([...f.entries.values()].filter(e=>!e.folder).map(e=>e.path),['/.app/mutation.json']);
   await f.run();assert.equal(f.data.state.pending,false);assert.equal([...f.entries.values()].filter(e=>e.path.endsWith('.cho')).length,20);
 });
 

@@ -4,6 +4,8 @@ import {standardSongbook, songbookName, MissingSongbookError, type Songbook} fro
 import {setlistName, type Setlist} from '../domain/setlist.ts';
 import {syncStorage, trackLocal} from './sync.ts';
 import {failureCodes, SyncFailure} from '../sync/failure.ts';
+import {transferPlan,type TransferPlan} from '../domain/transfer.ts';
+import type {SyncState} from '../sync/model.ts';
 export const schemaVersion = 4;
 export interface LibrarySnapshot {songs: Song[]; songbooks: Songbook[]; personal: Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>[]}
 export function songStorage(namespace: string) {
@@ -157,28 +159,38 @@ export function songStorage(namespace: string) {
       } catch {db.close(); reject(problem);}
     });
   }
-  async function deleteSongbook(id: string, targetId: string | null): Promise<void> {
+  function transferNames(songs:Song[],state?:SyncState){
+    const names:Record<string,string>={};for(const song of songs){const wire=state?.bindings?.songs[song.id]??song.id,link=state?.reservations[wire]??state?.manifest.songs[wire];if(link?.path)names[song.id]=link.path.split('/').at(-1)!;}return names;
+  }
+  async function prepareTransfer(sourceId:string,targetId:string|null,accountId?:string):Promise<TransferPlan>{
+    const db=await open();return new Promise((resolve,reject)=>{
+      const tx=db.transaction(['songs','sync']),songs=tx.objectStore('songs').getAll(),state=accountId?tx.objectStore('sync').get(`private-account-v1:${accountId}`):undefined;
+      tx.oncomplete=()=>{db.close();resolve(transferPlan(songs.result,sourceId,targetId,transferNames(songs.result,state?.result)));};tx.onabort=tx.onerror=()=>{db.close();reject(new Error('Kunne ikke kontrollere sangene før flytting.'));};
+    });
+  }
+  async function deleteSongbook(id: string, targetId: string | null,approval?:{plan:TransferPlan;accountId?:string}): Promise<void> {
     const db = await open();
     return new Promise((resolve, reject) => {
       let problem = new Error('Kunne ikke slette sangboken. Ingen sanger er flyttet; prøv igjen.');
       try {
         const tx = db.transaction(['songs', 'songbooks', 'sync'], 'readwrite'), books = tx.objectStore('songbooks'), songs = tx.objectStore('songs');
-        const readBooks = books.getAll(), readSongs = songs.getAll();
+        const readBooks = books.getAll(), readSongs = songs.getAll(),readState=approval?.accountId?tx.objectStore('sync').get(`private-account-v1:${approval.accountId}`):undefined;
         let reads = 0;
         const ready = () => {
-          if (++reads !== 2) return;
+          if (++reads !== (readState?3:2)) return;
           try {
             const currentBooks = readBooks.result as Songbook[];
             if (!currentBooks.some(book => book.id === id)) throw new MissingSongbookError();
             if (currentBooks.length <= 1) throw new Error('Den siste sangboken kan ikke slettes. Opprett en annen sangbok først.');
             const affected = (readSongs.result as Song[]).filter(song => song.songbookId === id);
             if (affected.length && (targetId === id || !currentBooks.some(book => book.id === targetId))) throw new Error('Velg en annen sangbok som sangene skal overføres til.');
+            if(approval){const current=transferPlan(readSongs.result,id,targetId,transferNames(readSongs.result,readState?.result));if(current.signature!==approval.plan.signature)throw new Error('Sanglisten er endret. Kontroller flyttingen og prøv igjen.');}
             for (const song of affected) songs.put({...song, songbookId: targetId!});
             books.delete(id);
             trackLocal(tx, journal => {const book = currentBooks.find(book => book.id === id)!; journal.deletedBooks[id] = {id, name: book.name, deleted: true};});
           } catch (error) {if (error instanceof Error && !(error instanceof DOMException)) problem = error; try {tx.abort();} catch { /* Already aborted by the browser. */ }}
         };
-        readBooks.onsuccess = ready; readSongs.onsuccess = ready;
+        readBooks.onsuccess = ready; readSongs.onsuccess = ready;if(readState)readState.onsuccess=ready;
         tx.oncomplete = () => {db.close(); resolve();};
         tx.onabort = () => {db.close(); reject(problem);};
       } catch {db.close(); reject(problem);}
@@ -189,6 +201,7 @@ export function songStorage(namespace: string) {
     createSongbook: (id: string, name: string) => writeSongbook(id, name, true),
     renameSongbook: (id: string, name: string) => writeSongbook(id, name, false),
     deleteSongbook,
+    prepareTransfer,
     setlists: () => transaction<Setlist[]>('setlists', 'readonly', store => store.getAll()),
     createSetlist: (id: string, name: string) => writeSetlist(id, name, true),
     renameSetlist: (id: string, name: string) => writeSetlist(id, name),

@@ -76,6 +76,7 @@ export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():P
    const entry=pending.entries[i],job=jobs[entry.key],result=reply.entries[i];
    if(!job?.creation)continue;
    if('value'in result){
+    if(!result.value.path&&entry.toReference){const actual=await inspect(entry.fileId);await hooks.check();if(!actual)throw new RetrySync();result.value.path=actual.path;}
     const path=result.value.path||entry.to;
     const matches=entry.toReference?pathKey(path.split('/').at(-1)!)===pathKey(entry.to.split('/').at(-1)!):pathKey(path)===pathKey(entry.to);
     if(result.value.id!==entry.fileId||!matches)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Flytting bekreftet feil filidentitet eller mål.');
@@ -148,30 +149,34 @@ export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():P
   if(result&&'value'in result){old.value=result.value;old.status='done';hooks.record(old,result.value);await hooks.save();}
   throw new RetrySync();
  }
- async function discard(songId:string,role?:'original'){
-  for(const job of Object.values(jobs).filter(job=>job.songId===songId&&job.creation&&(!role||job.kind===role))){
+ async function discardMany(songIds:string[],role?:'original'){
+  const allowed=new Set(songIds),blocked=new Set<string>(),deletions:import('./model.ts').DeleteEntry[]=[],observed=new Map<string,FileValue>();
+  const group=Object.values(jobs).filter(job=>allowed.has(job.songId)&&job.creation&&(!role||job.kind===role));
+  for(const job of group){
    const c=job.creation!;if(c.discarded)continue;await hooks.check();const actual=await inspect(c.file?.id??c.path);await hooks.check();
-   if(actual&&pathKey(actual.path)!==pathKey(c.path)){const receipt={...(c.file??actual),path:actual.path};hooks.record(job,receipt);await hooks.save();return false;}
-   if(actual){
-    if(!files.deleteFile)return false;
-    // Delete the literal staging path, never an ID that an older async job
-    // might already have moved out. Then inspect the owned ID independently.
-    await files.deleteFile(c.path,actual.rev);await hooks.check();
-    const remaining=await inspect(actual.id);await hooks.check();
-    if(remaining){hooks.record(job,{...(c.file??actual),path:remaining.path});await hooks.save();return false;}
-   }else (state.abandoned??=[]).push({path:c.path});
-   c.discarded=true;await hooks.save();
+   if(actual&&pathKey(actual.path)!==pathKey(c.path)){hooks.record(job,{...(c.file??actual),path:actual.path});blocked.add(job.songId);continue;}
+   if(actual){observed.set(job.key,actual);deletions.push({key:job.key,path:c.path,fileId:actual.id,rev:actual.rev,category:'staging'});}
+   else (state.abandoned??=[]).push({path:c.path});
   }
-  await hooks.save();return true;
+  await hooks.save();
+  if(deletions.length){if(files.deleteFiles)await files.deleteFiles(deletions);else for(const entry of deletions){if(!files.deleteFile)return new Set<string>();await files.deleteFile(entry.path,entry.rev!);}await hooks.check();}
+  for(const job of group){
+   const c=job.creation!;if(c.discarded||blocked.has(job.songId))continue;const old=observed.get(job.key);
+   if(old){const remaining=await inspect(old.id);await hooks.check();if(remaining){hooks.record(job,{...(c.file??old),path:remaining.path});blocked.add(job.songId);continue;}}
+   c.discarded=true;
+  }
+  await hooks.save();return new Set(songIds.filter(id=>!blocked.has(id)));
  }
+ async function discard(songId:string,role?:'original'){return(await discardMany([songId],role)).has(songId);}
  async function sweep(){
-  const keep:NonNullable<SyncState['abandoned']>=[];
+  const keep:NonNullable<SyncState['abandoned']>=[],deletions:import('./model.ts').DeleteEntry[]=[];
   for(const item of state.abandoned??[]){
    const entry=state.remote?.entries[pathKey(item.path)];if(!entry){keep.push(item);continue;}
    await hooks.check();const current=await inspect(item.fileId??item.path);await hooks.check();
-   if(current&&pathKey(current.path)===pathKey(item.path)&&files.deleteFile){await files.deleteFile(item.path,current.rev);await hooks.check();}else if(current)continue;
+   if(current&&pathKey(current.path)===pathKey(item.path))deletions.push({key:item.path,path:item.path,fileId:current.id,rev:current.rev,category:'staging'});
   }
+  if(deletions.length){if(files.deleteFiles)await files.deleteFiles(deletions);else for(const entry of deletions)await files.deleteFile?.(entry.path,entry.rev!);await hooks.check();}
   state.abandoned=keep;
  }
- return{prepare,request,ready,accept,recover,resume,place,replace,discard,sweep,isNew};
+ return{prepare,request,ready,accept,recover,resume,place,replace,discard,discardMany,sweep,isNew};
 }

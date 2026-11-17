@@ -24,7 +24,7 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
     let parent=entry.path.slice(0,entry.path.lastIndexOf('/'));
     while(parent){if(!state.remote.entries[pathKey(parent)])set({path:parent,folder:true});parent=parent.slice(0,parent.lastIndexOf('/'));}
   }
-  async function moved(reply:MoveReply,entries:MoveEntry[]){
+  function moved(reply:MoveReply,entries:MoveEntry[]){
     if(!('entries'in reply))return reply;
     if(reply.entries.length!==entries.length)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ufullstendig flytteresultat.');
     for(let i=0;i<entries.length;i++){
@@ -32,15 +32,18 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
       let path=result.value.path;
       // Dropbox permits omitted display paths. A folder-ID-relative target can
       // have moved since launch, so its old absolute name is not a receipt.
-      if(!path&&plan.toReference){const current=await raw.read(result.value.id);if(!current)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Flyttemålet kan ikke bekreftes.');path=current.path;}
+      // Return transport receipts before any follow-up request/generation guard.
+      // The durable queue resolves optional paths after journaling the receipt.
+      if(!path&&plan.toReference)continue;
       path||=plan.to;
       const matches=plan.toReference?pathKey(path.split('/').at(-1)!)===pathKey(plan.to.split('/').at(-1)!):pathKey(path)===pathKey(plan.to);
       if(result.value.id!==plan.fileId||!matches)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ugyldig flyttekvittering.');
-      result.value.path=path;const old=find(result.value.id);put({...old,...result.value,folder:false});
+      result.value.path=path;const old=find(result.value.id);put({...old,...result.value,folder:result.value.folder??plan.folder??false});
     }
     return reply;
   }
   const files:RemoteFiles={
+    ...(raw.metadata?{async metadata(path:string){const value=await raw.metadata!(path);if(value)put(value);else{const old=find(path);if(old)remove(old.path);}return value;}}:{}),
     async inspectFile(path){const result=await raw.read(path);if(result)put({id:result.id,path:result.path,rev:result.rev,folder:false,size:textBytes(result.text)});else{const entry=find(path);if(entry)remove(entry.path);}return result;},
     async read(path){
       if(path.startsWith('rev:')){const match=Object.entries(state.bases).find(([,base])=>base.contentRev===path.slice(4));if(match){const link=state.manifest.songs[match[0]]??state.reservations[match[0]];if(link?.fileId)return{text:match[1].original,id:link.fileId,rev:path.slice(4),path};}}
@@ -65,7 +68,11 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
     ...(raw.beginUpload?{beginUpload:raw.beginUpload}:{}),
     ...(raw.commitBatch?{async commitBatch(jobs){const results=await raw.commitBatch!(jobs);for(const result of results)if('value'in result)put({id:result.value.id,path:result.value.path,rev:result.value.rev,folder:false,size:textBytes(result.value.text)});return results;}}:{}),
     ...(raw.moveBatch?{async moveBatch(entries,retryAttempt){return moved(await raw.moveBatch!(entries,retryAttempt),entries);}}:{}),
-    ...(raw.checkMoveBatch?{async checkMoveBatch(id,retryAttempt){return moved(await raw.checkMoveBatch!(id,retryAttempt),state.placement?.entries??[]);}}:{}),
+    ...(raw.checkMoveBatch?{async checkMoveBatch(id,retryAttempt){return moved(await raw.checkMoveBatch!(id,retryAttempt),state.namespaceJob?.kind==='move'?state.namespaceJob.entries as MoveEntry[]:state.placement?.entries??[]);}}:{}),
+    ...(raw.createFoldersBatch?{async createFoldersBatch(entries,retryAttempt){const reply=await raw.createFoldersBatch!(entries,retryAttempt);return foldersCreated(reply,entries);}}:{}),
+    ...(raw.checkCreateFoldersBatch?{async checkCreateFoldersBatch(id,retryAttempt){return foldersCreated(await raw.checkCreateFoldersBatch!(id,retryAttempt),state.namespaceJob?.entries as import('./model.ts').FolderEntry[]??[]);}}:{}),
+    ...(raw.deleteBatch?{async deleteBatch(entries,retryAttempt){return deleted(await raw.deleteBatch!(entries,retryAttempt),entries);}}:{}),
+    ...(raw.checkDeleteBatch?{async checkDeleteBatch(id,retryAttempt){return deleted(await raw.checkDeleteBatch!(id,retryAttempt),state.namespaceJob?.entries as import('./model.ts').DeleteEntry[]??[]);}}:{}),
     async folder(path,expectedId){
       const current=find(expectedId??path);
       if(current){
@@ -81,6 +88,14 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
     async removeEmpty(path){if(state.remote&&(await files.list(path)).length)return false;const removed=await raw.removeEmpty(path);if(removed)remove(path);return removed;},
     ...(raw.deleteFile?{async deleteFile(path:string,rev:string){await raw.deleteFile!(path,rev);const entry=find(path);if(entry)remove(entry.path);}}:{}),
   };
+  function foldersCreated(reply:MoveReply,entries:import('./model.ts').FolderEntry[]){
+    if(!('entries'in reply))return reply;if(reply.entries.length!==entries.length)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.folders-batch'},'Ufullstendig mappekvittering.');
+    for(let i=0;i<entries.length;i++){const result=reply.entries[i];if(!('value'in result))continue;result.value.path||=entries[i].path;put({...result.value,folder:true});}return reply;
+  }
+  function deleted(reply:MoveReply,entries:import('./model.ts').DeleteEntry[]){
+    if(!('entries'in reply))return reply;if(reply.entries.length!==entries.length)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.delete-batch'},'Ufullstendig slettekvittering.');
+    for(let i=0;i<entries.length;i++){const result=reply.entries[i],entry=entries[i];if('value'in result&&result.value.id!==entry.fileId)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.delete-batch'},'Sletting bekreftet feil identitet.');if('value'in result||result.missing){const old=find(entry.fileId);if(old&&(entry.category!=='staging'||pathKey(old.path)===pathKey(entry.path)))remove(old.path);}}return reply;
+  }
   async function refresh(){
     if(!raw.changes)return;
     const update=await raw.changes(state.remote?.cursor),previous=state.remote;
@@ -89,5 +104,5 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
     refreshing=true;try{for(const entry of update.entries)put(entry);}finally{refreshing=false;}
   }
   function unchangedFile(id:string|undefined,rev:string,path:string){const entry=find(id??path);return Boolean(entry?.id&&entry.rev===rev&&!entry.folder);}
-  return{files,refresh,find,unchangedFile};
+  return{files,refresh,find,unchangedFile,forget(id:string){const old=find(id);if(old)remove(old.path);}};
 }

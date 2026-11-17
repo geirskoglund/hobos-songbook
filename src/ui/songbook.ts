@@ -48,7 +48,7 @@ export function startSongbook() {
   const filterStatus = query('filter-status');
   try {selectedBook = readSongbookFilter(__APP_ENV__.namespace);}
   catch {filterStatus.textContent = 'Sangbokvalget kunne ikke hentes. Viser alle sanger.';}
-  const bookManager = startSongbooks(storage, {changed: acceptLibrary, openBook: id => {
+  const bookManager = startSongbooks(storage, {changed: acceptLibrary,account:()=>cloud.account()?.id, openBook: id => {
     selectFilter(id); void navigate('library');
   }});
   let disposeView = () => {};
@@ -100,7 +100,7 @@ export function startSongbook() {
             if (!id) throw cause;
             submitting.assignNewSongbook(id); continue;
           }
-          if (!submitting.baselineSong) lastUsedBook = snapshot.song.songbookId;
+          if (!submitting.baselineSong) {lastUsedBook = snapshot.song.songbookId;selectFilter(lastUsedBook);}
           submitting.markSaved(snapshot);
           const index=songs.findIndex(song=>song.id===snapshot.song.id);
           if(index<0)songs.push(snapshot.song);else songs[index]=snapshot.song;
@@ -437,6 +437,7 @@ export function startSongbook() {
         }
       }
       lastUsedBook = song.songbookId;
+      selectFilter(lastUsedBook);
       songs.push(song); drawList();
       await openSong(song);
       if (active?.id === song.id) notify('Sangen er lagret på denne enheten.');

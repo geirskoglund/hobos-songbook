@@ -69,3 +69,12 @@ test('a real folder collision and unconfirmed revocation give concrete user guid
  await page.setViewportSize({width:320,height:800});await expect(page.getByRole('button',{name:'Kopier feillogg',exact:true})).toBeInViewport();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);await page.screenshot({path:'work/sync-diagnostics/folder-collision-320.png'});
  mock.fault('/token/revoke',500);await page.locator('#dropbox-disconnect').click();await page.getByRole('dialog',{name:'Koble fra Dropbox',exact:true}).getByRole('button',{name:'Koble fra',exact:true}).click();await expect(page.locator('.sync-connect [role=status]')).toContainText('Feilkode SYNC-023');await expect(page.locator('.sync-connect [role=status]')).toContainText('Kontroller appens tilgang under tilkoblede apper i Dropbox.');
 });
+
+for(const lostAfterRevoke of [false,true])test(`SYNC023 persists after disconnect and restart when revoke is unconfirmed (${lostAfterRevoke?'effect with lost reply':'request aborted'})`,async({page,context})=>{
+ const mock=await dropboxMock(context);await page.goto(url);await expect.poll(()=>Boolean(mock.find('/.app/library.json'))).toBe(true);await syncPage(page);await expect(page.locator('#dropbox-sync')).toBeEnabled();let revoked=false;
+ await context.route('https://api.dropboxapi.com/2/auth/token/revoke',async route=>{if(lostAfterRevoke)revoked=true;await route.abort('failed');});
+ await page.locator('#dropbox-disconnect').click();await page.getByRole('dialog',{name:'Koble fra Dropbox',exact:true}).getByRole('button',{name:'Koble fra',exact:true}).click();
+ await expect(page.locator('.sync-connect [role=status]')).toContainText('SYNC-023');expect(await page.evaluate(()=>localStorage.getItem('hobos-songbook-test:dropbox-auth-v1'))).toBeNull();expect(revoked).toBe(lostAfterRevoke);
+ // The mock's normal connection bootstrap must not reconnect this restart.
+ await context.unroute('https://api.dropboxapi.com/2/auth/token/revoke');await page.reload();await syncPage(page);await expect(page.locator('.sync-connect [role=status]')).toContainText('SYNC-023');
+});

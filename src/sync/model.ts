@@ -13,9 +13,13 @@ export interface RemoteEntry {id?: string; path: string; folder?: boolean; rev?:
 export interface UploadIntent {key:string; songId:string; kind:'content'|'personal'|'original'|'seed'; path:string; text:string; rev:string|null; fileId?:string; base:{original:string;personal:PersonalFile;link?:SongLink}}
 export interface UploadJob extends UploadIntent {status:'planned'|'committing'|'done'; session?:{id:string;created:number}; value?:FileValue; creation?:{path:string;basePath:string;number:number;file?:FileValue;attempted?:boolean;collision?:boolean;failure?:FailureInfo;discarded?:boolean;folderId?:string;book?:BookLink}}
 export type UploadResult={value:FileValue}|{failure:FailureInfo;resetSession?:boolean};
-export interface MoveEntry {key:string;from:string;to:string;fileId:string;toReference?:string}
-export type MoveResult={value:{id:string;path:string;rev?:string}}|{failure:FailureInfo;collision?:boolean;missing?:boolean};
+export interface MoveEntry {key:string;from:string;to:string;fileId:string;toReference?:string;folder?:boolean;link?:SongLink;book?:BookLink}
+export type MoveResult={value:{id:string;path:string;rev?:string;folder?:boolean}}|{failure:FailureInfo;collision?:boolean;missing?:boolean};
 export type MoveReply={entries:MoveResult[]}|{asyncJobId:string}|{inProgress:true}|{jobExpired:true};
+export interface DeleteEntry {key:string;path:string;fileId:string;rev?:string;folder?:boolean;category:'personal'|'staging'|'folder';sourcePath?:string}
+export interface FolderEntry {key:string;path:string;parentId?:string;book?:BookLink}
+export type NamespaceEntry=MoveEntry|DeleteEntry|FolderEntry;
+export interface NamespaceJob {id:string;kind:'move'|'delete'|'folders';entries:NamespaceEntry[];submitted?:boolean;jobId?:string;attempt:number;reply?:MoveReply;quarantinedParents?:string[]}
 export interface RemoteIndex {cursor: string; entries: Record<string, RemoteEntry>; beforeUpdates?:Record<string,RemoteEntry|null>}
 export interface RemoteFiles {
   read(path: string, knownPath?:string): Promise<FileValue | null>;
@@ -24,6 +28,11 @@ export interface RemoteFiles {
   commitBatch?(jobs:UploadJob[]):Promise<UploadResult[]>;
   moveBatch?(entries:MoveEntry[],retryAttempt?:number):Promise<MoveReply>;
   checkMoveBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
+  deleteBatch?(entries:DeleteEntry[],retryAttempt?:number):Promise<MoveReply>;
+  checkDeleteBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
+  createFoldersBatch?(entries:FolderEntry[],retryAttempt?:number):Promise<MoveReply>;
+  checkCreateFoldersBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
+  metadata?(path:string):Promise<RemoteEntry|null>;
   inspectFile?(path:string):Promise<FileValue|null>;
   folder(path: string, expectedId?: string, knownMissing?: boolean): Promise<{id: string; path: string}>;
   locateFolder(id: string): Promise<{id: string; path: string} | null>;
@@ -31,6 +40,7 @@ export interface RemoteFiles {
   list(path: string): Promise<{id: string; path: string; folder: boolean}[]>;
   removeEmpty(path: string): Promise<boolean>;
   deleteFile?(path:string,rev:string):Promise<void>;
+  deleteFiles?(entries:DeleteEntry[]):Promise<void>;
   changes?(cursor?: string): Promise<{entries: RemoteEntry[]; cursor: string; reset: boolean}>;
 }
 export interface SongBase {original: string; personal: PersonalFile; contentRev: string; personalRev: string}
@@ -48,6 +58,13 @@ export interface SyncState {
   originals?: Record<string, boolean>;
   uploads?:Record<string,UploadJob>;
   placement?:{entries:MoveEntry[];jobId?:string;retryAttempt?:number};
+  namespaceJob?:NamespaceJob;
+  mutationOwner?:string;
+  mutationFileId?:string;
+  mutationPending?:boolean;
+  movedSongs?:Record<string,SongLink>;
+  movedBooks?:Record<string,BookLink>;
+  createdBooks?:Record<string,BookLink>;
   abandoned?:{path:string;fileId?:string;rev?:string}[];
   uploadIndex?:{id:string;rev:string;value:import('./bridge.ts').UploadIndex};
   skipped?:Record<string,boolean>;

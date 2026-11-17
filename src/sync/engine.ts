@@ -11,6 +11,8 @@ import {uploadQueue} from './uploads.ts';
 import {checkSize,textBytes,maxFileBytes,SkippedFile} from './limits.ts';
 import {songFilename,originalFilename,numberedPath} from './filenames.ts';
 import {claimReady,type UploadClaim} from './bridge.ts';
+import {namespaceQueue} from './namespace.ts';
+import {mutationFence} from './mutation.ts';
 export class PausedSync extends DeferredSync {constructor() {super('session','Synkronisering er pauset mens en sang er åpen.');}}
 const privateSong = (song: Song) => song.origin.kind === 'local' || song.origin.provider === 'dropbox' && !(song.origin as any).sourceId;
 const personalOf = (snapshot: SyncSnapshot, id: string) => personalData(snapshot.personal.find(p => p.songId === id) ?? {songId: id, version: 3, chorus: {}});
@@ -25,6 +27,8 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   let index:ReturnType<typeof indexedFiles>;
   let identities:ReturnType<typeof syncIdentities>;
   let uploads:ReturnType<typeof uploadQueue>;
+  let namespace:ReturnType<typeof namespaceQueue>;
+  let fence:ReturnType<typeof mutationFence>;
   let interruption:unknown;
   let removedIds=new Set<string>();
   let confirmedLinks:Record<string,SongLink>={};
@@ -47,7 +51,18 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     confirmedLinks={};
     snapshot = await storage.snapshot(accountId); state = snapshot.state; generation = snapshot.journal.generation;
     identities=syncIdentities(snapshot);snapshot=identities.project();
-    index=indexedFiles(rawFiles,state);files=index.files;
+    index=indexedFiles(rawFiles,state);
+    namespace=namespaceQueue(index.files,state,{check,save,freshList:rawFiles.list,find:index.find,removed(entry){const current=index.find(entry.fileId);if(entry.category!=='staging'||current&&pathKey(current.path)===pathKey(entry.path))index.forget(entry.fileId);},
+      receipt:async job=>{if(storage.transport)await storage.transport(accountId,job);else await save();},
+      moved(entry,value){
+        if(entry.link){const link={...entry.link,fileId:value.id,path:value.path};state.reservations[link.id]=link;(state.movedSongs??={})[link.id]=link;}
+        if(entry.book){const book={...entry.book,folderId:value.id,path:value.path};state.folders[book.id]=book;(state.movedBooks??={})[book.id]=book;}
+      },
+    });
+    files={...index.files,folder:namespace.folder,deleteFiles:namespace.remove,
+      async deleteFile(path,rev){const entry=await index.files.metadata?.(path)??index.find(path);if(!entry?.id)return;await namespace.remove([{key:path,path,fileId:entry.id,rev,category:path.startsWith('/.app/uploads/')?'staging':'personal'}]);},
+    };
+    fence=mutationFence(rawFiles,state,{check,save});
     uploads=uploadQueue(files,state,{check,save,record:recordUpload});
     await check();
   }
@@ -68,7 +83,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     return local;
   }
   function hasLocalWork(){
-    if(Object.keys(state.renames??{}).length||Object.keys(state.decisions).length||Object.values(state.uploads??{}).some(job=>job.status!=='done'))return true;
+    if(state.mutationPending||state.namespaceJob||Object.keys(state.renames??{}).length||Object.keys(state.decisions).length||Object.values(state.uploads??{}).some(job=>job.status!=='done'))return true;
     for(const book of snapshot.songbooks){const known=state.manifest.books[book.id];if(known?.deleted)continue;if(!known?.folderId||known.name!==book.name)return true;}
     for(const book of Object.values(snapshot.journal.deletedBooks))if(!state.manifest.books[book.id]?.deleted)return true;
     for(const song of snapshot.songs.filter(privateSong)){
@@ -126,7 +141,9 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     for(const song of snapshot.songs)if(remote.books[song.songbookId]?.deleted){
       deleteSong(remote,{...state.reservations[song.id],id:song.id,songbookId:song.songbookId,origin:song.origin,path:''});
     }
-    for(const [key,job]of Object.entries(state.uploads??{}))if(remote.deletedSongs?.[job.songId]){if(job.creation)await uploads.discard(job.songId);delete state.uploads![key];}
+    const discarded=Object.values(state.uploads??{}).filter(job=>job.creation&&remote.deletedSongs?.[job.songId]).map(job=>job.songId);
+    if(discarded.length)await uploads.discardMany([...new Set(discarded)]);
+    for(const [key,job]of Object.entries(state.uploads??{}))if(remote.deletedSongs?.[job.songId])delete state.uploads![key];
   }
   function removedChanges(remote:Manifest){
     const removed=Object.keys(remote.deletedSongs??{}),books=Object.values(remote.books).filter(b=>b.deleted).map(b=>b.id);
@@ -144,7 +161,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.book-state'},'Sangbokmappen er endret under en uferdig navneendring.');
       }
       if (!/^\/Songbooks\/[^/]+$/i.test(current.path)) throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.book-state'},'En kjent sangbokmappe ligger utenfor Songbooks.');
-      if (book.path === current.path) continue;
+      if (book.path === current.path && book.name === current.path.split('/').at(-1)!) continue;
       const previousPath = book.path ?? `/Songbooks/${book.name}`;
       book.name = remoteBookName(current.path.split('/').at(-1)!, Object.values(remote.books).filter(other => !other.deleted), book.id);
       book.path = current.path;
@@ -153,29 +170,38 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     }
   }
   async function ensureBooks(merged: Manifest) {
-    await folder('/.app'); await folder('/.app/songs'); await folder('/Songbooks');
-    for (const book of Object.values(merged.books).filter(b => !b.deleted)) {
-      const target = `/Songbooks/${book.name}`;
-      const prior = Object.values(merged.books).find(other => other.id !== book.id && other.path?.toLowerCase() === target.toLowerCase());
-      if (prior) {
-        const entries = await step(() => files.list('/Songbooks'));
-        if (entries.some(entry => entry.path.toLowerCase() === target.toLowerCase() && (!prior.folderId || entry.id === prior.folderId))) throw new SyncFailure({code:failureCodes.bookName,stage:'sync.book-name',action:'book-names'},'Mappen tilhører en annen eller slettet sangbok.');
-      }
-      const known = state.folders[book.id] ?? state.manifest.books[book.id] ?? book;
-      let binding: {id: string; path: string};
-      if (known.folderId && (!known.path||pathKey(known.path)!==pathKey(target)||known.path.split('/').at(-1)!==book.name)) {
-        (state.renames ??= {})[book.id] = {from: known.path ?? target, to: target}; await save();
-        // Dropbox paths are case-insensitive; a temporary name preserves case-only renames.
-        if (known.path !== target && known.path?.toLowerCase() === target.toLowerCase()) {
-          const intermediate = `/Songbooks/.rename-${book.id}`;
-          await step(() => files.move(known.folderId!, intermediate));
-        }
-        binding = await step(() => files.move(known.folderId!, target));
-      } else binding = await folder(target, known.folderId);
-      book.folderId = binding.id; book.path = binding.path;
-      state.folders[book.id] = {...book}; delete state.renames?.[book.id]; await save();
-      for (const kind of ['Private', 'Shared', 'Import', 'Originals']) await folder(`${target}/${kind}`);
+    await namespace.folders(['/.app','/.app/songs','/Songbooks'].map(path=>({key:path,path})));
+    const active=Object.values(merged.books).filter(book=>!book.deleted);
+    // Resolve ownership before planning any creation or rename.
+    for(const book of active){
+      const target=`/Songbooks/${book.name}`,prior=Object.values(merged.books).find(other=>other.id!==book.id&&pathKey(other.path??'')===pathKey(target));
+      const occupying=index.find(target);
+      if(prior&&occupying&&(!prior.folderId||occupying.id===prior.folderId))throw new SyncFailure({code:failureCodes.bookName,stage:'sync.book-name',action:'book-names'},'Mappen tilhører en annen eller slettet sangbok.');
     }
+    const renames:import('./model.ts').MoveEntry[]=[],cases:import('./model.ts').MoveEntry[]=[];
+    const creates:import('./model.ts').FolderEntry[]=[];
+    for(const book of active){
+      const target=`/Songbooks/${book.name}`,known=state.folders[book.id]??state.manifest.books[book.id]??book;
+      if(known.folderId){
+        const actual=await step(()=>files.locateFolder(known.folderId!));
+        if(!actual)throw new SyncFailure({code:failureCodes.missingFolder,stage:'sync.book-state'},'Kjent sangbokmappe mangler.');
+        if(actual.path!==target){
+          (state.renames??={})[book.id]={from:known.path??actual.path,to:target};
+          const plan={key:`book:${book.id}`,from:known.folderId,to:target,fileId:known.folderId,folder:true,book:{...book}};
+          if(pathKey(actual.path)===pathKey(target))cases.push({...plan,key:plan.key+':case',to:`/Songbooks/.rename-${book.id}`,book:undefined});
+          renames.push(plan);
+        }
+      }else {state.folders[book.id]??={...book};creates.push({key:book.id,path:target,book:{...book}});}
+    }
+    await save();if(cases.length)await namespace.move(cases);if(renames.length)await namespace.move(renames);
+    await namespace.folders(creates);
+    const children:import('./model.ts').FolderEntry[]=[];
+    for(const book of active){
+      const target=`/Songbooks/${book.name}`,known=state.folders[book.id]??book;
+      const binding=await folder(target,known.folderId);book.folderId=binding.id;book.path=binding.path;state.folders[book.id]={...book};delete state.renames?.[book.id];
+      for(const kind of ['Private','Shared','Import','Originals'])children.push({key:book.id+':'+kind,path:`${target}/${kind}`});
+    }
+    await save();await namespace.folders(children);
   }
   async function discover(remote: Manifest,publishedIds:Set<string>) {
     // Inspect only book directories and Private/. Contents of other subfolders stay out of sync.
@@ -188,7 +214,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         known = {id: crypto.randomUUID(), name, path: entry.path, folderId: entry.id}; state.folders[known.id] = known; await save();
       }
       remote.books[known.id] = {...known};
-      for (const kind of ['Private', 'Shared', 'Import', 'Originals']) await folder(`${entry.path}/${kind}`);
+      await namespace.folders(['Private','Shared','Import','Originals'].map(kind=>({key:entry.id+':'+kind,path:`${entry.path}/${kind}`})));
     }
     for (const book of Object.values(remote.books).filter(book => !book.deleted)) {
       for (const file of await step(() => files.list(`${book.path ?? `/Songbooks/${book.name}`}/Private`))) {
@@ -280,15 +306,6 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     let content=plan.content;
     if(!content)throw new SyncFailure({code:failureCodes.missingFile,stage:'sync.file'},'Ingen sangfilversjon er tilgjengelig.');
     if(plan.contentIntent?.rev===null)link.path=content.path;
-    const baseTarget=`${state.folders[link.songbookId]?.path??`/Songbooks/${snapshot.songbooks.find(b=>b.id===link.songbookId)?.name}`}/Private/${link.path.split('/').at(-1)}`;
-    let target=baseTarget,number=1;
-    while(index.find(target)&&index.find(target)!.id!==content.id)target=numberedPath(baseTarget,++number);
-    if(content.path!==target){
-      let moved;
-      try{moved=await step(()=>files.move(content!.id,target));}catch(error){if(error instanceof SyncFailure&&error.info.code===failureCodes.changed)throw new RetrySync();throw error;}
-      if(moved.id!==content.id)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move'},'Flyttingen bekreftet en annen sangfil.');
-      content={...content,...moved};
-    }
     link.path=content.path;link.fileId=content.id;state.reservations[link.id]={...link};await save();
     const referenceRev=contentChoice==='remote'?basis!.contentRev:content.rev;
     const nextPerson:PersonalFile={version:1,songId:link.id,original:{rev:referenceRev,hash:await hash(chosenSong.original)},data:chosenPersonal};
@@ -317,17 +334,36 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     manualRecovery = manual;
     await start();
     if(!manual&&!resolution&&!hasLocalWork()){state.localGeneration=generation;hooks.idle?.();await save();return state;}
+    const library=state.library?.value??state.manifest;
+    const unprocessed=(link:SongLink)=>{const basis=state.bases[link.id],entry=index.find(link.fileId??link.path);return !basis||entry?.rev!==basis.contentRev||pathKey(entry?.path??'')!==pathKey(link.path)||!index.unchangedFile(undefined,basis.personalRev,`/.app/songs/${link.id}.json`);};
+    const incoming=Object.values(library.books).some(book=>!book.deleted&&!snapshot.songbooks.some(local=>local.id===book.id))||Object.values(library.songs).some(song=>!snapshot.songs.some(local=>local.id===song.id)||unprocessed(song))||Object.values(state.remote?.entries??{}).some(entry=>{
+      if(entry.folder&&/^\/Songbooks\/[^/]+$/i.test(entry.path))return !Object.values(library.books).some(book=>book.folderId===entry.id);
+      if(!entry.folder&&/^\/Songbooks\/[^/]+\/Private\/[^/]+\.cho$/i.test(entry.path)&&(entry.size??0)<=maxFileBytes)return !Object.values(library.songs).some(song=>song.fileId===entry.id);
+      return false;
+    });
+    const cleanState=!incoming&&!state.pending&&!state.awaitingDownload&&!Object.keys(state.held??{}).length&&!snapshot.songs.some(song=>state.manifest.deletedSongs?.[song.id])&&!snapshot.songbooks.some(book=>state.manifest.books[book.id]?.deleted);
     delete state.error; delete state.failure; state.pending = true; state.awaitingDownload = false;
     try {
+      // A cursor-only check has no namespace effects and needs no shared fence.
+      // Ignore only our mutex and diagnostic log; library/provenance changes
+      // still require fenced, fresh processing. No stale snapshot is published.
+      if(cleanState&&manual&&!resolution&&!hasLocalWork()&&state.remote&&!state.conflicts.length&&state.localGeneration===generation){
+        const domain=()=>Object.fromEntries(Object.entries(state.remote!.entries).filter(([path])=>!['/.app/mutation.json','/.app/sync-errors.json'].includes(path)).map(([path,entry])=>[path,{id:entry.id,path:entry.path,folder:Boolean(entry.folder),...(!entry.folder?{rev:entry.rev}:{})}]));
+        const before=structuredClone(domain());await step(()=>index.refresh());
+        if(same(before,domain())){state.pending=false;state.localGeneration=generation;state.lastManual=new Date().toISOString();state.joined=true;await save({recoveryComplete:true});return state;}
+      }
+      await fence.acquire();
       await step(()=>index.refresh());
-      const manifestFile = await read('/.app/library.json');
+      const manifestFile = await step(()=>(files.inspectFile??files.read)('/.app/library.json'));
+      if(manifestFile)state.library={id:manifestFile.id,rev:manifestFile.rev,value:parseManifest(manifestFile.text)};
       if(!manifestFile&&state.library)throw new SyncFailure({code:failureCodes.manifest,stage:'sync.manifest'},'Kjent bibliotekmetadata mangler.');
+      await namespace.recover();
       const remote = manifestFile ? parseManifest(manifestFile.text) : emptyManifest();
       const published=structuredClone(remote);uploads.observeManifest(published);
       claims=Object.values((await uploads.claims()).entries).filter(claim=>!claimReady(claim,published));
       // A confirmed folder is a real component basis even before the first
       // manifest commit. Capture it before fresh remote bindings/names replace it.
-      const base:Manifest=structuredClone({...state.manifest,books:{...Object.fromEntries(Object.entries(state.folders).filter(([,book])=>book.folderId)),...state.manifest.books},songs:{...Object.fromEntries(Object.entries(state.reservations).filter(([key,link])=>!key.startsWith('copy:')&&link.fileId)),...state.manifest.songs}});
+      const base:Manifest=structuredClone({...state.manifest,books:{...Object.fromEntries(Object.entries(state.folders).filter(([,book])=>book.folderId)),...state.manifest.books,...state.createdBooks,...state.movedBooks},songs:{...Object.fromEntries(Object.entries(state.reservations).filter(([key,link])=>!key.startsWith('copy:')&&link.fileId)),...state.manifest.songs,...state.movedSongs}});
       for(const claim of claims){
         if(Object.values(remote.books).some(book=>book.folderId===claim.book.folderId)||remote.books[claim.book.id]?.deleted)continue;
         const folder=index.find(claim.book.folderId!);if(folder?.folder&&/^\/Songbooks\/[^/]+$/i.test(folder.path))remote.books[claim.book.id]={...claim.book,path:folder.path,name:folder.path.split('/').at(-1)!};
@@ -342,7 +378,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       await inspectRemovals(remote);
       state.skipped={};
       if (manual) await refreshBookNames(remote);
-      const joinedBooks=identities.books(remote),joinedSongs=await identities.songs(remote,privateSong,uploads.discard);
+      const joinedBooks=identities.books(remote),joinedSongs=await identities.songs(remote,privateSong,uploads.discard,uploads.discardMany);
       if(joinedBooks||joinedSongs){snapshot=identities.project();await save();}
       if(!state.joined&&!state.lastManual){
         const key=(song:Song)=>JSON.stringify([song.songbookId,song.origin.filename.normalize('NFC')]);
@@ -361,7 +397,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       await ensureBooks(merged);
       if (manual) {
         await discover(merged,publishedIds);
-        if(await identities.songs(merged,privateSong,uploads.discard)){
+        if(await identities.songs(merged,privateSong,uploads.discard,uploads.discardMany)){
           const previous=local;snapshot=identities.project();local=localManifest();
           for(const id of Object.keys(previous.songs))if(!local.songs[id]&&!remote.songs[id])delete merged.songs[id];
           await save();
@@ -421,10 +457,24 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         catch(error){if(fatal(error))throw error;fail(entry.id,error);await save();}
       });
       const contentResults=await send(plans.flatMap(plan=>plan.contentIntent?[plan.contentIntent]:[]));
+      const transfers:import('./model.ts').MoveEntry[]=[];
+      const targets=new Set<string>();
+      for(const plan of plans){
+        if(failed.has(plan.link.id))continue;
+        if(plan.contentIntent){const result=contentResults.get(plan.contentIntent.key);if(!result||!('value'in result))continue;plan.content=result.value;}
+        if(!plan.content)continue;
+        if(plan.contentIntent?.rev===null)plan.link.path=plan.content.path;
+        const parent=state.folders[plan.link.songbookId].path+'/Private',baseTarget=parent+'/'+plan.link.path.split('/').at(-1);
+        let target=baseTarget,n=1;
+        while(targets.has(pathKey(target))||index.find(target)&&index.find(target)!.id!==plan.content.id)target=numberedPath(baseTarget,++n);
+        targets.add(pathKey(target));
+        if(plan.content.path!==target){const destination=await folder(parent);transfers.push({key:'song:'+plan.link.id,from:plan.content.id,to:target,toReference:destination.id+'/'+target.split('/').at(-1),fileId:plan.content.id,link:{...plan.link,path:target}});}
+      }
+      if(transfers.length){await namespace.move(transfers);for(const plan of plans){const moved=state.movedSongs?.[plan.link.id];if(moved&&plan.content){plan.content={...plan.content,path:moved.path};plan.link.path=moved.path;}}}
       const finishing:Awaited<ReturnType<typeof finishContent>>[]=[];
       await parallel(plans,async plan=>{
         if(failed.has(plan.link.id))return;
-        if(plan.contentIntent){const result=contentResults.get(plan.contentIntent.key);if(!result||!('value'in result))return;plan.content=result.value;}
+        if(plan.contentIntent){const result=contentResults.get(plan.contentIntent.key);if(!result||!('value'in result))return;}
         try{finishing.push(await finishContent(plan));}catch(error){if(fatal(error))throw error;fail(plan.link.id,error);await save();}
       });
       const finalResults=await send(finishing.flatMap(plan=>plan.intents));
@@ -459,29 +509,36 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       if (manual) {
         const books = Object.values(merged.books).filter(b => !b.deleted && !local.books[b.id]?.deleted).map(({id, name}) => ({...snapshot.songbooks.find(b => b.id === id), id, name}));
         const deleted = snapshot.songbooks.filter(b => merged.books[b.id]?.deleted || !local.books[b.id] && !merged.books[b.id]).map(b => b.id);
-        if(files.deleteFile)await parallel(Object.keys(merged.deletedSongs??{}),async id=>{const entry=index.find(`/.app/songs/${id}.json`);if(entry?.id&&entry.rev)await step(()=>files.deleteFile!(entry.id!,entry.rev!));});
+        const cleanup=Object.keys(merged.deletedSongs??{}).flatMap(id=>{const sourcePath=`/.app/songs/${id}.json`,entry=index.find(sourcePath);return entry?.id&&entry.rev?[{key:'personal:'+id,path:entry.id,fileId:entry.id,rev:entry.rev,sourcePath,category:'personal' as const}]:[];});
         state.manifest = structuredClone(merged);const removed=removedChanges(merged);await save({books,deleteBooks:[...new Set([...deleted,...removed.deleteBooks])],deleteSongs:removed.deleteSongs});
+        await namespace.remove(cleanup);
       }
-      for (const book of Object.values(merged.books).filter(b => b.deleted && b.folderId)) {
-        const remaining = await step(() => files.locateFolder(book.folderId!));
-        if (!remaining || !/^\/Songbooks\/[^/]+$/i.test(remaining.path)) continue;
-        // The deleted folder's ID must still own this path; a reused name is a new identity.
-        for (const kind of ['Private', 'Shared', 'Import', 'Originals']) await step(() => files.removeEmpty(`${remaining.path}/${kind}`));
-        await step(() => files.removeEmpty(remaining.path));
+      const emptyBooks:string[]=[];
+      for(const book of Object.values(merged.books).filter(book=>book.deleted&&book.folderId)){
+        const remaining=await step(()=>files.locateFolder(book.folderId!));if(remaining&&/^\/Songbooks\/[^/]+$/i.test(remaining.path))emptyBooks.push(remaining.path);
       }
+      await namespace.removeEmpty(emptyBooks.flatMap(path=>['Private','Shared','Import','Originals'].map(kind=>path+'/'+kind)));
+      await namespace.removeEmpty(emptyBooks);
+      for(const id of Object.keys(state.movedSongs??{}))if(state.manifest.songs[id]?.songbookId===merged.songs[id]?.songbookId||merged.deletedSongs?.[id])delete state.movedSongs![id];
+      for(const id of Object.keys(state.movedBooks??{}))if(state.manifest.books[id]?.name===merged.books[id]?.name)delete state.movedBooks![id];
+      for(const id of Object.keys(state.createdBooks??{}))if(state.manifest.books[id]?.name===merged.books[id]?.name)delete state.createdBooks![id];
       complete &&= !state.conflicts.length && !snapshot.songs.some(song => privateSong(song) && !merged.deletedSongs?.[song.id] && !readySongs[song.id]);
       complete &&= !Object.values(state.uploadIndex?.value.entries??{}).some(claim=>!claimReady(claim,merged));
+      if(Object.values(readySongs).some(link=>snapshot.songs.some(song=>song.id===link.id)&&unprocessed(link))){complete=false;state.awaitingDownload=true;}
       state.pending = !complete;
       if (complete) state.localGeneration = generation;
       if (manual && complete) state.lastManual = new Date().toISOString();
       if(manual&&complete)state.joined=true;
-      uploads.clearDone();await save({recoveryComplete: manual && complete}); return state;
+      uploads.clearDone();await save({recoveryComplete: manual && complete});await fence.release();return state;
     } catch (error) {
       delete state.error; state.pending = true;
       if(error instanceof DeferredSync){delete state.failure;if(error.reason==='remote')state.awaitingDownload=true;}
       else {state.failure=failureInfo(error,'sync.run');hooks.failed?.(error);}
       // A stale run must not acknowledge work or overwrite state belonging to a newer session.
       try {await save();} catch { /* The next safe run starts from durable progress. */ }
+      // Unknown namespace launches and unpublished physical moves keep their
+      // shared fence. Other devices must not overtake a delayed server job.
+      if(!state.namespaceJob?.submitted&&!Object.keys(state.movedSongs??{}).length&&!Object.keys(state.movedBooks??{}).length&&!Object.keys(state.renames??{}).length)try{await fence.release();}catch{/* Same owner resumes; never expire an unknown release. */}
       throw error;
     }
   }

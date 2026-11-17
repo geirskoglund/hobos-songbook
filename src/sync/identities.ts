@@ -64,11 +64,12 @@ export function syncIdentities(source:SyncSnapshot){
     }
     return changed;
   }
-  async function songs(remote:Manifest,isPrivate:(song:Song)=>boolean,release:(id:string)=>Promise<boolean>=async()=>true){
+  async function songs(remote:Manifest,isPrivate:(song:Song)=>boolean,release:(id:string)=>Promise<boolean>=async()=>true,releaseMany?:(ids:string[])=>Promise<Set<string>>){
     if(!first())return false;let changed=false;
     const snapshot=project(),locals=snapshot.songs.filter(isPrivate),remotes=Object.values(remote.songs).filter(link=>link.path&&(link.fileId||state.library?.value.songs[link.id]||state.manifest.songs[link.id])&&!remote.books[link.songbookId]?.deleted&&!remote.deletedSongs?.[link.id]&&!state.held?.[link.id]);
     const remoteIds=new Set(remotes.map(link=>link.id));
     const key=(book:string,filename:string)=>JSON.stringify([book,filenameKey(filename)]);
+    const candidates:{original:Song;id:string;link:typeof remotes[number]}[]=[];
     for(const original of source.songs.filter(isPrivate)){
       if(!original.origin.filename)continue;
       const id=wireId('songs',original.id),reserved=state.reservations[id];
@@ -81,8 +82,12 @@ export function syncIdentities(source:SyncSnapshot){
       if(locals.filter(song=>key(song.songbookId,song.origin.filename)===matchKey).length!==1)continue;
       const matches=remotes.filter(link=>key(link.songbookId,link.origin.filename)===matchKey);
       if(matches.length!==1||locals.some(song=>song.id===matches[0].id))continue;
-      if(!await release(id))continue;
-      const link=matches[0];bind('songs',original.id,link.id);
+      candidates.push({original,id,link:matches[0]});
+    }
+    const released=releaseMany?await releaseMany(candidates.map(candidate=>candidate.id)):null;
+    for(const {original,id,link}of candidates){
+      if(released?!released.has(id):!await release(id))continue;
+      bind('songs',original.id,link.id);
       // A planned name is not a cloud identity. A failed first attempt may have
       // reserved paths before another device published the same imported files.
       // Commit recovery precedes this pass; confirmed files never enter here.

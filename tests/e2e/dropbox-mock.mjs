@@ -1,9 +1,9 @@
 /** HTTP-level Dropbox simulator; app builds contain no test hooks or credentials. */
 export async function dropboxMock(context, {connected=true,pageSize=2000,backend}={}) {
   let sequence=0;const entries=backend?.entries??new Map(),history=backend?.history??new Map(),sessions=backend?.sessions??new Map(),moveJobs=backend?.moveJobs??new Map(),calls=[];let fault=null,hold=null,lostBatch=false,batchFailure=null,lostMove=false,nextAsyncMove=null;
-  let latency=0,active=0,maximum=0;
+  let latency=0,active=0,maximum=0,namespaceAsync=null,lostDelete=false,lostFolders=false;const namespaceJobs=backend?.namespaceJobs??new Map();
   let limitWrites=false,activeWrites=0,rateCount=0;
-  const mutating=endpoint=>['/upload','/upload_session/finish_batch_v2','/create_folder_v2','/move_v2','/move_batch_v2','/delete_v2'].some(value=>endpoint.endsWith(value));
+  const mutating=endpoint=>['/upload','/upload_session/finish_batch_v2','/create_folder_v2','/create_folder_batch','/move_v2','/move_batch_v2','/delete_v2','/delete_batch'].some(value=>endpoint.endsWith(value));
   const rateResponse=async(route,seconds=0,reason='too_many_write_operations')=>{rateCount++;return route.fulfill({status:429,headers:{'Retry-After':String(seconds)},json:{error_summary:reason+'/',error:{reason:{'.tag':reason},retry_after:seconds}}});};
   const key=path=>path.toLowerCase();
   const reference=path=>{if(!path.startsWith('id:')||!path.includes('/'))return path;const slash=path.indexOf('/'),parent=[...entries.values()].find(e=>e.id===path.slice(0,slash));return parent?parent.path_display+path.slice(slash):path;};
@@ -16,10 +16,21 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
     if(!value)return failure({'.tag':'from_lookup',from_lookup:{'.tag':'not_found'}});
     if(to.startsWith('id:'))return failure({'.tag':'to',to:{'.tag':'not_found'}});
     if(find(to))return failure({'.tag':'to',to:{'.tag':'conflict',conflict:{'.tag':'file'}}});
-    entries.delete(key(value.path_display));value.path_display=to;value.path_lower=key(to);entries.set(key(to),value);
+    const prefix=value.path_display;for(const [name,item]of [...entries])if(item.path_display===prefix||value['.tag']==='folder'&&item.path_display.startsWith(prefix+'/')){entries.delete(name);item.path_display=to+item.path_display.slice(prefix.length);item.path_lower=key(item.path_display);entries.set(item.path_lower,item);}
     return{'.tag':'success',success:metadata(value)};
   };
   const moveResult=job=>job.result??(job.result={'.tag':'complete',entries:job.entries.map(entry=>relocation(entry.from_path,entry.to_path))});
+  function createFolder(path){
+    if(find(path))return{'.tag':'failure',failure:{'.tag':'path',path:{'.tag':'conflict',conflict:{'.tag':find(path)['.tag']}}}};
+    const parents=path.split('/').slice(1,-1);let parent='';for(const name of parents){parent+='/'+name;if(!find(parent))put(parent,'',true);}
+    const value=metadata(put(path,'',true));delete value['.tag'];return{'.tag':'success',success:{metadata:value}};
+  }
+  function deleteEntry(entry){
+    const value=find(entry.path);if(!value||entry.parent_rev&&entry.parent_rev!==value.rev)return{'.tag':'failure',failure:{'.tag':'path_lookup',path_lookup:{'.tag':'not_found'}}};
+    const meta=metadata(value),prefix=key(value.path_display);for(const [name]of [...entries])if(name===prefix||name.startsWith(prefix+'/'))entries.delete(name);
+    return{'.tag':'success',success:{metadata:meta}};
+  }
+  const namespaceResult=job=>job.result??(job.result={'.tag':'complete',entries:job.kind==='delete'?job.entries.map(deleteEntry):job.entries.map(createFolder)});
   const cursors=backend?.cursors??new Map();
   const snapshot=args=>new Map([...entries.values()].filter(e=>e.path_lower.startsWith(key(args.path)+'/')&&(args.recursive||!e.path_display.slice(args.path.length+1).includes('/'))).map(e=>[e.path_lower,metadata(e)]));
   const listPage=(items,current,args)=>{const cursor='cursor-'+crypto.randomUUID(),remaining=items.slice(pageSize);cursors.set(cursor,{snapshot:current,args,remaining});return{entries:items.slice(0,pageSize),has_more:remaining.length>0,cursor};};
@@ -41,6 +52,13 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
     if(endpoint.endsWith('/token/revoke'))return ok(null);
     if(endpoint.endsWith('/get_metadata')){const value=find(args.path);return value?ok(metadata(value)):missing();}
     if(endpoint.endsWith('/create_folder_v2')){if(find(args.path))return route.fulfill({status:409,json:{error_summary:'path/conflict/folder/'}});const value=metadata(put(args.path,'',true));delete value['.tag'];return ok({metadata:value});}
+    if(endpoint.endsWith('/create_folder_batch')||endpoint.endsWith('/delete_batch')){
+      const kind=endpoint.endsWith('/delete_batch')?'delete':'folders',items=kind==='delete'?args.entries:args.paths;
+      if(!items?.length||kind==='folders'&&args.autorename!==false)throw Error('Invalid namespace batch');
+      if(namespaceAsync?.kind===kind){const options=namespaceAsync;namespaceAsync=null;const id='namespace-job-'+crypto.randomUUID();namespaceJobs.set(id,{kind,entries:structuredClone(items),checks:options.checks});if(options.loseLaunch)return route.abort('failed');return ok({'.tag':'async_job_id',async_job_id:id});}
+      const result=namespaceResult({kind,entries:items});if(kind==='delete'&&lostDelete){lostDelete=false;return route.abort('failed');}if(kind==='folders'&&lostFolders){lostFolders=false;return route.abort('failed');}return ok(result);
+    }
+    if(endpoint.endsWith('/delete_batch/check')||endpoint.endsWith('/create_folder_batch/check')){const job=namespaceJobs.get(args.async_job_id);if(!job)return route.fulfill({status:409,json:{error_summary:'invalid_async_job_id/'}});if(job.checks-->0)return ok({'.tag':'in_progress'});return ok(namespaceResult(job));}
     if(endpoint.endsWith('/list_folder')){const current=snapshot(args);return ok(listPage([...current.values()],current,args));}
     if(endpoint.endsWith('/list_folder/continue')){const prior=cursors.get(args.cursor);if(!prior)return route.fulfill({status:409,json:{error_summary:'reset/'}});if(prior.remaining.length)return ok(listPage(prior.remaining,prior.snapshot,prior.args));const current=snapshot(prior.args),items=[];for(const [path,e]of prior.snapshot)if(!current.has(path))items.push({'.tag':'deleted',path_display:e.path_display,path_lower:path});for(const [path,e]of current)if(JSON.stringify(prior.snapshot.get(path))!==JSON.stringify(e))items.push(e);return ok(listPage(items,current,prior.args));}
     if(endpoint.endsWith('/download')){const value=find(args.path);if(!value)return missing();const meta=metadata(value);delete meta['.tag'];return route.fulfill({status:200,contentType:'application/octet-stream',headers:{'Access-Control-Expose-Headers':'Dropbox-API-Result','Dropbox-API-Result':JSON.stringify(meta)},body:Buffer.from(value.text)});}
@@ -71,5 +89,5 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
     throw Error('Unexpected Dropbox endpoint '+endpoint);
     }finally{active--;if(writing)activeWrites--;}
   });
-  return {entries,history,sessions,moveJobs,cursors,calls,find,put,loseBatchReply(){lostBatch=true;},loseMoveReply(){lostMove=true;},asyncMove(checks=1,loseLaunch=false){nextAsyncMove={checks,loseLaunch};},finishMoves(){for(const job of moveJobs.values())moveResult(job);},failBatchEntry(path,tag='too_many_write_operations',repeat=1){batchFailure={path,tag,remaining:repeat};},latency(ms){latency=ms;maximum=0;},maximum:()=>maximum,throttled:()=>rateCount,limitConcurrentWrites(){limitWrites=true;},resetCursors(){cursors.clear();},rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status,skip=0,{repeat=1,retryAfter=0,reason='too_many_write_operations',path}={}){fault={endpoint,status,skip,remaining:repeat,retryAfter,reason,path};},hold(endpoint,all=false,path){let release;const resolve=new Promise(r=>release=r),waiting={endpoint,resolve,all,path};hold=waiting;return ()=>{if(hold===waiting)hold=null;release();};}};
+  return {entries,history,sessions,moveJobs,namespaceJobs,cursors,calls,find,put,loseDeleteReply(){lostDelete=true;},loseFoldersReply(){lostFolders=true;},asyncNamespace(kind,checks=1,loseLaunch=false){namespaceAsync={kind,checks,loseLaunch};},finishNamespaceJobs(){for(const job of namespaceJobs.values())namespaceResult(job);},loseBatchReply(){lostBatch=true;},loseMoveReply(){lostMove=true;},asyncMove(checks=1,loseLaunch=false){nextAsyncMove={checks,loseLaunch};},finishMoves(){for(const job of moveJobs.values())moveResult(job);},failBatchEntry(path,tag='too_many_write_operations',repeat=1){batchFailure={path,tag,remaining:repeat};},latency(ms){latency=ms;maximum=0;},maximum:()=>maximum,throttled:()=>rateCount,limitConcurrentWrites(){limitWrites=true;},resetCursors(){cursors.clear();},rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status,skip=0,{repeat=1,retryAfter=0,reason='too_many_write_operations',path}={}){fault={endpoint,status,skip,remaining:repeat,retryAfter,reason,path};},hold(endpoint,all=false,path){let release;const resolve=new Promise(r=>release=r),waiting={endpoint,resolve,all,path};hold=waiting;return ()=>{if(hold===waiting)hold=null;release();};}};
 }

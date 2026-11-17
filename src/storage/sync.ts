@@ -1,6 +1,6 @@
 import type {Song, SongPersonal} from '../domain/song.ts';
 import type {Songbook} from '../domain/songbook.ts';
-import {emptyJournal, newSyncState, type SyncState, type LocalJournal} from '../sync/model.ts';
+import {emptyJournal, newSyncState, type SyncState, type LocalJournal,type NamespaceJob} from '../sync/model.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../sync/failure.ts';
 export interface SyncSnapshot {songs: Song[]; songbooks: Songbook[]; personal: SongPersonal[]; journal: LocalJournal; state: SyncState}
 export const journalId = 'private-local-v1';
@@ -88,5 +88,15 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
       tx.onabort = tx.onerror = () => {db.close(); reject(new SyncFailure({code:failureCodes.storage,stage:'sync.storage'},'Kunne ikke kontrollere avbrutte sangøkter.'));};
     });
   }
-  return {snapshot, status, commit, session, recoverSessions};
+  // Transport receipts belong to an already persisted immutable operation.
+  // A newer local edit must not discard its async job ID. No song, basis,
+  // generation, credentials or other account's state is acknowledged here.
+  async function transport(accountId:string,job:NamespaceJob){
+    const db=await database();return new Promise<void>((resolve,reject)=>{
+      const tx=db.transaction('sync','readwrite'),store=tx.objectStore('sync'),get=store.get(`private-account-v1:${accountId}`);
+      get.onsuccess=()=>{const state:SyncState|undefined=get.result;if(state?.accountId===accountId&&state.namespaceJob?.id===job.id)store.put({...state,namespaceJob:{...state.namespaceJob,submitted:job.submitted,jobId:job.jobId,reply:job.reply}});};
+      tx.oncomplete=()=>{db.close();resolve();};tx.onabort=tx.onerror=()=>{db.close();reject(new SyncFailure({code:failureCodes.storage,stage:'sync.storage'},'Kunne ikke lagre transportkvitteringen.'));};
+    });
+  }
+  return {snapshot, status, commit, session, recoverSessions,transport};
 }

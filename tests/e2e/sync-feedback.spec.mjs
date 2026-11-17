@@ -60,12 +60,12 @@ test('feedback: lost async move launch resumes after reload and a late job canno
  expect(library(mock).songs['local-0'].fileId).toBe(link.fileId);expect(privateFiles(mock)).toHaveLength(1);expect([...mock.entries.values()].filter(e=>e.path_display.includes('/Originals/')&&!e['.tag'].includes('folder'))).toHaveLength(0);expect(account(await state(page)).pending).toBe(false);await goSongs(page);await expect(page.locator('#song-list .song-choice')).toHaveCount(1);
 });
 
-test('feedback: completing the owner between stale library and upload-index reads cannot duplicate a txt import',async({page,context,browser})=>{
+test('feedback: a stale mutex CAS retries with the completed owner manifest and cannot duplicate a txt import',async({page,context,browser})=>{
  const mock=await dropboxMock(context,{connected:false}),text='{t: Same song}\nWords',otherContext=await browser.newContext({serviceWorkers:'block'});let release;
  try{
   await seed(page,'owner-',[text],['Same song.txt']);mock.fault('/upload',0,0,{path:'/.app/library.json'});await connect(page);await expect(page.locator('#sync-status')).toContainText('Feilkode SYNC-002');
-  const other=await otherContext.newPage(),peer=await dropboxMock(otherContext,{connected:false,backend:mock});await seed(other,'other-',[text],['Same song.txt']);release=peer.hold('/download',false,'/.app/upload-index.json');
-  const connecting=connect(other);await expect.poll(()=>peer.calls.some(c=>c.endpoint.endsWith('/download')&&c.args.path==='/.app/upload-index.json')).toBe(true);
+  const other=await otherContext.newPage(),peer=await dropboxMock(otherContext,{connected:false,backend:mock});await seed(other,'other-',[text],['Same song.txt']);release=peer.hold('/upload',false,'/.app/mutation.json');
+  const connecting=connect(other);await expect.poll(()=>peer.calls.some(c=>c.endpoint.endsWith('/upload')&&c.args.path==='/.app/mutation.json')).toBe(true);
   await sync(page);await expect(page.locator('#sync-status')).toContainText('Sist synkronisert:');expect(JSON.parse(mock.find('/.app/upload-index.json').text).entries).toEqual({});release();await connecting;
   await sync(other);await expect(other.locator('#sync-status')).toContainText('Sist synkronisert:');expect((await state(other)).songs.map(s=>s.id)).toEqual(['other-0']);expect(privateFiles(mock)).toHaveLength(1);expect(Object.keys(library(mock).songs)).toEqual(['owner-0']);
  }finally{release?.();await otherContext.close();}

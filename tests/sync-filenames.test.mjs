@@ -158,10 +158,9 @@ test('names: account/session cancellation interrupts async status checks and ret
  await assert.rejects(run(),error=>error.reason==='session');assert.equal(f.data.state.placement.jobId,'owned-job');const stopped=checks;await new Promise(resolve=>setTimeout(resolve,20));assert.equal(checks,stopped);allowed=true;complete=true;await run();assert.equal(f.data.state.pending,false);assert.equal(songs(f).length,1);
 });
 
-test('names: newer claim cleanup cannot combine with an older manifest to manufacture a duplicate',async()=>{
+test('names: the shared fence and provenance preserve identities across an unpublished manifest',async()=>{
  const a=fixture(),b=fixture();for(const [f,id,book]of[[a,'song-a','book-a'],[b,'song-b','book-b']])f.change(d=>{d.songbooks=[{id:book,name:'Hobos'}];d.songs=[{...song(id,book),origin:{kind:'local',filename:'Same song.txt',importedAt:id}}];d.personal=[{songId:id,version:3,chorus:{},capo:2}];});
- const write=a.files.write;let block=true;a.files.write=async(...args)=>{if(block&&args[0]==='/.app/library.json')throw new SyncFailure({code:failureCodes.network,stage:'sync.manifest'},'manifest unavailable');return write(...args);};await assert.rejects(a.run());block=false;
- const read=a.files.read;let interleave=true;a.files.read=async path=>{if(interleave&&path==='/.app/upload-index.json'){interleave=false;await a.run();}return read(path);};
+ const write=a.files.write;let block=true;a.files.write=async(...args)=>{if(block&&args[0]==='/.app/library.json')throw new SyncFailure({code:failureCodes.network,stage:'sync.manifest'},'manifest unavailable');return write(...args);};await assert.rejects(a.run());block=false;await a.run();
  const runB=()=>syncEngine(b.storage,a.files,'account',{valid:()=>true,changed(){}}).run(true);
  for(let n=0;n<4;n++)try{await runB();break;}catch(error){if(!(error instanceof RetrySync)||n===3)throw error;}
  assert.equal(b.data.state.pending,false);assert.equal(b.data.songs.length,1);assert.equal(b.data.songs[0].id,'song-b');assert.equal(Object.keys(manifest(a).songs).length,1);assert.equal(songs(a).length,1);

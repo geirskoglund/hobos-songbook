@@ -10,6 +10,9 @@ export const failureCodes = {
 } as const;
 export type FailureCode = typeof failureCodes[keyof typeof failureCodes];
 export const userActions = {
+ 'mutation-state':'Synkmetadata er uventet. Behold lokale data og kopier feilloggen for feilsøking.',
+  'check-move': 'Flyttingen kunne ikke bekreftes. Kontroller flyttingen i Dropbox og trykk Synkroniser.',
+  'check-folders': 'Mappeopprettelsen kunne ikke bekreftes. Kontroller mappene i Dropbox og trykk Synkroniser.',
   reconnect: 'Koble til Dropbox på nytt.',
   'retry-login': 'Start tilkoblingen på nytt med Koble til Dropbox.',
   'open-app': 'Åpne appen fra den faste appadressen og prøv igjen.',
@@ -28,11 +31,16 @@ export class SyncFailure extends Error {
   readonly info: FailureInfo;
   constructor(info: FailureInfo, message: string, cause?: unknown) {super(message, {cause}); this.name = 'SyncFailure'; this.info = info;}
 }
+/** A terminal server job failed; a new plan may be computed after refresh. */
+export class BatchJobFailed extends SyncFailure {}
 /** Normal interruption; never reported or logged as a sync failure. */
 export class DeferredSync extends Error {
   readonly reason: 'session' | 'changed' | 'recovery' | 'connection' | 'remote';
   constructor(reason: DeferredSync['reason'], message: string) {super(message); this.name = 'DeferredSync'; this.reason = reason;}
 }
+/** A post-response guard interrupted an already sent batch with an uncertain
+ * response. Unlike preflight/definitive 4xx, this cannot authorize replay. */
+export class SubmittedBatchInterruption extends DeferredSync {}
 export class RetrySync extends DeferredSync {constructor(){super('changed','Dropbox-versjonen endret seg under overføringen.');}}
 export function failureInfo(error: unknown, stage = 'sync'): FailureInfo {
   return error instanceof SyncFailure ? error.info : {code: failureCodes.unexpected, stage};

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture,song} from './sync-fixture.mjs';
 import {syncEngine} from '../src/sync/engine.ts';
-import {RetrySync,SyncFailure,failureCodes} from '../src/sync/failure.ts';
+import {DeferredSync,RetrySync,SyncFailure,failureCodes} from '../src/sync/failure.ts';
 
 async function retry(storage,files,manual=true,resolution){
   for(let attempt=0;attempt<3;attempt++)try{
@@ -14,20 +14,10 @@ test('review: concurrent discovery publishes one identity for one Dropbox file, 
   const left=fixture();left.change(d=>{d.songs=[];d.personal=[];});await left.run();
   const right=fixture();right.data=left.data;
   await left.files.write('/Songbooks/Standard/Private/discovered.cho','{t: Discovered}\nText',null);
-  const write=left.files.write;let arrivals=0,secondReached,firstFinished;
-  const second=new Promise(resolve=>{secondReached=resolve;}),first=new Promise(resolve=>{firstFinished=resolve;});
-  left.files.write=async(path,text,rev)=>{
-    if(path==='/.app/library.json'&&arrivals<2){
-      const position=++arrivals;
-      if(position===1){await second;try{return await write(path,text,rev);}finally{firstFinished();}}
-      secondReached();await first;
-    }
-    try{return await write(path,text,rev);}catch(error){
-      if(error.message==='409')throw new SyncFailure({code:failureCodes.changed,stage:'test.cas',status:409},'Revision changed');
-      throw error;
-    }
-  };
-  await Promise.all([retry(left.storage,left.files),retry(right.storage,left.files)]);
+  delete right.data.state.mutationOwner;delete right.data.state.mutationPending;
+  const results=await Promise.allSettled([retry(left.storage,left.files),retry(right.storage,left.files)]);
+  for(const result of results)if(result.status==='rejected')assert.ok(result.reason instanceof DeferredSync);
+  await retry(left.storage,left.files);await retry(right.storage,left.files);
   const manifest=JSON.parse(left.entries.get('/.app/library.json').text);
   assert.equal(Object.values(manifest.songs).length,1,'one manifest identity for the physical file');
   for(const device of [left,right]){

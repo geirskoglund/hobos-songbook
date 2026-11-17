@@ -109,3 +109,11 @@ test('known user guidance survives local persistence without storing arbitrary m
  const d=syncDiagnostics(env);d.record(new DropboxError(401,'PRIVATE_API_DETAILS'),'sync.run',true,[]);await new Promise(setImmediate);
  const restored=syncDiagnostics(env),entry=restored.active();assert.equal(failureText(entry.failure),'Synkronisering feilet (Feilkode SYNC-004). Koble til Dropbox på nytt.');assert.ok(!restored.text(entry).includes('PRIVATE_API_DETAILS'));
 }));
+
+test('batch diagnostics retain only resource category, count and transport class, never file names or IDs',()=>browser(async()=>{
+ const events=[],adapter=dropboxAdapter(env,async()=>{throw new TypeError('PRIVATE_PATH PRIVATE_ID');},()=>{},event=>events.push(event));
+ await assert.rejects(adapter.files.deleteBatch([{key:'PRIVATE_KEY',path:'id:PRIVATE_ID',fileId:'id:PRIVATE_ID',rev:'PRIVATE_REV',category:'personal'}]),error=>error.info.code===failureCodes.network);
+ assert.equal(events[0].resource,'personal');assert.equal(events[0].batchSize,1);assert.equal(events[0].transport,'network');assert.equal(events[0].status,0);
+ const diagnostics=syncDiagnostics(env);diagnostics.record(new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'PRIVATE_NAME'),'sync.run',true,[...events,{operation:'files/delete_batch',status:0,durationMs:1,batchSize:Infinity,resource:'PRIVATE_PATH',transport:'PRIVATE_ERROR'}]);
+ const report=diagnostics.text(diagnostics.active());assert.equal(report.includes('PRIVATE_'),false);assert.equal(diagnostics.active().operations[1].resource,undefined);assert.equal(diagnostics.active().operations[1].batchSize,undefined);
+}));

@@ -1,13 +1,13 @@
 import {songbookName, type Songbook} from '../domain/songbook.ts';
 import type {LibrarySnapshot, songStorage} from '../storage/songs.ts';
 import {controlHeading, dialogFooter, dialogFrame} from './controls.ts';
-import {openDialog} from './dialog.ts';
+import {openDialog,confirmTransferCopy} from './dialog.ts';
 import {choiceControl, contextMenu, countRow, floatingAction} from './list-controls.ts';
 import {nameDialog} from './name-dialog.ts';
 import {currentPage} from './layout.ts';
 
 export function startSongbooks(storage: ReturnType<typeof songStorage>, options: {
-  changed: (snapshot: LibrarySnapshot) => void; openBook: (id: string) => void;
+  changed: (snapshot: LibrarySnapshot) => void; openBook: (id: string) => void;account?:()=>string|undefined;
 }) {
   const list = document.getElementById('songbook-list')!, status = document.getElementById('songbooks-status')!;
   const retry = document.getElementById('retry-songbooks') as HTMLButtonElement;
@@ -112,7 +112,10 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
       actions.querySelectorAll('button').forEach(button => {button.disabled = true;}); target.setDisabled(true);
       writing = (async () => {
         try {
-          await storage.deleteSongbook(book.id, target.selected());
+          const accountId=options.account?.(),plan=await storage.prepareTransfer(book.id,target.selected(),accountId);
+          const destination=snapshot.songbooks.find(item=>item.id===target.selected())?.name??'';
+          for(const match of plan.matches)if(!await confirmTransferCopy(match.title,match.filename,destination,deleteButton)){lifecycle.close();return;}
+          await storage.deleteSongbook(book.id, target.selected(),{plan,accountId});
           const index = books().findIndex(item => item.id === book.id);
           snapshot = {...snapshot, songs: snapshot.songs.map(song => song.songbookId === book.id ? {...song, songbookId: target.selected()!} : song), songbooks: snapshot.songbooks.filter(item => item.id !== book.id)};
           draw(); options.changed(snapshot); lifecycle.close(); await refresh();

@@ -90,7 +90,8 @@ export function uploadQueue(files:RemoteFiles,state:SyncState,hooks:{check():Pro
   function clearDone(){for(const [key,job]of Object.entries(journal))if(job.status==='done'||!used.has(key)&&!job.creation)delete journal[key];}
   function originalPending(id:string){const own=journal[`original:${id}`]?.creation?.file?.id;return Object.values(state.uploadIndex?.value.entries??{}).some(claim=>claim.role==='original'&&claim.song.id===id&&claim.fileId!==own&&!claimReady(claim,published));}
   async function clearClaims(manifest:Manifest){published=manifest;await bridge.clearReady(manifest);}
-  async function discard(id:string){if(!await creations.discard(id))return false;await bridge.release(Object.values(journal).filter(job=>job.songId===id));return true;}
+  async function discardMany(ids:string[]){const released=await creations.discardMany(ids);await bridge.release(Object.values(journal).filter(job=>released.has(job.songId)));return released;}
+  async function discard(id:string){return(await discardMany([id])).has(id);}
   async function discardOriginal(id:string){const job=journal[`original:${id}`];if(!job)return;await creations.discard(id,'original');await bridge.release([job]);delete journal[job.key];await hooks.save();}
-  return{recover,write,clearDone,discard,discardOriginal,claims:bridge.load,observeManifest:(manifest:Manifest)=>{published=manifest;},clearClaims,originalPending};
+  return{recover,write,clearDone,discard,discardMany,discardOriginal,claims:bridge.load,observeManifest:(manifest:Manifest)=>{published=manifest;},clearClaims,originalPending};
 }
