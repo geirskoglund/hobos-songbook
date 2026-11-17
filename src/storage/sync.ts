@@ -1,6 +1,6 @@
 import type {Song, SongPersonal} from '../domain/song.ts';
 import type {Songbook} from '../domain/songbook.ts';
-import {emptyJournal, newSyncState, type SyncState, type LocalJournal,type NamespaceJob} from '../sync/model.ts';
+import {emptyJournal, newSyncState, type SyncState, type LocalJournal,type NamespaceJob,type PlacementJob} from '../sync/model.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../sync/failure.ts';
 export interface SyncSnapshot {songs: Song[]; songbooks: Songbook[]; personal: SongPersonal[]; journal: LocalJournal; state: SyncState}
 export const journalId = 'private-local-v1';
@@ -98,5 +98,12 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
       tx.oncomplete=()=>{db.close();resolve();};tx.onabort=tx.onerror=()=>{db.close();reject(new SyncFailure({code:failureCodes.storage,stage:'sync.storage'},'Kunne ikke lagre transportkvitteringen.'));};
     });
   }
-  return {snapshot, status, commit, session, recoverSessions,transport};
+  async function placementReceipt(accountId:string,job:PlacementJob){
+    const db=await database();return new Promise<void>((resolve,reject)=>{
+      const tx=db.transaction('sync','readwrite'),store=tx.objectStore('sync'),get=store.get(`private-account-v1:${accountId}`);
+      get.onsuccess=()=>{const state:SyncState|undefined=get.result;if(state?.accountId===accountId&&job.id&&state.placement?.id===job.id)store.put({...state,placement:{...state.placement,jobId:job.jobId,reply:job.reply}});};
+      tx.oncomplete=()=>{db.close();resolve();};tx.onabort=tx.onerror=()=>{db.close();reject(new SyncFailure({code:failureCodes.storage,stage:'sync.storage'},'Kunne ikke lagre plasseringskvitteringen.'));};
+    });
+  }
+  return {snapshot, status, commit, session, recoverSessions,transport,placementReceipt};
 }

@@ -6,17 +6,18 @@ const url='/hobos-songbook/test/';
 async function state(page){return page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,tx=db.transaction(['songs','personal','songbooks','sync']),data={};for(const name of ['songs','personal','songbooks','sync']){const q=tx.objectStore(name).getAll();q.onsuccess=()=>data[name]=q.result;}tx.oncomplete=()=>{db.close();resolve(data);};};}));}
 const account=data=>data.sync.find(row=>row.id.startsWith('private-account-v1:'));
 async function syncPage(page){await openMenu(page);await page.locator('#main-menu').getByRole('button',{name:'Synkronisering',exact:true}).click();await expect(page.locator('#dropbox-sync')).toBeEnabled();}
-async function synchronize(page){await page.locator('#dropbox-sync').click();await expect(page.locator('#dropbox-sync')).toBeEnabled();}
+async function synchronize(page){await page.locator('#dropbox-sync').click();await expect(page.locator('#dropbox-sync')).toBeEnabled({timeout:30000});}
 async function setup(page,context){const mock=await dropboxMock(context);await page.goto(url);await syncPage(page);await expect.poll(async()=>account(await state(page))?.pending).toBe(false);return mock;}
 async function mutate(page,mode,count=12){await page.evaluate(({mode,count})=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,tx=db.transaction(['songs','personal','songbooks','sync'],'readwrite'),store=tx.objectStore('sync'),q=store.get('private-local-v1');q.onsuccess=()=>{const j=q.result??{id:'private-local-v1',version:1,generation:0,deletedBooks:{},sessions:{}};j.generation++;if(mode==='transfer'){j.deletedBooks.standard={id:'standard',name:'Standard',deleted:true};tx.objectStore('songbooks').delete('standard');}store.put(j);};if(mode==='seed'){for(let i=0;i<4;i++)tx.objectStore('songbooks').put({id:'book-'+i,name:'Book '+i});for(let i=0;i<count;i++){const id='bulk-'+i;tx.objectStore('songs').put({id,songbookId:'standard',title:'Song '+i,key:null,original:'{t: Song '+i+'}\nText',origin:{kind:'local',filename:'Song '+i+'.cho',importedAt:''}});tx.objectStore('personal').put({songId:id,version:3,chorus:{},...(i%2?{capo:3}:{})});}}if(mode==='transfer'){const songs=tx.objectStore('songs').getAll();songs.onsuccess=()=>{for(const song of songs.result)tx.objectStore('songs').put({...song,songbookId:'book-0'});};}tx.oncomplete=()=>{db.close();resolve();};};}),{mode,count});}
 const manifest=mock=>JSON.parse(mock.find('/.app/library.json').text);
 test.beforeEach(async({request})=>{await request.post('/__test__/reset');});
 
 test('all namespace mutations: grouped layouts, existing file transfers and empty-folder deletion use supported batch routes',async({page,context})=>{
- const mock=await setup(page,context),start=mock.calls.length;await mutate(page,'seed');await synchronize(page);const before=manifest(mock),saved=await state(page),created=mock.calls.slice(start);
+ const mock=await setup(page,context),start=mock.calls.length;await mutate(page,'seed',100);await synchronize(page);const before=manifest(mock),saved=await state(page),created=mock.calls.slice(start);
  expect(created.filter(call=>call.endpoint.endsWith('/create_folder_batch')).some(call=>call.args.paths.length>=16)).toBe(true);expect(created.filter(call=>call.endpoint.endsWith('/create_folder_v2'))).toHaveLength(0);
  const transferStart=mock.calls.length;await mutate(page,'transfer');await synchronize(page);const after=manifest(mock),calls=mock.calls.slice(transferStart);
- expect(calls.filter(call=>call.endpoint.endsWith('/move_batch_v2')).map(call=>call.args.entries.length)).toEqual([12]);
+ expect(calls.filter(call=>call.endpoint.endsWith('/move_batch_v2')).map(call=>call.args.entries.length)).toEqual([100]);
+ expect(calls.filter(call=>call.endpoint.endsWith('/get_metadata'))).toHaveLength(0);expect(calls.length).toBeLessThan(30);
  expect(calls.filter(call=>call.endpoint.endsWith('/delete_batch')).map(call=>call.args.entries.length)).toEqual([4,1]);
  expect(calls.filter(call=>call.endpoint.endsWith('/move_v2')||call.endpoint.endsWith('/delete_v2'))).toHaveLength(0);
  for(const [id,link]of Object.entries(after.songs)){expect(link.fileId).toBe(before.songs[id].fileId);expect(link.songbookId).toBe('book-0');expect(mock.find(link.fileId).path_display).toBe(link.path);}

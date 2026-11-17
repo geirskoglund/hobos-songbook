@@ -6,7 +6,7 @@ import {DeferredSync, failureCodes, failureInfo, failureText, SyncFailure,RetryS
 import {syncDiagnostics, type ApiEvent, type SyncLog} from './diagnostics.ts';
 export function syncController(storage: ReturnType<typeof songStorage>, hooks: {busy(): boolean; downloaded(): Promise<unknown>; notify(): void; connected(): void}) {
   const env = __APP_ENV__, owner = crypto.randomUUID();
-  const events:ApiEvent[]=[],diagnostics=syncDiagnostics(env,()=>hooks.notify());let logging=false;
+  const events:ApiEvent[]=[],operationTotals:Record<string,number>={},diagnostics=syncDiagnostics(env,()=>hooks.notify());let logging=false;
   let requestEpoch = -1, requestAccount: string | null = null, requestManual = false;
   let requestGeneration:number|null=null;
   const adapter = dropboxAdapter(env, fetch, async () => {
@@ -17,7 +17,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
     if (!allowed() || Object.keys(snapshot.journal.sessions).length) throw new PausedSync();
     if(requestGeneration!==null&&snapshot.journal.generation!==requestGeneration)throw new DeferredSync('changed','Nyere lokale endringer venter.');
     if (snapshot.journal.recoveryRequired && !requestManual) throw new DeferredSync('recovery','Lagrede endringer etter avbrudd venter på Synkroniser.');
-  },event=>{if(!logging){events.push(event);if(events.length>30)events.shift();}});
+  },event=>{if(!logging){operationTotals[event.operation]=(operationTotals[event.operation]??0)+1;events.push(event);if(events.length>30)events.shift();}});
   let paused = false, epoch = 0, running = false, started = false, requestedManual = false, immediate = false, localPending = false;
   let changedDuringRun = false, recoveryRequired = false;
   let activeManual=false,activeEpoch=-1;
@@ -34,7 +34,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
   } else ready = Promise.reject(new SyncFailure({code:failureCodes.browser,stage:'app.capability',action:'update-browser'},'Nettleseren mangler Web Locks.'));
   // Observe a rejection immediately; the message is reported when startup runs.
   void ready.catch(() => {});
-  function report(cause:unknown,stage:string,manual=false,accountId?:string){if(cause instanceof DeferredSync)return;if(!accountId){try{accountId=adapter.account()?.id;}catch{/* No account identity is copied into a report. */}}const result=diagnostics.record(cause,stage,manual,events,accountId);error=result.info;errorEntry=result.entry;}
+  function report(cause:unknown,stage:string,manual=false,accountId?:string){if(cause instanceof DeferredSync)return;if(!accountId){try{accountId=adapter.account()?.id;}catch{/* No account identity is copied into a report. */}}const result=diagnostics.record(cause,stage,manual,events,accountId,operationTotals);error=result.info;errorEntry=result.entry;}
   function clearFailure(){error=null;if(errorEntry)diagnostics.clear(errorEntry.id);errorEntry=null;}
   function account() {try {return adapter.account();} catch (cause) {const info=failureInfo(cause,'app.start');if(error?.code!==info.code||error.stage!==info.stage)report(cause,'app.start');return null;}}
   function uploadLog(accountId:string,ticket:number,manual:boolean){
@@ -58,7 +58,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
     if (!started || running || paused || hooks.busy() || !account() || navigator.onLine===false) {notify(); return;}
     const user = account()!, ticket = epoch, wasManual = requestedManual;
     const previousFailure=error,previousEntry=errorEntry;let completed=false;activeManual=wasManual;activeEpoch=ticket;
-    requestedManual = false; running = true; changedDuringRun = false;error=null;events.length=0;notify();const reported=new Set<unknown>();
+    requestedManual = false; running = true; changedDuringRun = false;error=null;events.length=0;for(const operation of Object.keys(operationTotals))delete operationTotals[operation];notify();const reported=new Set<unknown>();
     const failed=(cause:unknown)=>{if(!reported.has(cause)){reported.add(cause);report(cause,'sync.run',wasManual,user.id);}};
     try {
       await opening; await ready;

@@ -63,7 +63,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       async deleteFile(path,rev){const entry=await index.files.metadata?.(path)??index.find(path);if(!entry?.id)return;await namespace.remove([{key:path,path,fileId:entry.id,rev,category:path.startsWith('/.app/uploads/')?'staging':'personal'}]);},
     };
     fence=mutationFence(rawFiles,state,{check,save});
-    uploads=uploadQueue(files,state,{check,save,record:recordUpload});
+    uploads=uploadQueue(files,state,{check,save,record:recordUpload,receipt:async job=>{if(storage.placementReceipt)await storage.placementReceipt(accountId,job);else await save();}});
     await check();
   }
   async function read(path: string) {return step(() => files.read(path));}
@@ -83,7 +83,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     return local;
   }
   function hasLocalWork(){
-    if(state.mutationPending||state.namespaceJob||Object.keys(state.renames??{}).length||Object.keys(state.decisions).length||Object.values(state.uploads??{}).some(job=>job.status!=='done'))return true;
+    if(state.cleanupPending||state.mutationPending||state.namespaceJob||Object.keys(state.renames??{}).length||Object.keys(state.decisions).length||Object.values(state.uploads??{}).some(job=>job.status!=='done'))return true;
     for(const book of snapshot.songbooks){const known=state.manifest.books[book.id];if(known?.deleted)continue;if(!known?.folderId||known.name!==book.name)return true;}
     for(const book of Object.values(snapshot.journal.deletedBooks))if(!state.manifest.books[book.id]?.deleted)return true;
     for(const song of snapshot.songs.filter(privateSong)){
@@ -341,7 +341,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       if(!entry.folder&&/^\/Songbooks\/[^/]+\/Private\/[^/]+\.cho$/i.test(entry.path)&&(entry.size??0)<=maxFileBytes)return !Object.values(library.songs).some(song=>song.fileId===entry.id);
       return false;
     });
-    const cleanState=!incoming&&!state.pending&&!state.awaitingDownload&&!Object.keys(state.held??{}).length&&!snapshot.songs.some(song=>state.manifest.deletedSongs?.[song.id])&&!snapshot.songbooks.some(book=>state.manifest.books[book.id]?.deleted);
+    const cleanState=!incoming&&!state.cleanupPending&&!state.pending&&!state.awaitingDownload&&!Object.keys(state.held??{}).length&&!snapshot.songs.some(song=>state.manifest.deletedSongs?.[song.id])&&!snapshot.songbooks.some(book=>state.manifest.books[book.id]?.deleted);
     delete state.error; delete state.failure; state.pending = true; state.awaitingDownload = false;
     try {
       // A cursor-only check has no namespace effects and needs no shared fence.
@@ -349,8 +349,9 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       // still require fenced, fresh processing. No stale snapshot is published.
       if(cleanState&&manual&&!resolution&&!hasLocalWork()&&state.remote&&!state.conflicts.length&&state.localGeneration===generation){
         const domain=()=>Object.fromEntries(Object.entries(state.remote!.entries).filter(([path])=>!['/.app/mutation.json','/.app/sync-errors.json'].includes(path)).map(([path,entry])=>[path,{id:entry.id,path:entry.path,folder:Boolean(entry.folder),...(!entry.folder?{rev:entry.rev}:{})}]));
-        const before=structuredClone(domain());await step(()=>index.refresh());
-        if(same(before,domain())){state.pending=false;state.localGeneration=generation;state.lastManual=new Date().toISOString();state.joined=true;await save({recoveryComplete:true});return state;}
+        const before=structuredClone(domain()),epochBefore=state.remote.epoch;await step(()=>index.refresh());
+        const resetCleanup=epochBefore!==state.remote.epoch&&Object.values(library.books).some(book=>book.deleted&&book.folderId);
+        if(same(before,domain())&&!resetCleanup){state.pending=false;state.localGeneration=generation;state.lastManual=new Date().toISOString();state.joined=true;await save({recoveryComplete:true});return state;}
       }
       await fence.acquire();
       await step(()=>index.refresh());
@@ -513,12 +514,31 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         state.manifest = structuredClone(merged);const removed=removedChanges(merged);await save({books,deleteBooks:[...new Set([...deleted,...removed.deleteBooks])],deleteSongs:removed.deleteSongs});
         await namespace.remove(cleanup);
       }
-      const emptyBooks:string[]=[];
+      const emptyBooks:string[]=[],checkedBooks:BookLink[]=[];
+      const cleanupProof=(book:BookLink)=>{
+        const path=index.find(book.folderId!)?.path??book.path;
+        return hash(JSON.stringify([state.remote?.epoch??0,Object.values(state.remote?.entries??{}).filter(entry=>entry.id===book.folderId||path&&pathKey(entry.path).startsWith(pathKey(path)+'/')).sort((a,b)=>pathKey(a.path).localeCompare(pathKey(b.path))).map(entry=>[entry.id,entry.path,Boolean(entry.folder),entry.rev,entry.size])]));
+      };
       for(const book of Object.values(merged.books).filter(book=>book.deleted&&book.folderId)){
+        if(state.remote&&state.cleanupProofs?.[book.id]===await cleanupProof(book))continue;
         const remaining=await step(()=>files.locateFolder(book.folderId!));if(remaining&&/^\/Songbooks\/[^/]+$/i.test(remaining.path))emptyBooks.push(remaining.path);
+        checkedBooks.push(book);
       }
       await namespace.removeEmpty(emptyBooks.flatMap(path=>['Private','Shared','Import','Originals'].map(kind=>path+'/'+kind)));
       await namespace.removeEmpty(emptyBooks);
+      delete state.cleanupPending;
+      if(state.remote)for(const book of checkedBooks){
+        const path=index.find(book.folderId!)?.path;
+        // A child can become empty between the child and parent phases. The
+        // parent view must not certify that unexamined state as completed work.
+        const emptyChild=path&&/^\/Songbooks\/[^/]+$/i.test(path)&&['Private','Shared','Import','Originals'].some(kind=>{const child=index.find(path+'/'+kind);return child?.folder&&!Object.values(state.remote!.entries).some(entry=>pathKey(entry.path).startsWith(pathKey(child.path)+'/'));});
+        if(emptyChild){delete state.cleanupProofs?.[book.id];state.cleanupPending=true;}
+        else (state.cleanupProofs??={})[book.id]=await cleanupProof(book);
+      }
+      // Later metadata phases can also expose a change in a book skipped by
+      // the initial proof check. Do not hide that work behind the idle fast path.
+      if(state.remote)for(const book of Object.values(merged.books).filter(book=>book.deleted&&book.folderId))if(state.cleanupProofs?.[book.id]!==await cleanupProof(book))state.cleanupPending=true;
+      if(state.cleanupPending)throw new RetrySync();
       for(const id of Object.keys(state.movedSongs??{}))if(state.manifest.songs[id]?.songbookId===merged.songs[id]?.songbookId||merged.deletedSongs?.[id])delete state.movedSongs![id];
       for(const id of Object.keys(state.movedBooks??{}))if(state.manifest.books[id]?.name===merged.books[id]?.name)delete state.movedBooks![id];
       for(const id of Object.keys(state.createdBooks??{}))if(state.manifest.books[id]?.name===merged.books[id]?.name)delete state.createdBooks![id];

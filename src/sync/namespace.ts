@@ -1,5 +1,5 @@
 import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed} from './failure.ts';
-import {pathKey} from './remote.ts';
+import {metadataView,pathKey} from './remote.ts';
 import type {BookLink,DeleteEntry,FolderEntry,MoveEntry,MoveReply,MoveResult,NamespaceJob,RemoteEntry,RemoteFiles,SyncState} from './model.ts';
 
 type Hooks={check():Promise<void>;save():Promise<void>;receipt(job:NamespaceJob):Promise<void>;freshList:RemoteFiles['list'];find(path:string):RemoteEntry|undefined;removed(entry:DeleteEntry):void;moved(entry:MoveEntry,value:{id:string;path:string}):void};
@@ -9,7 +9,10 @@ class MissingCreatedFolder extends Error {}
  * literal path. Unknown ID-move/create launches are never blindly replayed. */
 export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
  const size=100;
- const inspect=async(path:string):Promise<RemoteEntry|null>=>{await hooks.check();const value=files.metadata?await files.metadata(path):await files.locateFolder(path).then(value=>value?{...value,folder:true}:null);await hooks.check();return value;};
+ let view:ReturnType<typeof metadataView>|undefined;const fallback=new Map<string,RemoteEntry|null>();
+ async function refresh(){await hooks.check();view=undefined;fallback.clear();if(files.metadataSnapshot)view=metadataView(await files.metadataSnapshot());await hooks.check();}
+ const inspect=async(path:string):Promise<RemoteEntry|null>=>{await hooks.check();if(view)return view.find(path)??null;const key=path.startsWith('id:')?path:pathKey(path);if(!fallback.has(key))fallback.set(key,files.metadata?await files.metadata(path):await files.locateFolder(path).then(value=>value?{...value,folder:true}:null));await hooks.check();return fallback.get(key)!;};
+ const nonempty=async(path:string)=>view?view.nonempty(path):Boolean((await hooks.freshList(path)).length);
  const stage=(kind:NamespaceJob['kind'])=>`dropbox.${kind==='move'?'move':kind}-batch`;
  const bad=(kind:NamespaceJob['kind'],message:string)=>new SyncFailure({code:failureCodes.response,stage:stage(kind)},message);
  const invalid=()=>new SyncFailure({code:failureCodes.manifest,stage:'sync.namespace',action:'mutation-state'},'Ugyldig fullmakt i batchjournalen.');
@@ -29,9 +32,12 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
      const actual=await inspect(entry.path);if(actual&&(actual.id!==entry.fileId||actual.folder))throw invalid();
     }else if(entry.category==='folder'){
      if(!entry.folder||entry.rev||entry.path!==entry.fileId||typeof entry.sourcePath!=='string')throw invalid();
-     const book=Object.values(manifest?.books??{}).find(book=>book.deleted&&book.folderId&&book.path&&(pathKey(entry.sourcePath!)===pathKey(book.path)||['Private','Shared','Import','Originals'].some(kind=>pathKey(entry.sourcePath!)===pathKey(book.path+'/'+kind))));
+     if(!/^\/Songbooks\/[^/]+(?:\/(?:Private|Shared|Import|Originals))?$/i.test(entry.sourcePath))throw invalid();
+     const rootPath=entry.sourcePath.split('/').slice(0,3).join('/'),root=await inspect(rootPath);
+     const book=Object.values(manifest?.books??{}).find(book=>book.deleted&&book.folderId&&(entry.bookId?book.id===entry.bookId:root?.id===book.folderId||book.path&&pathKey(rootPath)===pathKey(book.path)));
+     if(root&&root.id!==book?.folderId)throw invalid();
      if(!book)throw invalid();const actual=await inspect(entry.fileId);
-     if(actual){if(!actual.folder||pathKey(actual.path)!==pathKey(entry.sourcePath))throw invalid();if(pathKey(actual.path)===pathKey(book.path!)){if(actual.id!==book.folderId)throw invalid();}else if((await inspect(actual.path.slice(0,actual.path.lastIndexOf('/'))))?.id!==book.folderId)throw invalid();}
+     if(actual){if(!actual.folder||pathKey(actual.path)!==pathKey(entry.sourcePath))throw invalid();if(pathKey(actual.path)===pathKey(rootPath)){if(actual.id!==book.folderId)throw invalid();}else if((await inspect(actual.path.slice(0,actual.path.lastIndexOf('/'))))?.id!==book.folderId)throw invalid();}
     }else throw invalid();
    }else if(job.kind==='move'){
     const entry=item as MoveEntry;if(typeof entry.fileId!=='string'||entry.from!==entry.fileId||typeof entry.to!=='string')throw invalid();
@@ -53,7 +59,9 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
  }
  async function receipt(job:NamespaceJob,reply:MoveReply){job.reply=reply;if('asyncJobId'in reply)job.jobId=reply.asyncJobId;await hooks.receipt(job);await hooks.check();}
  async function verifyFolder(entry:FolderEntry,value:{id:string;path:string}){
-  const current=await inspect(value.id);if(!current)throw new MissingCreatedFolder();if(!current.folder)throw bad('folders','Opprettingskvitteringen viser ikke en mappe.');
+  // A newly confirmed empty folder may be absent from an incomplete/lagging
+  // listing. Resolve that receipt by ID rather than declaring it deleted.
+  const current=await inspect(value.id)??await files.metadata?.(value.id);await hooks.check();if(!current)throw new MissingCreatedFolder();if(!current.folder)throw bad('folders','Opprettingskvitteringen viser ikke en mappe.');
   let actual:RemoteEntry=current;
   if(entry.parentId){
    let parent=await inspect(actual.path.slice(0,actual.path.lastIndexOf('/')));
@@ -61,10 +69,12 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   }
   return{id:value.id,path:actual.path,folder:true};
  }
- async function apply(job:NamespaceJob,reply:MoveReply):Promise<boolean>{
+ async function apply(job:NamespaceJob,reply:MoveReply,fresh=false):Promise<boolean>{
   if('asyncJobId'in reply||'inProgress'in reply){delete job.reply;await hooks.save();return false;}
   if('jobExpired'in reply){delete job.jobId;delete job.reply;await hooks.save();return false;}
   if(reply.entries.length!==job.entries.length)throw bad(job.kind,'Ufullstendig batchkvittering.');
+  // The whole transport receipt was persisted before this network/guard boundary.
+  if(!fresh&&(job.kind!=='delete'||reply.entries.some(result=>'missing'in result&&result.missing)))await refresh();
   let failure:MoveResult|undefined,missingCreation=false;const retry:NamespaceJob['entries']=[];
   for(let i=0;i<job.entries.length;i++){
    const entry=job.entries[i],result=reply.entries[i];
@@ -124,13 +134,13 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
     entries.push({value:{id:actual.id!,path:actual.path,folder:true}});
    }
   }
-  return apply(job,{entries});
+  return apply(job,{entries},true);
  }
- async function launch(job:NamespaceJob){
-  await hooks.check();await authorize(job);
+ async function launch(job:NamespaceJob,authorized=false){
+  await hooks.check();if(!authorized){await refresh();await authorize(job);}
   if(job.submitted&&job.kind!=='delete')return observeUnknown(job);
   if(job.kind==='folders')for(const entry of job.entries as FolderEntry[])if(entry.parentId){const parent=await inspect(entry.parentId);if(!parent||pathKey(parent.path)!==pathKey(entry.path.slice(0,entry.path.lastIndexOf('/')))){delete state.namespaceJob;await hooks.save();throw new RetrySync();}}
-  if(job.kind==='delete')for(const entry of job.entries as DeleteEntry[])if(entry.folder){const actual=await inspect(entry.fileId);if(actual&&(await hooks.freshList(actual.path)).length){delete state.namespaceJob;await hooks.save();throw new DeferredSync('remote','Mappen har fått nytt innhold.');}}
+  if(job.kind==='delete')for(const entry of job.entries as DeleteEntry[])if(entry.folder){const actual=await inspect(entry.fileId);if(actual&&await nonempty(actual.path)){delete state.namespaceJob;await hooks.save();throw new DeferredSync('remote','Mappen har fått nytt innhold.');}}
   job.submitted=true;delete job.reply;await hooks.save();await hooks.check();
   let reply:MoveReply;
   try{
@@ -149,21 +159,21 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
  }
  async function recover(plannedNow=false){
   const job=state.namespaceJob;if(!job)return;
-  await authorize(job);
+  await refresh();await authorize(job);
   // A journal saved before launch, or explicitly rejected by Dropbox, has no
   // physical effect to resume. Recompute it after fresh master inspection;
   // Shared/Originals/missing sources can have changed since it was planned.
   if(!plannedNow&&!job.submitted&&!job.jobId&&!job.reply){delete state.namespaceJob;await hooks.save();throw new RetrySync();}
   for(const id of job.quarantinedParents??[])if(await inspect(id))throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.namespace',action:'check-folders'},'En uavklart foreldermappe finnes fortsatt.');
-  if(job.reply){if(await apply(job,job.reply))return;}
-  if(!job.jobId){if(await launch(job))return;if(!state.namespaceJob)return;}
+  if(job.reply){if(await apply(job,job.reply,true))return;}
+  if(!job.jobId){if(await launch(job,true))return;if(!state.namespaceJob)return;}
   const check=job.kind==='move'?files.checkMoveBatch:job.kind==='delete'?files.checkDeleteBatch:files.checkCreateFoldersBatch;
   if(!check)throw bad(job.kind,'Batchstatus mangler.');
   for(const delay of [0,250,750,1500,3000]){
    if(!job.jobId){if(await launch(job))return;continue;}
    for(let left=delay;left>0;left-=100){await hooks.check();await new Promise(resolve=>setTimeout(resolve,Math.min(100,left)));}
    await hooks.check();let reply:MoveReply;
-   try{reply=await check(job.jobId,job.attempt);}catch(error){if(error instanceof BatchJobFailed){delete state.namespaceJob;await hooks.save();throw new RetrySync();}throw error;}
+   try{reply=await check(job.jobId,job.attempt);}catch(error){if(error instanceof BatchJobFailed){delete state.namespaceJob;if(error.info.code===failureCodes.throttled&&job.attempt<2){state.namespaceJob={id:crypto.randomUUID(),kind:job.kind,entries:job.entries,attempt:job.attempt+1};await hooks.save();await recover(true);return;}await hooks.save();if(error.info.code===failureCodes.throttled)throw error;throw new RetrySync();}throw error;}
    await receipt(job,reply);if(await apply(job,reply))return;
   }
   throw new DeferredSync('connection','Dropbox-jobben er ikke ferdig.');
@@ -189,8 +199,9 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
  }
  async function remove(entries:DeleteEntry[]){if(entries.length)await execute('delete',entries);}
  async function removeEmpty(paths:string[]){
+  if(!paths.length)return;await refresh();
   const entries:DeleteEntry[]=[];
-  for(const path of paths){const current=await inspect(path);if(!current)continue;if(!current.folder)throw bad('delete','Slettemålet er ikke en mappe.');if(!(await hooks.freshList(current.path)).length)entries.push({key:current.id!,path:current.id!,sourcePath:current.path,fileId:current.id!,folder:true,category:'folder'});}
+  for(const path of paths){const current=await inspect(path);if(!current)continue;if(!current.folder)throw bad('delete','Slettemålet er ikke en mappe.');if(!await nonempty(current.path)){const root=await inspect(current.path.split('/').slice(0,3).join('/')),book=Object.values(state.library?.value.books??state.manifest.books).find(book=>book.deleted&&book.folderId===root?.id);entries.push({key:current.id!,path:current.id!,sourcePath:current.path,fileId:current.id!,folder:true,category:'folder',...(book?{bookId:book.id}:{})});}}
   await remove(entries);
  }
  return{recover,folders,folder,remove,removeEmpty,move:(entries:MoveEntry[])=>execute('move',entries)};

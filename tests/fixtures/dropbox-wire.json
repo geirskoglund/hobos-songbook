@@ -1,0 +1,195 @@
+{
+  "source": "Dropbox Python SDK 12.2.5 / Stone 3.3.1 official serializer; synthetic data; raw HTTP unions, not SDK object fields",
+  "packages": {
+    "work/official-wire-packages/dropbox-12.2.5-py3-none-any.whl": "2bedb65e49b44894efe284db7d71cab495084cdfc7bc37418f72075819fe1ef1",
+    "work/official-wire-packages/stone-3.3.1-py3-none-any.whl": "e15866fad249c11a963cce3bdbed37758f2e88c8ff4898616bc0caeb1e216047"
+  },
+  "cases": {
+    "delete_launch_complete": {
+      ".tag": "complete",
+      "entries": [
+        {
+          ".tag": "success",
+          "metadata": {
+            ".tag": "folder",
+            "name": "Private",
+            "path_lower": "/songbooks/book/private",
+            "path_display": "/Songbooks/Book/Private",
+            "id": "id:folder"
+          }
+        }
+      ]
+    },
+    "delete_check_complete": {
+      ".tag": "complete",
+      "entries": [
+        {
+          ".tag": "success",
+          "metadata": {
+            ".tag": "folder",
+            "name": "Private",
+            "path_lower": "/songbooks/book/private",
+            "path_display": "/Songbooks/Book/Private",
+            "id": "id:folder"
+          }
+        }
+      ]
+    },
+    "folders_launch_complete": {
+      ".tag": "complete",
+      "entries": [
+        {
+          ".tag": "success",
+          "metadata": {
+            "name": "Private",
+            "path_lower": "/songbooks/book/private",
+            "path_display": "/Songbooks/Book/Private",
+            "id": "id:folder"
+          }
+        }
+      ]
+    },
+    "folders_check_complete": {
+      ".tag": "complete",
+      "entries": [
+        {
+          ".tag": "success",
+          "metadata": {
+            "name": "Private",
+            "path_lower": "/songbooks/book/private",
+            "path_display": "/Songbooks/Book/Private",
+            "id": "id:folder"
+          }
+        }
+      ]
+    },
+    "delete_entries_errors": {
+      ".tag": "complete",
+      "entries": [
+        {
+          ".tag": "failure",
+          "failure": {
+            ".tag": "path_lookup",
+            "path_lookup": {
+              ".tag": "not_found"
+            }
+          }
+        },
+        {
+          ".tag": "failure",
+          "failure": {
+            ".tag": "path_write",
+            "path_write": {
+              ".tag": "conflict",
+              "conflict": {
+                ".tag": "file"
+              }
+            }
+          }
+        },
+        {
+          ".tag": "failure",
+          "failure": {
+            ".tag": "too_many_write_operations"
+          }
+        }
+      ]
+    },
+    "move_entries_errors": {
+      ".tag": "complete",
+      "entries": [
+        {
+          ".tag": "failure",
+          "failure": {
+            ".tag": "relocation_error",
+            "relocation_error": {
+              ".tag": "from_lookup",
+              "from_lookup": {
+                ".tag": "not_found"
+              }
+            }
+          }
+        },
+        {
+          ".tag": "failure",
+          "failure": {
+            ".tag": "relocation_error",
+            "relocation_error": {
+              ".tag": "to",
+              "to": {
+                ".tag": "conflict",
+                "conflict": {
+                  ".tag": "file"
+                }
+              }
+            }
+          }
+        },
+        {
+          ".tag": "failure",
+          "failure": {
+            ".tag": "relocation_error",
+            "relocation_error": {
+              ".tag": "from_write",
+              "from_write": {
+                ".tag": "too_many_write_operations"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "delete_check_failed_lock": {
+      ".tag": "failed",
+      "failed": {
+        ".tag": "too_many_write_operations"
+      }
+    },
+    "auth_access_feature": {
+      ".tag": "invalid_account_type",
+      "invalid_account_type": {
+        ".tag": "feature"
+      }
+    },
+    "auth_rate": {
+      "reason": {
+        ".tag": "too_many_requests"
+      },
+      "retry_after": 30
+    },
+    "download_header": {
+      "name": "Song.cho",
+      "path_lower": "/songbooks/book/private/song.cho",
+      "path_display": "/Songbooks/Book/Private/Song.cho",
+      "id": "id:file",
+      "client_modified": "2026-01-01T00:00:00Z",
+      "server_modified": "2026-01-01T00:00:00Z",
+      "rev": "a1c10ce0dd78",
+      "size": 4
+    },
+    "current_account": {
+      "account_id": "dbid:AAH4f99T0taONIb-OurWxbNQ6ywGRopQngc",
+      "name": {
+        "given_name": "Wire",
+        "surname": "Test",
+        "familiar_name": "Wire",
+        "display_name": "Wire Test",
+        "abbreviated_name": "WT"
+      },
+      "email": "wire@example.invalid",
+      "email_verified": true,
+      "disabled": false,
+      "locale": "nb",
+      "referral_link": "https://www.dropbox.com/referrals/example",
+      "is_paired": false,
+      "account_type": {
+        ".tag": "basic"
+      },
+      "root_info": {
+        ".tag": "user",
+        "root_namespace_id": "123",
+        "home_namespace_id": "123"
+      }
+    }
+  }
+}

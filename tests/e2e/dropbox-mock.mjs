@@ -23,12 +23,13 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
   function createFolder(path){
     if(find(path))return{'.tag':'failure',failure:{'.tag':'path',path:{'.tag':'conflict',conflict:{'.tag':find(path)['.tag']}}}};
     const parents=path.split('/').slice(1,-1);let parent='';for(const name of parents){parent+='/'+name;if(!find(parent))put(parent,'',true);}
-    const value=metadata(put(path,'',true));delete value['.tag'];return{'.tag':'success',success:{metadata:value}};
+    const value=metadata(put(path,'',true));delete value['.tag'];return{'.tag':'success',metadata:value};
   }
   function deleteEntry(entry){
-    const value=find(entry.path);if(!value||entry.parent_rev&&entry.parent_rev!==value.rev)return{'.tag':'failure',failure:{'.tag':'path_lookup',path_lookup:{'.tag':'not_found'}}};
+    const value=find(entry.path);if(value&&entry.parent_rev&&entry.parent_rev!==value.rev)return{'.tag':'failure',failure:{'.tag':'path_write',path_write:{'.tag':'conflict',conflict:{'.tag':'file'}}}};
+    if(!value)return{'.tag':'failure',failure:{'.tag':'path_lookup',path_lookup:{'.tag':'not_found'}}};
     const meta=metadata(value),prefix=key(value.path_display);for(const [name]of [...entries])if(name===prefix||name.startsWith(prefix+'/'))entries.delete(name);
-    return{'.tag':'success',success:{metadata:meta}};
+    return{'.tag':'success',metadata:meta};
   }
   const namespaceResult=job=>job.result??(job.result={'.tag':'complete',entries:job.kind==='delete'?job.entries.map(deleteEntry):job.entries.map(createFolder)});
   const cursors=backend?.cursors??new Map();

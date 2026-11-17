@@ -11,19 +11,19 @@ async function adapterTest(request,run,guard=()=>{}){
 const deletion=(id,folder=false)=>({key:id,path:'id:'+id,fileId:'id:'+id,...(folder?{folder:true,category:'folder'}:{rev:'rev-'+id,category:'personal'})});
 test('namespace contract: file deletion carries stable ID and revision; folders carry no unsupported revision',async()=>{
  const entries=[deletion('a'),deletion('b',true)];
- await adapterTest(async(url,options)=>{assert.ok(url.endsWith('/files/delete_batch'));assert.equal(new URL(url).host,'api.dropboxapi.com');assert.deepEqual(JSON.parse(options.body),{entries:[{path:'id:a',parent_rev:'rev-a'},{path:'id:b'}]});return Response.json({'.tag':'complete',entries:entries.map((e,i)=>({'.tag':'success',success:{metadata:{'.tag':i?'folder':'file',id:e.fileId,path_display:'/example/'+e.key,...(!i?{rev:e.rev}:{})}}}))});},async adapter=>{
+ await adapterTest(async(url,options)=>{assert.ok(url.endsWith('/files/delete_batch'));assert.equal(new URL(url).host,'api.dropboxapi.com');assert.deepEqual(JSON.parse(options.body),{entries:[{path:'id:a',parent_rev:'rev-a'},{path:'id:b'}]});return Response.json({'.tag':'complete',entries:entries.map((e,i)=>({'.tag':'success',metadata:{'.tag':i?'folder':'file',id:e.fileId,path_display:'/example/'+e.key,...(!i?{rev:e.rev}:{})}}))});},async adapter=>{
   const result=await adapter.files.deleteBatch(entries);assert.equal(result.entries[0].value.id,'id:a');assert.equal(result.entries[1].value.folder,true);
   await assert.rejects(adapter.files.deleteBatch([{...deletion('b',true),rev:'forbidden'}]),error=>error.info.code==='SYNC-008');
  });
 });
 test('namespace contract: not-found, revision conflict and write contention are separate HTTP200 entry outcomes',async()=>{
- await adapterTest(async()=>Response.json({'.tag':'complete',entries:[{'.tag':'failure',failure:{'.tag':'path_lookup',path_lookup:{'.tag':'not_found'}}},{'.tag':'failure',failure:{'.tag':'path_lookup',path_lookup:{'.tag':'conflict'}}},{'.tag':'failure',failure:{'.tag':'too_many_write_operations'}}]}),async(adapter,events)=>{
+ await adapterTest(async()=>Response.json({'.tag':'complete',entries:[{'.tag':'failure',failure:{'.tag':'path_lookup',path_lookup:{'.tag':'not_found'}}},{'.tag':'failure',failure:{'.tag':'path_write',path_write:{'.tag':'conflict',conflict:{'.tag':'file'}}}},{'.tag':'failure',failure:{'.tag':'too_many_write_operations'}}]}),async(adapter,events)=>{
   const result=await adapter.files.deleteBatch([deletion('a'),deletion('b'),deletion('c')]);assert.equal(result.entries[0].missing,true);assert.equal(result.entries[1].collision,true);assert.equal(result.entries[2].failure.status,200);assert.equal(events[0].status,200);assert.equal(events[0].entryLimit,true);
  });
 });
-test('namespace contract: folder batches use absolute paths, no autorename and wrapped FolderMetadata without a union tag',async()=>{
+test('namespace contract: folder batches use absolute paths, no autorename and inlined FolderMetadata without a union tag',async()=>{
  const entries=[{key:'a',path:'/Songbooks/Åpen'},{key:'b',path:'/Songbooks/Andre'}];
- await adapterTest(async(url,options)=>{assert.ok(url.endsWith('/create_folder_batch'));assert.deepEqual(JSON.parse(options.body),{paths:entries.map(e=>e.path),autorename:false,force_async:false});return Response.json({'.tag':'complete',entries:entries.map(e=>({'.tag':'success',success:{metadata:{id:'id:'+e.key,path_display:e.path}}}))});},async adapter=>{const result=await adapter.files.createFoldersBatch(entries);assert.ok(result.entries.every(e=>e.value.folder));});
+ await adapterTest(async(url,options)=>{assert.ok(url.endsWith('/create_folder_batch'));assert.deepEqual(JSON.parse(options.body),{paths:entries.map(e=>e.path),autorename:false,force_async:false});return Response.json({'.tag':'complete',entries:entries.map(e=>({'.tag':'success',metadata:{id:'id:'+e.key,path_display:e.path}}))});},async adapter=>{const result=await adapter.files.createFoldersBatch(entries);assert.ok(result.entries.every(e=>e.value.folder));});
 });
 test('namespace contract: documented asynchronous status, terminal job failure and expired IDs',async()=>{
  await adapterTest(async(url)=>{
@@ -38,7 +38,7 @@ test('namespace contract: a successful job receipt reaches its journal even when
  await adapterTest(async()=>{allowed=false;return Response.json({'.tag':'async_job_id',async_job_id:'accepted-before-edit'});},async adapter=>{assert.deepEqual(await adapter.files.deleteBatch([deletion('a')]),{asyncJobId:'accepted-before-edit'});},()=>{if(!allowed)throw new DeferredSync('changed','new generation');});
 });
 test('namespace contract: malformed batch results cannot acknowledge work',async()=>{
- for(const value of [{'.tag':'complete',entries:[]},{'.tag':'complete',entries:[{'.tag':'success',metadata:{id:'wrong-shape'}}]},{'.tag':'async_job_id'}])await adapterTest(async()=>Response.json(value),async adapter=>{await assert.rejects(adapter.files.createFoldersBatch([{key:'a',path:'/A'}]),error=>error.info.code==='SYNC-008');});
+ for(const value of [{'.tag':'complete',entries:[]},{'.tag':'complete',entries:[{'.tag':'success',success:{metadata:{id:'wrong-shape'}}}]},{'.tag':'async_job_id'}])await adapterTest(async()=>Response.json(value),async adapter=>{await assert.rejects(adapter.files.createFoldersBatch([{key:'a',path:'/A'}]),error=>error.info.code==='SYNC-008');});
 });
 
 for(const status of [500,408])test(`namespace contract: HTTP${status} followed by a new-generation guard retains the already submitted ID move`,async()=>{

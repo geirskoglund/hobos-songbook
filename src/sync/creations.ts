@@ -1,13 +1,23 @@
 import {DeferredSync,RetrySync,SyncFailure,failureCodes} from './failure.ts';
 import {numberedPath} from './filenames.ts';
-import {pathKey} from './remote.ts';
-import type {FileValue,MoveReply,MoveResult,RemoteFiles,SyncState,UploadJob,UploadResult} from './model.ts';
+import {metadataView,pathKey} from './remote.ts';
+import type {FileValue,MoveReply,MoveResult,RemoteEntry,RemoteFiles,SyncState,UploadJob,UploadResult} from './model.ts';
 
 /** New user-visible files commit first to an app-owned, never-reused path.
  * A readable destination and matching bytes alone cannot prove ownership. */
-export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():Promise<void>;save():Promise<void>;record(job:UploadJob,value:FileValue):void;beforePlace(jobs:UploadJob[]):Promise<void>}){
+export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():Promise<void>;save():Promise<void>;record(job:UploadJob,value:FileValue):void;beforePlace(jobs:UploadJob[]):Promise<void>;receipt?(job:NonNullable<SyncState['placement']>):Promise<void>}){
  const jobs=state.uploads??={};
  const inspect=(path:string)=>(files.inspectFile??files.read)(path);
+ async function metadata():Promise<(path:string)=>Promise<RemoteEntry|null>>{
+  await hooks.check();if(files.metadataSnapshot){const view=metadataView(await files.metadataSnapshot());await hooks.check();return async(path:string)=>view.find(path)??null;}
+  return files.metadata??inspect;
+ }
+ async function recordLocation(job:UploadJob,entry:RemoteEntry){
+  // Only a file that escaped its nonce needs content recovery. Ordinary staging
+  // cleanup uses ID/path/rev alone, independent of file size or decodability.
+  const receipt=job.creation?.file??await inspect(entry.id!);await hooks.check();
+  if(receipt)hooks.record(job,{...receipt,path:entry.path});
+ }
  const isNew=(job:UploadJob)=>job.rev===null&&(job.kind==='content'||job.kind==='original');
  const retarget=(job:UploadJob,path:string)=>{job.path=path;if(job.kind==='content'&&state.reservations[job.songId])state.reservations[job.songId].path=path;};
  function available(job:UploadJob,path:string){
@@ -67,16 +77,18 @@ export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():P
  }
  async function apply(reply:MoveReply){
   const pending=state.placement!;
+  delete pending.reply;
   if('jobExpired'in reply){delete pending.jobId;await hooks.save();return false;}
   if('asyncJobId'in reply){pending.jobId=reply.asyncJobId;await hooks.save();return false;}
   if('inProgress'in reply)return false;
   if(reply.entries.length!==pending.entries.length)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ufullstendig flytteresultat.');
+  const inspectMeta=reply.entries.some((result,i)=>'value'in result&&!result.value.path&&pending.entries[i].toReference)?await metadata():undefined;
   let changed=false;
   for(let i=0;i<reply.entries.length;i++){
    const entry=pending.entries[i],job=jobs[entry.key],result=reply.entries[i];
    if(!job?.creation)continue;
    if('value'in result){
-    if(!result.value.path&&entry.toReference){const actual=await inspect(entry.fileId);await hooks.check();if(!actual)throw new RetrySync();result.value.path=actual.path;}
+    if(!result.value.path&&entry.toReference){const actual=await inspectMeta!(entry.fileId);await hooks.check();if(!actual)throw new RetrySync();result.value.path=actual.path;}
     const path=result.value.path||entry.to;
     const matches=entry.toReference?pathKey(path.split('/').at(-1)!)===pathKey(entry.to.split('/').at(-1)!):pathKey(path)===pathKey(entry.to);
     if(result.value.id!==entry.fileId||!matches)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Flytting bekreftet feil filidentitet eller mål.');
@@ -99,6 +111,13 @@ export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():P
   // Never relaunch a plan for a song that was removed or rejoined elsewhere.
   if(pending.entries.every(entry=>!jobs[entry.key]?.creation)){delete state.placement;await hooks.save();return;}
   await hooks.check();
+  if(!pending.id){pending.id=crypto.randomUUID();await hooks.save();}
+  if(pending.reply&&await apply(pending.reply))return;
+  const receive=async(reply:MoveReply)=>{
+   pending.reply=reply;if('asyncJobId'in reply)pending.jobId=reply.asyncJobId;
+   if(hooks.receipt)await hooks.receipt(pending);else await hooks.save();
+   await hooks.check();return apply(reply);
+  };
   let reply:MoveReply;
   if(pending.jobId){if(!files.checkMoveBatch)throw new Error('Missing batch status support');reply=await files.checkMoveBatch(pending.jobId,pending.retryAttempt);}
   else {
@@ -106,14 +125,14 @@ export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():P
    // server job can never fetch the file again from its final name or a new ID.
    reply=files.moveBatch?await files.moveBatch(pending.entries,pending.retryAttempt):{entries:await serial(pending.entries)};
   }
-  await hooks.check();if(await apply(reply))return;
+  if(await receive(reply))return;
   // Only check the already requested mutation, with a bounded active-run
   // budget. Waiting never schedules another sync or polls the library.
   for(const delay of [0,250,750,1500,3000]){
    if(!pending.jobId)break;
    for(let left=delay;left>0;left-=100){await hooks.check();await new Promise(resolve=>setTimeout(resolve,Math.min(left,100)));}
-   await hooks.check();reply=await files.checkMoveBatch!(pending.jobId,pending.retryAttempt);await hooks.check();
-   if(await apply(reply))return;
+   await hooks.check();reply=await files.checkMoveBatch!(pending.jobId,pending.retryAttempt);
+   if(await receive(reply))return;
   }
   throw new DeferredSync('connection','Flytting pågår hos Dropbox.');
  }
@@ -131,7 +150,7 @@ export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():P
    // Persist the immutable plan before launch. The source path is never reused
    // for another physical file, even if a launch response is lost.
    const entries=pending.map(job=>{job.creation!.attempted=true;return{key:job.key,from:job.creation!.path,to:job.path,toReference:`${job.creation!.folderId}/${job.path.split('/').at(-1)}`,fileId:job.creation!.file!.id};});
-   state.placement={entries,retryAttempt:attempt};await hooks.save();await resume();
+   state.placement={id:crypto.randomUUID(),entries,retryAttempt:attempt};await hooks.save();await resume();
    if(attempt<2)for(const job of pending)if(job.creation?.failure?.code===failureCodes.throttled)delete job.creation.failure;
   }
   for(const job of group){
@@ -150,30 +169,33 @@ export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():P
   throw new RetrySync();
  }
  async function discardMany(songIds:string[],role?:'original'){
-  const allowed=new Set(songIds),blocked=new Set<string>(),deletions:import('./model.ts').DeleteEntry[]=[],observed=new Map<string,FileValue>();
+  const allowed=new Set(songIds),blocked=new Set<string>(),deletions:import('./model.ts').DeleteEntry[]=[],observed=new Map<string,RemoteEntry>();
   const group=Object.values(jobs).filter(job=>allowed.has(job.songId)&&job.creation&&(!role||job.kind===role));
+  if(!group.some(job=>!job.creation!.discarded))return new Set(songIds);const inspectMeta=await metadata();
   for(const job of group){
-   const c=job.creation!;if(c.discarded)continue;await hooks.check();const actual=await inspect(c.file?.id??c.path);await hooks.check();
-   if(actual&&pathKey(actual.path)!==pathKey(c.path)){hooks.record(job,{...(c.file??actual),path:actual.path});blocked.add(job.songId);continue;}
-   if(actual){observed.set(job.key,actual);deletions.push({key:job.key,path:c.path,fileId:actual.id,rev:actual.rev,category:'staging'});}
+   const c=job.creation!;if(c.discarded)continue;await hooks.check();const actual=await inspectMeta(c.file?.id??c.path);await hooks.check();
+   if(actual&&pathKey(actual.path)!==pathKey(c.path)){await recordLocation(job,actual);blocked.add(job.songId);continue;}
+   if(actual){if(!actual.id||!actual.rev||actual.folder)throw new SyncFailure({code:failureCodes.response,stage:'sync.file'},'Ugyldig mellomlagringsmetadata.');observed.set(job.key,actual);deletions.push({key:job.key,path:c.path,fileId:actual.id,rev:actual.rev,category:'staging'});}
    else (state.abandoned??=[]).push({path:c.path});
   }
   await hooks.save();
   if(deletions.length){if(files.deleteFiles)await files.deleteFiles(deletions);else for(const entry of deletions){if(!files.deleteFile)return new Set<string>();await files.deleteFile(entry.path,entry.rev!);}await hooks.check();}
+  const inspectRemaining=observed.size?await metadata():inspectMeta;
   for(const job of group){
    const c=job.creation!;if(c.discarded||blocked.has(job.songId))continue;const old=observed.get(job.key);
-   if(old){const remaining=await inspect(old.id);await hooks.check();if(remaining){hooks.record(job,{...(c.file??old),path:remaining.path});blocked.add(job.songId);continue;}}
+   if(old){const remaining=await inspectRemaining(old.id!);await hooks.check();if(remaining){await recordLocation(job,remaining);blocked.add(job.songId);continue;}}
    c.discarded=true;
   }
   await hooks.save();return new Set(songIds.filter(id=>!blocked.has(id)));
  }
  async function discard(songId:string,role?:'original'){return(await discardMany([songId],role)).has(songId);}
  async function sweep(){
+  if(!state.abandoned?.length)return;const inspectMeta=await metadata();
   const keep:NonNullable<SyncState['abandoned']>=[],deletions:import('./model.ts').DeleteEntry[]=[];
   for(const item of state.abandoned??[]){
-   const entry=state.remote?.entries[pathKey(item.path)];if(!entry){keep.push(item);continue;}
-   await hooks.check();const current=await inspect(item.fileId??item.path);await hooks.check();
-   if(current&&pathKey(current.path)===pathKey(item.path))deletions.push({key:item.path,path:item.path,fileId:current.id,rev:current.rev,category:'staging'});
+   await hooks.check();const current=await inspectMeta(item.fileId??item.path);await hooks.check();
+   if(!current){keep.push(item);continue;}
+   if(current.id&&current.rev&&!current.folder&&pathKey(current.path)===pathKey(item.path))deletions.push({key:item.path,path:item.path,fileId:current.id,rev:current.rev,category:'staging'});
   }
   if(deletions.length){if(files.deleteFiles)await files.deleteFiles(deletions);else for(const entry of deletions)await files.deleteFile?.(entry.path,entry.rev!);await hooks.check();}
   state.abandoned=keep;

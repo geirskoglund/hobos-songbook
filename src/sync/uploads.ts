@@ -8,7 +8,7 @@ import {emptyManifest,type Manifest} from './model.ts';
 const batchSize=100,sessionLifetime=7*24*60*60*1000;
 /** Durable intents precede namespace commits. A lost result is reconciled by exact
  * bytes before any replay, including after a newer local generation. */
-export function uploadQueue(files:RemoteFiles,state:SyncState,hooks:{check():Promise<void>;save():Promise<void>;record(job:UploadJob,value:FileValue):void}){
+export function uploadQueue(files:RemoteFiles,state:SyncState,hooks:{check():Promise<void>;save():Promise<void>;record(job:UploadJob,value:FileValue):void;receipt?(job:NonNullable<SyncState['placement']>):Promise<void>}){
   const journal=state.uploads??={};
   let published=emptyManifest();
   const bridge=uploadBridge(files,state,hooks);

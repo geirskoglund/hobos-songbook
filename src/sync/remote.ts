@@ -4,6 +4,11 @@ import {checkSize,textBytes} from './limits.ts';
 import {parseUploadIndex,uploadIndexPath} from './bridge.ts';
 
 export const pathKey=(path:string)=>path.normalize('NFC').toLowerCase();
+/** A phase uses one immutable, complete view for IDs, paths and all children. */
+export function metadataView(entries:RemoteEntry[]){
+  const values=entries.map(entry=>Object.freeze({...entry})),paths=new Map(values.map(entry=>[pathKey(entry.path),entry])),ids=new Map(values.filter(entry=>entry.id).map(entry=>[entry.id!,entry]));
+  return{find:(path:string)=>path.startsWith('id:')?ids.get(path):paths.get(pathKey(path)),nonempty:(path:string)=>values.some(entry=>pathKey(entry.path).startsWith(pathKey(path)+'/'))};
+}
 /** A complete metadata index, advanced only after every page has been received. */
 export function indexedFiles(raw:RemoteFiles,state:SyncState){
   let refreshing=false;
@@ -43,6 +48,13 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
     return reply;
   }
   const files:RemoteFiles={
+    ...(raw.changes?{async metadataSnapshot(){
+      await refresh();
+      // Child metadata can prove that a parent exists even if its own entry is
+      // absent. Resolve only such inferred parents; never treat that as deletion.
+      for(const entry of Object.values(state.remote!.entries))if(entry.folder&&!entry.id){const actual=await raw.locateFolder(entry.path);if(actual)put({...actual,folder:true});}
+      return Object.values(state.remote!.entries).map(entry=>({...entry}));
+    }}:{}),
     ...(raw.metadata?{async metadata(path:string){const value=await raw.metadata!(path);if(value)put(value);else{const old=find(path);if(old)remove(old.path);}return value;}}:{}),
     async inspectFile(path){const result=await raw.read(path);if(result)put({id:result.id,path:result.path,rev:result.rev,folder:false,size:textBytes(result.text)});else{const entry=find(path);if(entry)remove(entry.path);}return result;},
     async read(path){
@@ -82,7 +94,14 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
       }
       const result=await raw.folder(path,expectedId,Boolean(state.remote&&!current));put({...result,folder:true});return result;
     },
-    async locateFolder(id){if(!state.remote)return raw.locateFolder(id);const entry=find(id);if(entry?.folder&&entry.id)return{id:entry.id,path:entry.path};const actual=await raw.locateFolder(id);if(actual)put({...actual,folder:true});return actual;},
+    async locateFolder(id){
+      if(!state.remote)return raw.locateFolder(id);const entry=find(id);if(entry?.folder&&entry.id)return{id:entry.id,path:entry.path};
+      // A complete inventory proves absence, except an inferred parent lacking
+      // its own metadata. Preserve the conservative incomplete-parent fallback.
+      const book=Object.values({...state.manifest.books,...state.folders}).find(book=>book.folderId===id),parent=book?.path&&find(book.path);
+      if(!entry&&!(parent&&parent.folder&&!parent.id))return null;
+      const actual=await raw.locateFolder(id);if(actual)put({...actual,folder:true});return actual;
+    },
     async move(from,to){const current=find(from),result=await raw.move(from,to,current?.id?{id:current.id,path:current.path}:undefined);put({...current,...result,folder:current?.folder??false});return result;},
     async list(path){if(!state.remote)return raw.list(path);const prefix=pathKey(path)+'/',entries=Object.values(state.remote.entries).filter(e=>pathKey(e.path).startsWith(prefix)&&!e.path.slice(path.length+1).includes('/'));for(const entry of entries)if(!entry.id&&entry.folder){const actual=await raw.locateFolder(entry.path);if(actual){Object.assign(entry,actual);put({...actual,folder:true});}else remove(entry.path);}return entries.filter(e=>e.id).map(e=>({id:e.id!,path:e.path,folder:Boolean(e.folder)}));},
     async removeEmpty(path){if(state.remote&&(await files.list(path)).length)return false;const removed=await raw.removeEmpty(path);if(removed)remove(path);return removed;},
@@ -99,7 +118,7 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
   async function refresh(){
     if(!raw.changes)return;
     const update=await raw.changes(state.remote?.cursor),previous=state.remote;
-    state.remote={cursor:update.cursor,entries:update.reset?{}:{...previous?.entries}};
+    state.remote={cursor:update.cursor,entries:update.reset?{}:{...previous?.entries},epoch:(previous?.epoch??0)+(update.reset?1:0)};
     if(!update.reset)for(const [key,before]of Object.entries(previous?.beforeUpdates??{})){if(before)state.remote.entries[key]=before;else delete state.remote.entries[key];}
     refreshing=true;try{for(const entry of update.entries)put(entry);}finally{refreshing=false;}
   }

@@ -26,18 +26,23 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
   }
   const resource=(path:string):ApiContext['resource']=>/^\/\.app\/songs\//i.test(path)?'personal':/^\/\.app\/uploads\//i.test(path)?'staging':path.startsWith('/.app/')?'control':/^\/Songbooks\/[^/]+\/Private\//i.test(path)?'content':'other';
   async function send(operation: string, source: RequestInit|(()=>RequestInit), transform?:(response:Response)=>Promise<Response>,context:ApiContext={}) {
-    let details=context;
+    let details:ApiContext=context;
     return rate.send(operation,async(attempt,check)=>{
       const options=typeof source==='function'?source():source;
       if(typeof options.body==='string'&&options.headers&&Object.entries(options.headers).some(([key,value])=>key.toLowerCase()==='content-type'&&value==='application/json'))try{const body=JSON.parse(options.body),count=body.entries?.length??body.paths?.length;if(Number.isInteger(count))details={...details,batchSize:count};}catch{/* Never include request contents in diagnostics. */}
-      const headers=attempt?{...(options.headers as Record<string,string>),Authorization:`Bearer ${await access()}`}:options.headers;
+      // OAuth account lookup already holds the newly exchanged bearer; it is
+      // not installed in credentials until that very lookup succeeds.
+      const headers=attempt&&operation.startsWith('files/')&&options.headers&&Object.keys(options.headers).some(key=>key.toLowerCase()==='authorization')?{...(options.headers as Record<string,string>),Authorization:`Bearer ${await access()}`}:options.headers;
       if(attempt)await check();
+      details={...details,requestId:undefined};
       const response=await request(`https://${operation==='files/download'||operation==='files/upload'||operation==='files/upload_session/start'?'content':'api'}.dropboxapi.com/${operation==='oauth2/token'?'':'2/'}${operation}`,{...options,headers,signal:options.signal??deadline()});
-      return transform?transform(response):response;
+      details={...details,requestId:response.headers.get('X-Dropbox-Request-Id')??undefined};
+      if(transform)try{return await transform(response);}catch(error){Object.defineProperty(response,'transformFailure',{value:error});}
+      return response;
     },()=>details);
   }
   async function json(response: Response, stage = 'dropbox.request') {
-    try {return await response.json();} catch (cause) {throw new SyncFailure({code:failureCodes.response,stage,status:response.status},'Dropbox returnerte ugyldig JSON.',cause);}
+    try {return await response.json();} catch (cause) {throw new SyncFailure({code:cause instanceof SyntaxError?failureCodes.response:failureCodes.network,stage,status:response.status},'Dropbox-responsen kunne ikke leses.',cause);}
   }
   function credentials(): Credentials | null {
     const raw = localStorage.getItem(authKey); if (!raw) return null;
@@ -51,7 +56,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     const response = await send('oauth2/token', {method: 'POST', body, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
     if (!response.ok) {
       const problem=await response.json().catch(()=>null),expired=response.status===400&&problem?.error==='invalid_grant';
-      if((expired||[401,403].includes(response.status))&&refresh&&ticket===invalidated&&credentials()?.refreshToken===refresh)localStorage.removeItem(authKey);
+      if((expired||response.status===401)&&refresh&&ticket===invalidated&&credentials()?.refreshToken===refresh)localStorage.removeItem(authKey);
       throw new DropboxError(expired?401:response.status,'token','dropbox.token');
     }
     const value=await json(response,'dropbox.token');
@@ -104,9 +109,9 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
   async function rpc(path: string, body: unknown,entryAttempt=0,context:ApiContext={}) {
     await beforeRequest(); const accessToken = await access(); await beforeRequest();
     const batch=['files/move_batch_v2','files/move_batch/check_v2','files/delete_batch','files/delete_batch/check','files/create_folder_batch','files/create_folder_batch/check'].includes(path);
-    const locked=(failure:any):boolean=>failure?.['.tag']==='too_many_write_operations'||['path','path_write','to','relocation_error'].some(key=>failure?.[key]&&locked(failure[key]));
+    const locked=(failure:any):boolean=>failure?.['.tag']==='too_many_write_operations'||['path','path_write','from_write','to','relocation_error','failed'].some(key=>failure?.[key]&&locked(failure[key]));
     const response = await send(path, {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json'}, body: JSON.stringify(body), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},batch?async reply=>{
-      if(reply.status===200){const value=await reply.clone().json().catch(()=>null);if(Array.isArray(value?.entries)&&value.entries.some((entry:any)=>locked(entry?.failure)))Object.defineProperty(reply,'entryRateAttempt',{value:entryAttempt});}
+      if(reply.status===200){const value=await reply.clone().json().catch(()=>null);if(Array.isArray(value?.entries)&&value.entries.some((entry:any)=>locked(entry?.failure))||value?.['.tag']==='failed'&&locked(value.failed))Object.defineProperty(reply,'entryRateAttempt',{value:entryAttempt});}
       return reply;
     }:undefined,context);
     // Successful transport receipts must reach the account/operation journal
@@ -116,7 +121,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       if(batch&&!rejected&&error instanceof DeferredSync)throw new SubmittedBatchInterruption(error.reason,error.message);
       throw error;
     }
-    if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const problem = await response.json().catch(() => ({})); throw new DropboxError(response.status, problem.error_summary ?? 'request');}
+    if (!response.ok) {if (response.status===401) localStorage.removeItem(authKey); const problem = await response.json().catch(() => ({})); throw new DropboxError(response.status, problem.error_summary ?? 'request');}
     return json(response);
   }
   const missing = (error: unknown) => error instanceof DropboxError && error.status === 409 && /^path\/not_found/.test(error.summary);
@@ -143,7 +148,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       const problem=entry.failure,relocation=problem['.tag']==='relocation_error'?problem.relocation_error:null;
       const collision=relocation?.['.tag']==='to'&&relocation.to?.['.tag']==='conflict';
       const missing=relocation?.['.tag']==='from_lookup'&&relocation.from_lookup?.['.tag']==='not_found';
-      const throttled=problem['.tag']==='too_many_write_operations'||relocation?.['.tag']==='to'&&relocation.to?.['.tag']==='too_many_write_operations';
+      const throttled=problem['.tag']==='too_many_write_operations'||relocation?.['.tag']==='to'&&relocation.to?.['.tag']==='too_many_write_operations'||relocation?.['.tag']==='from_write'&&relocation.from_write?.['.tag']==='too_many_write_operations';
       return{failure:{code:collision?failureCodes.changed:missing?failureCodes.missingFile:throttled?failureCodes.throttled:failureCodes.request,stage:'dropbox.move-batch',status:200,...(throttled?{limitReason:'too_many_write_operations' as const,retryAfterMs:0}:{})},...(collision?{collision:true}:{}),...(missing?{missing:true}:{})};
     })};
   }
@@ -151,17 +156,17 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     const stage=`dropbox.${kind}-batch`;
     if(value?.['.tag']==='async_job_id'&&typeof value.async_job_id==='string'&&value.async_job_id)return{asyncJobId:value.async_job_id};
     if(value?.['.tag']==='in_progress')return{inProgress:true};
-    if(value?.['.tag']==='failed')throw new BatchJobFailed({code:failureCodes.request,stage,status:200},'Dropbox-jobben feilet.');
+    if(value?.['.tag']==='failed'){const throttled=value.failed?.['.tag']==='too_many_write_operations';throw new BatchJobFailed({code:throttled?failureCodes.throttled:failureCodes.request,stage,status:200,...(throttled?{limitReason:'too_many_write_operations' as const,retryAfterMs:0}:{})},'Dropbox-jobben feilet.');}
     if(value?.['.tag']!=='complete'||!Array.isArray(value.entries))throw new SyncFailure({code:failureCodes.response,stage},'Ugyldig batchrespons.');
     return{entries:value.entries.map((entry:any)=>{
       if(entry?.['.tag']==='success'){
-        const meta=entry.success?.metadata,path=displayPath(meta);
+        const meta=entry.metadata,path=displayPath(meta);
         if(typeof meta?.id!=='string'||!meta.id||path!==undefined&&typeof path!=='string'||kind==='folders'&&meta['.tag']!==undefined&&meta['.tag']!=='folder'||kind==='delete'&&!['file','folder'].includes(meta['.tag']))throw new SyncFailure({code:failureCodes.response,stage},'Ugyldig batchkvittering.');
         return{value:{id:meta.id,path:path??'',...(meta.rev?{rev:meta.rev}:{}),...(kind==='folders'||meta['.tag']==='folder'?{folder:true}:{})}};
       }
       const failure=entry?.failure,tag=failure?.['.tag'];if(entry?.['.tag']!=='failure'||typeof tag!=='string')throw new SyncFailure({code:failureCodes.response,stage},'Ugyldig batchfeil.');
       const missing=tag==='path_lookup'&&failure.path_lookup?.['.tag']==='not_found';
-      const collision=tag==='path'&&failure.path?.['.tag']==='conflict'||tag==='path_lookup'&&failure.path_lookup?.['.tag']==='conflict';
+      const collision=tag==='path'&&failure.path?.['.tag']==='conflict'||tag==='path_write'&&failure.path_write?.['.tag']==='conflict';
       const throttled=tag==='too_many_write_operations'||tag==='path_write'&&failure.path_write?.['.tag']==='too_many_write_operations'||tag==='path'&&failure.path?.['.tag']==='too_many_write_operations';
       return{failure:{code:missing?failureCodes.missingFile:collision?failureCodes.changed:throttled?failureCodes.throttled:failureCodes.request,stage,status:200,...(throttled?{limitReason:'too_many_write_operations' as const,retryAfterMs:0}:{})},...(missing?{missing:true}:{}),...(collision?{collision:true}:{})};
     })};
@@ -211,11 +216,11 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       await beforeRequest(); const accessToken = await access(); await beforeRequest();
       const response = await send('files/download', {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Dropbox-API-Arg': apiArg({path})}, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},undefined,{resource:resource(path)});
       await beforeRequest();
-      if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); const error = new DropboxError(response.status, value.error_summary ?? 'download'); if (missing(error)) return null; throw error;}
+      if (!response.ok) {if (response.status===401) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); const error = new DropboxError(response.status, value.error_summary ?? 'download'); if (missing(error)) return null; throw error;}
       let meta;try{meta=JSON.parse(response.headers.get('Dropbox-API-Result')??'null');}catch(cause){throw new SyncFailure({code:failureCodes.response,stage:'dropbox.download'},'Ugyldig metadataheader.',cause);}
       if(meta?.size>maxFileBytes){await response.body?.cancel();throw new SkippedFile();}
       const reader=response.body?.getReader(),chunks:Uint8Array[]=[];let size=0;
-      if(reader)for(;;){const chunk=await reader.read();if(chunk.done)break;size+=chunk.value.byteLength;if(size>maxFileBytes){await reader.cancel();throw new SkippedFile();}chunks.push(chunk.value);}
+      try{if(reader)for(;;){const chunk=await reader.read();if(chunk.done)break;size+=chunk.value.byteLength;if(size>maxFileBytes){await reader.cancel();throw new SkippedFile();}chunks.push(chunk.value);}}catch(cause){if(cause instanceof SkippedFile)throw cause;throw new SyncFailure({code:failureCodes.network,stage:'dropbox.download',status:response.status},'Dropbox-nedlastingen ble avbrutt.',cause);}
       const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
       return fileValue(meta, new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(bytes),knownPath??path);
     },
@@ -225,13 +230,13 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       const args = {path, mode: rev ? {'.tag': 'update', update: rev} : {'.tag': 'add'}, autorename: false, strict_conflict: true, mute: true};
       const response = await send('files/upload', {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/octet-stream', 'Dropbox-API-Arg': apiArg(args)}, body: new TextEncoder().encode(text), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},undefined,{resource:resource(path)});
       await beforeRequest();
-      if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); throw new DropboxError(response.status, value.error_summary ?? 'upload');}
+      if (!response.ok) {if (response.status===401) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); throw new DropboxError(response.status, value.error_summary ?? 'upload');}
       return fileValue(await json(response,'dropbox.upload'), text,path);
     },
     async beginUpload(text){
       checkSize(textBytes(text));await beforeRequest();const accessToken=await access();await beforeRequest();
       const response=await send('files/upload_session/start',{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/octet-stream','Dropbox-API-Arg':apiArg({close:true})},body:new TextEncoder().encode(text),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'});
-      await beforeRequest();if(!response.ok){if([401,403].includes(response.status))localStorage.removeItem(authKey);throw new DropboxError(response.status,'session','dropbox.upload');}
+      await beforeRequest();if(!response.ok){if(response.status===401)localStorage.removeItem(authKey);throw new DropboxError(response.status,'session','dropbox.upload');}
       const value=await json(response,'dropbox.upload');
       if(typeof value?.session_id!=='string'||!value.session_id)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.upload'},'Ugyldig opplastingsøkt.');
       return{id:value.session_id,created:Date.now()};
@@ -254,7 +259,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
             if(tag==='too_many_write_operations'||tag==='path'&&entry.failure.path?.['.tag']==='too_many_write_operations'){throttled.push(i);continue;}
             const resetSession=tag==='lookup_failed'&&['not_found','closed'].includes(entry.failure.lookup_failed?.['.tag']);
             const conflict=tag==='path'&&entry.failure.path?.['.tag']==='conflict';
-            results[i]={failure:{code:conflict?failureCodes.changed:failureCodes.request,stage:'dropbox.batch',status:409},...(resetSession?{resetSession:true}:{})};
+            results[i]={failure:{code:conflict?failureCodes.changed:failureCodes.request,stage:'dropbox.batch',status:200},...(resetSession?{resetSession:true}:{})};
           }else throw new SyncFailure({code:failureCodes.response,stage:'dropbox.batch'},'Ugyldig batchoppføring.');
         }
         pending=throttled;
@@ -262,7 +267,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
         if(pending.length){const limited=new Response(JSON.stringify({error:{reason:{'.tag':'too_many_write_operations'},retry_after:0}}),{status:429,headers:{'Retry-After':'0','Content-Type':'application/json'}});Object.defineProperty(limited,'entryLimit',{value:true});return limited;}
         return new Response(JSON.stringify({entries:results}),{headers:{'Content-Type':'application/json'}});
       });
-      await beforeRequest();if(!response.ok){if([401,403].includes(response.status))localStorage.removeItem(authKey);throw new DropboxError(response.status,'batch','dropbox.batch');}
+      await beforeRequest();if(!response.ok){if(response.status===401)localStorage.removeItem(authKey);throw new DropboxError(response.status,'batch','dropbox.batch');}
       return (await json(response,'dropbox.batch')).entries;
     },
     async folder(path, expectedId, knownMissing) {

@@ -3,17 +3,18 @@ import type {RemoteFiles} from './model.ts';
 import {failureCodes, failureInfo, userActions, type FailureCode, type FailureInfo,type RateInfo} from './failure.ts';
 
 const operations = ['oauth2/token','users/get_current_account','auth/token/revoke','files/get_metadata','files/create_folder_v2','files/create_folder_batch','files/create_folder_batch/check','files/list_folder','files/list_folder/continue','files/download','files/upload','files/upload_session/start','files/upload_session/finish_batch_v2','files/move_v2','files/move_batch_v2','files/move_batch/check_v2','files/delete_v2','files/delete_batch','files/delete_batch/check'] as const;
-export interface ApiContext {batchSize?:number;resource?:'personal'|'staging'|'folder'|'content'|'control'|'mixed'|'other'}
+export interface ApiContext {batchSize?:number;resource?:'personal'|'staging'|'folder'|'content'|'control'|'mixed'|'other';requestId?:string}
 export interface ApiEvent extends RateInfo,ApiContext {operation: string; status: number; durationMs: number;retryAttempt?:number;entryLimit?:boolean;transport?:'network'|'abort'|'timeout'}
 const entryLimited=(event:ApiEvent)=>event.status===200&&event.entryLimit===true&&['files/upload_session/finish_batch_v2','files/move_batch_v2','files/move_batch/check_v2','files/delete_batch','files/delete_batch/check','files/create_folder_batch','files/create_folder_batch/check'].includes(event.operation);
 const rateStatus=(failure:FailureInfo)=>failure.status===200&&failure.code===failureCodes.throttled&&['dropbox.move-batch','dropbox.delete-batch','dropbox.folders-batch'].includes(failure.stage)?429:failure.status;
-function safeContext(event:ApiEvent){return{...(Number.isSafeInteger(event.batchSize)&&event.batchSize!>0&&event.batchSize!<=10000?{batchSize:event.batchSize}:{}),...(['personal','staging','folder','content','control','mixed','other'].includes(event.resource??'')?{resource:event.resource}:{}),...(event.status===0&&['network','abort','timeout'].includes(event.transport??'')?{transport:event.transport}:{})};}
+function safeContext(event:ApiEvent){return{...(typeof event.requestId==='string'&&/^[0-9a-f-]{16,128}$/i.test(event.requestId)?{requestId:event.requestId}:{}),...(Number.isSafeInteger(event.batchSize)&&event.batchSize!>0&&event.batchSize!<=10000?{batchSize:event.batchSize}:{}),...(['personal','staging','folder','content','control','mixed','other'].includes(event.resource??'')?{resource:event.resource}:{}),...(event.status===0&&['network','abort','timeout'].includes(event.transport??'')?{transport:event.transport}:{})};}
 type EnvironmentInfo = Record<string, string | number | boolean | null>;
 export interface SyncLog {
   version: 1; id: string; timestamp: string;
   app: {channel: AppEnvironment['channel']; sha: string; pr: number | null};
   failure: RateInfo & {code: FailureCode; stage: string; status?: number; action?: FailureInfo['action']; type: string; causeType?: string; stack: {line: number; column: number}[]};
   manual: boolean; environment: EnvironmentInfo; operations: ApiEvent[];
+  operationTotals?:Record<string,number>;
 }
 interface LogStore {version: 1; active: string | null; entries: SyncLog[]; pending: string[]; owners: Record<string,string>}
 const limit = 20;
@@ -72,6 +73,7 @@ function safeLog(value: SyncLog): SyncLog {
       ...(value.failure.causeType&&errorTypes.has(value.failure.causeType)?{causeType:value.failure.causeType}:{}),
       stack:value.failure.stack.filter(p=>Number.isSafeInteger(p.line)&&p.line>0&&Number.isSafeInteger(p.column)&&p.column>0).slice(0,8).map(p=>({line:p.line,column:p.column}))},
     manual:Boolean(value.manual),environment:safeEnvironment(value.environment),
+    ...(value.operationTotals?{operationTotals:Object.fromEntries(Object.entries(value.operationTotals).filter(([operation,count])=>operations.includes(operation as typeof operations[number])&&Number.isSafeInteger(count)&&count>0&&count<=1e9))}:{}),
     operations:value.operations.filter(o=>operations.includes(o.operation as typeof operations[number])&&Number.isInteger(o.status)&&o.status>=0&&o.status<=599&&Number.isFinite(o.durationMs)&&o.durationMs>=0).slice(-30).map(o=>({operation:o.operation,status:o.status,durationMs:o.durationMs,...safeContext(o),...(entryLimited(o)?{entryLimit:true}:{}),...safeRate(o,entryLimited(o)?429:o.status),...((o.status===429||entryLimited(o))&&Number.isInteger(o.retryAttempt)&&o.retryAttempt!>=0&&o.retryAttempt!<=2?{retryAttempt:o.retryAttempt}:{})})),
   };
 }
@@ -86,9 +88,10 @@ export function syncDiagnostics(env: AppEnvironment, notify: () => void = () => 
   const key=`${env.namespace}:sync-diagnostics-v1`,empty=():LogStore=>({version:1,active:null,entries:[],pending:[],owners:{}});let memory=empty();
   const read=():LogStore=>{try{const raw=localStorage.getItem(key);if(raw){const value=JSON.parse(raw);if(value.version===1&&Array.isArray(value.entries)&&Array.isArray(value.pending)){const entries:SyncLog[]=value.entries.map(safeLog).slice(-limit);memory={version:1,active:value.active,entries,pending:value.pending.filter((id:unknown)=>typeof id==='string'),owners:Object.fromEntries(entries.filter(e=>typeof value.owners?.[e.id]==='string').map(e=>[e.id,value.owners[e.id]]))};}}}catch{/* Logging must also work in memory when storage fails. */}return memory;};
   const save=(store:LogStore)=>{memory=store;try{localStorage.setItem(key,JSON.stringify(store));}catch{/* Never make sync depend on diagnostics storage. */}};
-  function record(error:unknown,stage:string,manual:boolean,events:ApiEvent[],accountId?:string) {
+  function record(error:unknown,stage:string,manual:boolean,events:ApiEvent[],accountId?:string,totals?:Record<string,number>) {
     let environment:EnvironmentInfo={};try{environment=environmentInfo();}catch{/* Missing browser diagnostics are not a sync error. */}
-    const info=failureInfo(error,stage),entry:SyncLog=safeLog({version:1,id:crypto.randomUUID(),timestamp:new Date().toISOString(),app:{channel:env.channel,sha:env.sha,pr:env.pr},failure:{code:info.code,stage:info.stage,status:info.status,action:info.action,...safeRate(info,rateStatus(info)),type:error instanceof Error?error.name:'Error',causeType:error instanceof Error&&error.cause instanceof Error?error.cause.name:undefined,stack:stackPositions(error)},manual,environment,operations:events});
+    const operationTotals=totals??events.reduce<Record<string,number>>((result,event)=>{result[event.operation]=(result[event.operation]??0)+1;return result;},{});
+    const info=failureInfo(error,stage),entry:SyncLog=safeLog({version:1,id:crypto.randomUUID(),timestamp:new Date().toISOString(),app:{channel:env.channel,sha:env.sha,pr:env.pr},failure:{code:info.code,stage:info.stage,status:info.status,action:info.action,...safeRate(info,rateStatus(info)),type:error instanceof Error?error.name:'Error',causeType:error instanceof Error&&error.cause instanceof Error?error.cause.name:undefined,stack:stackPositions(error)},manual,environment,operations:events,operationTotals});
     const store=read();store.entries=[...store.entries,entry].slice(-limit);store.pending=[...store.pending,entry.id].filter(id=>store.entries.some(e=>e.id===id));store.active=entry.id;if(accountId)store.owners[entry.id]=accountId;store.owners=Object.fromEntries(Object.entries(store.owners).filter(([id])=>store.entries.some(e=>e.id===id)));save(store);
     void enrich(entry.id);return {entry,info};
   }

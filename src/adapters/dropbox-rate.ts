@@ -30,16 +30,16 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
     memory={version:1,accountId:id,until,reason:rate.limitReason??'unknown',status,stage};
     try{localStorage.setItem(key,JSON.stringify(memory));}catch{/* Cooldown cannot depend on writable browser storage. */}
   }
-  const limitError=(rate:RateInfo,status:200|429=429,stage='dropbox.move-batch')=>status===200?new SyncFailure({code:failureCodes.throttled,stage,status,...rate},'Dropbox begrenser flytteoperasjonene.'):new DropboxError(429,'rate-limit','dropbox.request',rate);
+  const limitError=(rate:RateInfo,status:200|429=429,stage='dropbox.request')=>status===200?new SyncFailure({code:failureCodes.throttled,stage,status,...rate},'Dropbox begrenser operasjonene.'):new DropboxError(429,'rate-limit',stage,rate);
   function stop(rate:RateInfo,status:200|429=429,stage='dropbox.move-batch'){halted=limitError(rate,status,stage);wake();return halted;}
   function checkTicket(ticket:number){if(ticket!==lease)throw new DeferredSync('changed','Forespørselen er avbrutt.');if(halted)throw halted;}
-  async function guard(ticket:number){checkTicket(ticket);await before();checkTicket(ticket);}
+  async function guard(ticket:number,checkBefore=true){checkTicket(ticket);if(checkBefore)await before();checkTicket(ticket);}
   function wake(){waiting?.wake();for(const resume of [...wakeSlots])resume();}
   function begin(retry=true){lease++;wake();waited=0;writeLimit=4;halted=null;retries=retry;}
   function cancel(){lease++;wake();}
-  async function wait(ticket:number,id:string|null){
+  async function wait(ticket:number,id:string|null,checkBefore=true){
     for(;;){
-      await guard(ticket);const value=cooldown(id),delay=(value?.until??0)-Date.now();if(delay<=0)return;
+      await guard(ticket,checkBefore);const value=cooldown(id),delay=(value?.until??0)-Date.now();if(delay<=0)return;
       if(!retries||waited+delay>maxWait)throw stop({limitReason:value!.reason,retryAfterMs:Math.ceil(delay)},value!.status===200?200:429,value!.stage);
       if(!waiting){
         const start=Date.now();let done!:()=>void;const promise=new Promise<void>(resolve=>{done=resolve;});
@@ -65,19 +65,21 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
     return{limitReason:reason,retryAfterMs:Math.ceil(Math.max(minimum,1000*2**attempt))};
   }
   async function send(operation:string,perform:(attempt:number,check:()=>Promise<void>)=>Promise<Response>,context:()=>ApiContext=()=>({})){
-    const recover=operation.startsWith('files/'),ticket=lease,id=recover?account():null;let attempt=0;
-    const batchStage=operation.includes('create_folder_batch')?'dropbox.folders-batch':operation.includes('delete_batch')?'dropbox.delete-batch':'dropbox.move-batch';
+    // Revoke must remain immediate after local disconnect. Every other route,
+    // including queued token renewals, shares the same bounded Retry-After gate.
+    const recover=operation!=='auth/token/revoke',checkBefore=operation.startsWith('files/'),ticket=lease,id=recover?account()??'oauth':null;let attempt=0;
+    const batchStage=operation.includes('create_folder_batch')?'dropbox.folders-batch':operation.includes('delete_batch')?'dropbox.delete-batch':operation.includes('move_batch')?'dropbox.move-batch':operation==='oauth2/token'?'dropbox.token':'dropbox.request';
     for(;;){
       // The caller has just checked account/session/generation. Keep healthy
       // requests on that fast path; recheck after every actual queue/wait.
-      if(recover){checkTicket(ticket);if((cooldown(id)?.until??0)>Date.now())await wait(ticket,id);}
+      if(recover){checkTicket(ticket);if((cooldown(id)?.until??0)>Date.now())await wait(ticket,id,checkBefore);}
       let release=()=>{};
       if(recover&&mutations.has(operation)){if(writes>=writeLimit)release=await slot(ticket);else{writes++;release=releaseWrite;}}
       let response:Response,rate:RateInfo|undefined;
       try{
         if(recover){checkTicket(ticket);if((cooldown(id)?.until??0)>Date.now())continue;}
         const start=performance.now();
-        try{response=await perform(attempt,()=>wait(ticket,id));}catch(cause){if(cause instanceof DeferredSync||cause instanceof SyncFailure)throw cause;emit({operation,status:0,durationMs:Math.round(performance.now()-start),...context(),transport:cause instanceof Error&&cause.name==='TimeoutError'?'timeout':cause instanceof Error&&cause.name==='AbortError'?'abort':'network'});throw new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'Dropbox-forespørselen kunne ikke fullføres.',cause);}
+        try{response=await perform(attempt,()=>wait(ticket,id,checkBefore));}catch(cause){if(cause instanceof DeferredSync||cause instanceof SyncFailure)throw cause;emit({operation,status:0,durationMs:Math.round(performance.now()-start),...context(),transport:cause instanceof Error&&cause.name==='TimeoutError'?'timeout':cause instanceof Error&&cause.name==='AbortError'?'abort':'network'});throw new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'Dropbox-forespørselen kunne ikke fullføres.',cause);}
         const durationMs=Math.round(performance.now()-start);
         if(response.status===429)rate=await rateInfo(response,attempt);
         const deferredAttempt=(response as Response&{entryRateAttempt?:number}).entryRateAttempt;
@@ -85,7 +87,10 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
         if(deferred)rate={...await rateInfo(response,deferredAttempt!),limitReason:'too_many_write_operations'};
         const entryLimit=(response as Response&{entryLimit?:boolean}).entryLimit===true||deferred;
         emit({operation,status:entryLimit?200:response.status,durationMs,...context(),...(entryLimit?{entryLimit:true}:{}),...(rate?{...rate,retryAttempt:deferred?deferredAttempt:attempt}:{})});
-        if(recover){if(rate){if(!deferred||ticket===lease)remember(id,rate,deferred?200:429,batchStage);if(!deferred||!transportBatches.has(operation))await guard(ticket);if(ticket===lease){writeLimit=1;if(deferred){if(!retries||deferredAttempt!>=maxRetries)stop(rate,200,batchStage);}else if(!retries||attempt>=maxRetries)throw stop(rate);}}else if(!transportBatches.has(operation))checkTicket(ticket);}
+        // Parsing a received body can fail after the server accepted a write.
+        // Count its actual HTTP receipt before preserving that unknown result.
+        if(Object.hasOwn(response,'transformFailure'))throw(response as Response&{transformFailure:unknown}).transformFailure;
+        if(recover){if(rate){if(!deferred||ticket===lease)remember(id,rate,deferred?200:429,batchStage);if(!deferred||!transportBatches.has(operation))await guard(ticket,checkBefore);if(ticket===lease){writeLimit=1;if(deferred){if(!retries||deferredAttempt!>=maxRetries)stop(rate,200,batchStage);}else if(!retries||attempt>=maxRetries)throw stop(rate,429,batchStage);}}else if(!transportBatches.has(operation))checkTicket(ticket);}
       }finally{release();}
       if(!recover||response.status!==429)return response;
       attempt++;
