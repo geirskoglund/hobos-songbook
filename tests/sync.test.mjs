@@ -57,7 +57,7 @@ test('AK37-08: rename and deletion preserve unknown Originals and book tombstone
   const f=fixture();await f.run();f.change(d=>d.songbooks[0].name='Endret navn');await f.run();
   assert.equal((await f.files.read('/.app/library.json')).text.includes('Endret navn'),true);assert.equal([...f.entries.values()].some(e=>e.path.startsWith('/Songbooks/Standard/')),false);
   f.change(d=>{d.songbooks.push({id:'target',name:'Mål'});d.songs[0].songbookId='target';d.journal.deletedBooks.standard={id:'standard',name:'Endret navn',deleted:true};d.songbooks=d.songbooks.filter(b=>b.id!=='standard');});await f.run();
-  const manifest=JSON.parse((await f.files.read('/.app/library.json')).text);assert.equal(manifest.books.standard.deleted,true);assert.equal((await f.files.list('/Songbooks/Endret navn/Originals')).length,1);assert.match(manifest.songs.one.path,/\/Mål\/Private\//);
+  const manifest=JSON.parse((await f.files.read('/.app/library.json')).text);assert.equal(manifest.books.standard.deleted,true);assert.equal((await f.files.list(manifest.books.standard.archive.path+'/Originals')).length,1);assert.match(manifest.songs.one.path,/\/Mål\/Private\//);
   await f.run();assert.equal(f.data.songbooks.some(b=>b.id==='standard'),false);
 });
 test('AK37-04: independent personal upload does not accept remotely changed content',async()=>{
@@ -102,9 +102,10 @@ test('AK37-09: two devices upload independent books/songs in both orders without
   await runA(true);await runB(true);assert.deepEqual(a.data.songs.map(s=>s.id).sort(),['one','two']);assert.deepEqual(b.data.songs.map(s=>s.id).sort(),['one','two']);assert.deepEqual(a.data.songbooks.map(s=>s.id).sort(),['a','b','standard']);
  }
 });
-test('AK37-08/09: reused name cannot adopt the physical remnant of a deleted book',async()=>{
- const f=fixture();await f.run();f.change(d=>{d.songbooks.push({id:'target',name:'Mål'});d.songs[0].songbookId='target';d.journal.deletedBooks.standard={id:'standard',name:'Standard',deleted:true};d.songbooks=d.songbooks.filter(b=>b.id!=='standard');});await f.run();f.change(d=>d.songbooks.push({id:'different',name:'Standard'}));await assert.rejects(f.run(),/tilhører en annen eller slettet/);assert.equal(f.data.state.pending,true);assert.equal((await f.files.list('/Songbooks/Standard/Originals')).length,1);
+test('AK37-08/09: reused name gets a new folder while the historical remnant remains archived',async()=>{
+ const f=fixture();await f.run();const old=f.data.state.manifest.books.standard.folderId;f.change(d=>{d.songbooks.push({id:'target',name:'Mål'});d.songs[0].songbookId='target';d.journal.deletedBooks.standard={id:'standard',name:'Standard',deleted:true};d.songbooks=d.songbooks.filter(b=>b.id!=='standard');});await f.run();const path=f.data.state.manifest.books.standard.archive.path;f.change(d=>d.songbooks.push({id:'different',name:'Standard'}));await f.run();assert.equal(f.data.state.pending,false);assert.notEqual(f.data.state.manifest.books.different.folderId,old);assert.equal((await f.files.list(path+'/Originals')).length,1);assert.equal((await f.files.list('/Songbooks/Standard/Originals')).length,0);
 });
+
 test('AK37-06: a dialog choice cannot overwrite a Dropbox revision created while it was open',async()=>{
  const f=fixture();await f.run();const link=f.data.state.manifest.songs.one;let remote=await f.files.read(link.path);await f.files.write(link.path,'{t: Sky én}\nOrd',remote.rev);f.change(d=>d.songs[0].original='{t: Lokal}\nOrd');await f.run();const conflict=f.data.state.conflicts[0];remote=await f.files.read(link.path);const newer=await f.files.write(link.path,'{t: Sky to}\nNyere',remote.rev);await f.run(true,{conflict,choice:'local'});assert.equal((await f.files.read(link.path)).text,newer.text);assert.equal(f.data.state.conflicts[0].contentRev,newer.rev);assert.equal(f.data.songs[0].original,'{t: Lokal}\nOrd');
 });

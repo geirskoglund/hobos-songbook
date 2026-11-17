@@ -12,13 +12,13 @@ async function mutate(page,mode,count=12){await page.evaluate(({mode,count})=>ne
 const manifest=mock=>JSON.parse(mock.find('/.app/library.json').text);
 test.beforeEach(async({request})=>{await request.post('/__test__/reset');});
 
-test('all namespace mutations: grouped layouts, existing file transfers and empty-folder deletion use supported batch routes',async({page,context})=>{
+test('all namespace mutations: grouped layouts, existing file transfers and historical folder archival use supported batch routes',async({page,context})=>{
  const mock=await setup(page,context),start=mock.calls.length;await mutate(page,'seed',100);await synchronize(page);const before=manifest(mock),saved=await state(page),created=mock.calls.slice(start);
  expect(created.filter(call=>call.endpoint.endsWith('/create_folder_batch')).some(call=>call.args.paths.length>=16)).toBe(true);expect(created.filter(call=>call.endpoint.endsWith('/create_folder_v2'))).toHaveLength(0);
  const transferStart=mock.calls.length;await mutate(page,'transfer');await synchronize(page);const after=manifest(mock),calls=mock.calls.slice(transferStart);
- expect(calls.filter(call=>call.endpoint.endsWith('/move_batch_v2')).map(call=>call.args.entries.length)).toEqual([100]);
+ expect(calls.filter(call=>call.endpoint.endsWith('/move_batch_v2')).map(call=>call.args.entries.length)).toEqual([100,1]);
  expect(calls.filter(call=>call.endpoint.endsWith('/get_metadata'))).toHaveLength(0);expect(calls.length).toBeLessThan(30);
- expect(calls.filter(call=>call.endpoint.endsWith('/delete_batch')).map(call=>call.args.entries.length)).toEqual([4,1]);
+ expect(calls.filter(call=>call.endpoint.endsWith('/delete_batch'))).toHaveLength(0);expect(after.books.standard.archive.done).toBe(true);expect(mock.find(after.books.standard.archive.path+'/Originals')).toBeTruthy();
  expect(calls.filter(call=>call.endpoint.endsWith('/move_v2')||call.endpoint.endsWith('/delete_v2'))).toHaveLength(0);
  for(const [id,link]of Object.entries(after.songs)){expect(link.fileId).toBe(before.songs[id].fileId);expect(link.songbookId).toBe('book-0');expect(mock.find(link.fileId).path_display).toBe(link.path);}
  expect((await state(page)).personal).toEqual(saved.personal);expect(account(await state(page)).pending).toBe(false);expect(mock.find('/Songbooks/Standard')).toBeUndefined();
@@ -53,5 +53,16 @@ test('two independent IndexedDB installations cannot overtake a delayed ID trans
   await mutate(other,'transfer');const start=second.calls.length;await synchronize(other);expect(second.calls.slice(start).filter(call=>call.endpoint.endsWith('/move_batch_v2'))).toHaveLength(0);expect(account(await state(other)).pending).toBe(true);
   mock.finishMoves();await synchronize(page);await synchronize(other);expect(account(await state(other)).pending).toBe(false);
   for(const link of Object.values(manifest(mock).songs))expect(mock.find(link.fileId).path_display).toBe(link.path);
+ }finally{await otherContext.close();}
+});
+
+async function localBookChange(page,{book,capo}={}){await page.evaluate(({book,capo})=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,tx=db.transaction(['songbooks','personal','sync'],'readwrite');if(book)tx.objectStore('songbooks').put(book);if(capo!==undefined){const p=tx.objectStore('personal').get('bulk-0');p.onsuccess=()=>tx.objectStore('personal').put({...p.result,capo});}const q=tx.objectStore('sync').get('private-local-v1');q.onsuccess=()=>tx.objectStore('sync').put({...q.result,generation:q.result.generation+1});tx.oncomplete=()=>{db.close();resolve();};};}),{book,capo});}
+for(const offline of [false,true])test(`archive and reuse name: inactive IndexedDB client keeps moved songs and gets the replacement (offline ${offline})`,async({page,context,browser})=>{
+ const mock=await setup(page,context);await mutate(page,'seed',2);await synchronize(page);const old=manifest(mock).books.standard;const source=mock.put('/Songbooks/Standard/Originals/unknown.pdf','preserved source'),otherContext=await browser.newContext({serviceWorkers:'block',baseURL:test.info().project.use.baseURL});
+ try{
+  const second=await dropboxMock(otherContext,{backend:mock}),other=await otherContext.newPage();await other.goto(url);await syncPage(other);await synchronize(other);expect((await state(other)).songs).toHaveLength(2);
+  await mutate(page,'transfer');if(!offline)await synchronize(page);await localBookChange(page,{book:{id:'replacement',name:'Standard'}});await synchronize(page);await localBookChange(page,{capo:9});await synchronize(page);
+  const m=manifest(mock);expect(m.books.standard.archive.done).toBe(true);expect(m.books.replacement.folderId).not.toBe(old.folderId);expect(mock.find(source.id).path_display).toBe(m.books.standard.archive.path+'/Originals/unknown.pdf');
+  await synchronize(other);const data=await state(other);expect(data.songbooks.some(b=>b.id==='standard')).toBe(false);expect(data.songbooks.find(b=>b.id==='replacement').name).toBe('Standard');expect(data.songs.map(s=>s.id).sort()).toEqual(['bulk-0','bulk-1']);expect(data.songs.every(s=>s.songbookId==='book-0')).toBe(true);expect(data.personal.find(p=>p.songId==='bulk-0').capo).toBe(9);expect(account(data).conflicts).toHaveLength(0);expect(account(data).pending).toBe(false);expect(manifest(mock).deletedSongs?.['bulk-0']).toBeUndefined();expect(second.calls.some(c=>c.endpoint.endsWith('/delete_batch'))).toBe(false);
  }finally{await otherContext.close();}
 });

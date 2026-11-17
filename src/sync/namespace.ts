@@ -2,7 +2,7 @@ import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCod
 import {metadataView,pathKey} from './remote.ts';
 import type {BookLink,DeleteEntry,FolderEntry,MoveEntry,MoveReply,MoveResult,NamespaceJob,RemoteEntry,RemoteFiles,SyncState} from './model.ts';
 
-type Hooks={check():Promise<void>;save():Promise<void>;receipt(job:NamespaceJob):Promise<void>;freshList:RemoteFiles['list'];find(path:string):RemoteEntry|undefined;removed(entry:DeleteEntry):void;moved(entry:MoveEntry,value:{id:string;path:string}):void};
+type Hooks={check():Promise<void>;save():Promise<void>;receipt(job:NamespaceJob):Promise<void>;retireTemporary?(job:NamespaceJob):Promise<void>;freshList:RemoteFiles['list'];find(path:string):RemoteEntry|undefined;removed(entry:DeleteEntry):void;moved(entry:MoveEntry,value:{id:string;path:string}):void};
 class MissingCreatedFolder extends Error {}
 /** One persisted namespace mutation at a time. Completion receipts never
  * acknowledge a newer generation. Deletes use ID+rev; staging uses its nonce
@@ -41,7 +41,13 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
     }else throw invalid();
    }else if(job.kind==='move'){
     const entry=item as MoveEntry;if(typeof entry.fileId!=='string'||entry.from!==entry.fileId||typeof entry.to!=='string')throw invalid();
-    if(entry.folder){const book=Object.values(books).find(book=>book.folderId===entry.fileId);if(!book||entry.book&&entry.book.id!==book.id||!/^\/Songbooks\/[^/]+$/.test(entry.to))throw invalid();}
+    if(entry.archive){
+     const archive=entry.archive,book=manifest?.books[archive.bookId],intent=book?.archive,parent=intent&&await inspect(intent.parentId),actual=await inspect(entry.fileId);
+     if(!entry.folder||entry.book||entry.link||!book?.deleted||book.folderId!==entry.fileId||!intent||intent.done||entry.to!==intent.path||entry.toReference!==intent.parentId+'/'+intent.path.split('/').at(-1)||!parent?.folder||pathKey(parent.path)!=='/deleted'||!/^\/Songbooks\/[^/]+$/i.test(archive.sourcePath))throw invalid();
+     if(actual&&(!actual.folder||pathKey(actual.path)!==pathKey(archive.sourcePath)&&!(job.submitted&&pathKey(actual.path)===pathKey(intent.path))))throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.namespace',action:'check-move'},'Arkivkilden er endret.');
+     if(Object.values(manifest!.songs).some(link=>{const current=view?view.find(link.fileId??link.path):hooks.find(link.fileId??link.path);return link.songbookId===book.id||current&&pathKey(current.path).startsWith(pathKey(archive.sourcePath)+'/');}))throw invalid();
+    }
+    else if(entry.folder){const book=Object.values(books).find(book=>book.folderId===entry.fileId);if(!book||entry.book&&entry.book.id!==book.id||!/^\/Songbooks\/[^/]+$/.test(entry.to))throw invalid();}
     else{
      const link=entry.link,known=link&&(state.reservations[link.id]??manifest?.songs[link.id]??state.manifest.songs[link.id]);
      if(!link||known?.fileId!==entry.fileId||!books[link.songbookId]||!/^\/Songbooks\/[^/]+\/Private\/[^/]+\.cho$/i.test(entry.to)||!entry.toReference)throw invalid();
@@ -50,10 +56,11 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
     }
    }else{
     const entry=item as FolderEntry;
-    if(typeof entry.path!=='string'||!/^\/(?:\.app(?:\/(?:songs|uploads))?|Songbooks(?:\/[^/]+(?:\/(?:Private|Shared|Import|Originals))?)?)$/i.test(entry.path))throw invalid();
+    if(typeof entry.path!=='string'||!/^\/(?:Deleted|\.app(?:\/(?:songs|uploads))?|Songbooks(?:\/[^/]+(?:\/(?:Private|Shared|Import|Originals))?)?)$/i.test(entry.path))throw invalid();
     const match=/^\/Songbooks\/([^/]+)/i.exec(entry.path);
     if(match&&!Object.values(books).some(book=>pathKey(book.path??`/Songbooks/${book.name}`)===pathKey('/Songbooks/'+match[1])))throw invalid();
-    if(entry.book&&(!books[entry.book.id]||entry.path!==`/Songbooks/${entry.book.name}`))throw invalid();
+    if(entry.book){const intent=state.renames?.[entry.book.id],base=`/Songbooks/.rename-${entry.book.id}`,staged=entry.temporary&&intent?.from===entry.path&&intent.to===`/Songbooks/${entry.book.name}`&&(entry.path===base||entry.path.startsWith(base+'-')&&/^\d+$/.test(entry.path.slice(base.length+1)));if(!books[entry.book.id]||entry.path!==`/Songbooks/${entry.book.name}`&&!staged)throw invalid();}
+    else if(entry.temporary)throw invalid();
    }
   }
  }
@@ -91,13 +98,13 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
     if('value'in result){
      try{const value=await verifyFolder(creation,result.value);if(creation.book){
        (state.createdBooks??={})[creation.book.id]={...creation.book,folderId:value.id,path:creation.path};
-       state.folders[creation.book.id]={...creation.book,folderId:value.id,path:value.path,name:value.path.split('/').at(-1)!};
+       state.folders[creation.book.id]={...creation.book,folderId:value.id,path:value.path,name:creation.temporary?creation.book.name:value.path.split('/').at(-1)!};
        if(pathKey(value.path)!==pathKey(creation.path))missingCreation=true;
      }}
      catch(error){if(!(error instanceof MissingCreatedFolder))throw error;missingCreation=true;if(creation.book)state.folders[creation.book.id]={...creation.book,folderId:result.value.id,path:result.value.path||creation.path};}
      continue;
     }
-    if(result.collision){const actual=await inspect(creation.path);if(actual?.folder){await verifyFolder(creation,{id:actual.id!,path:actual.path});if(creation.book)state.folders[creation.book.id]={...creation.book,folderId:actual.id,path:actual.path};continue;}}
+    if(result.collision){if(creation.temporary){missingCreation=true;continue;}const actual=await inspect(creation.path);if(actual?.folder){await verifyFolder(creation,{id:actual.id!,path:actual.path});if(creation.book)state.folders[creation.book.id]={...creation.book,folderId:actual.id,path:actual.path};continue;}}
    }else if('value'in result){
     const move=entry as MoveEntry;if(result.value.id!==move.fileId)throw bad(job.kind,'Flytting bekreftet en annen identitet.');
     const actual=await inspect(move.fileId);
@@ -119,17 +126,24 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   return true;
  }
  async function observeUnknown(job:NamespaceJob){
+  // A lost nonce-folder create cannot overwrite or move any existing ID. Once
+  // every old path is durably reserved, a fresh nonce may be used. Never reuse
+  // this rule for ID moves, mixed batches or a job with a usable receipt/ID.
+  if(job.kind==='folders'&&!job.jobId&&!job.reply&&job.entries.every(entry=>(entry as FolderEntry).temporary)&&hooks.retireTemporary){
+   await hooks.retireTemporary(job);await hooks.check();delete state.namespaceJob;await hooks.save();throw new RetrySync();
+  }
   const entries:MoveResult[]=[];
   for(const item of job.entries){
    if(job.kind==='move'){
     const entry=item as MoveEntry,actual=await inspect(entry.fileId);
-    if(!actual){entries.push({failure:{code:failureCodes.missingFile,stage:stage('move')},missing:true});continue;}
+    if(!actual){if(entry.archive)throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-move'},'Arkivflyttingen er fortsatt uavklart.');entries.push({failure:{code:failureCodes.missingFile,stage:stage('move')},missing:true});continue;}
     const reference=entry.toReference?.split('/')[0],parent=reference?(hooks.find(reference)??await inspect(reference)):null;
     const target=parent?parent.path+'/'+entry.to.split('/').at(-1):entry.to;
     if(pathKey(actual.path)!==pathKey(target))throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-move'},'Flyttingen er fortsatt uavklart.');
     entries.push({value:{id:entry.fileId,path:actual.path,folder:actual.folder,rev:actual.rev}});
    }else{
     const entry=item as FolderEntry,actual=await inspect(entry.path);
+    if(entry.temporary)throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-folders'},'Opprettelsen av den midlertidige bokmappen er fortsatt uavklart.');
     if(!actual?.folder)throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-folders'},'Mappeopprettelsen er fortsatt uavklart.');
     entries.push({value:{id:actual.id!,path:actual.path,folder:true}});
    }
@@ -186,10 +200,10 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   for(const depth of [...new Set([...byPath.values()].map(entry=>entry.path.split('/').length))].sort((a,b)=>a-b)){
    const group:FolderEntry[]=[];
    for(const entry of byPath.values())if(entry.path.split('/').length===depth){
-    const current=hooks.find(entry.path);if(current?.folder&&current.id)continue;if(current&&!current.folder)throw new SyncFailure({code:failureCodes.folderOccupied,stage:'dropbox.ensure-folder',action:'folder-layout'},'En fil står på mappeplassen.');
+    const current=hooks.find(entry.path);if(current?.folder&&current.id){if(entry.temporary)throw new RetrySync();continue;}if(current&&!current.folder)throw new SyncFailure({code:failureCodes.folderOccupied,stage:'dropbox.ensure-folder',action:'folder-layout'},'En fil står på mappeplassen.');
     const parent=entry.path.slice(0,entry.path.lastIndexOf('/'));group.push({...entry,...(parent?{parentId:hooks.find(parent)?.id}:{})});
    }
-   if(group.length)await execute('folders',group);
+   for(const temporary of [false,true]){const batch=group.filter(entry=>Boolean(entry.temporary)===temporary);if(batch.length)await execute('folders',batch);}
   }
  }
  async function folder(path:string,expectedId?:string){

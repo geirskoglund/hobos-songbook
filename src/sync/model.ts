@@ -3,7 +3,8 @@ import type {Song, SongPersonal} from '../domain/song.ts';
 import {failureCodes, SyncFailure, type FailureInfo} from './failure.ts';
 
 /** Wire formats deliberately exclude credentials and local operation/session state. */
-export interface BookLink {id: string; name: string; deleted?: boolean; folderId?: string; path?: string}
+export interface BookArchive {at:string;basePath:string;path:string;parentId:string;done?:boolean}
+export interface BookLink {id: string; name: string; deleted?: boolean; folderId?: string; path?: string;archive?:BookArchive}
 export interface SongLink {id: string; songbookId: string; origin: Song['origin']; fileId?: string; path: string;originalFile?:{fileId:string;path:string}}
 export interface DeletedSong {id: string; fileId?: string; songbookId?: string}
 export interface Manifest {version: 1; books: Record<string, BookLink>; songs: Record<string, SongLink>; deletedSongs?: Record<string, DeletedSong>}
@@ -13,11 +14,11 @@ export interface RemoteEntry {id?: string; path: string; folder?: boolean; rev?:
 export interface UploadIntent {key:string; songId:string; kind:'content'|'personal'|'original'|'seed'; path:string; text:string; rev:string|null; fileId?:string; base:{original:string;personal:PersonalFile;link?:SongLink}}
 export interface UploadJob extends UploadIntent {status:'planned'|'committing'|'done'; session?:{id:string;created:number}; value?:FileValue; creation?:{path:string;basePath:string;number:number;file?:FileValue;attempted?:boolean;collision?:boolean;failure?:FailureInfo;discarded?:boolean;folderId?:string;book?:BookLink}}
 export type UploadResult={value:FileValue}|{failure:FailureInfo;resetSession?:boolean};
-export interface MoveEntry {key:string;from:string;to:string;fileId:string;toReference?:string;folder?:boolean;link?:SongLink;book?:BookLink}
+export interface MoveEntry {key:string;from:string;to:string;fileId:string;toReference?:string;folder?:boolean;link?:SongLink;book?:BookLink;archive?:{bookId:string;sourcePath:string}}
 export type MoveResult={value:{id:string;path:string;rev?:string;folder?:boolean}}|{failure:FailureInfo;collision?:boolean;missing?:boolean};
 export type MoveReply={entries:MoveResult[]}|{asyncJobId:string}|{inProgress:true}|{jobExpired:true};
 export interface DeleteEntry {key:string;path:string;fileId:string;rev?:string;folder?:boolean;category:'personal'|'staging'|'folder';sourcePath?:string;bookId?:string}
-export interface FolderEntry {key:string;path:string;parentId?:string;book?:BookLink}
+export interface FolderEntry {key:string;path:string;parentId?:string;book?:BookLink;temporary?:boolean}
 export type NamespaceEntry=MoveEntry|DeleteEntry|FolderEntry;
 export interface NamespaceJob {id:string;kind:'move'|'delete'|'folders';entries:NamespaceEntry[];submitted?:boolean;jobId?:string;attempt:number;reply?:MoveReply;quarantinedParents?:string[]}
 export interface PlacementJob {id?:string;entries:MoveEntry[];jobId?:string;retryAttempt?:number;reply?:MoveReply}
@@ -71,6 +72,8 @@ export interface SyncState {
   abandoned?:{path:string;fileId?:string;rev?:string}[];
   cleanupProofs?:Record<string,string>;
   cleanupPending?:boolean;
+  archivePending?:boolean;
+  archiveIntents?:Record<string,Omit<BookArchive,'done'>&{folderId:string}>;
   uploadIndex?:{id:string;rev:string;value:import('./bridge.ts').UploadIndex};
   skipped?:Record<string,boolean>;
   held?:Record<string,boolean>;
@@ -109,6 +112,10 @@ function readManifest(text: string): Manifest {
   if (value?.version !== 1 || !value.books || !value.songs || typeof value.books !== 'object' || typeof value.songs !== 'object' || Array.isArray(value.books) || Array.isArray(value.songs)) throw new Error('Ukjent Dropbox-bibliotekformat.');
   for (const [id, book] of Object.entries(value.books) as [string, BookLink][]) {
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id) || book.id !== id || !book.name || /[\\/]/.test(book.name) || book.path && !book.path.toLowerCase().startsWith('/songbooks/')) throw new Error('Ugyldig sangbokmetadata i Dropbox.');
+    if(book.archive){
+      const a=book.archive,archivePath=(v:unknown)=>typeof v==='string'&&/^\/Deleted\/[^/\\\u0000-\u001f]+$/.test(v);
+      if(!book.deleted||!book.folderId||typeof a.at!=='string'||!Number.isFinite(Date.parse(a.at))||!archivePath(a.basePath)||!archivePath(a.path)||!a.path.startsWith(a.basePath)||a.path!==a.basePath&&!/^ \((?:[2-9]|[1-9]\d+)\)$/.test(a.path.slice(a.basePath.length))||typeof a.parentId!=='string'||!a.parentId||a.done!==undefined&&typeof a.done!=='boolean')throw new Error('Ugyldig arkivintensjon.');
+    }
   }
   const fileIds=new Set<string>();
   for (const [id, song] of Object.entries(value.songs) as [string, SongLink][]) {

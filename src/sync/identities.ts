@@ -44,6 +44,7 @@ export function syncIdentities(source:SyncSnapshot){
   }
   function books(remote:Manifest){
     if(!first()||emptySeed()&&Object.keys(remote.books).length)return false;let changed=false;
+    const retired=new Set(Object.keys(source.journal.deletedBooks).map(id=>wireId('books',id)));
     for(const book of source.songbooks){
       const id=wireId('books',book.id);
       // A confirmed folder owns this identity even before its first manifest.
@@ -51,7 +52,7 @@ export function syncIdentities(source:SyncSnapshot){
       if(state.bindings?.books[book.id]||state.manifest.books[id]||state.folders[id]?.folderId&&state.folders[id].folderId===remote.books[id]?.folderId)continue;
       // Standard is independently seeded on every installation, not a global identity.
       if(remote.books[id]&&id!=='standard')continue;
-      const matches=Object.values(remote.books).filter(other=>!other.deleted&&nameKey(other.name)===nameKey(book.name));
+      const matches=Object.values(remote.books).filter(other=>!other.deleted&&!retired.has(other.id)&&nameKey(other.name)===nameKey(book.name));
       if(matches.length===1){
         const target=matches[0];
         if(state.folders[id]?.folderId&&state.folders[id].folderId!==target.folderId)continue;
