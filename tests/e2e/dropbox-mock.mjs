@@ -1,14 +1,25 @@
 /** HTTP-level Dropbox simulator; app builds contain no test hooks or credentials. */
 export async function dropboxMock(context, {connected=true,pageSize=2000,backend}={}) {
-  let sequence=0;const entries=backend?.entries??new Map(),history=backend?.history??new Map(),sessions=backend?.sessions??new Map(),calls=[];let fault=null,hold=null,lostBatch=false,batchFailure=null;
+  let sequence=0;const entries=backend?.entries??new Map(),history=backend?.history??new Map(),sessions=backend?.sessions??new Map(),moveJobs=backend?.moveJobs??new Map(),calls=[];let fault=null,hold=null,lostBatch=false,batchFailure=null,lostMove=false,nextAsyncMove=null;
   let latency=0,active=0,maximum=0;
   let limitWrites=false,activeWrites=0,rateCount=0;
-  const mutating=endpoint=>['/upload','/upload_session/finish_batch_v2','/create_folder_v2','/move_v2','/delete_v2'].some(value=>endpoint.endsWith(value));
+  const mutating=endpoint=>['/upload','/upload_session/finish_batch_v2','/create_folder_v2','/move_v2','/move_batch_v2','/delete_v2'].some(value=>endpoint.endsWith(value));
   const rateResponse=async(route,seconds=0,reason='too_many_write_operations')=>{rateCount++;return route.fulfill({status:429,headers:{'Retry-After':String(seconds)},json:{error_summary:reason+'/',error:{reason:{'.tag':reason},retry_after:seconds}}});};
   const key=path=>path.toLowerCase();
-  const find=path=>path.startsWith('id:')?[...entries.values()].find(e=>e.id===path):path.startsWith('rev:')?history.get(path.slice(4)):entries.get(key(path));
+  const reference=path=>{if(!path.startsWith('id:')||!path.includes('/'))return path;const slash=path.indexOf('/'),parent=[...entries.values()].find(e=>e.id===path.slice(0,slash));return parent?parent.path_display+path.slice(slash):path;};
+  const find=path=>path.startsWith('id:')&&!path.includes('/')?[...entries.values()].find(e=>e.id===path):path.startsWith('rev:')?history.get(path.slice(4)):entries.get(key(reference(path)));
   function put(path,text,folder=false){if(backend)return backend.put(path,text,folder);const old=find(path),value={'.tag':folder?'folder':'file',id:old?.id??`id:${++sequence}`,path_display:path,path_lower:key(path),rev:String(++sequence),text,...(!folder?{size:Buffer.byteLength(text)}:{})};entries.set(key(path),value);history.set(value.rev,{...value});return value;}
   const metadata=value=>{const copy={...value};delete copy.text;return copy;};
+  const relocation=(from,to)=>{
+    to=reference(to);
+    const value=find(from),failure=error=>({'.tag':'failure',failure:{'.tag':'relocation_error',relocation_error:error}});
+    if(!value)return failure({'.tag':'from_lookup',from_lookup:{'.tag':'not_found'}});
+    if(to.startsWith('id:'))return failure({'.tag':'to',to:{'.tag':'not_found'}});
+    if(find(to))return failure({'.tag':'to',to:{'.tag':'conflict',conflict:{'.tag':'file'}}});
+    entries.delete(key(value.path_display));value.path_display=to;value.path_lower=key(to);entries.set(key(to),value);
+    return{'.tag':'success',success:metadata(value)};
+  };
+  const moveResult=job=>job.result??(job.result={'.tag':'complete',entries:job.entries.map(entry=>relocation(entry.from_path,entry.to_path))});
   const cursors=backend?.cursors??new Map();
   const snapshot=args=>new Map([...entries.values()].filter(e=>e.path_lower.startsWith(key(args.path)+'/')&&(args.recursive||!e.path_display.slice(args.path.length+1).includes('/'))).map(e=>[e.path_lower,metadata(e)]));
   const listPage=(items,current,args)=>{const cursor='cursor-'+crypto.randomUUID(),remaining=items.slice(pageSize);cursors.set(cursor,{snapshot:current,args,remaining});return{entries:items.slice(0,pageSize),has_more:remaining.length>0,cursor};};
@@ -23,7 +34,7 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
     if(limitWrites&&writing&&activeWrites>1)return await rateResponse(route);
     if(latency)await new Promise(resolve=>setTimeout(resolve,latency));
     if(hold&&endpoint.endsWith(hold.endpoint)&&(!hold.path||hold.path===args?.path)){const waiting=hold;if(!waiting.all)hold=null;await waiting.resolve;}
-    if(fault&&endpoint.endsWith(fault.endpoint)){if(fault.skip)fault.skip--;else{const current=fault,status=current.status;if(--current.remaining<=0)fault=null;if(status===0)return route.abort('failed');if(status===429)return await rateResponse(route,current.retryAfter,current.reason);await route.fulfill({status,json:{error_summary:status===409?'path/conflict/file/':'error/'}});return;}}
+    if(fault&&endpoint.endsWith(fault.endpoint)&&(!fault.path||fault.path===args?.path)){if(fault.skip)fault.skip--;else{const current=fault,status=current.status;if(--current.remaining<=0)fault=null;if(status===0)return route.abort('failed');if(status===429)return await rateResponse(route,current.retryAfter,current.reason);await route.fulfill({status,json:{error_summary:status===409?'path/conflict/file/':'error/'}});return;}}
     const ok=async value=>route.fulfill({status:200,json:value}),missing=async()=>route.fulfill({status:409,json:{error_summary:'path/not_found/'}});
     if(endpoint==='/oauth2/token')return ok({access_token:'fixture-access',refresh_token:'fixture-refresh',expires_in:3600,account_id:'dbid:fixture',scope:'account_info.read files.metadata.read files.content.read files.content.write'});
     if(endpoint.endsWith('/get_current_account'))return ok({account_id:'dbid:fixture',name:{display_name:'Prøvebruker'},email:'bruker@eksempel.no'});
@@ -49,10 +60,16 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
       });
       if(lostBatch){lostBatch=false;return route.abort('failed');}return ok({entries:results});
     }
+    if(endpoint.endsWith('/move_batch_v2')){
+      if(url.host!=='api.dropboxapi.com'||args.autorename!==false||args.allow_ownership_transfer!==false||!args.entries.length)throw Error('Invalid move batch');
+      if(nextAsyncMove){const options=nextAsyncMove;nextAsyncMove=null;const id='move-job-'+crypto.randomUUID();moveJobs.set(id,{entries:structuredClone(args.entries),checks:options.checks});if(options.loseLaunch)return route.abort('failed');return ok({'.tag':'async_job_id',async_job_id:id});}
+      const result={'.tag':'complete',entries:args.entries.map(entry=>relocation(entry.from_path,entry.to_path))};if(lostMove){lostMove=false;return route.abort('failed');}return ok(result);
+    }
+    if(endpoint.endsWith('/move_batch/check_v2')){const job=moveJobs.get(args.async_job_id);if(!job)return route.fulfill({status:409,json:{error_summary:'invalid_async_job_id/'}});if(job.checks-->0)return ok({'.tag':'in_progress'});return ok(moveResult(job));}
     if(endpoint.endsWith('/move_v2')){const value=find(args.from_path);if(!value)return missing();if(find(args.to_path))return route.fulfill({status:409,json:{error_summary:'to/conflict/'}});const prefix=value.path_display;for(const [k,e]of[...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=args.to_path+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}return ok({metadata:metadata(value)});}
     if(endpoint.endsWith('/delete_v2')){const value=find(args.path);if(!value)return route.fulfill({status:409,json:{error_summary:'path_lookup/not_found/'}});if(args.parent_rev&&args.parent_rev!==value.rev)return route.fulfill({status:409,json:{error_summary:'path_lookup/conflict/'}});entries.delete(key(value.path_display));return ok({metadata:metadata(value)});}
     throw Error('Unexpected Dropbox endpoint '+endpoint);
     }finally{active--;if(writing)activeWrites--;}
   });
-  return {entries,history,sessions,cursors,calls,find,put,loseBatchReply(){lostBatch=true;},failBatchEntry(path,tag='too_many_write_operations',repeat=1){batchFailure={path,tag,remaining:repeat};},latency(ms){latency=ms;maximum=0;},maximum:()=>maximum,throttled:()=>rateCount,limitConcurrentWrites(){limitWrites=true;},resetCursors(){cursors.clear();},rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status,skip=0,{repeat=1,retryAfter=0,reason='too_many_write_operations'}={}){fault={endpoint,status,skip,remaining:repeat,retryAfter,reason};},hold(endpoint,all=false,path){let release;const resolve=new Promise(r=>release=r),waiting={endpoint,resolve,all,path};hold=waiting;return ()=>{if(hold===waiting)hold=null;release();};}};
+  return {entries,history,sessions,moveJobs,cursors,calls,find,put,loseBatchReply(){lostBatch=true;},loseMoveReply(){lostMove=true;},asyncMove(checks=1,loseLaunch=false){nextAsyncMove={checks,loseLaunch};},finishMoves(){for(const job of moveJobs.values())moveResult(job);},failBatchEntry(path,tag='too_many_write_operations',repeat=1){batchFailure={path,tag,remaining:repeat};},latency(ms){latency=ms;maximum=0;},maximum:()=>maximum,throttled:()=>rateCount,limitConcurrentWrites(){limitWrites=true;},resetCursors(){cursors.clear();},rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status,skip=0,{repeat=1,retryAfter=0,reason='too_many_write_operations',path}={}){fault={endpoint,status,skip,remaining:repeat,retryAfter,reason,path};},hold(endpoint,all=false,path){let release;const resolve=new Promise(r=>release=r),waiting={endpoint,resolve,all,path};hold=waiting;return ()=>{if(hold===waiting)hold=null;release();};}};
 }

@@ -1,5 +1,5 @@
 import type {AppEnvironment} from '../environment.ts';
-import type {FileValue, RemoteFiles, RemoteEntry,UploadResult} from '../sync/model.ts';
+import type {FileValue, RemoteFiles, RemoteEntry,UploadResult,MoveReply} from '../sync/model.ts';
 import {checkSize,textBytes,maxFileBytes,SkippedFile} from '../sync/limits.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../sync/failure.ts';
 import type {ApiEvent} from '../sync/diagnostics.ts';
@@ -98,9 +98,12 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     localStorage.setItem(authKey, JSON.stringify({version: 1, accountId: user.account_id, name: user.name.display_name, email: user.email, accessToken: value.access_token, refreshToken: value.refresh_token, expires: Date.now() + value.expires_in * 1000} satisfies Credentials));
     return true;
   }
-  async function rpc(path: string, body: unknown) {
+  async function rpc(path: string, body: unknown,entryAttempt=0) {
     await beforeRequest(); const accessToken = await access(); await beforeRequest();
-    const response = await send(path, {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json'}, body: JSON.stringify(body), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
+    const response = await send(path, {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json'}, body: JSON.stringify(body), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},['files/move_batch_v2','files/move_batch/check_v2'].includes(path)?async reply=>{
+      if(reply.status===200){const value=await reply.clone().json().catch(()=>null);if(Array.isArray(value?.entries)&&value.entries.some((entry:any)=>{const failure=entry?.failure,relocation=failure?.relocation_error;return failure?.['.tag']==='too_many_write_operations'||relocation?.['.tag']==='to'&&relocation.to?.['.tag']==='too_many_write_operations';}))Object.defineProperty(reply,'entryRateAttempt',{value:entryAttempt});}
+      return reply;
+    }:undefined);
     await beforeRequest();
     if (!response.ok) {if ([401, 403].includes(response.status)) localStorage.removeItem(authKey); const problem = await response.json().catch(() => ({})); throw new DropboxError(response.status, problem.error_summary ?? 'request');}
     return json(response);
@@ -115,7 +118,32 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     if (!data || typeof data.id !== 'string' || !data.id || typeof data.rev !== 'string' || !data.rev || typeof path !== 'string') throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.file-metadata'}, 'Dropbox returnerte ugyldig filmetadata.');
     return {text, id: data.id, rev: data.rev, path};
   };
+  function moveReply(value:any,launch:boolean):MoveReply{
+    if(launch&&value?.['.tag']==='async_job_id'&&typeof value.async_job_id==='string'&&value.async_job_id)return{asyncJobId:value.async_job_id};
+    if(!launch&&value?.['.tag']==='in_progress')return{inProgress:true};
+    if(value?.['.tag']!=='complete'||!Array.isArray(value.entries))throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ugyldig flytterespons.');
+    return{entries:value.entries.map((entry:any)=>{
+      if(entry?.['.tag']==='success'){
+        const meta=entry.success,path=displayPath(meta);
+        if(meta?.['.tag']!=='file'||typeof meta.id!=='string'||!meta.id||typeof meta.rev!=='string'||!meta.rev||path!==undefined&&typeof path!=='string')throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ugyldig flyttekvittering.');
+        return{value:{id:meta.id,path:path??'',rev:meta.rev}};
+      }
+      if(entry?.['.tag']!=='failure'||typeof entry.failure?.['.tag']!=='string')throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ugyldig flyttefeil.');
+      const problem=entry.failure,relocation=problem['.tag']==='relocation_error'?problem.relocation_error:null;
+      const collision=relocation?.['.tag']==='to'&&relocation.to?.['.tag']==='conflict';
+      const missing=relocation?.['.tag']==='from_lookup'&&relocation.from_lookup?.['.tag']==='not_found';
+      const throttled=problem['.tag']==='too_many_write_operations'||relocation?.['.tag']==='to'&&relocation.to?.['.tag']==='too_many_write_operations';
+      return{failure:{code:collision?failureCodes.changed:missing?failureCodes.missingFile:throttled?failureCodes.throttled:failureCodes.request,stage:'dropbox.move-batch',status:200,...(throttled?{limitReason:'too_many_write_operations' as const,retryAfterMs:0}:{})},...(collision?{collision:true}:{}),...(missing?{missing:true}:{})};
+    })};
+  }
   const files: RemoteFiles = {
+    async moveBatch(entries,retryAttempt=0){
+      if(!entries.length||entries.length>1000)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ugyldig flyttegruppe.');
+      const result=moveReply(await rpc('files/move_batch_v2',{entries:entries.map(entry=>({from_path:entry.from,to_path:entry.toReference??entry.to})),autorename:false,allow_ownership_transfer:false},retryAttempt),true);
+      if('entries'in result&&result.entries.length!==entries.length)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ufullstendig flytterespons.');
+      return result;
+    },
+    async checkMoveBatch(id,retryAttempt=0){try{return moveReply(await rpc('files/move_batch/check_v2',{async_job_id:id},retryAttempt),false);}catch(error){if(error instanceof DropboxError&&error.status===409&&/^invalid_async_job_id(?:\/|$)/.test(error.summary))return{jobExpired:true};throw error;}},
     async changes(cursor){
       let reset=!cursor,page:any;
       try{page=await rpc(cursor?'files/list_folder/continue':'files/list_folder',cursor?{cursor}:{path:'',recursive:true,include_deleted:true});}

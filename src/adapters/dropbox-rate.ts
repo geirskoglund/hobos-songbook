@@ -8,29 +8,29 @@ export class DropboxError extends SyncFailure {
     this.name='DropboxError';this.status=status;this.summary=summary;
   }
 }
-const mutations=new Set(['files/upload','files/upload_session/finish_batch_v2','files/create_folder_v2','files/move_v2','files/delete_v2']);
+const mutations=new Set(['files/upload','files/upload_session/finish_batch_v2','files/create_folder_v2','files/move_v2','files/move_batch_v2','files/delete_v2']);
 const reasons=new Set<RateLimitReason>(['too_many_requests','too_many_write_operations','unknown']);
 const maxWait=30000,maxRetries=2;
-interface Cooldown {version:1;accountId:string;until:number;reason:RateLimitReason}
+interface Cooldown {version:1;accountId:string;until:number;reason:RateLimitReason;status?:200|429}
 
 /** Request-scoped recovery, never a scheduled/background synchronization. */
 export function dropboxRate(namespace:string,account:()=>string|null,before:()=>void|Promise<void>,observe:(event:ApiEvent)=>void){
   const key=`${namespace}:dropbox-rate-v1`,wakeSlots=new Set<()=>void>();
-  let lease=0,writeLimit=4,writes=0,waited=0,retries=true,halted:DropboxError|null=null,memory:Cooldown|null=null;
+  let lease=0,writeLimit=4,writes=0,waited=0,retries=true,halted:SyncFailure|null=null,memory:Cooldown|null=null;
   let waiting:{promise:Promise<void>;wake():void}|undefined;
   function emit(event:ApiEvent){try{observe(event);}catch{/* Diagnostics do not change requests. */}}
   function cooldown(id:string|null){
     try{const value=JSON.parse(localStorage.getItem(key)??'null');if(value?.version===1&&value.accountId===id&&Number.isFinite(value.until)&&value.until>=0&&reasons.has(value.reason)&&(!memory||memory.accountId!==id||value.until>memory.until))memory=value;}catch{/* The in-memory cooldown still applies. */}
     return memory?.accountId===id?memory:null;
   }
-  function remember(id:string|null,rate:RateInfo){
+  function remember(id:string|null,rate:RateInfo,status:200|429=429){
     if(!id)return;
     const previous=cooldown(id),until=Math.max(previous?.until??0,Date.now()+(rate.retryAfterMs??1000));
-    memory={version:1,accountId:id,until,reason:rate.limitReason??'unknown'};
+    memory={version:1,accountId:id,until,reason:rate.limitReason??'unknown',status};
     try{localStorage.setItem(key,JSON.stringify(memory));}catch{/* Cooldown cannot depend on writable browser storage. */}
   }
-  const limitError=(rate:RateInfo)=>new DropboxError(429,'rate-limit','dropbox.request',rate);
-  function stop(rate:RateInfo){halted=limitError(rate);wake();return halted;}
+  const limitError=(rate:RateInfo,status:200|429=429)=>status===200?new SyncFailure({code:failureCodes.throttled,stage:'dropbox.move-batch',status,...rate},'Dropbox begrenser flytteoperasjonene.'):new DropboxError(429,'rate-limit','dropbox.request',rate);
+  function stop(rate:RateInfo,status:200|429=429){halted=limitError(rate,status);wake();return halted;}
   function checkTicket(ticket:number){if(ticket!==lease)throw new DeferredSync('changed','Forespørselen er avbrutt.');if(halted)throw halted;}
   async function guard(ticket:number){checkTicket(ticket);await before();checkTicket(ticket);}
   function wake(){waiting?.wake();for(const resume of [...wakeSlots])resume();}
@@ -39,7 +39,7 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
   async function wait(ticket:number,id:string|null){
     for(;;){
       await guard(ticket);const value=cooldown(id),delay=(value?.until??0)-Date.now();if(delay<=0)return;
-      if(!retries||waited+delay>maxWait)throw stop({limitReason:value!.reason,retryAfterMs:Math.ceil(delay)});
+      if(!retries||waited+delay>maxWait)throw stop({limitReason:value!.reason,retryAfterMs:Math.ceil(delay)},value!.status===200?200:429);
       if(!waiting){
         const start=Date.now();let done!:()=>void;const promise=new Promise<void>(resolve=>{done=resolve;});
         const timer=setTimeout(done,delay),current={promise,wake(){clearTimeout(timer);done();}};waiting=current;
@@ -78,9 +78,12 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
         try{response=await perform(attempt,()=>wait(ticket,id));}catch(cause){if(cause instanceof DeferredSync||cause instanceof SyncFailure)throw cause;emit({operation,status:0,durationMs:Math.round(performance.now()-start)});throw new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'Dropbox-forespørselen kunne ikke fullføres.',cause);}
         const durationMs=Math.round(performance.now()-start);
         if(response.status===429)rate=await rateInfo(response,attempt);
-        const entryLimit=(response as Response&{entryLimit?:boolean}).entryLimit===true;
-        emit({operation,status:entryLimit?200:response.status,durationMs,...(entryLimit?{entryLimit:true}:{}),...(rate?{...rate,retryAttempt:attempt}:{})});
-        if(recover){if(rate){remember(id,rate);await guard(ticket);writeLimit=1;if(!retries||attempt>=maxRetries)throw stop(rate);}else checkTicket(ticket);}
+        const deferredAttempt=(response as Response&{entryRateAttempt?:number}).entryRateAttempt;
+        const deferred=Number.isInteger(deferredAttempt)&&deferredAttempt!>=0&&deferredAttempt!<=maxRetries;
+        if(deferred)rate={...await rateInfo(response,deferredAttempt!),limitReason:'too_many_write_operations'};
+        const entryLimit=(response as Response&{entryLimit?:boolean}).entryLimit===true||deferred;
+        emit({operation,status:entryLimit?200:response.status,durationMs,...(entryLimit?{entryLimit:true}:{}),...(rate?{...rate,retryAttempt:deferred?deferredAttempt:attempt}:{})});
+        if(recover){if(rate){remember(id,rate,deferred?200:429);await guard(ticket);writeLimit=1;if(deferred){if(!retries||deferredAttempt!>=maxRetries)stop(rate,200);}else if(!retries||attempt>=maxRetries)throw stop(rate);}else checkTicket(ticket);}
       }finally{release();}
       if(!recover||response.status!==429)return response;
       attempt++;

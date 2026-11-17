@@ -23,7 +23,8 @@ async function retry(f){for(let n=0;n<3;n++)try{return await f.run();}catch(erro
 test('bulk: hundreds of songs use bounded batch commits and sidecars reference confirmed content revisions',async()=>{
   const f=bulkFixture(240);await f.run();
   assert.deepEqual(f.batches.map(b=>b.length),[100,100,40,100,100,40]);
-  assert.deepEqual(f.singles,['/.app/library.json']);
+  assert.deepEqual(f.singles.filter(path=>path!=='/.app/upload-index.json'),['/.app/library.json']);
+  assert.equal(f.singles.filter(path=>path==='/.app/upload-index.json').length,4,'one provenance commit per content group, then one cleanup, rather than per file');
   const manifest=JSON.parse(f.entries.get('/.app/library.json').text);assert.equal(Object.keys(manifest.songs).length,240);
   for(const link of Object.values(manifest.songs)){
     const content=f.entries.get(link.path.toLowerCase()),personal=JSON.parse(f.entries.get('/.app/songs/'+link.id+'.json').text);
@@ -77,7 +78,8 @@ test('bulk: completed data sessions are durable before the entire staging group 
   f.files.beginUpload=async text=>{if(++calls>4&&!released)await gate;return begin(text);};
   const running=syncEngine(f.storage,f.files,'account',{valid:()=>active,changed(){}}).run(true);
   try{
-    for(let n=0;n<100&&Object.values(f.data.state.uploads??{}).filter(job=>job.session).length<4;n++)await new Promise(resolve=>setImmediate(resolve));
+    const deadline=Date.now()+5000;
+    while(Date.now()<deadline&&Object.values(f.data.state.uploads??{}).filter(job=>job.session).length<4)await new Promise(resolve=>setTimeout(resolve,10));
     assert.equal(Object.values(f.data.state.uploads).filter(job=>job.session).length,4,'the first four closed sessions survive a page/process interruption');assert.equal(f.batches.length,0);
   }finally{active=false;released=true;release();await assert.rejects(running);}
   const stagedBefore=f.sessions.size;await f.run();assert.ok(f.sessions.size-stagedBefore<40,'durable content bytes are reused on the next run');assert.equal(f.data.state.pending,false);

@@ -1,6 +1,7 @@
 import {DeferredSync,failureCodes,SyncFailure} from './failure.ts';
-import {parseManifest,type FileValue,type RemoteEntry,type RemoteFiles,type SyncState} from './model.ts';
+import {parseManifest,type FileValue,type RemoteEntry,type RemoteFiles,type SyncState,type MoveReply,type MoveEntry} from './model.ts';
 import {checkSize,textBytes} from './limits.ts';
+import {parseUploadIndex,uploadIndexPath} from './bridge.ts';
 
 export const pathKey=(path:string)=>path.normalize('NFC').toLowerCase();
 /** A complete metadata index, advanced only after every page has been received. */
@@ -23,7 +24,24 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
     let parent=entry.path.slice(0,entry.path.lastIndexOf('/'));
     while(parent){if(!state.remote.entries[pathKey(parent)])set({path:parent,folder:true});parent=parent.slice(0,parent.lastIndexOf('/'));}
   }
+  async function moved(reply:MoveReply,entries:MoveEntry[]){
+    if(!('entries'in reply))return reply;
+    if(reply.entries.length!==entries.length)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ufullstendig flytteresultat.');
+    for(let i=0;i<entries.length;i++){
+      const result=reply.entries[i],plan=entries[i];if(!('value'in result))continue;
+      let path=result.value.path;
+      // Dropbox permits omitted display paths. A folder-ID-relative target can
+      // have moved since launch, so its old absolute name is not a receipt.
+      if(!path&&plan.toReference){const current=await raw.read(result.value.id);if(!current)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Flyttemålet kan ikke bekreftes.');path=current.path;}
+      path||=plan.to;
+      const matches=plan.toReference?pathKey(path.split('/').at(-1)!)===pathKey(plan.to.split('/').at(-1)!):pathKey(path)===pathKey(plan.to);
+      if(result.value.id!==plan.fileId||!matches)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ugyldig flyttekvittering.');
+      result.value.path=path;const old=find(result.value.id);put({...old,...result.value,folder:false});
+    }
+    return reply;
+  }
   const files:RemoteFiles={
+    async inspectFile(path){const result=await raw.read(path);if(result)put({id:result.id,path:result.path,rev:result.rev,folder:false,size:textBytes(result.text)});else{const entry=find(path);if(entry)remove(entry.path);}return result;},
     async read(path){
       if(path.startsWith('rev:')){const match=Object.entries(state.bases).find(([,base])=>base.contentRev===path.slice(4));if(match){const link=state.manifest.songs[match[0]]??state.reservations[match[0]];if(link?.fileId)return{text:match[1].original,id:link.fileId,rev:path.slice(4),path};}}
       const entry=find(path);
@@ -32,6 +50,7 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
       if(entry?.id&&entry.rev){
         let text:string|undefined;
         if(pathKey(entry.path)==='/.app/library.json'&&state.library?.rev===entry.rev)text=JSON.stringify(state.library.value);
+        if(pathKey(entry.path)===uploadIndexPath&&state.uploadIndex?.rev===entry.rev)text=JSON.stringify(state.uploadIndex.value);
         const personal=/^\/\.app\/songs\/([^/]+)\.json$/i.exec(entry.path),base=personal&&state.bases[personal[1]];
         if(base&&base.personalRev===entry.rev)text=JSON.stringify(base.personal);
         if(text===undefined){const link=Object.values(state.manifest.songs).find(s=>s.fileId===entry.id)??Object.values(state.reservations).find(s=>s.fileId===entry.id);const basis=link&&state.bases[link.id];if(basis?.contentRev===entry.rev)text=basis.original;}
@@ -42,9 +61,11 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
       else if(entry)remove(entry.path);
       return result;
     },
-    async write(path,text,rev){const result=await raw.write(path,text,rev);put({id:result.id,path:result.path,rev:result.rev,folder:false});if(pathKey(path)==='/.app/library.json')state.library={id:result.id,rev:result.rev,value:parseManifest(text)};return result;},
+    async write(path,text,rev){const result=await raw.write(path,text,rev);put({id:result.id,path:result.path,rev:result.rev,folder:false});if(pathKey(path)==='/.app/library.json')state.library={id:result.id,rev:result.rev,value:parseManifest(text)};if(pathKey(path)===uploadIndexPath)state.uploadIndex={id:result.id,rev:result.rev,value:parseUploadIndex(text)};return result;},
     ...(raw.beginUpload?{beginUpload:raw.beginUpload}:{}),
     ...(raw.commitBatch?{async commitBatch(jobs){const results=await raw.commitBatch!(jobs);for(const result of results)if('value'in result)put({id:result.value.id,path:result.value.path,rev:result.value.rev,folder:false,size:textBytes(result.value.text)});return results;}}:{}),
+    ...(raw.moveBatch?{async moveBatch(entries,retryAttempt){return moved(await raw.moveBatch!(entries,retryAttempt),entries);}}:{}),
+    ...(raw.checkMoveBatch?{async checkMoveBatch(id,retryAttempt){return moved(await raw.checkMoveBatch!(id,retryAttempt),state.placement?.entries??[]);}}:{}),
     async folder(path,expectedId){
       const current=find(expectedId??path);
       if(current){

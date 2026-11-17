@@ -4,21 +4,27 @@ import {failureCodes, SyncFailure, type FailureInfo} from './failure.ts';
 
 /** Wire formats deliberately exclude credentials and local operation/session state. */
 export interface BookLink {id: string; name: string; deleted?: boolean; folderId?: string; path?: string}
-export interface SongLink {id: string; songbookId: string; origin: Song['origin']; fileId?: string; path: string}
+export interface SongLink {id: string; songbookId: string; origin: Song['origin']; fileId?: string; path: string;originalFile?:{fileId:string;path:string}}
 export interface DeletedSong {id: string; fileId?: string; songbookId?: string}
 export interface Manifest {version: 1; books: Record<string, BookLink>; songs: Record<string, SongLink>; deletedSongs?: Record<string, DeletedSong>}
 export interface PersonalFile {version: 1; songId: string; original: {rev: string; hash: string}; data: SongPersonal}
 export interface FileValue {text: string; rev: string; id: string; path: string}
 export interface RemoteEntry {id?: string; path: string; folder?: boolean; rev?: string; deleted?: boolean; size?:number}
-export interface UploadIntent {key:string; songId:string; kind:'content'|'personal'|'original'|'seed'; path:string; text:string; rev:string|null; base:{original:string;personal:PersonalFile}}
-export interface UploadJob extends UploadIntent {status:'planned'|'committing'|'done'; session?:{id:string;created:number}; value?:FileValue}
+export interface UploadIntent {key:string; songId:string; kind:'content'|'personal'|'original'|'seed'; path:string; text:string; rev:string|null; fileId?:string; base:{original:string;personal:PersonalFile;link?:SongLink}}
+export interface UploadJob extends UploadIntent {status:'planned'|'committing'|'done'; session?:{id:string;created:number}; value?:FileValue; creation?:{path:string;basePath:string;number:number;file?:FileValue;attempted?:boolean;collision?:boolean;failure?:FailureInfo;discarded?:boolean;folderId?:string;book?:BookLink}}
 export type UploadResult={value:FileValue}|{failure:FailureInfo;resetSession?:boolean};
+export interface MoveEntry {key:string;from:string;to:string;fileId:string;toReference?:string}
+export type MoveResult={value:{id:string;path:string;rev?:string}}|{failure:FailureInfo;collision?:boolean;missing?:boolean};
+export type MoveReply={entries:MoveResult[]}|{asyncJobId:string}|{inProgress:true}|{jobExpired:true};
 export interface RemoteIndex {cursor: string; entries: Record<string, RemoteEntry>; beforeUpdates?:Record<string,RemoteEntry|null>}
 export interface RemoteFiles {
   read(path: string, knownPath?:string): Promise<FileValue | null>;
   write(path: string, text: string, rev: string | null): Promise<FileValue>;
   beginUpload?(text:string):Promise<{id:string;created:number}>;
   commitBatch?(jobs:UploadJob[]):Promise<UploadResult[]>;
+  moveBatch?(entries:MoveEntry[],retryAttempt?:number):Promise<MoveReply>;
+  checkMoveBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
+  inspectFile?(path:string):Promise<FileValue|null>;
   folder(path: string, expectedId?: string, knownMissing?: boolean): Promise<{id: string; path: string}>;
   locateFolder(id: string): Promise<{id: string; path: string} | null>;
   move(from: string, to: string, known?:{id:string;path:string}): Promise<{id: string; path: string}>;
@@ -41,6 +47,9 @@ export interface SyncState {
   library?: {rev: string; id: string; value: Manifest};
   originals?: Record<string, boolean>;
   uploads?:Record<string,UploadJob>;
+  placement?:{entries:MoveEntry[];jobId?:string;retryAttempt?:number};
+  abandoned?:{path:string;fileId?:string;rev?:string}[];
+  uploadIndex?:{id:string;rev:string;value:import('./bridge.ts').UploadIndex};
   skipped?:Record<string,boolean>;
   held?:Record<string,boolean>;
   joined?:boolean;
@@ -83,6 +92,8 @@ function readManifest(text: string): Manifest {
   for (const [id, song] of Object.entries(value.songs) as [string, SongLink][]) {
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id) || song.id !== id || !song.origin || !value.books[song.songbookId] || !/^\/Songbooks\/[^/]+\/Private\/[^/]+\.cho$/i.test(song.path)) throw new Error('Ugyldig sangkobling i Dropbox.');
     if(song.fileId){if(fileIds.has(song.fileId))throw new Error('Dropbox-filen har flere sangidentiteter.');fileIds.add(song.fileId);}
+    // A receipt for the generated source copy survives a later external move.
+    if(song.originalFile&&(typeof song.originalFile.fileId!=='string'||!song.originalFile.fileId||typeof song.originalFile.path!=='string'||!/^\/[^\u0000]+$/.test(song.originalFile.path)))throw new Error('Ugyldig originalkopi.');
   }
   if(value.deletedSongs!==undefined){
     if(!value.deletedSongs||typeof value.deletedSongs!=='object'||Array.isArray(value.deletedSongs))throw new Error('Ugyldige slettemarkeringer.');

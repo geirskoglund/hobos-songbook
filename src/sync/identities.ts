@@ -64,19 +64,33 @@ export function syncIdentities(source:SyncSnapshot){
     }
     return changed;
   }
-  function songs(remote:Manifest,isPrivate:(song:Song)=>boolean){
+  async function songs(remote:Manifest,isPrivate:(song:Song)=>boolean,release:(id:string)=>Promise<boolean>=async()=>true){
     if(!first())return false;let changed=false;
-    const snapshot=project(),locals=snapshot.songs.filter(isPrivate),remotes=Object.values(remote.songs).filter(link=>link.path&&!remote.books[link.songbookId]?.deleted&&!remote.deletedSongs?.[link.id]&&!state.held?.[link.id]);
+    const snapshot=project(),locals=snapshot.songs.filter(isPrivate),remotes=Object.values(remote.songs).filter(link=>link.path&&(link.fileId||state.library?.value.songs[link.id]||state.manifest.songs[link.id])&&!remote.books[link.songbookId]?.deleted&&!remote.deletedSongs?.[link.id]&&!state.held?.[link.id]);
     const remoteIds=new Set(remotes.map(link=>link.id));
     const key=(book:string,filename:string)=>JSON.stringify([book,filenameKey(filename)]);
     for(const original of source.songs.filter(isPrivate)){
-      const id=wireId('songs',original.id);
-      if(state.bindings?.songs[original.id]||state.manifest.songs[id]||remoteIds.has(id)||remote.deletedSongs?.[id]||state.reservations[id])continue;
+      if(!original.origin.filename)continue;
+      const id=wireId('songs',original.id),reserved=state.reservations[id];
+      const staged=state.uploads?.[`content:${id}`]?.creation;
+      const legacyPath=reserved&&/--[a-f0-9]{64}\.cho$/i.test(reserved.path);
+      const ownsFile=reserved&&(reserved.fileId||state.bases[id]?.contentRev||!staged&&legacyPath&&(!state.remote||state.remote.entries[reserved.path.normalize('NFC').toLowerCase()]));
+      const explicitCopy=Object.entries(state.reservations).some(([key,link])=>key.startsWith('copy:')&&link.id===id);
+      if(state.bindings?.songs[original.id]||state.manifest.songs[id]||remoteIds.has(id)||remote.deletedSongs?.[id]||ownsFile||explicitCopy)continue;
       const local=locals.find(song=>song.id===id)!,matchKey=key(local.songbookId,local.origin.filename);
       if(locals.filter(song=>key(song.songbookId,song.origin.filename)===matchKey).length!==1)continue;
       const matches=remotes.filter(link=>key(link.songbookId,link.origin.filename)===matchKey);
       if(matches.length!==1||locals.some(song=>song.id===matches[0].id))continue;
-      const link=matches[0];bind('songs',original.id,link.id);state.reservations[link.id]={...link};changed=true;
+      if(!await release(id))continue;
+      const link=matches[0];bind('songs',original.id,link.id);
+      // A planned name is not a cloud identity. A failed first attempt may have
+      // reserved paths before another device published the same imported files.
+      // Commit recovery precedes this pass; confirmed files never enter here.
+      delete state.reservations[id];delete state.bases[id];delete state.originals?.[id];
+      delete state.decisions[`${id}:content`];delete state.decisions[`${id}:personal`];
+      state.conflicts=state.conflicts.filter(conflict=>conflict.songId!==id);
+      for(const [key,job]of Object.entries(state.uploads??{}))if(job.songId===id)delete state.uploads![key];
+      state.reservations[link.id]={...link};changed=true;
     }
     return changed;
   }

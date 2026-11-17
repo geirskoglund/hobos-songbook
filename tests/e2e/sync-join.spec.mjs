@@ -37,3 +37,12 @@ test('F65: matched first-sync song uses E04/E03, defers across restart and retai
 test('F65/F28: explicit first-sync copy creates one additional song through the existing E04 action',async({page,context})=>{
  const local='{t: Lokal versjon}\nAnnen tekst',{mock}=await prepare(page,context,{text:local});await page.locator('#dropbox-sync').click();const dialog=page.getByRole('dialog',{name:'Synkroniseringskonflikt',exact:true});await dialog.getByRole('button',{name:'Opprett ny fil',exact:true}).click();await expect(page.locator('#sync-status')).toContainText('Sist synkronisert:');const data=await state(page);expect(data.songs).toHaveLength(2);expect(data.songs.find(s=>s.id==='local-song').original).toBe(original);expect(data.songs.find(s=>s.id!=='local-song').original).toBe(local);expect(data.songs.every(s=>s.songbookId==='local-hobos')).toBe(true);expect(data.setlists[0].songIds).toEqual(['local-song']);expect([...mock.entries.values()].filter(e=>e.path_display.endsWith('.cho'))).toHaveLength(2);await page.locator('#dropbox-sync').click();await expect(page.locator('#dropbox-sync')).toBeEnabled();expect((await savedSongs(page))).toHaveLength(2);
 });
+
+test('E04: programmatic heading focus has no browser outline after keyboard activation',async({page,context})=>{
+ await prepare(page,context,{text:'{t: Local}\nChanged',capo:7});
+ await page.keyboard.press('Tab');await page.locator('#dropbox-sync').focus();await page.keyboard.press('Enter');
+ const heading=page.getByRole('dialog',{name:'Synkroniseringskonflikt',exact:true}).locator('h2');
+ await expect(heading).toBeFocused();await expect(heading).toHaveCSS('outline-style','none');
+ await expect(heading).toHaveCSS('font-size','26px');
+ await page.keyboard.press('Escape');await expect(heading).toHaveCount(0);
+});

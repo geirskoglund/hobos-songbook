@@ -15,7 +15,7 @@ Oppgaven bestemmer funksjon og innhold; designets eksempeltekst utvider ikke bes
 
 ### Fokus og tilstand på kontroller
 
-Gule eller gylne «aktiv»-rammer, fokusrammer og hoverrammer rundt kontroller skal ikke forekomme. Dette gjelder gjennomgående for menyer, rader, felt, verdikontroller og dialoghandlinger. Trykk med mus, berøring eller penn og programmatisk fokusretur skal ikke etterlate en dekorativ ramme. Fokus, fokusretur, markør og skjermtastatur beholdes funksjonelt.
+Gule eller gylne «aktiv»-rammer, fokusrammer og hoverrammer rundt kontroller skal ikke forekomme. Dette gjelder gjennomgående for menyer, rader, felt, verdikontroller og dialoghandlinger. Trykk med mus, berøring eller penn og programmatisk fokusretur skal ikke etterlate en dekorativ ramme. Fokus, fokusretur, markør og skjermtastatur beholdes funksjonelt. Dette gjelder også dialogoverskrifter med programmatisk startfokus: de skal ikke få nettleserens blå eller automatiske fokusramme. E03/E04 beholder de spesifiserte 26 px/500 i vanlig overskrift og 18 px i handlingene.
 
 Tastaturnavigasjon har en diskret, 1 px fokusmarkering i den eksisterende Sekundærtekst-rollen, trukket 2 px inn for å unngå klipping og ekstra rammer utenfor kontrollen. Tab, piltaster, Home/End og Page Up/Down aktiverer markeringen; neste pekertrykk fjerner den. Samme regel brukes av alle felleskontroller, også felt som nettleseren ellers ville ha markert etter berøring. Ingen lokal gul/gyllen fokusvariant innføres. Fargerollen som heter Handling/fokus i det opprinnelige grunnlaget er ikke en tillatelse til slike rammer; denne uttrykkelige produktavklaringen styrer kontrollfokus.
 

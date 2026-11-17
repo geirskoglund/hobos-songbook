@@ -57,3 +57,41 @@ test('Dropbox bulk contract: the 10 MB upload guard uses UTF-8 bytes before maki
     await assert.rejects(adapter.files.beginUpload(text),SkippedFile);await assert.rejects(adapter.files.write('/x.cho',text,null),SkippedFile);assert.equal(calls,0);
   });
 });
+
+test('Dropbox move batch contract: immutable literal sources, no autorename, wrapped success and async status',async()=>{
+ const entries=[{key:'content:a',from:'/.app/uploads/unique.cho',to:'/Songbooks/Book/Private/Readable.cho',fileId:'id:a'}],requests=[];
+ await adapterTest(async(url,options)=>{
+  const body=JSON.parse(options.body);requests.push({url,body});assert.equal(new URL(url).host,'api.dropboxapi.com');
+  if(url.endsWith('/move_batch_v2')){assert.deepEqual(body,{entries:[{from_path:entries[0].from,to_path:entries[0].to}],autorename:false,allow_ownership_transfer:false});return Response.json({'.tag':'async_job_id',async_job_id:'job'});}
+  assert.ok(url.endsWith('/move_batch/check_v2'));assert.deepEqual(body,{async_job_id:'job'});
+  return Response.json(requests.length===2?{'.tag':'in_progress'}:{'.tag':'complete',entries:[{'.tag':'success',success:{'.tag':'file',id:'id:a',rev:'r',path_display:entries[0].to}}]});
+ },async adapter=>{
+  assert.deepEqual(await adapter.files.moveBatch(entries),{asyncJobId:'job'});assert.deepEqual(await adapter.files.checkMoveBatch('job'),{inProgress:true});
+  assert.deepEqual(await adapter.files.checkMoveBatch('job'),{entries:[{value:{id:'id:a',path:entries[0].to,rev:'r'}}]});
+ });
+});
+
+test('Dropbox move batch contract: HTTP 200 per-entry collision, missing source and write lock are separate results',async()=>{
+ const failure=relocation=>({'.tag':'failure',failure:{'.tag':'relocation_error',relocation_error:relocation}});
+ await adapterTest(async()=>Response.json({'.tag':'complete',entries:[failure({'.tag':'to',to:{'.tag':'conflict',conflict:{'.tag':'file'}}}),failure({'.tag':'from_lookup',from_lookup:{'.tag':'not_found'}}),{'.tag':'failure',failure:{'.tag':'too_many_write_operations'}}]}),async adapter=>{
+  const result=await adapter.files.moveBatch(['a','b','c'].map(id=>({from:`/.app/uploads/${id}.cho`,to:`/Songbooks/B/Private/${id}.cho`,key:id,fileId:'id:'+id})));
+  assert.equal(result.entries[0].collision,true);assert.equal(result.entries[1].missing,true);assert.equal(result.entries[2].failure.code,'SYNC-007');assert.ok(result.entries.every(e=>e.failure.status===200));
+ });
+});
+
+test('Dropbox move batch contract: invalid job IDs permit immutable-plan recovery; malformed successes fail closed',async()=>{
+ await adapterTest(async()=>Response.json({error_summary:'invalid_async_job_id/'},{status:409}),async adapter=>assert.deepEqual(await adapter.files.checkMoveBatch('expired'),{jobExpired:true}));
+ for(const response of [{'.tag':'complete',entries:[{'.tag':'success',id:'id:flat',rev:'r'}]},{'.tag':'complete',entries:[{'.tag':'success',success:{'.tag':'file',id:'id:a'}}]},{'.tag':'unknown'}])await adapterTest(async()=>Response.json(response),async adapter=>assert.rejects(adapter.files.moveBatch([{key:'a',fileId:'id:a',from:'/x',to:'/y'}]),error=>error.info?.code==='SYNC-008'));
+});
+
+test('Dropbox move batch contract: per-entry locks arm the shared cooldown without pretending HTTP 429',async()=>{
+ const calls=[],entries=[{key:'a',from:'/.app/uploads/a.cho',to:'/Songbooks/B/Private/a.cho',toReference:'id:parent/a.cho',fileId:'id:a'}];
+ await adapterTest(async(url,options)=>{
+  calls.push({at:Date.now(),args:JSON.parse(options.body)});assert.ok(url.endsWith('/move_batch_v2'));assert.equal(calls.at(-1).args.entries[0].to_path,'id:parent/a.cho');
+  return Response.json(calls.length===1?{'.tag':'complete',entries:[{'.tag':'failure',failure:{'.tag':'too_many_write_operations'}}]}:{'.tag':'complete',entries:[{'.tag':'success',success:{'.tag':'file',id:'id:a',rev:'r',path_display:entries[0].to}}]});
+ },async(adapter,events)=>{
+  const first=await adapter.files.moveBatch(entries,0);assert.equal(first.entries[0].failure.code,'SYNC-007');
+  await adapter.files.moveBatch(entries,1);assert.ok(calls[1].at-calls[0].at>=900,'the next mutation respects shared backpressure');
+  assert.equal(events[0].status,200);assert.equal(events[0].entryLimit,true);assert.equal(events[0].limitReason,'too_many_write_operations');assert.ok(events[0].retryAfterMs>=1000);
+ });
+});
