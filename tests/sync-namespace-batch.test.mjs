@@ -37,6 +37,20 @@ test('namespace recovery: lost delete reply leaves F57 committed and resumes aft
  await assert.rejects(f.run());assert.equal(f.data.songs.length,0);assert.equal(f.data.personal.length,0);assert.equal(f.data.state.namespaceJob.kind,'delete');await run(f);assert.equal(f.data.state.pending,false);assert.equal(f.data.state.namespaceJob,undefined);
 });
 
+for(const kind of ['folders','move','delete'])test(`namespace preflight: ${kind} interrupted after journal commit is unsent and resumes from fresh state`,async()=>{
+ const f=multiple(1),launches=[],method={folders:'createFoldersBatch',move:'moveBatch',delete:'deleteBatch'}[kind];
+ if(kind!=='folders'){f.change(d=>d.songbooks.push({id:'target',name:'Target'}));await run(f);}
+ const transmit=f.files[method];f.files[method]=async entries=>{launches.push(structuredClone(entries));return transmit(entries);};
+ const commit=f.storage.commit;let interrupted=false;
+ f.storage.commit=async(...args)=>{await commit(...args);const job=args[1].namespaceJob;if(!interrupted&&job?.kind===kind&&job.submitted&&(kind!=='folders'||job.entries.some(e=>e.path.endsWith('/Private')))){interrupted=true;f.change(d=>{if(d.personal[0])d.personal[0].capo=9;});}};
+ if(kind==='move')f.change(d=>d.songs[0].songbookId='target');
+ if(kind==='delete'){const book=manifest(f).books.standard;for(const [key,e]of [...f.entries])if(e.path===book.path||e.path.startsWith(book.path+'/'))f.entries.delete(key);}
+ await assert.rejects(f.run(),e=>e.reason==='changed');assert.equal(interrupted,true);assert.equal(f.data.state.namespaceJob.submitted,false);assert.notEqual(f.data.state.localGeneration,f.data.journal.generation);
+ assert.equal(launches.filter(group=>kind!=='folders'||group.some(e=>e.path.endsWith('/Private'))).length,0,'a saved sent flag is not evidence that any API call started');
+ await run(f);assert.equal(f.data.state.pending,false);assert.equal(f.data.state.namespaceJob,undefined);
+ if(kind==='delete'){assert.equal(f.data.songs.length,0);assert.equal(f.data.personal.length,0);}else{assert.equal(f.data.songs.length,1);assert.equal(f.data.personal[0].capo,9);assert.equal(manifest(f).songs['song-0'].songbookId,kind==='move'?'target':'standard');}
+});
+
 test('namespace recovery: several hundred personal files use bounded batches, including missing files from another device',async()=>{
  const {f,deletes}=batchFixture(multiple(205));await run(f);const book=manifest(f).books.standard;
  for(const [key,e]of [...f.entries])if(e.path===book.path||e.path.startsWith(book.path+'/'))f.entries.delete(key);

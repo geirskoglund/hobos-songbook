@@ -45,6 +45,17 @@ test('async delete receipt survives a local generation change and resumes the sa
  await expect(page.locator('#dropbox-sync')).toBeEnabled();expect(account(await state(page)).namespaceJob.jobId).toBe(jobId);await synchronize(page);expect(account(await state(page)).pending).toBe(false);expect(mock.calls.filter(call=>call.endpoint.endsWith('/delete_batch'))).toHaveLength(1);
 });
 
+test('a generation change after the sent journal commits but before folder launch persists an unsent job across reload',async({page,context})=>{
+ const mock=await setup(page,context);await mutate(page,'seed',1);
+ await page.evaluate(()=>{
+  const transact=IDBDatabase.prototype.transaction,put=IDBObjectStore.prototype.put,interrupted=new WeakSet();let armed=true;
+  IDBDatabase.prototype.transaction=function(...args){const tx=transact.apply(this,args);if(tx.mode==='readwrite'&&tx.objectStoreNames.contains('sync'))tx.addEventListener('complete',()=>{if(!interrupted.has(tx))return;window.preflightInterrupted=true;const next=transact.call(this,'sync','readwrite'),q=next.objectStore('sync').get('private-local-v1');q.onsuccess=()=>put.call(next.objectStore('sync'),{...q.result,generation:q.result.generation+1,recoveryRequired:true});},{once:true});return tx;};
+  IDBObjectStore.prototype.put=function(value,...args){if(armed&&this.name==='sync'&&value.namespaceJob?.kind==='folders'&&value.namespaceJob.submitted&&value.namespaceJob.entries.some(entry=>entry.path==='/Songbooks/Book 0/Private')){armed=false;interrupted.add(this.transaction);}return put.call(this,value,...args);};
+ });
+ const start=mock.calls.length;await synchronize(page);expect(await page.evaluate(()=>window.preflightInterrupted)).toBe(true);let data=await state(page);expect(account(data).namespaceJob.submitted).toBe(false);expect(account(data).pending).toBe(true);expect(mock.find('/Songbooks/Book 0/Private')).toBeUndefined();expect(mock.calls.slice(start).filter(c=>c.endpoint.endsWith('/create_folder_batch')).some(c=>c.args.paths.includes('/Songbooks/Book 0/Private'))).toBe(false);
+ await page.reload();await syncPage(page);data=await state(page);expect(account(data).namespaceJob.submitted).toBe(false);await synchronize(page);data=await state(page);expect(account(data).pending).toBe(false);expect(account(data).namespaceJob).toBeUndefined();expect(manifest(mock).songs['bulk-0']).toBeTruthy();expect(mock.find('/Songbooks/Book 0/Private')).toBeTruthy();expect(data.songs).toHaveLength(1);
+});
+
 test('two independent IndexedDB installations cannot overtake a delayed ID transfer on the same Dropbox backend',async({page,context,browser})=>{
  const mock=await setup(page,context);await mutate(page,'seed',2);await synchronize(page);const otherContext=await browser.newContext({serviceWorkers:'block',baseURL:test.info().project.use.baseURL});
  try{

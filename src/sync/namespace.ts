@@ -155,9 +155,12 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   if(job.submitted&&job.kind!=='delete')return observeUnknown(job);
   if(job.kind==='folders')for(const entry of job.entries as FolderEntry[])if(entry.parentId){const parent=await inspect(entry.parentId);if(!parent||pathKey(parent.path)!==pathKey(entry.path.slice(0,entry.path.lastIndexOf('/')))){delete state.namespaceJob;await hooks.save();throw new RetrySync();}}
   if(job.kind==='delete')for(const entry of job.entries as DeleteEntry[])if(entry.folder){const actual=await inspect(entry.fileId);if(actual&&await nonempty(actual.path)){delete state.namespaceJob;await hooks.save();throw new DeferredSync('remote','Mappen har fått nytt innhold.');}}
-  job.submitted=true;delete job.reply;await hooks.save();await hooks.check();
+  job.submitted=true;delete job.reply;await hooks.save();
   let reply:MoveReply;
   try{
+   // This guard is still before transport. Its cancellation must durably undo
+   // the sent flag even when a newer local generation prevents ordinary save.
+   await hooks.check();
    if(job.kind==='move'){if(!files.moveBatch)throw bad(job.kind,'Batchflytting mangler.');reply=await files.moveBatch(job.entries as MoveEntry[],job.attempt);}
    else if(job.kind==='delete'){if(!files.deleteBatch)throw bad(job.kind,'Batchsletting mangler.');reply=await files.deleteBatch(job.entries as DeleteEntry[],job.attempt);}
    else{if(!files.createFoldersBatch)throw bad(job.kind,'Batchoppretting mangler.');reply=await files.createFoldersBatch(job.entries as FolderEntry[],job.attempt);}
