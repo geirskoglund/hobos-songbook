@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {openMenu, importSong, goSongs, tool, fillValue} from './song-helpers.mjs';
+import {openMenu, importAndOpenSong, goSongs, tool, fillValue} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const song = {id:'preserved-song',songbookId:'my-book',title:'Behold sangen',key:'D',original:'\uFEFF{t: Behold sangen}\r\n{key: D}\r\n[D]Ord\r\n',origin:{kind:'external',filename:'behold.cho',importedAt:'2026-01-01',provider:'dropbox',sourceId:'fixture-source',fileId:'fixture-file',relativePath:'mappe/behold.cho'},sync:{access:'private',folderId:'fixture-folder',sourceRev:'fixture-rev',pending:true}};
 const book = {id:'my-book',name:'Min bok',folderId:'fixture-folder',folderName:'Min bok',folderMissing:false};
@@ -53,7 +53,7 @@ test('local book and song writes preserve v4 metadata, extra stores, identities 
   await page.locator('#songbook-my-book').click();await page.locator('#song-list .song-choice').click();await tool(page,'Tittel');await fillValue(page,'Tittel','Ny sangtittel');
   await expect.poll(async()=>(await snapshot(page)).songs[0].title).toBe('Ny sangtittel');const edited=await snapshot(page);
   expect(edited.songs).toEqual([{...song,title:'Ny sangtittel',original:song.original.replace('Behold sangen','Ny sangtittel')}]);expect(edited.sync).toContainEqual(sync);expect(edited.personal).toEqual(before.personal);expect(edited.setlists).toEqual(before.setlists);
-  await goSongs(page);await importSong(page,'ny.txt','{t: Ny lokal sang}\nOrd');const imported=await snapshot(page);expect(imported.version).toBe(4);expect(imported.songs).toHaveLength(2);expect(imported.songs.find(s=>s.id!==song.id).songbookId).toBe(book.id);expect(imported.sync).toContainEqual(sync);expect(imported.setlists).toEqual(before.setlists);
+  await goSongs(page);await importAndOpenSong(page,'ny.txt','{t: Ny lokal sang}\nOrd');const imported=await snapshot(page);expect(imported.version).toBe(4);expect(imported.songs).toHaveLength(2);expect(imported.songs.find(s=>s.id!==song.id).songbookId).toBe(book.id);expect(imported.sync).toContainEqual(sync);expect(imported.setlists).toEqual(before.setlists);
 });
 
 for(const [version,incompatible] of [[5,false],[4,true]])test(`unsupported database v${version}, invalid keys ${incompatible}, stays unchanged with an accurate error`,async({page})=>{

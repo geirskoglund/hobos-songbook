@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {openMenu, openSettings, closeSettings, importSong, savedSongs, goSongs} from './song-helpers.mjs';
+import {openMenu, openSettings, closeSettings, importAndOpenSong, savedSongs, goSongs} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
 test.beforeEach(async({request})=>{await request.post('/__test__/reset');});
 async function goSetlists(page){await openMenu(page);await page.getByRole('button',{name:'Setlister',exact:true}).click();await expect(page.locator('#add-setlist')).toBeEnabled();}
@@ -9,7 +9,7 @@ async function read(page){return page.evaluate(()=>new Promise((resolve,reject)=
 async function injectAbort(page,method){await page.evaluate(method=>{const original=IDBObjectStore.prototype[method];IDBObjectStore.prototype[method]=function(...args){const request=original.apply(this,args);if(this.name==='setlists')this.transaction.abort();return request;};window.restoreSetlistStorage=()=>{IDBObjectStore.prototype[method]=original;};},method);}
 
 test('create, cancel, rename and confirmed deletion preserve IDs, order and unrelated data offline',async({page,context})=>{
- await page.goto(url);await importSong(page);const songs=await savedSongs(page);await goSetlists(page);
+ await page.goto(url);await importAndOpenSong(page);const songs=await savedSongs(page);await goSetlists(page);
  await page.locator('#add-setlist').click();await expect(page.getByRole('button',{name:'Lagre',exact:true})).toBeDisabled();await page.getByLabel('Navn',{exact:true}).fill('   ');await expect(page.getByRole('alert')).toContainText('Skriv inn');await page.keyboard.press('Escape');await expect(page.locator('#add-setlist')).toBeFocused();expect((await read(page)).setlists).toEqual([]);
  await create(page,'Første');await create(page,'Andre');await expect(page.locator('#setlist-list .count-choice')).toHaveText(['Andre0 sanger','Første0 sanger']);const baseline=await read(page);
  await menu(page,1);await expect(page.getByRole('menuitem')).toHaveText(['Endre info','Slett']);await expect(page.locator('#setlists')).toBeVisible();await page.getByRole('menuitem',{name:'Endre info',exact:true}).click();await expect(page.getByLabel('Navn',{exact:true})).toHaveValue('Første');await page.getByLabel('Navn',{exact:true}).fill('Andre');await page.getByRole('button',{name:'Lagre',exact:true}).click();await expect(page.locator('#setlist-list .row-menu').nth(1)).toBeFocused();
@@ -81,7 +81,7 @@ test('aborted v2 upgrade rolls back setlist store and retries without changing e
 });
 
 test('a modal raw draft protects song work and Cancel permits navigation to Setlister',async({page})=>{
- await page.goto(url);await importSong(page,'behold.txt','{t: Sang}\nTekst');await page.locator('#edit-song').click();await page.getByRole('button',{name:'Råtekst',exact:true}).click();await page.locator('#original-text').fill('{t: Ulagret}\nTekst');await expect(page.getByRole('dialog',{name:'Råtekst',exact:true})).toBeVisible();expect((await savedSongs(page))[0].title).toBe('Sang');await page.getByRole('button',{name:'Avbryt',exact:true}).click();await goSetlistsWithoutReady(page);await expect(page.locator('#setlists')).toBeVisible();expect((await savedSongs(page))[0].title).toBe('Sang');
+ await page.goto(url);await importAndOpenSong(page,'behold.txt','{t: Sang}\nTekst');await page.locator('#edit-song').click();await page.getByRole('button',{name:'Råtekst',exact:true}).click();await page.locator('#original-text').fill('{t: Ulagret}\nTekst');await expect(page.getByRole('dialog',{name:'Råtekst',exact:true})).toBeVisible();expect((await savedSongs(page))[0].title).toBe('Sang');await page.getByRole('button',{name:'Avbryt',exact:true}).click();await goSetlistsWithoutReady(page);await expect(page.locator('#setlists')).toBeVisible();expect((await savedSongs(page))[0].title).toBe('Sang');
 });
 
 test('saving a new setlist opens its own ID directly and returns to its new row',async({page,request})=>{

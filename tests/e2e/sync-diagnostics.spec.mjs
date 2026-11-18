@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {dropboxMock} from './dropbox-mock.mjs';
-import {openMenu,importSong,goSongs} from './song-helpers.mjs';
+import {openMenu,importAndOpenSong,goSongs} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
 async function syncPage(page){await openMenu(page);await page.locator('#main-menu').getByRole('button',{name:'Synkronisering',exact:true}).click();}
 async function fail(page,mock,status=500){await expect(page.locator('#dropbox-sync')).toBeEnabled();mock.fault('/list_folder/continue',status);await page.locator('#dropbox-sync').click();await expect(page.locator('#sync-status')).toContainText('Synkronisering feilet (Feilkode');}
@@ -10,7 +10,7 @@ test('documented Dropbox folder creation completes all book folders without a fa
  const mock=await dropboxMock(context);await page.goto(url);await expect.poll(()=>Boolean(mock.find('/.app/library.json'))).toBe(true);await syncPage(page);
  for(const path of ['/Songbooks','/Songbooks/Standard','/Songbooks/Standard/Private','/Songbooks/Standard/Shared','/Songbooks/Standard/Import','/Songbooks/Standard/Originals'])expect(mock.find(path)?.['.tag']).toBe('folder');
  await expect(page.locator('#sync-status')).not.toContainText('feilet');await expect(page.getByRole('button',{name:'Kopier feillogg',exact:true})).toBeHidden();expect(mock.find('/.app/sync-errors.json')).toBeUndefined();
- await importSong(page,'sang.cho','{t: Frisk synk}\n[D]Tekst');await expect(page.locator('#sync-status')).not.toContainText('feilet');
+ await importAndOpenSong(page,'sang.cho','{t: Frisk synk}\n[D]Tekst');await expect(page.locator('#sync-status')).not.toContainText('feilet');
  await goSongs(page);await expect.poll(()=>Object.keys(JSON.parse(mock.find('/.app/library.json').text).songs).length).toBe(1);expect(mock.find('/.app/sync-errors.json')).toBeUndefined();
 });
 test('only the copy icon acts on an error; exact message and private-data-free technical log reach the clipboard',async({page,context})=>{

@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, openMenu, goSongs, setCapo} from './song-helpers.mjs';
+import {importAndOpenSong, savedSongs, openMenu, goSongs, setCapo} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const legacy = {id:'stable-song', original:'\uFEFF{title: Behold meg}\r\n{key: Am}\r\nTekst\r\n',title:'Behold meg',key:'Am',origin:{kind:'external',filename:'behold.cho',importedAt:'2026-01-01',provider:'future',fileId:'external-id'}};
 const personal = {songId:legacy.id,version:3,capo:3,tuning:'DADGAD',chorus:{},notes:{one:{line:0,text:'Husk dette'}},chordGrid:'| Am |'};
@@ -60,7 +60,7 @@ test('an old open connection reports blocked upgrade and allows a safe retry',as
 });
 
 test('book choices filter real songs, preserve membership and persist separately from production',async({page,context})=>{
-  await seed(page,2);await page.goto(url);await importSong(page,'local.txt','{t: Lokal}\nTekst');await goSongs(page);
+  await seed(page,2);await page.goto(url);await importAndOpenSong(page,'local.txt','{t: Lokal}\nTekst');await goSongs(page);
   await page.locator('#songbook-filter').click();await expect(page.getByRole('option')).toHaveText(['Alle','Band','Standard','Tom sangbok']);
   await page.getByRole('option',{name:'Band',exact:true}).click();await expect(page.locator('.song-choice')).toHaveCount(1);await expect(page.locator('.song-choice')).toContainText('Behold meg');
   await openMenu(page);await page.getByRole('button',{name:'Filer',exact:true}).click();await goSongs(page);await expect(page.locator('#songbook-filter')).toHaveText('Band');
@@ -84,9 +84,9 @@ test('menu and picker use real keyboard/touch entrypoints, focus return and nati
 });
 
 test('rows reflect autosaved personal metadata and undone values without changing song identity',async({page})=>{
- await page.goto(url);await importSong(page,'meta.txt','{t: Metadata}\n{key: Am}\nTekst');await setCapo(page,3);await page.locator('#back').click();await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#m');
+ await page.goto(url);await importAndOpenSong(page,'meta.txt','{t: Metadata}\n{key: Am}\nTekst');await setCapo(page,3);await page.locator('#back').click();await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#m');
  await page.locator('.song-choice').click();await setCapo(page,7);await page.getByRole('button',{name:'Angre',exact:true}).click();await goSongs(page);await expect(page.locator('.row-metadata')).toContainText('Capo 3: F#m');
- await importSong(page,'uten.txt','{t: Uten toneart}\nTekst');await setCapo(page,2);await page.locator('#back').click();await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).toContainText('Capo 2');await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).not.toContainText('Capo 2:');
+ await importAndOpenSong(page,'uten.txt','{t: Uten toneart}\nTekst');await setCapo(page,2);await page.locator('#back').click();await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).toContainText('Capo 2');await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).not.toContainText('Capo 2:');
 });
 
 test('metadata read and filter storage errors remain truthful and retry keeps stored data',async({page})=>{
