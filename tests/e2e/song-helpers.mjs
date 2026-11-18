@@ -1,12 +1,23 @@
 import {expect} from '@playwright/test';
 export const original = '\uFEFF{title: Samme tittel}\r\n{key: D}\r\n{comment: Rolig <b>tekst</b>}\r\n[D]Hei på [A/C#]deg\r\n[Solo] beholdes\r\n{soc}\r\n[G]Syng med\r\n{eoc}\r\n{chorus}\r\n{chorus}\r\n{x_future: behold}\r\n<img src=x onerror="window.injected=true">\r\n';
-export async function importSong(page, name = 'sang.CHO', content = original) {
-  await beginImport(page);
+export async function importSong(page, name = 'sang.CHO', content = original, book) {
+  const previous=new Set((await savedSongs(page)).map(song=>song.id));
+  await beginImport(page,book);
   await page.locator('#song-file').setInputFiles({name, mimeType: '', buffer: Buffer.from(content)});
-  await expect.poll(async()=>await page.locator('.import-copy').isVisible()||await page.locator('#song-status').textContent()==='Sangen er lagret på denne enheten.').toBe(true);
+  await expect.poll(async()=>await page.locator('.import-copy').isVisible()||(await savedSongs(page)).some(song=>!previous.has(song.id))).toBe(true);
   if(await page.locator('.import-copy').isVisible())await page.getByRole('button',{name:'Importer',exact:true}).click();
+  await expect(page.locator('#add-song')).toBeEnabled();
+  await expect(page.locator('#library')).toBeVisible();
+  await expect.poll(async()=>(await savedSongs(page)).filter(song=>!previous.has(song.id)).length).toBe(1);
+  return (await savedSongs(page)).find(song=>!previous.has(song.id));
+}
+// Reader tests explicitly open the imported row after the completed import.
+export async function importAndOpenSong(page, name, content, book) {
+  const song=await importSong(page,name,content,book);
+  if(await page.evaluate(()=>navigator.onLine))await expect(page.locator('#dropbox-sync')).toBeEnabled({timeout:30000});
+  await page.locator(`[data-song-id="${song.id}"]`).click();
   await expect(page.locator('#song-title')).toBeVisible();
-  await expect(page.locator('#song-status')).toContainText('Sangen er lagret');
+  return song;
 }
 export async function savedSongs(page) {
   return page.evaluate(() => new Promise((resolve, reject) => {

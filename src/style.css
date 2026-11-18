@@ -8,11 +8,15 @@ button, input, select, summary {font: inherit; color: inherit; -webkit-tap-highl
 button, select, input[type="file"] {max-width: 100%;}
 button, select, input::file-selector-button {border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; background: var(--panel); min-height: 46px; cursor: pointer;}
 button {text-align: left; overflow-wrap: anywhere;}
+/* Defaults must leave each component's alignment and spacing in control. */
+button:where(:has(> .icon), :has(> img)) {display:inline-flex;align-items:center;gap:8px}
 button:disabled, input:disabled {opacity: .65; cursor: wait;}
 :where(button, a, input, textarea, select, summary, [role="spinbutton"]):focus {outline: none;}
+/* Programmatic heading/anchor focus is not an interactive control state. */
+:where([tabindex="-1"]):focus {outline: none;}
 :root[data-keyboard-focus] :where(button, a, input, textarea, select, summary, [role="spinbutton"]):focus-visible {outline: 1px solid var(--muted); outline-offset: -2px;}
 #app {max-width: var(--frame-width); min-height: 100svh; margin: auto; display: flex; flex-direction: column; padding: 0 0 env(safe-area-inset-bottom);}
-.topbar {position: sticky;top: 0;z-index: var(--layer-header);display: grid;grid-template-columns: repeat(3,minmax(0,1fr));align-items: center;gap: 8px;min-height: calc(var(--header-min-height) + env(safe-area-inset-top));padding: env(safe-area-inset-top) var(--gutter) 0;background: var(--header);border-bottom: 1px solid color-mix(in srgb,var(--border) 45%,transparent);}
+.topbar {position: sticky;top: 0;z-index: var(--layer-header);display: grid;grid-template-columns: minmax(0,1fr) auto;align-items: center;gap: 8px;min-height: calc(var(--header-min-height) + env(safe-area-inset-top));padding: env(safe-area-inset-top) var(--gutter) 0;background: var(--header);border-bottom: 1px solid color-mix(in srgb,var(--border) 45%,transparent);}
 .wordmark {text-decoration: none; font-size: .8rem; letter-spacing: .12em; font-weight: 750;}
 .wordmark span {font-weight: 400; color: var(--muted);}
 [data-channel="test"] .environment {color: var(--accent); border-color: var(--accent);}
@@ -223,7 +227,7 @@ body.original-open {overflow:hidden;}
 .text-action-error {flex-basis:100%; color:var(--accent); padding:4px; font:12px/1.4 var(--font-ui);order:1}
 
 /* App shell and disclosure navigation share the measured header boundary. */
-#page-title {font-size:clamp(18px,3.5vw,23px);font-weight:500;overflow-wrap:anywhere}
+#page-title {font-size:clamp(18px,3.5vw,23px);font-weight:500;overflow-wrap:normal;word-break:normal}
 #header-actions {display:flex;align-items:center;justify-content:center;min-width:0;gap:8px}
 #header-actions button {display:inline-flex;align-items:center;justify-content:center;gap:8px;background:none;border:0;padding:8px;min-height:var(--touch-target)}
 .icon {width:24px;height:24px;flex:none;fill:none}
@@ -232,7 +236,7 @@ body.original-open {overflow:hidden;}
 #menu-backdrop {position:fixed;inset:var(--header-height) 0 0;z-index:var(--layer-backdrop);background:#0008}
 #main-menu {position:fixed;right:0;top:var(--header-height);bottom:0;z-index:var(--layer-menu);width:min(350px,calc(100vw - 16px));padding:8px 0 max(12px,env(safe-area-inset-bottom));background:var(--header);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:auto}
 .menu-open #main-menu {bottom:var(--update-notice-space,0px)}
-#main-menu button {display:flex;align-items:center;gap:20px;width:100%;min-height:54px;padding:12px 24px;border:0;border-radius:0;background:none;flex:none}
+#main-menu button {display:flex;align-items:center;justify-content:flex-start;gap:20px;width:100%;min-height:54px;padding:12px 24px;border:0;border-radius:0;background:none;flex:none;font-size:19px}
 #main-menu button[aria-current=page] {background:var(--raised);font-weight:600}
 #main-menu [data-destination=sync] {border-top:1px solid color-mix(in srgb,var(--border) 40%,transparent);margin-top:8px}
 #main-menu [data-destination=settings] {margin-top:auto;border-top:1px solid color-mix(in srgb,var(--border) 40%,transparent)}
@@ -251,7 +255,7 @@ body.menu-open {overflow:hidden}
 .app-info h2 {margin:0 0 24px;color:var(--text)}
 #settings > footer .build {overflow-wrap:anywhere}
 /* All dialogs use one frame and one action footer, including the fullscreen editor. */
-.dialog-frame {color:var(--text);background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-panel);overflow:auto}
+.dialog-frame {position:fixed;inset:auto;margin:0;color:var(--text);background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-panel);overflow:auto}
 .dialog-frame:has(> .dialog-footer):not(.original-editor) {padding:var(--dialog-inset) var(--dialog-inset) 0;border-radius:var(--radius-dialog)}
 .dialog-footer {flex:none;display:flex;gap:0;margin:24px calc(-1 * var(--dialog-inset)) 0;padding:0;border-top:1px solid var(--border);background:var(--panel);font:inherit;justify-content:stretch}
 .dialog-footer button {position:relative;display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-width:0;min-height:var(--dialog-footer-height);margin:0;padding:12px 8px;border:0;border-radius:0;background:none;color:var(--muted);font:500 18px/1.35 var(--font-ui);text-align:center;overflow-wrap:anywhere;cursor:pointer}
@@ -284,3 +288,15 @@ main > section {flex:1;min-width:0}
 .range-control input[type=range]::-moz-range-thumb {width:24px;height:24px;border:0;border-radius:50%;background:var(--accent)}
 
 .range-control .range-heading label {font:inherit}
+
+.topbar.has-center-action {grid-template-columns:repeat(3,minmax(0,1fr))}
+.topbar:not(.has-center-action) #header-actions {display:none}
+#sync .sync-connect {min-height:calc(100svh - var(--header-height) - 36px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.sync-connect .hint:empty {display:none}
+#dropbox-account {overflow-wrap:anywhere;color:var(--text)}
+.sync-dialog p {line-height:1.6;overflow-wrap:anywhere}
+.sync-error-copy {width:44px;min-width:44px;min-height:44px;margin:0 0 0 4px;padding:0;border:0;background:none;vertical-align:middle;color:inherit;justify-content:center}
+.sync-error-copy .icon {width:20px;height:20px}
+.sync-error-code {white-space:nowrap}
+
+.display-settings > button {justify-self:start}

@@ -1,3 +1,4 @@
+import {appendFile} from 'node:fs/promises';
 import {test, expect} from '@playwright/test';
 import {openMenu, goSongs, openSettings, closeSettings, beginImport, savedSongs, tool, fillValue} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
@@ -47,6 +48,28 @@ async function injectAbort(page, storeName, method, nth=1) {
 }
 test.beforeEach(async({request})=>{await request.post('/__test__/reset');});
 
+test('transfer duplicate questions precede all local changes; cancelling the second question cancels the whole deletion',async({page})=>{
+  await seed(page);await page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,tx=db.transaction(['songs','personal'],'readwrite');for(const [id,name]of[['target-a','a.cho'],['target-b','b.cho']]){tx.objectStore('songs').put({id,songbookId:'band',title:id,key:null,original:'{t: Target}\nDifferent',origin:{kind:'local',filename:name,importedAt:''}});tx.objectStore('personal').put({songId:id,version:3,chorus:{},capo:7});}tx.oncomplete=()=>{db.close();resolve();};};}));await page.reload();
+  const before=await snapshot(page);await goBooks(page);await rowMenu(page,'standard','Slett');await choose(page,'Band',dialog(page,'Slett sangbok'));await button(dialog(page,'Slett sangbok'),'Slett').click();
+  const copy=dialog(page,'Flytt kopi');await expect(copy).toContainText('a.cho');await expect(button(copy,'Avbryt')).toBeFocused();
+  for(const [width,height]of [[320,800],[393,800],[768,800],[1440,800],[320,420]]){
+   await page.setViewportSize({width,height});await expect(button(copy,'Avbryt')).toBeInViewport();await expect(button(copy,'Behold begge')).toBeInViewport();
+   const measured=await copy.evaluate(node=>{const s=getComputedStyle(node),h=getComputedStyle(node.querySelector('h2'));return{radius:s.borderRadius,padding:s.padding,heading:h.fontSize,weight:h.fontWeight,actions:[...node.querySelectorAll('footer button')].map(button=>({height:button.getBoundingClientRect().height,font:getComputedStyle(button).fontSize})),overflow:document.documentElement.scrollWidth>innerWidth};});
+   expect(measured.radius).toBe('24px');expect(measured.padding).toBe('32px 32px 0px');expect(measured.heading).toBe('26px');expect(measured.weight).toBe('500');expect(measured.overflow).toBe(false);for(const action of measured.actions){expect(action.height).toBeGreaterThanOrEqual(80);expect(action.font).toBe('18px');}
+   await appendFile('work/round2-dialog-quality.jsonl',JSON.stringify({width,height,...measured})+'\n');await page.screenshot({path:`work/round2-copy-${width}x${height}.png`});
+  }
+  await page.setViewportSize({width:1280,height:800});await button(copy,'Behold begge').click();await expect(copy).toContainText('b.cho');expect((await snapshot(page)).songs).toEqual(before.songs);await button(copy,'Avbryt').click();await expect(copy).toHaveCount(0);await expect(dialog(page,'Slett sangbok')).toHaveCount(0);expect((await snapshot(page)).songbooks).toEqual(before.songbooks);expect((await snapshot(page)).songs).toEqual(before.songs);
+  await rowMenu(page,'standard','Slett');await choose(page,'Band',dialog(page,'Slett sangbok'));await button(dialog(page,'Slett sangbok'),'Slett').click();await button(copy,'Behold begge').click();await expect(copy).toContainText('b.cho');await button(copy,'Behold begge').click();await expect(dialog(page,'Slett sangbok')).toHaveCount(0);
+  const after=await snapshot(page);expect(after.songs.map(s=>s.id)).toEqual(before.songs.map(s=>s.id));expect(after.songs.every(s=>s.songbookId==='band')).toBe(true);expect(after.personal).toEqual(before.personal);expect(after.setlists).toEqual(before.setlists);
+});
+
+test('successful creation and import follow the chosen book filter; cancelled flows preserve the previous filter',async({page})=>{
+  await seed(page,false);await page.locator('#songbook-filter').click();await page.getByRole('option',{name:'Standard',exact:true}).click();
+  let step=await newStep(page,'Opprett');await choose(page,'Band',step);await button(step,'Fortsett').click();await button(dialog(page,'Råtekst'),'Avbryt').click();await expect(page.locator('#songbook-filter')).toHaveText('Standard');
+  step=await newStep(page,'Opprett');await choose(page,'Band',step);await button(step,'Fortsett').click();await page.locator('#original-text').fill('{t: New in Band}\nWords');await button(dialog(page,'Råtekst'),'Lagre').click();await goSongs(page);await expect(page.locator('#songbook-filter')).toHaveText('Band');await expect(page.locator('#song-list .song-choice')).toHaveCount(1);
+  await beginImport(page,'Tom bok');await page.locator('#song-file').setInputFiles({name:'filter-import.cho',mimeType:'text/plain',buffer:Buffer.from('{t: Imported into empty}\nWords')});await expect(page.locator('#song-list')).toContainText('Imported into empty');await goSongs(page);await expect(page.locator('#songbook-filter')).toHaveText('Tom bok');await expect(page.locator('#song-list .song-choice')).toHaveCount(1);await page.reload();await expect(page.locator('#songbook-filter')).toHaveText('Tom bok');
+});
+
 test('menu, L02 administration, validation, rename identity, D09 icons and safe focus follow the shared controls',async({page})=>{
   await seed(page);const before=await snapshot(page);await openMenu(page);
   await expect(page.locator('#main-menu > button')).toHaveText(['Sanger','Setlister','Synkronisering','Sangbøker','Filer','Innstillinger']);
@@ -55,7 +78,7 @@ test('menu, L02 administration, validation, rename identity, D09 icons and safe 
   await rowMenu(page,'standard','Endre navn');const field=page.getByLabel('Navn',{exact:true}), save=button(dialog(page,'Endre navn på sangbok'),'Lagre');
   for(const name of ['   ','Band','bAnD','CON.txt','Navn.','A/B']){await field.fill(name);await expect(save).toBeDisabled();await expect(field).toHaveAttribute('aria-invalid','true');await expect(page.locator('#songbook-name-error')).not.toBeEmpty();}
   await field.fill('  sTANDARD  ');await expect(save).toBeEnabled();await save.click();await expect(page.locator('#songbook-menu-standard')).toBeFocused();
-  const renamed=await snapshot(page);expect(renamed).toEqual({...before,songbooks:before.songbooks.map(b=>b.id==='standard'?{...b,name:'sTANDARD'}:b)});
+  const renamed=await snapshot(page);expect(renamed.sync).toEqual([{id:'private-local-v1',version:1,generation:1,deletedBooks:{},sessions:{}}]);expect(renamed).toEqual({...before,sync:renamed.sync,songbooks:before.songbooks.map(b=>b.id==='standard'?{...b,name:'sTANDARD'}:b)});
   const created=await createBook(page,'  Ærlig (2026) + #1!  ');expect(created.id).not.toBe('standard');
   await page.locator('#songbook-standard').click();await expect(page.locator('#library')).toBeVisible();await expect(page.locator('#songbook-filter')).toHaveText('sTANDARD');
   await page.locator('#songbook-filter').click();await expect(dialog(page,'Sangbok').locator('h2 .icon')).toHaveCount(1);await expect(page.getByRole('option')).toHaveText(['Alle','Band','sTANDARD','Tom bok','Ærlig (2026) + #1!']);await expect(button(dialog(page,'Sangbok'),'Ny sangbok')).toHaveCount(0);
@@ -67,7 +90,7 @@ test('deletion transfers only membership, keeps references and personal data, an
   await rowMenu(page,'standard','Slett');const box=dialog(page,'Slett sangbok');await expect(button(box,'Avbryt')).toBeFocused();await expect(box).toContainText('2 sanger');await expect(button(box,'Slett')).toBeDisabled();
   await box.getByRole('button',{name:/^Sangbok:/}).click();await expect(page.getByRole('option')).toHaveText(['Band','Tom bok']);await page.getByRole('option',{name:'Band',exact:true}).click();await page.keyboard.press('Escape');expect(await snapshot(page)).toEqual(before);
   await rowMenu(page,'standard','Slett');await choose(page,'Band',box);await button(box,'Slett').click();await expect(box).toHaveCount(0);
-  const after=await snapshot(page);expect(after).toEqual({...before,songbooks:before.songbooks.filter(b=>b.id!=='standard'),songs:before.songs.map(s=>({...s,songbookId:'band'}))});
+  const after=await snapshot(page);expect(after.sync).toEqual([{id:'private-local-v1',version:1,generation:1,deletedBooks:{standard:{id:'standard',name:'Standard',deleted:true}},sessions:{}}]);expect(after).toEqual({...before,sync:after.sync,songbooks:before.songbooks.filter(b=>b.id!=='standard'),songs:before.songs.map(s=>({...s,songbookId:'band'}))});
   await page.reload();await expect(page.locator('#songbook-filter')).toHaveText('Alle');expect((await snapshot(page)).songbooks.some(b=>b.id==='standard')).toBe(false);
   await goBooks(page);await rowMenu(page,'empty','Slett');await expect(dialog(page,'Slett sangbok').getByRole('button',{name:/^Sangbok:/})).toBeHidden();await button(dialog(page,'Slett sangbok'),'Slett').click();await expect(dialog(page,'Slett sangbok')).toHaveCount(0);
   await rowMenu(page,'band','Slett');await expect(dialog(page,'Slett sangbok')).toContainText('siste sangboken');await expect(button(dialog(page,'Slett sangbok'),'Slett')).toBeDisabled();await page.keyboard.press('Escape');
@@ -98,9 +121,9 @@ test('parallel name saves reject a case duplicate in the transaction and a stale
 test('choice priority follows successful session use, then filter; cancellation and reload do not invent a last-used book',async({page})=>{
   await seed(page,false);let step=await newStep(page);await expect(button(step,'Fortsett')).toBeDisabled();await choose(page,'Band',step);await button(step,'Fortsett').click();await expect(dialog(page,'Råtekst')).toBeVisible();await button(dialog(page,'Råtekst'),'Avbryt').click();expect(await savedSongs(page)).toEqual([]);
   await page.locator('#songbook-filter').click();await page.getByRole('option',{name:'Tom bok',exact:true}).click();step=await newStep(page);await expect(step.getByRole('button',{name:'Sangbok: Tom bok',exact:true})).toBeVisible();await button(step,'Avbryt').click();
-  await beginImport(page,'Band');await page.locator('#song-file').setInputFiles({name:'ny.txt',mimeType:'text/plain',buffer:Buffer.from('{t: Ny}\nOrd')});await expect(page.locator('#song-title')).toHaveText('Ny');expect((await savedSongs(page))[0].songbookId).toBe('band');await goSongs(page);await expect(page.locator('#songbook-filter')).toHaveText('Tom bok');
+  await beginImport(page,'Band');await page.locator('#song-file').setInputFiles({name:'ny.txt',mimeType:'text/plain',buffer:Buffer.from('{t: Ny}\nOrd')});await expect(page.locator('#song-list')).toContainText('Ny');expect((await savedSongs(page))[0].songbookId).toBe('band');await goSongs(page);await expect(page.locator('#songbook-filter')).toHaveText('Band');
   step=await newStep(page);await expect(step.getByRole('button',{name:'Sangbok: Band',exact:true})).toBeVisible();await choose(page,'Standard',step);await button(step,'Fortsett').click();await page.locator('#original-text').fill('{t: Lagret}\nOrd');await button(dialog(page,'Råtekst'),'Lagre').click();await expect(dialog(page,'Råtekst')).toHaveCount(0);await goSongs(page);
-  step=await newStep(page,'Importer');await expect(step.getByRole('button',{name:'Sangbok: Standard',exact:true})).toBeVisible();await button(step,'Avbryt').click();await page.reload();step=await newStep(page);await expect(step.getByRole('button',{name:'Sangbok: Tom bok',exact:true})).toBeVisible();
+  step=await newStep(page,'Importer');await expect(step.getByRole('button',{name:'Sangbok: Standard',exact:true})).toBeVisible();await button(step,'Avbryt').click();await page.reload();step=await newStep(page);await expect(step.getByRole('button',{name:'Sangbok: Standard',exact:true})).toBeVisible();
 });
 
 for(const flow of ['Opprett','Importer','Slett'])test(`a book saved from D10 in ${flow} survives cancelling the parent; cancelling its name keeps the old choice`,async({page})=>{
@@ -122,7 +145,7 @@ test('a vanished target preserves raw draft, allows reselection and saves exactl
 
 test('stale empty-book deletion rereads songs and requires a target; filter persistence failure truthfully reports a completed deletion',async({page,context})=>{
   await seed(page,false);await page.locator('#songbook-filter').click();await page.getByRole('option',{name:'Band',exact:true}).click();await goBooks(page);await rowMenu(page,'band','Slett');const box=dialog(page,'Slett sangbok');
-  const other=await context.newPage();await other.goto(url);await beginImport(other,'Band');await other.locator('#song-file').setInputFiles({name:'ny.txt',mimeType:'text/plain',buffer:Buffer.from('{t: Tilkommet}')});await expect(other.locator('#song-title')).toHaveText('Tilkommet');
+  const other=await context.newPage();await other.goto(url);await beginImport(other,'Band');await other.locator('#song-file').setInputFiles({name:'ny.txt',mimeType:'text/plain',buffer:Buffer.from('{t: Tilkommet}')});await expect(other.locator('#song-list')).toContainText('Tilkommet');
   await button(box,'Slett').click();await expect(box.getByRole('alert')).toContainText('Velg en annen sangbok');await expect(button(box,'Slett')).toBeDisabled();expect((await savedSongs(page))[0].songbookId).toBe('band');
   await choose(page,'Standard',box);await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('QuotaExceeded');};});await button(box,'Slett').click();await expect(box).toHaveCount(0);await expect(page.locator('#filter-status')).toContainText('kunne ikke lagres');await goSongs(page);await expect(page.locator('#songbook-filter')).toHaveText('Alle');expect((await savedSongs(page))[0].songbookId).toBe('standard');await other.close();
 });
@@ -145,16 +168,16 @@ test('worker update restores book-list position, menu and Settings return and pr
 
 test('failed and cancelled imports keep the suggestion; filename-copy confirmation spans books and missing import targets can be reselected',async({page,context})=>{
   await seed(page,false);await page.locator('#songbook-filter').click();await page.getByRole('option',{name:'Standard',exact:true}).click();
-  await beginImport(page,'Band');await page.locator('#song-file').setInputFiles({name:'feil.txt',mimeType:'text/plain',buffer:Buffer.from([0xff,0xfe])});await expect(page.locator('#song-status')).toContainText('UTF-8');expect(await savedSongs(page)).toEqual([]);
+  await beginImport(page,'Band');await page.locator('#song-file').setInputFiles({name:'feil.txt',mimeType:'text/plain',buffer:Buffer.from([0xff,0xfe])});await expect(page.locator('#library-status')).toContainText('UTF-8');expect(await savedSongs(page)).toEqual([]);
   let step=await newStep(page);await expect(step.getByRole('button',{name:'Sangbok: Standard',exact:true})).toBeVisible();await button(step,'Avbryt').click();
   await beginImport(page,'Band');await page.locator('#song-file').setInputFiles([]);step=await newStep(page);await expect(step.getByRole('button',{name:'Sangbok: Standard',exact:true})).toBeVisible();await button(step,'Avbryt').click();
-  await beginImport(page,'Band');await page.locator('#song-file').setInputFiles({name:'samme.cho',mimeType:'',buffer:Buffer.from('{t: Første}\nOrd')});await expect(page.locator('#song-title')).toHaveText('Første');const first=(await savedSongs(page))[0];
+  await beginImport(page,'Band');await page.locator('#song-file').setInputFiles({name:'samme.cho',mimeType:'',buffer:Buffer.from('{t: Første}\nOrd')});await expect(page.locator('#song-list')).toContainText('Første');const first=(await savedSongs(page))[0];
   for(const accepted of [false,true]){
     await beginImport(page,'Tom bok');await page.locator('#song-file').setInputFiles({name:'samme.cho',mimeType:'',buffer:Buffer.from('{t: Kopi}\nNy tekst')});const copy=dialog(page,'Importer kopi');await expect(copy).toBeVisible();await button(copy,accepted?'Importer':'Avbryt').click();await expect(copy).toHaveCount(0);if(!accepted)expect(await savedSongs(page)).toEqual([first]);
   }
-  await expect(page.locator('#song-title')).toHaveText('Kopi');const copies=await savedSongs(page);expect(copies).toHaveLength(2);expect(copies.find(s=>s.id===first.id)).toEqual(first);expect(copies.find(s=>s.id!==first.id).songbookId).toBe('empty');
+  await expect(page.locator('#song-list')).toContainText('Kopi');const copies=await savedSongs(page);expect(copies).toHaveLength(2);expect(copies.find(s=>s.id===first.id)).toEqual(first);expect(copies.find(s=>s.id!==first.id).songbookId).toBe('empty');
   await beginImport(page,'Standard');const other=await context.newPage();await other.goto(url);await goBooks(other);await rowMenu(other,'standard','Slett');await button(dialog(other,'Slett sangbok'),'Slett').click();await expect(dialog(other,'Slett sangbok')).toHaveCount(0);
-  await page.locator('#song-file').setInputFiles({name:'venter.txt',mimeType:'',buffer:Buffer.from('{t: Behold import}\nOrd')});const recovery=dialog(page,'Velg sangbok');await expect(recovery).toBeVisible();await choose(page,'Band',recovery);await button(recovery,'Fortsett').click();await expect(page.locator('#song-title')).toHaveText('Behold import');const after=await savedSongs(page);expect(after).toHaveLength(3);expect(after.find(s=>s.title==='Behold import').songbookId).toBe('band');await other.close();
+  await page.locator('#song-file').setInputFiles({name:'venter.txt',mimeType:'',buffer:Buffer.from('{t: Behold import}\nOrd')});const recovery=dialog(page,'Velg sangbok');await expect(recovery).toBeVisible();await choose(page,'Band',recovery);await button(recovery,'Fortsett').click();await expect(page.locator('#song-list')).toContainText('Behold import');const after=await savedSongs(page);expect(after).toHaveLength(3);expect(after.find(s=>s.title==='Behold import').songbookId).toBe('band');await other.close();
 });
 
 for (const width of [320, 768, 1440]) test(`D10 uses one popup, heading and value when choosing a book at ${width}px`, async ({page}) => {
@@ -203,4 +226,10 @@ test('D10 expands and collapses with the keyboard, while a second Escape cancels
   await chosen.press('Space'); await expect(box.getByRole('listbox')).toBeVisible(); await page.keyboard.press('Escape');
   await expect(chosen).toBeFocused(); await expect(chosen).toHaveAttribute('aria-expanded', 'false'); await expect(box).toBeVisible();
   await page.keyboard.press('Escape'); await expect(box).toHaveCount(0); await expect(page.locator('#add-song')).toBeFocused(); expect(await savedSongs(page)).toEqual([]);
+});
+
+test('transfer approvals are rejected atomically when the destination gains another song while the question is open',async({page})=>{
+ await seed(page);await page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,tx=db.transaction('songs','readwrite');tx.objectStore('songs').put({id:'target-a',songbookId:'band',title:'Target',key:null,original:'{t: Target}',origin:{kind:'local',filename:'a.cho',importedAt:''}});tx.oncomplete=()=>{db.close();resolve();};};}));await page.reload();await goBooks(page);await rowMenu(page,'standard','Slett');await choose(page,'Band',dialog(page,'Slett sangbok'));await button(dialog(page,'Slett sangbok'),'Slett').click();await expect(dialog(page,'Flytt kopi')).toBeVisible();
+ await page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,tx=db.transaction('songs','readwrite');tx.objectStore('songs').put({id:'target-b',songbookId:'band',title:'New target',key:null,original:'{t: New target}',origin:{kind:'local',filename:'b.cho',importedAt:''}});tx.oncomplete=()=>{db.close();resolve();};};}));
+ await button(dialog(page,'Flytt kopi'),'Behold begge').click();await expect(dialog(page,'Slett sangbok').getByRole('alert')).toContainText('endret');const data=await snapshot(page);expect(data.songbooks.some(book=>book.id==='standard')).toBe(true);expect(data.songs.filter(song=>song.songbookId==='standard')).toHaveLength(2);expect(data.sync).toEqual([]);
 });

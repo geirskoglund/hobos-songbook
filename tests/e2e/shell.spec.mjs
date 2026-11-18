@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, original, openSettings, closeSettings, setDisplay} from './song-helpers.mjs';
+import {importAndOpenSong, savedSongs, original, openSettings, closeSettings, setDisplay} from './song-helpers.mjs';
 
 const base = '/hobos-songbook/';
 const ready = page => expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
@@ -67,8 +67,8 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
   await production.goto(`${base}app/`); await preview.goto(`${base}test/`);
   await ready(production); await ready(preview);
   await production.reload(); await preview.reload();
-  await importSong(production, 'prod.cho', original.replace('Samme tittel', 'Produksjonssang'));
-  await importSong(preview, 'test.cho');
+  await importAndOpenSong(production, 'prod.cho', original.replace('Samme tittel', 'Produksjonssang'));
+  await importAndOpenSong(preview, 'test.cho');
   await preview.getByRole('button', {name: 'Refreng', exact: true}).nth(1).click();
   await expect(preview.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
 

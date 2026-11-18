@@ -2,7 +2,11 @@ import type {Song, SongPersonal} from '../domain/song.ts';
 import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
 import {standardSongbook, songbookName, MissingSongbookError, type Songbook} from '../domain/songbook.ts';
 import {setlistName, type Setlist} from '../domain/setlist.ts';
-export const schemaVersion = 3;
+import {syncStorage, trackLocal} from './sync.ts';
+import {failureCodes, SyncFailure} from '../sync/failure.ts';
+import {transferPlan,type TransferPlan} from '../domain/transfer.ts';
+import type {SyncState} from '../sync/model.ts';
+export const schemaVersion = 4;
 export interface LibrarySnapshot {songs: Song[]; songbooks: Songbook[]; personal: Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>[]}
 export function songStorage(namespace: string) {
   if (!['hobos-songbook-production', 'hobos-songbook-test'].includes(namespace)) throw new Error('Ugyldig lagringsmiljø.');
@@ -33,8 +37,9 @@ export function songStorage(namespace: string) {
             };
           }
           if (!db.objectStoreNames.contains('setlists')) db.createObjectStore('setlists', {keyPath: 'id'});
+          if (!db.objectStoreNames.contains('sync')) db.createObjectStore('sync', {keyPath: 'id'});
         };
-        request.onblocked = () => {failed = true; reject(new Error('Sanglageret er blokkert. Lukk andre faner med appen og prøv igjen.'));};
+        request.onblocked = () => {failed = true; reject(new SyncFailure({code:failureCodes.storage,stage:'app.storage',action:'close-tabs'},'Sanglageret er blokkert. Lukk andre faner med appen og prøv igjen.'));};
         request.onerror = event => {
           if (!failed && !existingVersion && request.error?.name === 'VersionError') {
             event.preventDefault(); connect(true); return;
@@ -44,9 +49,8 @@ export function songStorage(namespace: string) {
         request.onsuccess = () => {
           const db = request.result;
           if (failed) {db.close(); return;}
-          if (existingVersion) {
-            // The previously published sync preview added only the sync store in v4.
-            // Reuse its known additive layout, without downgrading or touching extra data.
+          {
+            // v4 is additive; legacy sync entries and unknown metadata remain untouched.
             const stores = [['songs', 'id'], ['personal', 'songId'], ['songbooks', 'id'], ['setlists', 'id'], ['sync', 'id']] as const;
             try {
               if (db.version !== 4 || stores.some(([name]) => !db.objectStoreNames.contains(name))) throw newerDatabase();
@@ -65,7 +69,8 @@ export function songStorage(namespace: string) {
     return new Promise((resolve, reject) => {
       let tx: IDBTransaction;
       try {
-        tx = db.transaction(store, mode);
+        tx = db.transaction(mode === 'readwrite' && store === 'personal' ? ['personal', 'sync'] : store, mode);
+        if (mode === 'readwrite' && store === 'personal') trackLocal(tx);
         const request = operation(tx.objectStore(store));
         tx.oncomplete = () => {db.close(); resolve(request.result);};
         tx.onabort = tx.onerror = () => {db.close(); reject(new Error(store === 'setlists' ? 'Kunne ikke lese setlistene. Prøv igjen; lagrede data er beholdt.' : 'Kunne ikke lese eller lagre sangdata. Lagringen kan være full eller utilgjengelig. Prøv igjen; tidligere sanger er beholdt.'));};
@@ -77,7 +82,8 @@ export function songStorage(namespace: string) {
     return new Promise((resolve, reject) => {
       let next: SongPersonal;
       try {
-        const tx = db.transaction('personal', 'readwrite'), store = tx.objectStore('personal');
+        const tx = db.transaction(['personal', 'sync'], 'readwrite'), store = tx.objectStore('personal');
+        trackLocal(tx);
         const request = store.get(songId);
         request.onsuccess = () => {
           try {next = cleanPersonal(change(cleanPersonal(request.result ?? {songId, chorus: {}}))); store.put({...next, songId});}
@@ -137,7 +143,8 @@ export function songStorage(namespace: string) {
       let result: Songbook;
       let problem = new Error('Kunne ikke lagre sangboken. Prøv igjen; tidligere data og navneutkastet er beholdt.');
       try {
-        const tx = db.transaction('songbooks', 'readwrite'), store = tx.objectStore('songbooks'), request = store.getAll();
+        const tx = db.transaction(['songbooks', 'sync'], 'readwrite'), store = tx.objectStore('songbooks'), request = store.getAll();
+        trackLocal(tx);
         request.onsuccess = () => {
           try {
             const books = request.result as Songbook[], current = books.find(book => book.id === id);
@@ -152,36 +159,49 @@ export function songStorage(namespace: string) {
       } catch {db.close(); reject(problem);}
     });
   }
-  async function deleteSongbook(id: string, targetId: string | null): Promise<void> {
+  function transferNames(songs:Song[],state?:SyncState){
+    const names:Record<string,string>={};for(const song of songs){const wire=state?.bindings?.songs[song.id]??song.id,link=state?.reservations[wire]??state?.manifest.songs[wire];if(link?.path)names[song.id]=link.path.split('/').at(-1)!;}return names;
+  }
+  async function prepareTransfer(sourceId:string,targetId:string|null,accountId?:string):Promise<TransferPlan>{
+    const db=await open();return new Promise((resolve,reject)=>{
+      const tx=db.transaction(['songs','sync']),songs=tx.objectStore('songs').getAll(),state=accountId?tx.objectStore('sync').get(`private-account-v1:${accountId}`):undefined;
+      tx.oncomplete=()=>{db.close();resolve(transferPlan(songs.result,sourceId,targetId,transferNames(songs.result,state?.result)));};tx.onabort=tx.onerror=()=>{db.close();reject(new Error('Kunne ikke kontrollere sangene før flytting.'));};
+    });
+  }
+  async function deleteSongbook(id: string, targetId: string | null,approval?:{plan:TransferPlan;accountId?:string}): Promise<void> {
     const db = await open();
     return new Promise((resolve, reject) => {
       let problem = new Error('Kunne ikke slette sangboken. Ingen sanger er flyttet; prøv igjen.');
       try {
-        const tx = db.transaction(['songs', 'songbooks'], 'readwrite'), books = tx.objectStore('songbooks'), songs = tx.objectStore('songs');
-        const readBooks = books.getAll(), readSongs = songs.getAll();
+        const tx = db.transaction(['songs', 'songbooks', 'sync'], 'readwrite'), books = tx.objectStore('songbooks'), songs = tx.objectStore('songs');
+        const readBooks = books.getAll(), readSongs = songs.getAll(),readState=approval?.accountId?tx.objectStore('sync').get(`private-account-v1:${approval.accountId}`):undefined;
         let reads = 0;
         const ready = () => {
-          if (++reads !== 2) return;
+          if (++reads !== (readState?3:2)) return;
           try {
             const currentBooks = readBooks.result as Songbook[];
             if (!currentBooks.some(book => book.id === id)) throw new MissingSongbookError();
             if (currentBooks.length <= 1) throw new Error('Den siste sangboken kan ikke slettes. Opprett en annen sangbok først.');
             const affected = (readSongs.result as Song[]).filter(song => song.songbookId === id);
             if (affected.length && (targetId === id || !currentBooks.some(book => book.id === targetId))) throw new Error('Velg en annen sangbok som sangene skal overføres til.');
+            if(approval){const current=transferPlan(readSongs.result,id,targetId,transferNames(readSongs.result,readState?.result));if(current.signature!==approval.plan.signature)throw new Error('Sanglisten er endret. Kontroller flyttingen og prøv igjen.');}
             for (const song of affected) songs.put({...song, songbookId: targetId!});
             books.delete(id);
+            trackLocal(tx, journal => {const book = currentBooks.find(book => book.id === id)!; journal.deletedBooks[id] = {id, name: book.name, deleted: true};});
           } catch (error) {if (error instanceof Error && !(error instanceof DOMException)) problem = error; try {tx.abort();} catch { /* Already aborted by the browser. */ }}
         };
-        readBooks.onsuccess = ready; readSongs.onsuccess = ready;
+        readBooks.onsuccess = ready; readSongs.onsuccess = ready;if(readState)readState.onsuccess=ready;
         tx.oncomplete = () => {db.close(); resolve();};
         tx.onabort = () => {db.close(); reject(problem);};
       } catch {db.close(); reject(problem);}
     });
   }
   return {
+    sync: syncStorage(open),
     createSongbook: (id: string, name: string) => writeSongbook(id, name, true),
     renameSongbook: (id: string, name: string) => writeSongbook(id, name, false),
     deleteSongbook,
+    prepareTransfer,
     setlists: () => transaction<Setlist[]>('setlists', 'readonly', store => store.getAll()),
     createSetlist: (id: string, name: string) => writeSetlist(id, name, true),
     renameSetlist: (id: string, name: string) => writeSetlist(id, name),
@@ -210,7 +230,8 @@ export function songStorage(namespace: string) {
         let problem = new Error('Kunne ikke lagre sangen og personlige endringer. Prøv igjen; utkastet er beholdt.');
         const fail = (message:string):never => {problem=new Error(message);throw problem;};
         try {
-          const tx = db.transaction(['songs','personal','songbooks'],'readwrite');
+          const tx = db.transaction(['songs','personal','songbooks','sync'],'readwrite');
+          trackLocal(tx);
           const songStore = tx.objectStore('songs'), personalStore = tx.objectStore('personal');
           const storedSong = songStore.get(song.id), storedPersonal = personalStore.get(song.id), book = tx.objectStore('songbooks').get(song.songbookId);
           let reads = 0;
@@ -247,7 +268,8 @@ export function songStorage(namespace: string) {
       return new Promise((resolve, reject) => {
         let problem = new Error('Kunne ikke lagre sangen. Lagringen kan være full eller utilgjengelig. Prøv igjen; tidligere data er beholdt.');
         try {
-          const tx = db.transaction(['songs', 'songbooks'], 'readwrite'), book = tx.objectStore('songbooks').get(song.songbookId);
+          const tx = db.transaction(['songs', 'songbooks', 'sync'], 'readwrite'), book = tx.objectStore('songbooks').get(song.songbookId);
+          trackLocal(tx);
           book.onsuccess = () => {
             if (!book.result) {problem = new MissingSongbookError(); tx.abort(); return;}
             try {tx.objectStore('songs').add(song);} catch {tx.abort();}

@@ -1,12 +1,12 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, openSettings, closeSettings, setDisplay} from './song-helpers.mjs';
+import {importAndOpenSong, savedSongs, openSettings, closeSettings, setDisplay} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const ready = page => expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
 test.beforeEach(async ({request}) => {await request.post('/__test__/reset');});
 
 test('update on first visit activates and reloads without requiring an earlier page reload', async ({page, request}) => {
   await page.goto(url); await ready(page);
-  await importSong(page);
+  await importAndOpenSong(page);
   const before = await savedSongs(page);
   await request.post('/__test__/update?channel=test');
   await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
@@ -32,7 +32,7 @@ test('long reading session gets an automatic visible notice; update still needs 
   await page.clock.install();
   await page.setViewportSize({width:320,height:700});
   await page.goto(url); await ready(page);
-  await importSong(page, 'lang.txt', '{title: Lang sang}\n'+Array.from({length:100},(_,index)=>`Linje ${index+1}\n`).join(''));
+  await importAndOpenSong(page, 'lang.txt', '{title: Lang sang}\n'+Array.from({length:100},(_,index)=>`Linje ${index+1}\n`).join(''));
   const before = await savedSongs(page);
 
   await page.addStyleTag({content:'.song-line {line-height:1.8; min-height:1.8em}'});
@@ -79,13 +79,13 @@ for (const trigger of ['focus', 'online']) {
 
 test('waiting update is announced after reopening; other tabs only reload by choice', async ({page, request, context}) => {
   await page.goto(url); await ready(page);
-  await importSong(page,'første.txt','{t: Første fane}\n'+('Første tekst\n').repeat(120));
+  await importAndOpenSong(page,'første.txt','{t: Første fane}\n'+('Første tekst\n').repeat(120));
   await page.evaluate(()=>scrollTo(0,800));
   await request.post('/__test__/update?channel=test');
   await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
   await expect(page.locator('#update-notice')).toBeVisible();
   const other = await context.newPage(); await other.goto(url);
-  await importSong(other,'andre.txt','{t: Andre fane}\n'+('Andre tekst\n').repeat(120));
+  await importAndOpenSong(other,'andre.txt','{t: Andre fane}\n'+('Andre tekst\n').repeat(120));
   await other.evaluate(()=>scrollTo(0,400));
   await expect(other.locator('#update-notice')).toBeVisible();
   await expect(other.locator('.build')).toContainText('bbbbbbb');
@@ -106,7 +106,7 @@ test('waiting update is announced after reopening; other tabs only reload by cho
 test('update restores library scroll, settings dialog and its scroll position', async ({page,request})=>{
   await page.setViewportSize({width:320,height:520}); await page.goto(url); await ready(page);
   for(let index=0;index<6;index++) {
-    await importSong(page,`${index}.txt`,`{t: Sang ${index}}\nTekst`);
+    await importAndOpenSong(page,`${index}.txt`,`{t: Sang ${index}}\nTekst`);
     await page.getByRole('button',{name:'← Mine sanger'}).click();
   }
   const before=await savedSongs(page);
@@ -131,9 +131,9 @@ test('update restores library scroll, settings dialog and its scroll position', 
 for(const sticky of [false,true])test(`update restores the selected song, expanded chorus and sticky ${sticky}`, async ({page,request})=>{
   await page.goto(url);await ready(page);
   const original='{t: Samme navn}\n{start_of_grid}\n| C . | G . |\n{end_of_grid}\n{soc}\nRefrengtekst\n{eoc}\n{chorus}\n'+('Sangtekst\n').repeat(120);
-  await importSong(page,'første.cho',original);
+  await importAndOpenSong(page,'første.cho',original);
   await page.getByRole('button',{name:'← Mine sanger'}).click();
-  await importSong(page,'valgt.cho',original.replace('Refrengtekst','Valgt refrengtekst'));
+  await importAndOpenSong(page,'valgt.cho',original.replace('Refrengtekst','Valgt refrengtekst'));
   const before=await savedSongs(page);
   await page.getByRole('button',{name:'Refreng',exact:true}).click();
   await expect(page.getByRole('button',{name:'Refreng',exact:true})).toHaveAttribute('aria-expanded','true');
@@ -161,7 +161,7 @@ for(const sticky of [false,true])test(`update restores the selected song, expand
 });
 
 test('update still completes without data loss when session history cannot be written', async ({page,request})=>{
-  await page.goto(url);await ready(page);await importSong(page);
+  await page.goto(url);await ready(page);await importAndOpenSong(page);
   const before=await savedSongs(page);
   await request.post('/__test__/update?channel=test');
   await page.evaluate(async()=>(await navigator.serviceWorker.getRegistration()).update());
@@ -177,7 +177,7 @@ test('update still completes without data loss when session history cannot be wr
 test('same app build never announces a new version when its worker is repacked or takes control', async ({page, request}) => {
   await page.goto(url); await ready(page);
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-  await importSong(page); const before = await savedSongs(page);
+  await importAndOpenSong(page); const before = await savedSongs(page);
   await request.post('/__test__/update?channel=test&variant=same');
   await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
   await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(true);

@@ -67,6 +67,7 @@ Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende design
 | `fjern.svg` | Fjern fra liste | Fjerner bare referansen |
 | `slett.svg` | Slett | Faktisk sletting |
 | `dupliser.svg` | Dupliser | To ark med pil ↗ |
+| [kopier.svg](ikoner/kopier.svg) | Kopier | To overlappende, avlange rektangler uten dokumentbrett eller pil. Godkjent av produktansvarlig 16. november 2026; Kopier feillogg bruker samme SVG i runtime. |
 | `filter.svg` | Filter | Bibliotek / kilde |
 | `innstillinger.svg` | Innstillinger | Appvalg |
 | `kryss.svg` | Lukk | Lukk panel |
@@ -94,3 +95,10 @@ Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende design
 | `setliste.svg` | Setlister | Ordnet sangliste |
 | `visning.svg` | Visning | Sang kan spilles |
 | `personlig.svg` | Personlig data | Privat datalag |
+
+| [status-privat.svg](ikoner/status-privat.svg) | Privat | Privat sang; godkjent i #37, tilgjengelig for senere sangradstatus. |
+| [status-delt.svg](ikoner/status-delt.svg) | Delt | Delt sang; godkjent i #37, vises ikke på sangrader nå. |
+| [status-importert.svg](ikoner/status-importert.svg) | Importert | Importert sang; godkjent i #37, vises ikke på sangrader nå. |
+| [status-slettet.svg](ikoner/status-slettet.svg) | Slettet | Godkjent versjon 18; tilgjengelig for senere leveranse. |
+| [status-slettet-hos-kilden.svg](ikoner/status-slettet-hos-kilden.svg) | Slettet hos kilden | Slettet kildefil; tilgjengelig for senere leveranse. |
+| [dropbox-glyph-blue.svg](dropbox-glyph-blue.svg) | Koble til Dropbox | Transparent Dropbox-glyph, blå #0061FE. Fil levert og godkjent av produktansvarlig 16. november 2026; bevares uendret og brukes som bilde uten omfarging. Skissesymbolet brukes ikke. |

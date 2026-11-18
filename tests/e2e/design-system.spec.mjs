@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {importSong,savedSongs,openMenu,openSettings,closeSettings,setCapo} from './song-helpers.mjs';
+import {importAndOpenSong,savedSongs,openMenu,openSettings,closeSettings,setCapo} from './song-helpers.mjs';
 const url='/hobos-songbook/test/';
 test.beforeEach(async({request})=>{await request.post('/__test__/reset');});
 test('all destinations use one header and a toggled accessible right panel',async({page})=>{
@@ -8,8 +8,14 @@ test('all destinations use one header and a toggled accessible right panel',asyn
   await page.setViewportSize({width,height:800});
   for(const [label,id] of [['Setlister','setlists'],['Synkronisering','sync'],['Sangbøker','songbooks'],['Filer','files'],['Innstillinger','settings'],['Sanger','library']]){
    await openMenu(page);const header=await page.locator('.topbar').boundingBox(),panel=await page.locator('#main-menu').boundingBox();expect(panel.y).toBe(header.y+header.height);expect(panel.y+panel.height).toBe(800);
+   // N02: every destination keeps the same icon and label columns, including the active row.
+   const columns=await page.locator('#main-menu button').evaluateAll(rows=>rows.map(row=>{
+    const bounds=row.getBoundingClientRect(),glyph=row.querySelector('.icon').getBoundingClientRect(),label=document.createRange();label.selectNodeContents(row.lastChild);
+    return {icon:glyph.left-bounds.left,label:label.getBoundingClientRect().left-bounds.left,font:getComputedStyle(row).fontSize};
+   }));
+   expect(columns).toHaveLength(6);for(const column of columns){expect(column.icon).toBeCloseTo(24,0);expect(column.label).toBeCloseTo(68,0);expect(column.font).toBe('19px');}
    await page.getByRole('button',{name:label,exact:true}).click();await expect(page.locator('html')).toHaveAttribute('data-page',id);await expect(page.locator('#page-title')).toHaveText(label);
-   if(['sync','files'].includes(id)){await expect(page.locator(`#${id} button`)).toHaveCount(0);await expect(page.locator(`#${id}`)).toBeVisible();}
+   if(id==='files'){await expect(page.locator(`#${id} button`)).toHaveCount(0);await expect(page.locator(`#${id}`)).toBeVisible();}
    if(id==='setlists')await expect(page.locator('#add-setlist')).toBeEnabled();
    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
@@ -23,11 +29,11 @@ test('legacy light preference starts dark and keeps other display values',async(
  await openSettings(page);await page.locator('#show-grids').check();const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('hobos-songbook-test:display')));expect(saved).toMatchObject({theme:'dark',fontSize:31,showGrids:true,showDynamics:false});
 });
 test('settings retain autosaved song context and actual navigation leaves the editor cleanly',async({page})=>{
- await page.goto(url);await importSong(page,'draft.txt','{t: Utkast}\nBehold dette');const original=await savedSongs(page);await setCapo(page,2);await openSettings(page);await page.locator('#font-size').fill('30');await page.locator('#font-size').dispatchEvent('input');await closeSettings(page);await expect(page.locator('.song-metadata')).toContainText('Capo 2');expect(await savedSongs(page)).toEqual(original);
+ await page.goto(url);await importAndOpenSong(page,'draft.txt','{t: Utkast}\nBehold dette');const original=await savedSongs(page);await setCapo(page,2);await openSettings(page);await page.locator('#font-size').fill('30');await page.locator('#font-size').dispatchEvent('input');await closeSettings(page);await expect(page.locator('.song-metadata')).toContainText('Capo 2');expect(await savedSongs(page)).toEqual(original);
  await openMenu(page);await page.getByRole('button',{name:'Setlister',exact:true}).click();await expect(page.locator('#setlists')).toBeVisible();await expect(page.locator('.edit-toolbar')).toHaveCount(0);await expect(page.getByRole('dialog',{name:'Ulagrede endringer'})).toHaveCount(0);expect(await savedSongs(page)).toEqual(original);
 });
 test('one measured header boundary follows a real layout change',async({page})=>{
- await page.goto(url);await importSong(page,'layout.cho','{t: Rammer}\n{sog}\n| D | A |\n{eog}\n'+('Tekst\n').repeat(80));
+ await page.goto(url);await importAndOpenSong(page,'layout.cho','{t: Rammer}\n{sog}\n| D | A |\n{eog}\n'+('Tekst\n').repeat(80));
  await page.evaluate(()=>document.documentElement.style.setProperty('--header-min-height','92px'));
  await expect.poll(()=>page.locator('.topbar').evaluate(e=>e.getBoundingClientRect().height)).toBe(92);
  await page.evaluate(()=>scrollTo(0,300));expect((await page.locator('#chart-dock').boundingBox()).y).toBe(92);
@@ -35,13 +41,13 @@ test('one measured header boundary follows a real layout change',async({page})=>
  await openMenu(page);expect((await page.locator('#main-menu').boundingBox()).y).toBe(92);
 });
 test('font files are precached and load after a new offline page',async({page,context})=>{
- await page.goto(url);await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');await importSong(page,'font.txt','{t: Norske tegn}\nÆrlig øving på åser');await page.evaluate(()=>document.fonts.ready);
+ await page.goto(url);await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');await importAndOpenSong(page,'font.txt','{t: Norske tegn}\nÆrlig øving på åser');await page.evaluate(()=>document.fonts.ready);
  expect(await page.locator('.song-line').first().evaluate(e=>getComputedStyle(e).fontFamily)).toContain('Gentium Book Plus');
  const names=await page.evaluate(async()=>{const keys=await caches.keys();return (await Promise.all(keys.map(async k=>(await(await caches.open(k)).keys()).map(r=>r.url)))).flat();});expect(names.some(n=>n.endsWith('.woff2'))).toBe(true);
  await context.setOffline(true);await page.reload();await page.getByRole('button',{name:/Norske tegn/}).click();expect(await page.evaluate(async()=>{await document.fonts.load('22px "Gentium Book Plus"');await document.fonts.load('16px "Inter"');return document.fonts.check('22px "Gentium Book Plus"')&&document.fonts.check('16px "Inter"');})).toBe(true);
 });
 test('a saved legacy update handoff with settings open restores its song context',async({page})=>{
- await page.goto(url);await importSong(page,'legacy.txt','{t: Eldre utgave}\nTekst');const song=(await savedSongs(page))[0];
+ await page.goto(url);await importAndOpenSong(page,'legacy.txt','{t: Eldre utgave}\nTekst');const song=(await savedSongs(page))[0];
  await page.evaluate(id=>history.replaceState({'hobos-songbook-test:update-view':{version:1,songId:id,scrollY:0,chartReleased:false,menu:{open:true,scrollTop:0,infoOpen:true},focusId:'update'}},''),song.id);
  await page.reload();await expect(page.locator('#settings')).toBeVisible();await expect(page.locator('#update')).toBeFocused();await page.locator('#back').click();await expect(page.locator('#song-title')).toHaveText('Eldre utgave');
 });

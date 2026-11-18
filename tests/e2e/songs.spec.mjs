@@ -1,10 +1,10 @@
 import {test, expect} from '@playwright/test';
-import {beginImport,importSong, savedSongs, original, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
+import {beginImport,importAndOpenSong, savedSongs, original, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
 test.beforeEach(async ({request}) => {await request.post('/__test__/reset');});
 
 test('same titles and same files remain independent; exact originals and chorus state survive reopening', async ({page}) => {
   await page.goto('/hobos-songbook/test/');
-  await importSong(page);
+  await importAndOpenSong(page);
   await expect(page.locator('.song-key[aria-label^="Toneart:"]')).toHaveText('D');
   await expect(page.locator('.song-key[aria-label^="Toneart:"]')).toHaveAttribute('aria-label', 'Toneart: D');
   await expect(page.locator('#song-content')).not.toContainText('Klingende toneart');
@@ -17,10 +17,10 @@ test('same titles and same files remain independent; exact originals and chorus 
   await expect(page.locator('#song-content')).toContainText('<b>tekst</b>');
   expect(await page.evaluate(() => window.injected)).toBeUndefined();
   await page.getByRole('button', {name: '← Mine sanger'}).click();
-  await importSong(page, 'andre.txt');
+  await importAndOpenSong(page, 'andre.txt');
   await expect(refs.nth(1)).toHaveAttribute('aria-expanded', 'false');
   await page.getByRole('button', {name: '← Mine sanger'}).click();
-  await importSong(page);
+  await importAndOpenSong(page);
   const songs = await savedSongs(page);
   expect(new Set(songs.map(song => song.id)).size).toBe(3);
   expect(songs.every(song => song.original === original && song.origin.importedAt)).toBe(true);
@@ -35,7 +35,7 @@ test('same titles and same files remain independent; exact originals and chorus 
 
 test('lyrics and chord anchors wrap at mobile/tablet/desktop at both font limits and themes; navigation resets scroll', async ({page}) => {
   await page.goto('/hobos-songbook/test/');
-  await importSong(page, 'lang.txt', '{t: Lang sang}\n'+('En [D]vanlig linje med [Am]akkorder midt i lan[G]ge ord. '+ 'Veldiglangtord'.repeat(12)+'\n[C][D][Em]\n').repeat(30));
+  await importAndOpenSong(page, 'lang.txt', '{t: Lang sang}\n'+('En [D]vanlig linje med [Am]akkorder midt i lan[G]ge ord. '+ 'Veldiglangtord'.repeat(12)+'\n[C][D][Em]\n').repeat(30));
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({width, height: 800});
     for (const theme of ['dark']) {
@@ -53,7 +53,7 @@ test('lyrics and chord anchors wrap at mobile/tablet/desktop at both font limits
   }
 
   await page.getByRole('button', {name: '← Mine sanger'}).click();
-  await importSong(page, 'ren.txt', 'Bare sangtekst\nuten akkorder');
+  await importAndOpenSong(page, 'ren.txt', 'Bare sangtekst\nuten akkorder');
   await expect(page.locator('.song-metadata')).toHaveText('4/4');
   await expect(page.locator('.chord')).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -69,14 +69,14 @@ test('lyrics and chord anchors wrap at mobile/tablet/desktop at both font limits
 });
 
 test('invalid files, transaction abort, unavailable database and unavailable preferences report truth without data loss', async ({page}) => {
-  await page.goto('/hobos-songbook/test/'); await importSong(page);
+  await page.goto('/hobos-songbook/test/'); await importAndOpenSong(page);
   await page.getByRole('button', {name: '← Mine sanger'}).click();
   const before = await savedSongs(page);
   for (const [name, buffer] of [['tom.txt', Buffer.from('')], ['bin.CHO', Buffer.from([0,1,2])], ['feil.txt', Buffer.from([0xc3,0x28])], ['feil.pdf', Buffer.from('tekst')]]) {
     await beginImport(page);
     await page.locator('#song-file').setInputFiles({name, mimeType: 'text/plain', buffer});
-    await expect(page.locator('#song-status')).not.toContainText('Sangen er lagret');
-    await expect(page.locator('#song-status')).not.toBeEmpty(); expect(await savedSongs(page)).toEqual(before);
+    await expect(page.locator('#library-status')).not.toContainText('Sangen er lagret');
+    await expect(page.locator('#library-status')).not.toBeEmpty(); expect(await savedSongs(page)).toEqual(before);
   }
   await page.locator('#song-file').setInputFiles([]);
   expect(await savedSongs(page)).toEqual(before);
@@ -86,7 +86,7 @@ test('invalid files, transaction abort, unavailable database and unavailable pre
   });
   await beginImport(page);
   await page.locator('#song-file').setInputFiles({name:'uleselig.txt', mimeType:'text/plain', buffer:Buffer.from('tekst')});
-  await expect(page.locator('#song-status')).toContainText('Filen kunne ikke leses');
+  await expect(page.locator('#library-status')).toContainText('Filen kunne ikke leses');
   expect(await savedSongs(page)).toEqual(before);
   await page.evaluate(() => {File.prototype.arrayBuffer = window.originalRead;});
   await page.evaluate(() => {
@@ -95,8 +95,8 @@ test('invalid files, transaction abort, unavailable database and unavailable pre
   });
   await beginImport(page);
   await page.locator('#song-file').setInputFiles({name:'gyldig.txt', mimeType:'', buffer:Buffer.from('Gyldig tekst')});
-  await expect(page.locator('#song-status')).toContainText('utilgjengelig'); expect(await savedSongs(page)).toEqual(before);
-  await page.reload(); await importSong(page, 'igjen.txt', 'Gyldig tekst');
+  await expect(page.locator('#library-status')).toContainText('utilgjengelig'); expect(await savedSongs(page)).toEqual(before);
+  await page.reload(); await importAndOpenSong(page, 'igjen.txt', 'Gyldig tekst');
   await page.addInitScript(() => {
     Storage.prototype.getItem = () => {throw new Error('Denied');};
     Storage.prototype.setItem = () => {throw new Error('QuotaExceeded');};
@@ -112,7 +112,7 @@ test('invalid files, transaction abort, unavailable database and unavailable pre
 
 test('missing chorus is understandable and malformed blocks never swallow following text', async ({page}) => {
   await page.goto('/hobos-songbook/test/');
-  await importSong(page, 'markører.txt', '{chorus}\n{eoc}\nBevart\n{soc}\nUferdig\n{x: ukjent}\nEtter');
+  await importAndOpenSong(page, 'markører.txt', '{chorus}\n{eoc}\nBevart\n{soc}\nUferdig\n{x: ukjent}\nEtter');
   await expect(page.locator('.reference > h2')).toHaveText('Refreng');await expect(page.locator('#song-content')).not.toContainText('ingen tidligere refrengtekst');
   for (const text of ['Bevart','Uferdig','{x: ukjent}','Etter']) await expect(page.locator('#song-content')).toContainText(text);
 });
@@ -131,7 +131,7 @@ test('closing the browser and reopening the same persistent profile offline pres
     await page.goto('http://127.0.0.1:4173/hobos-songbook/test/');
     await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
     await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
-    await importSong(page);
+    await importAndOpenSong(page);
     await page.getByRole('button', {name: 'Refreng', exact: true}).nth(1).click();
     await expect(page.getByRole('button', {name: 'Refreng', exact: true}).nth(1)).toHaveAttribute('aria-expanded', 'true');
 
@@ -149,7 +149,7 @@ test('closing the browser and reopening the same persistent profile offline pres
 });
 
 test('failed personal state write leaves the prior choice and original intact; retry works', async ({page}) => {
-  await page.goto('/hobos-songbook/test/'); await importSong(page);
+  await page.goto('/hobos-songbook/test/'); await importAndOpenSong(page);
   const before = await savedSongs(page), refs = page.getByRole('button', {name: 'Refreng', exact: true});
   await page.evaluate(() => {
     window.originalPut = IDBObjectStore.prototype.put;

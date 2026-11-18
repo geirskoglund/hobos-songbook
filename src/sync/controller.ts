@@ -1,0 +1,153 @@
+import {dropboxAdapter} from '../adapters/dropbox.ts';
+import type {songStorage} from '../storage/songs.ts';
+import {syncEngine, PausedSync} from './engine.ts';
+import type {Conflict, SyncState} from './model.ts';
+import {DeferredSync, failureCodes, failureInfo, failureText, SyncFailure,RetrySync, type FailureInfo} from './failure.ts';
+import {syncDiagnostics, type ApiEvent, type SyncLog} from './diagnostics.ts';
+export function syncController(storage: ReturnType<typeof songStorage>, hooks: {busy(): boolean; downloaded(): Promise<unknown>; notify(): void; connected(): void}) {
+  const env = __APP_ENV__, owner = crypto.randomUUID();
+  const events:ApiEvent[]=[],operationTotals:Record<string,number>={},diagnostics=syncDiagnostics(env,()=>hooks.notify());let logging=false;
+  let requestEpoch = -1, requestAccount: string | null = null, requestManual = false;
+  let requestGeneration:number|null=null;
+  const adapter = dropboxAdapter(env, fetch, async () => {
+    if(navigator.onLine===false)throw new DeferredSync('connection','Venter på nett.');
+    const allowed = () => !paused && !hooks.busy() && requestEpoch === epoch && requestAccount === account()?.id;
+    if (!allowed() || !requestAccount) throw new PausedSync();
+    const snapshot = await storage.sync.status();
+    if (!allowed() || Object.keys(snapshot.journal.sessions).length) throw new PausedSync();
+    if(requestGeneration!==null&&snapshot.journal.generation!==requestGeneration)throw new DeferredSync('changed','Nyere lokale endringer venter.');
+    if (snapshot.journal.recoveryRequired && !requestManual) throw new DeferredSync('recovery','Lagrede endringer etter avbrudd venter på Synkroniser.');
+  },event=>{if(!logging){operationTotals[event.operation]=(operationTotals[event.operation]??0)+1;events.push(event);if(events.length>30)events.shift();}});
+  let paused = false, epoch = 0, running = false, started = false, requestedManual = false, immediate = false, localPending = false;
+  let changedDuringRun = false, recoveryRequired = false;
+  let activeManual=false,activeEpoch=-1;
+  let errorEntry:SyncLog|null=diagnostics.active();
+  let state: SyncState | undefined, error:FailureInfo|null = errorEntry?.failure??null, popup = false, opening = Promise.resolve();
+  let offer: (conflict: Conflict) => Promise<'local' | 'dropbox' | 'copy' | null> = async () => null;
+  const channel = new BroadcastChannel(`${env.namespace}:private-sync`);
+  const notify = () => {hooks.notify();};
+  let ready: Promise<void>;
+  if (navigator.locks) {
+    let acquired!: () => void;
+    ready = new Promise<void>(resolve => {acquired = resolve;});
+    void navigator.locks.request(`${env.namespace}:song-owner:${owner}`, async () => {acquired(); await new Promise(() => {});});
+  } else ready = Promise.reject(new SyncFailure({code:failureCodes.browser,stage:'app.capability',action:'update-browser'},'Nettleseren mangler Web Locks.'));
+  // Observe a rejection immediately; the message is reported when startup runs.
+  void ready.catch(() => {});
+  function report(cause:unknown,stage:string,manual=false,accountId?:string){if(cause instanceof DeferredSync)return;if(!accountId){try{accountId=adapter.account()?.id;}catch{/* No account identity is copied into a report. */}}const result=diagnostics.record(cause,stage,manual,events,accountId,operationTotals);error=result.info;errorEntry=result.entry;}
+  function clearFailure(){error=null;if(errorEntry)diagnostics.clear(errorEntry.id);errorEntry=null;}
+  function account() {try {return adapter.account();} catch (cause) {const info=failureInfo(cause,'app.start');if(error?.code!==info.code||error.stage!==info.stage)report(cause,'app.start');return null;}}
+  function uploadLog(accountId:string,ticket:number,manual:boolean){
+    if(!navigator.locks||navigator.onLine===false)return;
+    // Do not repeat a failed connection/refresh or ignore Dropbox's rate limit
+    // merely to upload diagnostics. The local report stays queued for a healthy run.
+    if(error&&[failureCodes.network,failureCodes.authentication,failureCodes.permission,failureCodes.throttled].some(code=>code===error!.code))return;
+    void navigator.locks.request(`${env.namespace}:dropbox-sync`,async()=>{
+      if(ticket!==epoch||paused||hooks.busy()||account()?.id!==accountId)return;
+      requestEpoch=ticket;requestAccount=accountId;requestManual=manual;requestGeneration=null;adapter.beginRun(false);logging=true;
+      try{await diagnostics.flush(adapter.files,accountId);}finally{logging=false;}
+    }).catch(()=>{/* Diagnostics cannot block or change sync results. */});
+  }
+  async function refresh() {
+    const user = account(); if (user) {const snapshot = await storage.sync.status(user.id);state = snapshot.state!;recoveryRequired = Boolean(snapshot.journal.recoveryRequired);localPending = snapshot.journal.generation !== state.localGeneration || state.pending && !state.awaitingDownload;} else state = undefined;
+    notify();
+  }
+  async function execute(manual = false, resolution?: {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'}) {
+    if(manual&&navigator.onLine===false){notify();return;}
+    if (manual) requestedManual = true;
+    if (!started || running || paused || hooks.busy() || !account() || navigator.onLine===false) {notify(); return;}
+    const user = account()!, ticket = epoch, wasManual = requestedManual;
+    const previousFailure=error,previousEntry=errorEntry;let completed=false;activeManual=wasManual;activeEpoch=ticket;
+    requestedManual = false; running = true; changedDuringRun = false;error=null;events.length=0;for(const operation of Object.keys(operationTotals))delete operationTotals[operation];notify();const reported=new Set<unknown>();
+    const failed=(cause:unknown)=>{if(!reported.has(cause)){reported.add(cause);report(cause,'sync.run',wasManual,user.id);}};
+    try {
+      await opening; await ready;
+      await navigator.locks.request(`${env.namespace}:dropbox-sync`, async () => {
+        if (ticket !== epoch || paused || hooks.busy() || account()?.id !== user.id) throw new PausedSync();
+        await recover();
+        const latest = await storage.sync.status(); recoveryRequired = Boolean(latest.journal.recoveryRequired);
+        if (recoveryRequired && !wasManual) return;
+        requestEpoch = ticket; requestAccount = user.id; requestManual = wasManual;requestGeneration=latest.journal.generation;adapter.beginRun();
+        for(let attempt=0;attempt<3;attempt++){
+          let idle=false;
+          try{state=await syncEngine(storage.sync,adapter.files,user.id,{valid:()=>ticket===epoch&&!paused&&!hooks.busy()&&account()?.id===user.id,changed:notify,failed,idle:()=>{idle=true;}}).run(wasManual,resolution);completed=!idle;break;}
+          catch(cause){if(!(cause instanceof RetrySync))throw cause;if(attempt===2)throw new SyncFailure({code:failureCodes.changed,stage:'sync.run'},'Dropbox-versjonen endres fortsatt.',cause);}
+        }
+      });
+      localPending = Boolean(state?.pending && !state?.awaitingDownload);
+      if (wasManual) {await hooks.downloaded(); await refresh();}
+      channel.postMessage('changed');
+    } catch (cause) {
+      if (cause instanceof DeferredSync) {if(wasManual&&ticket===epoch&&account()?.id===user.id)requestedManual=true;}
+      else failed(cause);
+      try {await refresh();} catch { /* Keep the actual failure visible. */ }
+    } finally {if(!error&&account()?.id===user.id&&errorEntry?.id===previousEntry?.id){if(completed)clearFailure();else error=previousFailure;}running = false;activeManual=false; notify();uploadLog(user.id,ticket,wasManual);}
+    const pendingCopy=state&&Object.entries(state.reservations).some(([key,link])=>key.startsWith('copy:')&&!state!.manifest.songs[link.id]);
+    if (resolution&&state?.pending&&pendingCopy) {changedDuringRun = true;if(wasManual)requestedManual=true;else if(state.conflicts.length)immediate=true;}
+    if (changedDuringRun && !paused && !hooks.busy()) {changedDuringRun = false; queueMicrotask(() => {void execute();});}
+    if ((wasManual || immediate||resolution) && (!recoveryRequired || wasManual) && !paused && !hooks.busy()) {immediate = false; await conflicts(wasManual);}
+  }
+  async function conflicts(manualIntent=false) {
+    if (popup || paused || hooks.busy() || running) return;
+    popup = true;
+    try {
+      await refresh();
+      const user = account(); if (!user || Object.keys((await storage.sync.status()).journal.sessions).length) return;
+      const conflict = state?.conflicts[0]; if (!conflict) return;
+      const choice = await offer(conflict);
+      if (choice) {popup = false; await execute(manualIntent, {conflict, choice});}
+      // Closing defers the conflict until a later explicit Synkroniser action.
+    } finally {popup = false; notify();}
+  }
+  async function manual() {
+    await execute(true);
+  }
+  function localChanged() {adapter.cancelPending();if (running) changedDuringRun = true; localPending = true; notify(); if (!popup) void execute();}
+  document.addEventListener('library-local-change', localChanged);
+  window.addEventListener('online', () => {void execute();});
+  window.addEventListener('offline',()=>{adapter.cancelPending();notify();});
+  window.addEventListener('storage', event => {if (event.key === `${env.namespace}:dropbox-auth-v1`) {epoch++;adapter.cancelPending();requestedManual=false;clearFailure();void refresh();}});
+  channel.onmessage = event => {void refresh();if(event.data === 'session-ended' && requestedManual) void execute();};
+  async function recover(restoredSongId: string | null = null) {
+    const locks = await navigator.locks.query();
+    await storage.sync.recoverSessions((locks.held ?? []).map(lock => lock.name ?? '').filter(name => name.startsWith(`${env.namespace}:song-owner:`)).map(name => name.split(':').at(-1)!), restoredSongId);
+  }
+  async function start(restoredSongId: string | null = null) {
+    try {
+      await ready;
+      await recover(restoredSongId);
+      const first = await adapter.callback(); started = true; await refresh();
+      if (first) {hooks.connected(); await execute(true);} else await execute();
+    } catch (cause) {started = true;report(cause,'app.start');notify();}
+  }
+  function begin(songId: string, edited = false) {
+    if(running&&activeManual&&activeEpoch===epoch)requestedManual=true;
+    paused = true; epoch++;adapter.cancelPending(); notify();
+    if (!navigator.locks) return Promise.resolve();
+    opening = opening.catch(() => {}).then(async () => {await ready; await storage.sync.session(owner, songId, edited);});
+    return opening;
+  }
+  async function end(edited: boolean) {
+    if (!paused) return;
+    await opening; if (navigator.locks) await storage.sync.session(owner, null); paused = false; epoch++; immediate = edited; notify();channel.postMessage('session-ended');
+    // Defers until navigation has actually completed and the existing leave guard has released.
+    queueMicrotask(() => {void execute();});
+  }
+  async function disconnect() {
+    const accountId=account()?.id;
+    epoch++; requestedManual = false;
+    clearFailure();
+    try {const revoked = await adapter.disconnect(); state = undefined;if(!revoked)report(new SyncFailure({code:failureCodes.revoke,stage:'dropbox.revoke',action:'check-revoke'},'Dropbox bekreftet ikke tilbakekalling.'),'app.disconnect',false,accountId);}
+    catch(cause) {state = undefined;report(new SyncFailure({code:failureCodes.revoke,stage:'dropbox.revoke',action:'check-revoke'},'Dropbox bekreftet ikke tilbakekalling.',cause),'app.disconnect',false,accountId);}
+    notify(); channel.postMessage('changed');
+  }
+  function status() {
+    const pieces: string[] = [];
+    const user=account();if(error)return failureText(error);if(!user)return '';
+    if (running) pieces.push('Synkroniserer…');
+    if(pieces.length)return pieces[0];
+    return state?.lastManual?`Sist synkronisert: ${new Date(state.lastManual).toLocaleString('nb-NO')}`:'Ikke synkronisert';
+  }
+  function reportText(){const entry=errorEntry&&(diagnostics.entry(errorEntry.id)??errorEntry);return error&&entry?`${failureText(error)}\n\n${diagnostics.text(entry)}`:null;}
+  return {start, begin, end, resume: () => {if (localPending || requestedManual || immediate) void execute();}, manual, disconnect, account, status,reportText, running: () => running, connect: async () => {try{await ready;clearFailure();await adapter.connect();}catch(cause){report(cause,'app.connect');notify();}}, conflictHandler: (handler: typeof offer) => {offer = handler;}};
+}

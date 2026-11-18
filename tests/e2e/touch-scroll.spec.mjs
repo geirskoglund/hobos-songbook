@@ -1,5 +1,5 @@
 import {test, expect, devices} from '@playwright/test';
-import {importSong, savedSongs, openMenu, closeMenu} from './song-helpers.mjs';
+import {importAndOpenSong, savedSongs, openMenu, closeMenu} from './song-helpers.mjs';
 
 test('mobile root prevents pull-to-refresh while touch scrolling and reader controls still work', async ({browser, request}) => {
   await request.post('/__test__/reset');
@@ -19,7 +19,7 @@ test('mobile root prevents pull-to-refresh while touch scrolling and reader cont
     for (const channel of ['test','app']) {
       await page.goto(`/hobos-songbook/${channel}/`);
       const original='{t: Leseprøve}\n{soc}\nSyng med\n{eoc}\n{chorus}\n'+('En vanlig tekstlinje\n').repeat(120);
-      await importSong(page,'leseprøve.cho',original);
+      await importAndOpenSong(page,'leseprøve.cho',original);
       const songs = await savedSongs(page);
       const ref = page.getByRole('button',{name:'Refreng',exact:true});
       await ref.tap(); await expect(ref).toHaveAttribute('aria-expanded','true');

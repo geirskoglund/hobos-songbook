@@ -1,5 +1,5 @@
 import {placeOverlay} from './layout.ts';
-import {dialogFrame, dialogFooter} from './controls.ts';
+import {dialogFrame, dialogFooter,controlHeading} from './controls.ts';
 export {dialogFrame, dialogFooter};
 export interface DialogOptions {
   opener?: HTMLElement;
@@ -54,5 +54,15 @@ export function confirmImportCopy(filename: string, opener: HTMLElement): Promis
     const actions=dialogFooter([{id:'cancel',label:'Avbryt',run:()=>finish(false),icon:'kryss'},{id:'import',label:'Importer',primary:true,run:()=>finish(true),icon:'importer'}]);
     box.append(text, actions);
     const dialog = openDialog(box, {opener, focus: actions.querySelector('button')!, outside: true, cancel: () => finish(false)});
+  });
+}
+export function confirmTransferCopy(title:string,filename:string,book:string,opener:HTMLElement):Promise<boolean>{
+  return new Promise(resolve=>{
+    const box=dialogFrame('Flytt kopi','edit-popup import-copy'),text=document.createElement('p');
+    text.textContent=`Sangen «${title}» (${filename}) finnes også i «${book}». Vil du beholde begge og flytte denne sangen dit?`;
+    const finish=(value:boolean)=>{lifecycle.close();resolve(value);};
+    const actions=dialogFooter([{id:'cancel',label:'Avbryt',icon:'kryss',run:()=>finish(false)},{id:'move',label:'Behold begge',primary:true,run:()=>finish(true)}]);
+    box.append(controlHeading('Flytt kopi','sangbok'),text,actions);
+    const lifecycle=openDialog(box,{opener,focus:actions.querySelector('button')!,outside:true,cancel:()=>finish(false)});
   });
 }

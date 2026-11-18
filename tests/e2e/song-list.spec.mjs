@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {importSong, savedSongs, openMenu, goSongs, setCapo} from './song-helpers.mjs';
+import {importAndOpenSong, savedSongs, openMenu, goSongs, setCapo} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const legacy = {id:'stable-song', original:'\uFEFF{title: Behold meg}\r\n{key: Am}\r\nTekst\r\n',title:'Behold meg',key:'Am',origin:{kind:'external',filename:'behold.cho',importedAt:'2026-01-01',provider:'future',fileId:'external-id'}};
 const personal = {songId:legacy.id,version:3,capo:3,tuning:'DADGAD',chorus:{},notes:{one:{line:0,text:'Husk dette'}},chordGrid:'| Am |'};
@@ -31,7 +31,7 @@ async function chooseBook(page, name) {
 
 test('v1 upgrades atomically, preserves every stored field and remains stable offline',async({page,context})=>{
   await seed(page);await page.goto(url);await expect(page.locator('.song-choice')).toHaveCount(1);
-  const state=await snapshot(page);expect(state).toEqual({version:3,songs:[{...legacy,songbookId:'standard'}],personal:[personal],songbooks:[{id:'standard',name:'Standard'}],setlists:[]});
+  const state=await snapshot(page);expect(state).toEqual({version:4,sync:[],songs:[{...legacy,songbookId:'standard'}],personal:[personal],songbooks:[{id:'standard',name:'Standard'}],setlists:[]});
   await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#mStemming: DADGAD');
   await chooseBook(page,'Standard');await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');
   await page.reload();await expect(page.locator('#songbook-filter')).toHaveText('Standard');expect(await snapshot(page)).toEqual(state);
@@ -60,7 +60,7 @@ test('an old open connection reports blocked upgrade and allows a safe retry',as
 });
 
 test('book choices filter real songs, preserve membership and persist separately from production',async({page,context})=>{
-  await seed(page,2);await page.goto(url);await importSong(page,'local.txt','{t: Lokal}\nTekst');await goSongs(page);
+  await seed(page,2);await page.goto(url);await importAndOpenSong(page,'local.txt','{t: Lokal}\nTekst');await goSongs(page);
   await page.locator('#songbook-filter').click();await expect(page.getByRole('option')).toHaveText(['Alle','Band','Standard','Tom sangbok']);
   await page.getByRole('option',{name:'Band',exact:true}).click();await expect(page.locator('.song-choice')).toHaveCount(1);await expect(page.locator('.song-choice')).toContainText('Behold meg');
   await openMenu(page);await page.getByRole('button',{name:'Filer',exact:true}).click();await goSongs(page);await expect(page.locator('#songbook-filter')).toHaveText('Band');
@@ -77,16 +77,16 @@ test('menu and picker use real keyboard/touch entrypoints, focus return and nati
   await page.keyboard.press('Escape');await expect(page.locator('#add-song')).toBeFocused();await expect(page.locator('#add-song')).toHaveAttribute('aria-expanded','false');
   await page.locator('#add-song').click();const chooser=page.waitForEvent('filechooser');await page.getByRole('menuitem',{name:'Importer',exact:true}).click();
   await page.getByRole('dialog',{name:'Importer i sangbok',exact:true}).getByRole('button',{name:'Fortsett',exact:true}).click();
-  await (await chooser).setFiles({name:'valgt.txt',mimeType:'text/plain',buffer:Buffer.from('{t: Valgt sang}\nTekst')});await expect(page.locator('#song-title')).toHaveText('Valgt sang');
-  await page.locator('#back').click();await page.locator('.song-choice').click();await expect(page.locator('#song-title')).toHaveText('Valgt sang');
+  await (await chooser).setFiles({name:'valgt.txt',mimeType:'text/plain',buffer:Buffer.from('{t: Valgt sang}\nTekst')});await expect(page.locator('#add-song')).toBeEnabled();await expect(page.locator('#library')).toBeVisible();await expect(page.locator('#reader')).toBeHidden();await expect(page.locator('#songbook-filter')).toHaveText('Standard');await expect(page.locator('#song-list')).toContainText('Valgt sang');
+  await page.locator('.song-choice').click();await expect(page.locator('#song-title')).toHaveText('Valgt sang');
   await page.locator('#back').click();await page.locator('#songbook-filter').click();await page.keyboard.press('End');await expect(page.getByRole('option',{name:'Standard',exact:true})).toBeFocused();await page.keyboard.press('Enter');await expect(page.locator('#songbook-filter')).toHaveText('Standard');await expect(page.locator('#songbook-filter')).toBeFocused();
   await page.locator('#songbook-filter').click();await page.mouse.click(2,page.viewportSize().height-2);await expect(page.getByRole('dialog',{name:'Sangbok',exact:true})).toHaveCount(0);await expect(page.locator('#songbook-filter')).toHaveText('Standard');
 });
 
 test('rows reflect autosaved personal metadata and undone values without changing song identity',async({page})=>{
- await page.goto(url);await importSong(page,'meta.txt','{t: Metadata}\n{key: Am}\nTekst');await setCapo(page,3);await page.locator('#back').click();await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#m');
+ await page.goto(url);await importAndOpenSong(page,'meta.txt','{t: Metadata}\n{key: Am}\nTekst');await setCapo(page,3);await page.locator('#back').click();await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#m');
  await page.locator('.song-choice').click();await setCapo(page,7);await page.getByRole('button',{name:'Angre',exact:true}).click();await goSongs(page);await expect(page.locator('.row-metadata')).toContainText('Capo 3: F#m');
- await importSong(page,'uten.txt','{t: Uten toneart}\nTekst');await setCapo(page,2);await page.locator('#back').click();await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).toContainText('Capo 2');await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).not.toContainText('Capo 2:');
+ await importAndOpenSong(page,'uten.txt','{t: Uten toneart}\nTekst');await setCapo(page,2);await page.locator('#back').click();await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).toContainText('Capo 2');await expect(page.locator('.song-choice').filter({hasText:'Uten toneart'})).not.toContainText('Capo 2:');
 });
 
 test('metadata read and filter storage errors remain truthful and retry keeps stored data',async({page})=>{

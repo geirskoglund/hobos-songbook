@@ -1,12 +1,12 @@
 import {test, expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
-import {importSong, savedSongs, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
+import {importAndOpenSong, savedSongs, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
 const base='/hobos-songbook/test/';
 test.beforeEach(async ({request}) => {await request.post('/__test__/reset');});
 
 test('one compact chart keeps musical content without generic heading or inline duplicates', async ({page}) => {
   const original='\uFEFF{title: Skjema}\r\nFør\r\n{start_of_grid shape="2x4" label="Intro"}\r\nA || D . A/C# . | G~D / % %% :|2> 2 ganger\r\n| <img src=x onerror=window.injected=true> . | D . . . |.\r\n{end_of_grid}\r\nEtter';
-  await page.goto(base); await importSong(page,'grid.cho',original);
+  await page.goto(base); await importAndOpenSong(page,'grid.cho',original);
   await expect(page.locator('#chart-dock')).toHaveCount(1);
   await expect(page.locator('#chart-dock figcaption')).toHaveText('Intro');
   await expect(page.locator('#chart-dock')).not.toContainText('Felles akkordskjema');
@@ -24,7 +24,7 @@ test('one compact chart keeps musical content without generic heading or inline 
 test('chart pin toggles both ways, keeps its icons and resets on reopening', async ({page}) => {
   await page.setViewportSize({width:320,height:568}); await page.goto(base);
   const original='{t: Lang sang}\n{start_of_grid}\n'+('| C . . . | G . . . |\n').repeat(16)+'{end_of_grid}\n'+('Lang sangtekst\n').repeat(90);
-  await importSong(page,'lang.cho',original); const before=await savedSongs(page);
+  await importAndOpenSong(page,'lang.cho',original); const before=await savedSongs(page);
   await expect.poll(async () => (await page.locator('#chart-dock').boundingBox()).height).toBeLessThan(568*.34);
   await page.evaluate(()=>scrollTo(0,800));
   const header=await page.locator('.topbar').boundingBox(), chart=await page.locator('#chart-dock').boundingBox();
@@ -60,7 +60,7 @@ test('chart pin toggles both ways, keeps its icons and resets on reopening', asy
 });
 
 test('personal chart replaces all shared charts using the same presentation; no chart produces no panel', async ({page}) => {
-  await page.goto(base); await importSong(page,'felles.cho',await readFile('examples/akkordskjema-og-dynamikk.cho','utf8'));
+  await page.goto(base); await importAndOpenSong(page,'felles.cho',await readFile('examples/akkordskjema-og-dynamikk.cho','utf8'));
   const before=await savedSongs(page); const song=before[0];
   await page.evaluate(async songId => {
     await new Promise((resolve,reject)=>{
@@ -79,14 +79,14 @@ test('personal chart replaces all shared charts using the same presentation; no 
   await page.getByRole('button',{name:'Refreng',exact:true}).click();
   await page.reload(); await page.locator(`[data-song-id="${song.id}"]`).click();
   await expect(page.locator('#chart-dock .grid-chord')).toHaveText(['F#m','E']);
-  await page.getByRole('button',{name:'← Mine sanger'}).click(); await importSong(page,'ren.txt','Ren tekst');
+  await page.getByRole('button',{name:'← Mine sanger'}).click(); await importAndOpenSong(page,'ren.txt','Ren tekst');
   await expect(page.locator('#chart-dock')).toHaveCount(0);
 });
 
 test('touch pin changes on release, remains usable when off and survives an editor visit',async({browser})=>{
   const context=await browser.newContext({viewport:{width:390,height:800},isMobile:true,hasTouch:true}),page=await context.newPage();
   try {
-    await page.goto('http://127.0.0.1:4173'+base);await importSong(page,'pin.cho','{t: Berøringspinne}\n{sog}\n| D . | A . |\n{eog}\nTekst');
+    await page.goto('http://127.0.0.1:4173'+base);await importAndOpenSong(page,'pin.cho','{t: Berøringspinne}\n{sog}\n| D . | A . |\n{eog}\nTekst');
     const before=await savedSongs(page),pin=page.locator('#chart-close'),cdp=await context.newCDPSession(page);
     const bounds=await pin.boundingBox(),point={x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2};
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});await expect(pin).toHaveAttribute('aria-pressed','true');
@@ -101,7 +101,7 @@ test('touch pin changes on release, remains usable when off and survives an edit
 
 test('dynamics have a straight left edge and exact fixed widths in a 30px margin', async ({page},testInfo) => {
   const original='{t: Dynamikk}\n{sog}\n| C . | G . |\n{eog}\nNormal\n{x_dyn: 1}\nEn\n\n{x_dyn: 2}\nTo\n{x_dyn: 3}\nTre\n{x_dyn: 4}\nFire\n{x_dyn: 5}\nFem\n{soc}\n{x_dyn: 4}\nRefreng\n{eoc}\n{x_dyn: 1}\nLavt\n{chorus}\nEtter';
-  await page.setViewportSize({width:390,height:844});await page.goto(base); await importSong(page,'dynamikk.cho',original);
+  await page.setViewportSize({width:390,height:844});await page.goto(base); await importAndOpenSong(page,'dynamikk.cho',original);
   const line=text=>page.locator('.song-line').filter({has:page.locator('.lyric').filter({hasText:new RegExp(`^${text}$`)})});
   for (const [text,level] of [['Normal',3],['En',1],['To',2],['Tre',3],['Fire',4],['Fem',5],['Etter',1]]) await expect(line(text)).toHaveAttribute('data-dynamic-level',String(level));
   await expect(page.locator('#dynamics-profile path')).toHaveCount(1);
@@ -138,9 +138,9 @@ test('dynamics have a straight left edge and exact fixed widths in a 30px margin
 });
 
 test('dynamics reserve no margin without valid tags, when switched off, or below 320px',async({page})=>{
-  await page.goto(base);await importSong(page,'uten.txt','{t: Uten dynamikk}\nTekst uten tagger\n{x_dyn: 9}\nUgyldig er ikke et nivå');
+  await page.goto(base);await importAndOpenSong(page,'uten.txt','{t: Uten dynamikk}\nTekst uten tagger\n{x_dyn: 9}\nUgyldig er ikke et nivå');
   await expect(page.locator('#dynamics-profile')).toHaveCount(0);await expect(page.locator('#song-body')).toHaveCSS('padding-left','0px');
-  await page.locator('#back').click();await importSong(page,'med.txt','{t: Med dynamikk}\nNormal før første tagg\n{x_dyn: 5}\nSterkt');
+  await page.locator('#back').click();await importAndOpenSong(page,'med.txt','{t: Med dynamikk}\nNormal før første tagg\n{x_dyn: 5}\nSterkt');
   await expect(page.locator('#dynamics-profile')).toBeVisible();await expect(page.locator('#song-body')).toHaveCSS('padding-left','30px');
   for(const width of [319,320,390]){
     await page.setViewportSize({width,height:800});await expect(page.locator('#song-body')).toHaveCSS('padding-left',width<320?'0px':'30px');
@@ -152,7 +152,7 @@ test('dynamics reserve no margin without valid tags, when switched off, or below
 });
 
 test('annotation overlay follows a narrower viewport before its deferred geometry draw', async ({page}) => {
-  await page.goto(base); await importSong(page, 'bredde.txt', '{t: Bredde}\nKort tekst');
+  await page.goto(base); await importAndOpenSong(page, 'bredde.txt', '{t: Bredde}\nKort tekst');
   await expect(page.locator('.annotation-connectors')).toHaveAttribute('height', /\d/);
   await page.evaluate(() => {
     window.requestAnimationFrame = () => 1;
@@ -164,9 +164,9 @@ test('annotation overlay follows a narrower viewport before its deferred geometr
 
 test('settings stay in an accessible menu and persist offline without occupying the reader', async ({page,context})=>{
   await page.goto(base); await expect(page.locator('#offline-status')).toHaveAttribute('data-ready','true');
-  await importSong(page,'prøve.cho',await readFile('examples/akkordskjema-og-dynamikk.cho','utf8'));
+  await importAndOpenSong(page,'prøve.cho',await readFile('examples/akkordskjema-og-dynamikk.cho','utf8'));
   await expect(page.locator('#main-menu')).not.toBeVisible();
-  await expect(page.locator('.display-settings')).not.toBeVisible();
+  await expect(page.locator('.display-settings:visible')).toHaveCount(0);
   await openMenu(page); await expect(page.getByRole('navigation',{name:'Hovedmeny'})).toBeVisible();
   await page.keyboard.press('Escape'); await expect(page.locator('#main-menu')).not.toBeVisible();
   await setDisplay(page,{theme:'dark',fontSize:28,showGrids:false,showDynamics:false});
@@ -180,7 +180,7 @@ test('settings stay in an accessible menu and persist offline without occupying 
 });
 
 test('compact reader and charts fit all widths and the dark theme at both font limits', async ({page})=>{
-  await page.goto(base); await importSong(page,'prøve.cho',await readFile('examples/akkordskjema-og-dynamikk.cho','utf8'));
+  await page.goto(base); await importAndOpenSong(page,'prøve.cho',await readFile('examples/akkordskjema-og-dynamikk.cho','utf8'));
   for(const width of [320,768,1440]) {
     await page.setViewportSize({width,height:800});
     for(const theme of ['dark']) for(const fontSize of [16,36]) {
@@ -192,7 +192,7 @@ test('compact reader and charts fit all widths and the dark theme at both font l
       expect(await page.locator('.grid-measure, .grid-cell').evaluateAll(nodes=>nodes.every(node=>node.scrollWidth<=node.clientWidth+1))).toBe(true);
       const profile=await page.locator('#dynamics-profile').boundingBox(); expect(profile.width).toBe(25);await expect(page.locator('#song-body')).toHaveCSS('padding-left','30px');
       expect((await page.locator('.topbar').boundingBox()).height).toBe(await page.evaluate(()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height'))));
-      await expect(page.locator('.display-settings')).not.toBeVisible();
+      await expect(page.locator('.display-settings:visible')).toHaveCount(0);
     }
   }
 });
@@ -206,7 +206,7 @@ test('reader uses tight lines and compact source pauses without added gaps aroun
     '\r\n'.repeat(5)+'[Em]Kort [C]linje\r\n'+
     '\r\n'.repeat(8)+'{comment: Før fullt refreng}\r\n{soc}\r\n[G]Refreng\r\n{eoc}\r\n'+
     '\r\n'.repeat(6)+'{comment: Før henvisning}\r\n{chorus}\r\n{comment: Etter henvisning}\r\nEtter\r\n\r\n';
-  await page.goto(base); await importSong(page,'luft.cho',original);
+  await page.goto(base); await importAndOpenSong(page,'luft.cho',original);
   for (const width of [320,768,1440]) {
     await page.setViewportSize({width,height:800});
     for (const fontSize of [16,36]) {
