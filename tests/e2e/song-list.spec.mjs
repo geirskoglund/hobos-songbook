@@ -77,8 +77,8 @@ test('menu and picker use real keyboard/touch entrypoints, focus return and nati
   await page.keyboard.press('Escape');await expect(page.locator('#add-song')).toBeFocused();await expect(page.locator('#add-song')).toHaveAttribute('aria-expanded','false');
   await page.locator('#add-song').click();const chooser=page.waitForEvent('filechooser');await page.getByRole('menuitem',{name:'Importer',exact:true}).click();
   await page.getByRole('dialog',{name:'Importer i sangbok',exact:true}).getByRole('button',{name:'Fortsett',exact:true}).click();
-  await (await chooser).setFiles({name:'valgt.txt',mimeType:'text/plain',buffer:Buffer.from('{t: Valgt sang}\nTekst')});await expect(page.locator('#song-title')).toHaveText('Valgt sang');
-  await page.locator('#back').click();await page.locator('.song-choice').click();await expect(page.locator('#song-title')).toHaveText('Valgt sang');
+  await (await chooser).setFiles({name:'valgt.txt',mimeType:'text/plain',buffer:Buffer.from('{t: Valgt sang}\nTekst')});await expect(page.locator('#add-song')).toBeEnabled();await expect(page.locator('#library')).toBeVisible();await expect(page.locator('#reader')).toBeHidden();await expect(page.locator('#songbook-filter')).toHaveText('Standard');await expect(page.locator('#song-list')).toContainText('Valgt sang');
+  await page.locator('.song-choice').click();await expect(page.locator('#song-title')).toHaveText('Valgt sang');
   await page.locator('#back').click();await page.locator('#songbook-filter').click();await page.keyboard.press('End');await expect(page.getByRole('option',{name:'Standard',exact:true})).toBeFocused();await page.keyboard.press('Enter');await expect(page.locator('#songbook-filter')).toHaveText('Standard');await expect(page.locator('#songbook-filter')).toBeFocused();
   await page.locator('#songbook-filter').click();await page.mouse.click(2,page.viewportSize().height-2);await expect(page.getByRole('dialog',{name:'Sangbok',exact:true})).toHaveCount(0);await expect(page.locator('#songbook-filter')).toHaveText('Standard');
 });
