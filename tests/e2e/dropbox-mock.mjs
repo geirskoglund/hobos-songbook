@@ -1,8 +1,9 @@
 /** HTTP-level Dropbox simulator; app builds contain no test hooks or credentials. */
-export async function dropboxMock(context, {connected=true,pageSize=2000,backend}={}) {
+export async function dropboxMock(context, {connected=true,pageSize=2000,backend,sharing=false}={}) {
   let sequence=0;const entries=backend?.entries??new Map(),history=backend?.history??new Map(),sessions=backend?.sessions??new Map(),moveJobs=backend?.moveJobs??new Map(),calls=[];let fault=null,hold=null,lostBatch=false,batchFailure=null,lostMove=false,nextAsyncMove=null;
   let latency=0,active=0,maximum=0,namespaceAsync=null,lostDelete=false,lostFolders=false;const namespaceJobs=backend?.namespaceJobs??new Map();
   let limitWrites=false,activeWrites=0,rateCount=0;
+  const links = new Map();
   const mutating=endpoint=>['/upload','/upload_session/finish_batch_v2','/create_folder_v2','/create_folder_batch','/move_v2','/move_batch_v2','/delete_v2','/delete_batch'].some(value=>endpoint.endsWith(value));
   const rateResponse=async(route,seconds=0,reason='too_many_write_operations')=>{rateCount++;return route.fulfill({status:429,headers:{'Retry-After':String(seconds)},json:{error_summary:reason+'/',error:{reason:{'.tag':reason},retry_after:seconds}}});};
   const key=path=>path.toLowerCase();
@@ -35,10 +36,10 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
   const cursors=backend?.cursors??new Map();
   const snapshot=args=>new Map([...entries.values()].filter(e=>e.path_lower.startsWith(key(args.path)+'/')&&(args.recursive||!e.path_display.slice(args.path.length+1).includes('/'))).map(e=>[e.path_lower,metadata(e)]));
   const listPage=(items,current,args)=>{const cursor='cursor-'+crypto.randomUUID(),remaining=items.slice(pageSize);cursors.set(cursor,{snapshot:current,args,remaining});return{entries:items.slice(0,pageSize),has_more:remaining.length>0,cursor};};
-  if(connected)await context.addInitScript(()=>{
+  if(connected)await context.addInitScript(sharing=>{
     const name='hobos-songbook-test:dropbox-auth-v1';
-    if(!sessionStorage.getItem('mock-seeded')){localStorage.setItem(name,JSON.stringify({version:1,accountId:'dbid:fixture',name:'Prøvebruker med et langt navn',email:'bruker.med.langt.navn@eksempel.no',accessToken:'fixture-access',refreshToken:'fixture-refresh',expires:Date.now()+3600000}));sessionStorage.setItem('mock-seeded','yes');}
-  });
+    if(!sessionStorage.getItem('mock-seeded')){localStorage.setItem(name,JSON.stringify({version:1,accountId:'dbid:fixture',name:'Prøvebruker med et langt navn',email:'bruker.med.langt.navn@eksempel.no',accessToken:'fixture-access',refreshToken:'fixture-refresh',expires:Date.now()+3600000,...(sharing?{scopes:['sharing.read','sharing.write']}:{})}));sessionStorage.setItem('mock-seeded','yes');}
+  },sharing);
   await context.route(/https:\/\/(api|content)\.dropboxapi\.com\//,async route=>{
     const request=route.request(),url=new URL(request.url()),endpoint=url.pathname;const body=request.postData();
     const args=request.headers()['dropbox-api-arg']?JSON.parse(request.headers()['dropbox-api-arg']):request.headers()['content-type']?.includes('application/json')?JSON.parse(body??'null'):null;calls.push({endpoint,args});
@@ -51,6 +52,16 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
     if(endpoint==='/oauth2/token')return ok({access_token:'fixture-access',refresh_token:'fixture-refresh',expires_in:3600,account_id:'dbid:fixture',scope:'account_info.read files.metadata.read files.content.read files.content.write'});
     if(endpoint.endsWith('/get_current_account'))return ok({account_id:'dbid:fixture',name:{display_name:'Prøvebruker'},email:'bruker@eksempel.no'});
     if(endpoint.endsWith('/token/revoke'))return ok(null);
+    if(endpoint.startsWith('/2/sharing/')){
+      const folder=find(args.path);if(!folder||folder['.tag']!=='folder')return missing();
+      if(endpoint.endsWith('/list_shared_links')){if(args.direct_only!==true)throw Error('Expected a direct sharing lookup');return ok({has_more:false,links:links.has(folder.id)?[links.get(folder.id)]:[]});}
+      if(endpoint.endsWith('/create_shared_link_with_settings')){
+        if(args.settings?.access?.['.tag']!=='viewer'||args.settings?.audience?.['.tag']!=='public')throw Error('Expected a read-only public link');
+        if(links.has(folder.id))return route.fulfill({status:409,json:{error_summary:'shared_link_already_exists/'}});
+        const link={'.tag':'folder',id:folder.id,path_lower:folder.path_lower,url:`https://www.dropbox.com/scl/fo/${folder.id.slice(3)}/Shared?rlkey=fixture`,link_permissions:{effective_audience:{'.tag':'public'},link_access_level:{'.tag':'viewer'}}};
+        links.set(folder.id,link);return ok(link);
+      }
+    }
     if(endpoint.endsWith('/get_metadata')){const value=find(args.path);return value?ok(metadata(value)):missing();}
     if(endpoint.endsWith('/create_folder_v2')){if(find(args.path))return route.fulfill({status:409,json:{error_summary:'path/conflict/folder/'}});const value=metadata(put(args.path,'',true));delete value['.tag'];return ok({metadata:value});}
     if(endpoint.endsWith('/create_folder_batch')||endpoint.endsWith('/delete_batch')){
@@ -90,5 +101,5 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
     throw Error('Unexpected Dropbox endpoint '+endpoint);
     }finally{active--;if(writing)activeWrites--;}
   });
-  return {entries,history,sessions,moveJobs,namespaceJobs,cursors,calls,find,put,loseDeleteReply(){lostDelete=true;},loseFoldersReply(){lostFolders=true;},asyncNamespace(kind,checks=1,loseLaunch=false){namespaceAsync={kind,checks,loseLaunch};},finishNamespaceJobs(){for(const job of namespaceJobs.values())namespaceResult(job);},loseBatchReply(){lostBatch=true;},loseMoveReply(){lostMove=true;},asyncMove(checks=1,loseLaunch=false){nextAsyncMove={checks,loseLaunch};},finishMoves(){for(const job of moveJobs.values())moveResult(job);},failBatchEntry(path,tag='too_many_write_operations',repeat=1){batchFailure={path,tag,remaining:repeat};},latency(ms){latency=ms;maximum=0;},maximum:()=>maximum,throttled:()=>rateCount,limitConcurrentWrites(){limitWrites=true;},resetCursors(){cursors.clear();},rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status,skip=0,{repeat=1,retryAfter=0,reason='too_many_write_operations',path}={}){fault={endpoint,status,skip,remaining:repeat,retryAfter,reason,path};},hold(endpoint,all=false,path){let release;const resolve=new Promise(r=>release=r),waiting={endpoint,resolve,all,path};hold=waiting;return ()=>{if(hold===waiting)hold=null;release();};}};
+  return {entries,history,sessions,moveJobs,namespaceJobs,cursors,calls,links,find,put,loseDeleteReply(){lostDelete=true;},loseFoldersReply(){lostFolders=true;},asyncNamespace(kind,checks=1,loseLaunch=false){namespaceAsync={kind,checks,loseLaunch};},finishNamespaceJobs(){for(const job of namespaceJobs.values())namespaceResult(job);},loseBatchReply(){lostBatch=true;},loseMoveReply(){lostMove=true;},asyncMove(checks=1,loseLaunch=false){nextAsyncMove={checks,loseLaunch};},finishMoves(){for(const job of moveJobs.values())moveResult(job);},failBatchEntry(path,tag='too_many_write_operations',repeat=1){batchFailure={path,tag,remaining:repeat};},latency(ms){latency=ms;maximum=0;},maximum:()=>maximum,throttled:()=>rateCount,limitConcurrentWrites(){limitWrites=true;},resetCursors(){cursors.clear();},rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status,skip=0,{repeat=1,retryAfter=0,reason='too_many_write_operations',path}={}){fault={endpoint,status,skip,remaining:repeat,retryAfter,reason,path};},hold(endpoint,all=false,path){let release;const resolve=new Promise(r=>release=r),waiting={endpoint,resolve,all,path};hold=waiting;return ()=>{if(hold===waiting)hold=null;release();};}};
 }

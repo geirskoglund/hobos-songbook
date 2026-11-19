@@ -11,6 +11,46 @@ export function actionButton(name:string, action:(()=>void)|undefined, iconName?
   if(iconName)node.append(icon(iconName));
   if(name){const label=document.createElement('span');label.textContent=name;node.append(label);}if(action)node.addEventListener('click',action);return node;
 }
+/** H03, including the optional icon before each tab label. */
+export function tabSwitcher<T extends string>(name: string, prefix: string, tabs: {id: T; label: string; icon?: string}[], initial: T, choose: (id: T) => void) {
+  const element = document.createElement('div');
+  element.className = 'tab-switcher';
+  element.setAttribute('role', 'tablist');
+  element.setAttribute('aria-label', name);
+  let selected = initial;
+  const buttons = tabs.map(({id, label, icon}) => {
+    const button = actionButton(label, () => activate(id), icon);
+    button.id = `${prefix}-tab-${id}`;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-controls', `${prefix}-panel-${id}`);
+    return button;
+  });
+  function reflect() {
+    buttons.forEach((button, index) => {
+      const active = tabs[index].id === selected;
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+    });
+  }
+  function activate(id: T) {selected = id; reflect(); choose(id);}
+  element.addEventListener('keydown', event => {
+    const current = buttons.indexOf(event.target as HTMLButtonElement);
+    if (current < 0 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+      : (current + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+    activate(tabs[next].id);
+    buttons[next].focus();
+  });
+  element.append(...buttons);
+  reflect();
+  return {element, select: activate};
+}
+export function primaryButton(name: string, run: () => void, iconName?: string) {
+  const button = actionButton(name, run, iconName);
+  button.classList.add('primary-action');
+  return button;
+}
 export function textInput(id:string,value='',label?:string) {
   const field=document.createElement('input');field.type='text';field.id=id;field.value=value;field.autocomplete='off';field.className='text-control';if(label)field.setAttribute('aria-label',label);return field;
 }

@@ -1,10 +1,11 @@
-import {dropboxAdapter} from '../adapters/dropbox.ts';
+import {dropboxAdapter, type SharingConsent} from '../adapters/dropbox.ts';
 import type {songStorage} from '../storage/songs.ts';
 import {syncEngine, PausedSync} from './engine.ts';
-import type {Conflict, SyncState} from './model.ts';
+import type {Conflict, PublicationChoice, PublicationResult, SyncState} from './model.ts';
+import {publicationError, publicationView} from './publication.ts';
 import {DeferredSync, failureCodes, failureInfo, failureText, SyncFailure,RetrySync, type FailureInfo} from './failure.ts';
 import {syncDiagnostics, type ApiEvent, type SyncLog} from './diagnostics.ts';
-export function syncController(storage: ReturnType<typeof songStorage>, hooks: {busy(): boolean; downloaded(): Promise<unknown>; notify(): void; connected(): void}) {
+export function syncController(storage: ReturnType<typeof songStorage>, hooks: {busy(): boolean; downloaded(): Promise<unknown>; notify(): void; connected(): void; sharing(consent: SharingConsent): Promise<void>}) {
   const env = __APP_ENV__, owner = crypto.randomUUID();
   const events:ApiEvent[]=[],operationTotals:Record<string,number>={},diagnostics=syncDiagnostics(env,()=>hooks.notify());let logging=false;
   let requestEpoch = -1, requestAccount: string | null = null, requestManual = false;
@@ -19,7 +20,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
     if (snapshot.journal.recoveryRequired && !requestManual) throw new DeferredSync('recovery','Lagrede endringer etter avbrudd venter på Synkroniser.');
   },event=>{if(!logging){operationTotals[event.operation]=(operationTotals[event.operation]??0)+1;events.push(event);if(events.length>30)events.shift();}});
   let paused = false, epoch = 0, running = false, started = false, requestedManual = false, immediate = false, localPending = false;
-  let changedDuringRun = false, recoveryRequired = false;
+  let changedDuringRun = false, recoveryRequired = false, workingWithDropbox = false;
   let activeManual=false,activeEpoch=-1;
   let errorEntry:SyncLog|null=diagnostics.active();
   let state: SyncState | undefined, error:FailureInfo|null = errorEntry?.failure??null, popup = false, opening = Promise.resolve();
@@ -55,7 +56,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
   async function execute(manual = false, resolution?: {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'}) {
     if(manual&&navigator.onLine===false){notify();return;}
     if (manual) requestedManual = true;
-    if (!started || running || paused || hooks.busy() || !account() || navigator.onLine===false) {notify(); return;}
+    if (!started || running || workingWithDropbox || paused || hooks.busy() || !account() || navigator.onLine===false) {notify(); return;}
     const user = account()!, ticket = epoch, wasManual = requestedManual;
     const previousFailure=error,previousEntry=errorEntry;let completed=false;activeManual=wasManual;activeEpoch=ticket;
     requestedManual = false; running = true; changedDuringRun = false;error=null;events.length=0;for(const operation of Object.keys(operationTotals))delete operationTotals[operation];notify();const reported=new Set<unknown>();
@@ -102,7 +103,60 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
   async function manual() {
     await execute(true);
   }
-  function localChanged() {adapter.cancelPending();if (running) changedDuringRun = true; localPending = true; notify(); if (!popup) void execute();}
+  async function withDropbox<T>(work: (engine: ReturnType<typeof syncEngine>, canRetry: boolean) => Promise<T>) {
+    const user = account(), ticket = epoch;
+    if (!user || navigator.onLine === false) throw new DeferredSync('connection', 'Dropbox er utilgjengelig.');
+    if (workingWithDropbox) throw new DeferredSync('changed', 'En Dropbox-handling pågår.');
+    workingWithDropbox = true;
+    const valid = () => ticket === epoch && !paused && !hooks.busy() && account()?.id === user.id;
+    try {
+      await opening;
+      await ready;
+      return await navigator.locks.request(`${env.namespace}:dropbox-sync`, async () => {
+        if (!valid()) throw new PausedSync();
+        await recover();
+        const latest = await storage.sync.status();
+        requestEpoch = ticket; requestAccount = user.id; requestManual = true;
+        requestGeneration = latest.journal.generation;
+        adapter.beginRun();
+        for (let attempt = 0; ; attempt++) {
+          try {
+            const engine = syncEngine(storage.sync, adapter.files, user.id, {valid, changed: () => {}});
+            const result = await work(engine, attempt < 2);
+            if (!valid()) throw new PausedSync();
+            return result;
+          } catch (error) {
+            if (!(error instanceof RetrySync) || attempt === 2) throw error;
+          }
+        }
+      });
+    } finally {
+      workingWithDropbox = false;
+      await refresh().catch(() => {});
+      if (requestedManual || changedDuringRun) queueMicrotask(() => {void execute();});
+    }
+  }
+  async function cachedPublication() {
+    const user = account();
+    return user ? publicationView(await storage.sync.snapshot(user.id)) : {books: [], songs: []};
+  }
+  async function readPublication() {
+    try {return {view: await withDropbox(engine => engine.refreshPublication())};}
+    catch (error) {return {view: await cachedPublication(), message: publicationError(error)};}
+  }
+  async function publish(choices: PublicationChoice[]): Promise<PublicationResult> {
+    try {
+      const result = await withDropbox((engine, canRetry) => engine.executePublication(choices, canRetry));
+      channel.postMessage('changed');
+      return result;
+    } catch (error) {return {view: await cachedPublication(), completed: [], message: publicationError(error), unavailable: true};}
+  }
+  async function shareBook(bookId: string) {
+    if (!account() || navigator.onLine === false) throw new DeferredSync('connection', 'Koble til Dropbox for å kopiere delingslenken.');
+    if (!adapter.sharingAllowed()) {await adapter.connect(bookId); return undefined;}
+    return withDropbox(async engine => adapter.sharedLink(await engine.sharedFolder(bookId)));
+  }
+  function localChanged() {adapter.cancelPending();if (running || workingWithDropbox) changedDuringRun = true; localPending = true; notify(); if (!popup) void execute();}
   document.addEventListener('library-local-change', localChanged);
   window.addEventListener('online', () => {void execute();});
   window.addEventListener('offline',()=>{adapter.cancelPending();notify();});
@@ -117,7 +171,8 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
       await ready;
       await recover(restoredSongId);
       const first = await adapter.callback(); started = true; await refresh();
-      if (first) {hooks.connected(); await execute(true);} else await execute();
+      if (first === true) {hooks.connected(); await execute(true);}
+      else {if (first) await hooks.sharing(first); await execute();}
     } catch (cause) {started = true;report(cause,'app.start');notify();}
   }
   function begin(songId: string, edited = false) {
@@ -149,5 +204,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
     return state?.lastManual?`Sist synkronisert: ${new Date(state.lastManual).toLocaleString('nb-NO')}`:'Ikke synkronisert';
   }
   function reportText(){const entry=errorEntry&&(diagnostics.entry(errorEntry.id)??errorEntry);return error&&entry?`${failureText(error)}\n\n${diagnostics.text(entry)}`:null;}
-  return {start, begin, end, resume: () => {if (localPending || requestedManual || immediate) void execute();}, manual, disconnect, account, status,reportText, running: () => running, connect: async () => {try{await ready;clearFailure();await adapter.connect();}catch(cause){report(cause,'app.connect');notify();}}, conflictHandler: (handler: typeof offer) => {offer = handler;}};
+  return {start, begin, end, resume: () => {if (localPending || requestedManual || immediate) void execute();}, manual, disconnect, account, status, reportText,
+    readPublication, cachedPublication, publish, shareBook, running: () => running,
+    connect: async () => {try{await ready;clearFailure();await adapter.connect();}catch(cause){report(cause,'app.connect');notify();}}, conflictHandler: (handler: typeof offer) => {offer = handler;}};
 }

@@ -107,9 +107,9 @@ body:has(#update-notice:not([hidden])) {padding-bottom: 180px;}
 /* Both editor tabs reserve the taller wrapped panel in the shared layout. */
 .edit-toolbar {position:fixed;left:0;right:0;top:var(--header-height);z-index:var(--layer-tools);padding:0 var(--gutter) 12px;background:var(--header);border-bottom:1px solid var(--border);font:14px/1.3 var(--font-ui)}
 :root[data-page=reader] .editing-active main {padding-top:calc(18px + var(--toolbar-height))}
-.editor-tabs {display:flex;gap:28px;min-height:52px;border-bottom:1px solid var(--border)}
-.editor-tabs button {padding:12px 0;background:none;border:0;border-radius:0;color:var(--muted)}
-.editor-tabs button[aria-selected=true] {border-bottom:2.5px solid var(--chord);font-weight:600;color:var(--text)}
+.tab-switcher {display:flex;gap:28px;min-height:52px;border-bottom:1px solid var(--border)}
+.tab-switcher button {padding:12px 0;background:none;border:0;border-radius:0;color:var(--muted)}
+.tab-switcher button[aria-selected=true] {border-bottom:2.5px solid var(--chord);font-weight:600;color:var(--text)}
 .editor-tool-panels {display:grid;padding-top:8px}
 .editor-tool-panel {grid-area:1/1;display:flex;align-content:start;align-items:center;gap:4px;flex-wrap:wrap;visibility:hidden;pointer-events:none}
 .edit-toolbar[data-tab=file] [data-tab=file],.edit-toolbar[data-tab=personal] [data-tab=personal] {visibility:visible;pointer-events:auto}
@@ -260,7 +260,7 @@ body.menu-open {overflow:hidden}
 .dialog-footer {flex:none;display:flex;gap:0;margin:24px calc(-1 * var(--dialog-inset)) 0;padding:0;border-top:1px solid var(--border);background:var(--panel);font:inherit;justify-content:stretch}
 .dialog-footer button {position:relative;display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-width:0;min-height:var(--dialog-footer-height);margin:0;padding:12px 8px;border:0;border-radius:0;background:none;color:var(--muted);font:500 18px/1.35 var(--font-ui);text-align:center;overflow-wrap:anywhere;cursor:pointer}
 .dialog-footer button .icon {width:20px;height:20px}
-.dialog-footer button.primary {background:var(--accent);color:var(--bg);font-weight:600}
+.primary-action, .dialog-footer button.primary {background:var(--accent);color:var(--bg);font-weight:600}
 .dialog-footer[data-count="3"] button.secondary + button.secondary::before {content:'';position:absolute;left:0;top:12px;bottom:12px;width:1px;background:var(--border)}
 .dialog-footer button:disabled {opacity:.4;cursor:default}
 @media(max-width:420px){.topbar{gap:4px}#header-actions button{font-size:13px;gap:4px;padding:6px 2px}.environment{font-size:10px;padding:4px}#page-title{font-size:18px}.dialog-footer button{flex-direction:column}.display-settings{padding:12px 16px}}
@@ -300,3 +300,14 @@ main > section {flex:1;min-width:0}
 .sync-error-code {white-space:nowrap}
 
 .display-settings > button {justify-self:start}
+
+#publication {padding-bottom:calc(var(--publication-action-height,76px) + var(--update-notice-space,0px));}
+#publication .song-list {padding-bottom:var(--space-4);}
+#publication .song-choice {scroll-margin-bottom:calc(var(--publication-action-height,76px) + var(--update-notice-space,0px));}
+.publication-summary {display:flex;flex-wrap:wrap;gap:var(--space-3) var(--space-6);margin:0 0 var(--space-3);color:var(--muted);}
+.publication-summary > div {display:flex;align-items:baseline;gap:var(--space-2);}
+.publication-summary dd {margin:0;color:var(--text);font-weight:600;}
+.publication-select-all {display:block;margin:var(--space-3) 0 var(--space-1) auto;}
+.publication-actions {position:fixed;z-index:var(--layer-tools);bottom:var(--update-notice-space,0px);left:50%;transform:translateX(-50%);width:min(100%,var(--frame-width));display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) max(var(--content-gutter),var(--safe-right)) calc(var(--space-3) + var(--safe-bottom)) max(var(--content-gutter),var(--safe-left));border-top:1px solid var(--border);background:var(--header);}
+.publication-actions p {margin:0;color:var(--muted);font-size:15px;}
+.publication-actions button {flex:none;}

@@ -43,6 +43,9 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
       path||=plan.to;
       const matches=plan.toReference?pathKey(path.split('/').at(-1)!)===pathKey(plan.to.split('/').at(-1)!):pathKey(path)===pathKey(plan.to);
       if(result.value.id!==plan.fileId||!matches)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ugyldig flyttekvittering.');
+      // A complete receipt for the folder-ID request can confirm a result
+      // before the next inventory. A different or omitted path needs lookup.
+      if(plan.publication&&pathKey(path)!==pathKey(plan.to))continue;
       result.value.path=path;const old=find(result.value.id);put({...old,...result.value,folder:result.value.folder??plan.folder??false});
     }
     return reply;

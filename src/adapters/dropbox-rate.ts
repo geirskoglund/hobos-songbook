@@ -8,7 +8,7 @@ export class DropboxError extends SyncFailure {
     this.name='DropboxError';this.status=status;this.summary=summary;
   }
 }
-const mutations=new Set(['files/upload','files/upload_session/finish_batch_v2','files/create_folder_v2','files/create_folder_batch','files/move_v2','files/move_batch_v2','files/delete_v2','files/delete_batch']);
+const mutations=new Set(['files/upload','files/upload_session/finish_batch_v2','files/create_folder_v2','files/create_folder_batch','files/move_v2','files/move_batch_v2','files/delete_v2','files/delete_batch','sharing/create_shared_link_with_settings']);
 const transportBatches=new Set(['files/move_batch_v2','files/move_batch/check_v2','files/delete_batch','files/delete_batch/check','files/create_folder_batch','files/create_folder_batch/check']);
 const reasons=new Set<RateLimitReason>(['too_many_requests','too_many_write_operations','unknown']);
 const maxWait=30000,maxRetries=2;
@@ -67,7 +67,7 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
   async function send(operation:string,perform:(attempt:number,check:()=>Promise<void>)=>Promise<Response>,context:()=>ApiContext=()=>({})){
     // Revoke must remain immediate after local disconnect. Every other route,
     // including queued token renewals, shares the same bounded Retry-After gate.
-    const recover=operation!=='auth/token/revoke',checkBefore=operation.startsWith('files/'),ticket=lease,id=recover?account()??'oauth':null;let attempt=0;
+    const recover=operation!=='auth/token/revoke',checkBefore=/^(files|sharing)\//.test(operation),ticket=lease,id=recover?account()??'oauth':null;let attempt=0;
     const batchStage=operation.includes('create_folder_batch')?'dropbox.folders-batch':operation.includes('delete_batch')?'dropbox.delete-batch':operation.includes('move_batch')?'dropbox.move-batch':operation==='oauth2/token'?'dropbox.token':'dropbox.request';
     for(;;){
       // The caller has just checked account/session/generation. Keep healthy

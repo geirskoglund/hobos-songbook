@@ -138,5 +138,5 @@ export function syncIdentities(source:SyncSnapshot){
       ...(changes.deleteSongs?{deleteSongs:changes.deleteSongs.map(songId)}:{}),
     };
   }
-  return{project,books,songs,reconcile,restore,emptySeed};
+  return{project,books,songs,reconcile,restore,emptySeed,wireId,localId};
 }

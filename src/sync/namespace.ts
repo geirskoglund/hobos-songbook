@@ -1,9 +1,11 @@
 import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed} from './failure.ts';
 import {metadataView,pathKey} from './remote.ts';
+import {ownSong,songLocation} from './model.ts';
 import type {BookLink,DeleteEntry,FolderEntry,MoveEntry,MoveReply,MoveResult,NamespaceJob,RemoteEntry,RemoteFiles,SyncState} from './model.ts';
 
 type Hooks={check():Promise<void>;save():Promise<void>;receipt(job:NamespaceJob):Promise<void>;retireTemporary?(job:NamespaceJob):Promise<void>;freshList:RemoteFiles['list'];find(path:string):RemoteEntry|undefined;removed(entry:DeleteEntry):void;moved(entry:MoveEntry,value:{id:string;path:string}):void};
 class MissingCreatedFolder extends Error {}
+const publicationJob=(job:NamespaceJob)=>job.kind==='move'&&job.entries.some(item=>Boolean((item as MoveEntry).publication));
 /** One persisted namespace mutation at a time. Completion receipts never
  * acknowledge a newer generation. Deletes use ID+rev; staging uses its nonce
  * literal path. Unknown ID-move/create launches are never blindly replayed. */
@@ -16,9 +18,18 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
  const stage=(kind:NamespaceJob['kind'])=>`dropbox.${kind==='move'?'move':kind}-batch`;
  const bad=(kind:NamespaceJob['kind'],message:string)=>new SyncFailure({code:failureCodes.response,stage:stage(kind)},message);
  const invalid=()=>new SyncFailure({code:failureCodes.manifest,stage:'sync.namespace',action:'mutation-state'},'Ugyldig fullmakt i batchjournalen.');
+ const knownBooks=()=>({...state.manifest.books,...state.folders,...state.library?.value.books});
+ async function publicationTarget(entry:MoveEntry){
+  const target=songLocation(entry.to)!,parent=await inspect(entry.toReference!.split('/')[0]);
+  const book=knownBooks()[entry.link!.songbookId];
+  if(!parent?.folder||!parent.path.toLowerCase().endsWith('/'+target.area.toLowerCase()))return null;
+  const root=await inspect(parent.path.slice(0,parent.path.lastIndexOf('/')));
+  if(!root?.folder||root.id!==book?.folderId||book.deleted||!/^\/Songbooks\/[^/]+$/i.test(root.path))return null;
+  return {path:`${parent.path}/${target.name}`,bookPath:root.path};
+ }
  async function authorize(job:NamespaceJob){
   if(!job||!['move','delete','folders'].includes(job.kind)||typeof job.id!=='string'||!Array.isArray(job.entries)||!job.entries.length||job.entries.length>size||!Number.isInteger(job.attempt)||job.attempt<0||job.attempt>2)throw invalid();
-  const manifest=state.library?.value,books={...state.manifest.books,...state.folders,...manifest?.books};
+  const manifest=state.library?.value,books=knownBooks(),publishing=publicationJob(job);
   for(const item of job.entries){
    if(!item||typeof item.key!=='string')throw invalid();
    if(job.kind==='delete'){
@@ -41,6 +52,13 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
     }else throw invalid();
    }else if(job.kind==='move'){
     const entry=item as MoveEntry;if(typeof entry.fileId!=='string'||entry.from!==entry.fileId||typeof entry.to!=='string')throw invalid();
+    if(publishing!==Boolean(entry.publication))throw invalid();
+    if(entry.publication){
+     const link=entry.link,known=link&&(manifest?.songs[link.id]??state.reservations[link.id]??state.manifest.songs[link.id]);
+     const source=songLocation(entry.publication.sourcePath),target=songLocation(entry.to),reference=entry.toReference?.split('/');
+     if(entry.folder||entry.book||entry.archive||!known||!ownSong(known)||known.fileId!==entry.fileId||known.songbookId!==link?.songbookId||!books[known.songbookId]?.folderId||!source||!target||source.area===target.area||pathKey(source.bookPath)!==pathKey(target.bookPath)||!entry.publication.rev||reference?.length!==2||!reference[0].startsWith('id:')||reference[1]!==target.name)throw invalid();
+     continue;
+    }
     if(entry.archive){
      const archive=entry.archive,book=manifest?.books[archive.bookId],intent=book?.archive,parent=intent&&await inspect(intent.parentId),actual=await inspect(entry.fileId);
      if(!entry.folder||entry.book||entry.link||!book?.deleted||book.folderId!==entry.fileId||!intent||intent.done||entry.to!==intent.path||entry.toReference!==intent.parentId+'/'+intent.path.split('/').at(-1)||!parent?.folder||pathKey(parent.path)!=='/deleted'||!/^\/Songbooks\/[^/]+$/i.test(archive.sourcePath))throw invalid();
@@ -76,13 +94,14 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   }
   return{id:value.id,path:actual.path,folder:true};
  }
- async function apply(job:NamespaceJob,reply:MoveReply,fresh=false):Promise<boolean>{
+ async function apply(job:NamespaceJob,reply:MoveReply,fresh=false,active=false):Promise<boolean>{
   if('asyncJobId'in reply||'inProgress'in reply){delete job.reply;await hooks.save();return false;}
   if('jobExpired'in reply){delete job.jobId;delete job.reply;await hooks.save();return false;}
   if(reply.entries.length!==job.entries.length)throw bad(job.kind,'Ufullstendig batchkvittering.');
   // The whole transport receipt was persisted before this network/guard boundary.
   if(!fresh&&(job.kind!=='delete'||reply.entries.some(result=>'missing'in result&&result.missing)))await refresh();
-  let failure:MoveResult|undefined,missingCreation=false;const retry:NamespaceJob['entries']=[];
+  const publishing=publicationJob(job);
+  let failure:MoveResult|undefined,missingCreation=false;const retry:NamespaceJob['entries']=[],limited:NamespaceJob['entries']=[];
   for(let i=0;i<job.entries.length;i++){
    const entry=job.entries[i],result=reply.entries[i];
    if(job.kind==='delete'){
@@ -108,15 +127,22 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    }else if('value'in result){
     const move=entry as MoveEntry;if(result.value.id!==move.fileId)throw bad(job.kind,'Flytting bekreftet en annen identitet.');
     const actual=await inspect(move.fileId);
+    if(publishing){const target=await publicationTarget(move);if(actual&&!actual.folder&&target&&pathKey(actual.path)===pathKey(target.path))hooks.moved(move,{id:move.fileId,path:actual.path});continue;}
     if(!actual){failure={failure:{code:failureCodes.changed,stage:stage(job.kind)}};continue;}
     const path=actual.path;hooks.moved(move,{id:move.fileId,path});
     if(pathKey(path)!==pathKey(move.to))failure={failure:{code:failureCodes.changed,stage:stage(job.kind)}};
     continue;
    }else if(job.kind==='move'&&result.missing){await inspect((entry as MoveEntry).fileId);failure={failure:{code:failureCodes.changed,stage:stage('move')}};continue;}
+   if(result.failure.code===failureCodes.throttled)limited.push(entry);
    failure??=result;retry.push(entry);
   }
   delete state.namespaceJob;await hooks.save();
   if(missingCreation)throw new RetrySync();
+  if(publishing){
+   if(active&&limited.length&&job.attempt<2){state.namespaceJob={id:crypto.randomUUID(),kind:'move',entries:limited,attempt:job.attempt+1};await hooks.save();await recover(true);}
+   if(active&&reply.entries.some(result=>'failure'in result&&result.collision))throw new RetrySync();
+   return true;
+  }
   if(failure&&'failure'in failure){
    if(failure.failure.code===failureCodes.throttled&&job.attempt<2&&reply.entries.every(result=>'value'in result||result.missing||result.failure.code===failureCodes.throttled)){
     state.namespaceJob={id:crypto.randomUUID(),kind:job.kind,entries:retry,attempt:job.attempt+1};await hooks.save();await recover(true);return true;
@@ -133,6 +159,17 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    await hooks.retireTemporary(job);await hooks.check();delete state.namespaceJob;await hooks.save();throw new RetrySync();
   }
   const entries:MoveResult[]=[];
+  if(publicationJob(job)){
+   for(const entry of job.entries as MoveEntry[]){
+    const target=await publicationTarget(entry),actual=await inspect(entry.fileId);
+    if(actual&&!actual.folder&&target&&pathKey(actual.path)===pathKey(target.path)){
+     hooks.moved(entry,{id:entry.fileId,path:actual.path});entries.push({value:{id:entry.fileId,path:actual.path,rev:actual.rev}});
+    }
+   }
+   if(entries.length===job.entries.length)return apply(job,{entries},true);
+   await hooks.save();
+   throw new SyncFailure({code:failureCodes.changed,stage:stage('move'),action:'check-move'},'Dropbox har ennå ikke bekreftet alle flyttingene.');
+  }
   for(const item of job.entries){
    if(job.kind==='move'){
     const entry=item as MoveEntry,actual=await inspect(entry.fileId);
@@ -150,9 +187,27 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   }
   return apply(job,{entries},true);
  }
- async function launch(job:NamespaceJob,authorized=false){
+ async function launch(job:NamespaceJob,authorized=false,active=false){
   await hooks.check();if(!authorized){await refresh();await authorize(job);}
   if(job.submitted&&job.kind!=='delete')return observeUnknown(job);
+  if(publicationJob(job)){
+   const safe:MoveEntry[]=[];
+   for(const entry of job.entries as MoveEntry[]){
+    const target=await publicationTarget(entry),actual=await inspect(entry.fileId);
+    if(!target||!actual||actual.folder)continue;
+    if(pathKey(actual.path)===pathKey(target.path)){hooks.moved(entry,{id:entry.fileId,path:actual.path});continue;}
+    const source=songLocation(entry.publication!.sourcePath)!;
+    const occupied=await inspect(target.path);
+    if(!occupied&&actual.rev===entry.publication!.rev&&pathKey(actual.path)===pathKey(`${target.bookPath}/${source.area}/${source.name}`))safe.push(entry);
+   }
+   if(!safe.length){delete state.namespaceJob;await hooks.save();return true;}
+   job.entries=safe;
+  }
+  else if(job.kind==='move')for(const entry of job.entries as MoveEntry[])if(entry.sourceBookFolderId){
+   const actual=await inspect(entry.fileId),location=actual&&!actual.folder&&songLocation(actual.path);
+   const source=location&&await inspect(location.bookPath);
+   if(!source||source.id!==entry.sourceBookFolderId){delete state.namespaceJob;await hooks.save();throw new RetrySync();}
+  }
   if(job.kind==='folders')for(const entry of job.entries as FolderEntry[])if(entry.parentId){const parent=await inspect(entry.parentId);if(!parent||pathKey(parent.path)!==pathKey(entry.path.slice(0,entry.path.lastIndexOf('/')))){delete state.namespaceJob;await hooks.save();throw new RetrySync();}}
   if(job.kind==='delete')for(const entry of job.entries as DeleteEntry[])if(entry.folder){const actual=await inspect(entry.fileId);if(actual&&await nonempty(actual.path)){delete state.namespaceJob;await hooks.save();throw new DeferredSync('remote','Mappen har fått nytt innhold.');}}
   job.submitted=true;delete job.reply;await hooks.save();
@@ -172,7 +227,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    if(rejected){job.submitted=false;delete job.jobId;await hooks.receipt(job);if(error instanceof SyncFailure&&error.info.status===409)throw new RetrySync();}
    throw error;
   }
-  await receipt(job,reply);return apply(job,reply);
+  await receipt(job,reply);return apply(job,reply,false,active);
  }
  async function recover(plannedNow=false){
   const job=state.namespaceJob;if(!job)return;
@@ -180,19 +235,20 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   // A journal saved before launch, or explicitly rejected by Dropbox, has no
   // physical effect to resume. Recompute it after fresh master inspection;
   // Shared/Originals/missing sources can have changed since it was planned.
-  if(!plannedNow&&!job.submitted&&!job.jobId&&!job.reply){delete state.namespaceJob;await hooks.save();throw new RetrySync();}
+  if(!plannedNow&&!job.submitted&&!job.jobId&&!job.reply){delete state.namespaceJob;await hooks.save();if(publicationJob(job))return;throw new RetrySync();}
   for(const id of job.quarantinedParents??[])if(await inspect(id))throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.namespace',action:'check-folders'},'En uavklart foreldermappe finnes fortsatt.');
-  if(job.reply){if(await apply(job,job.reply,true))return;}
-  if(!job.jobId){if(await launch(job,true))return;if(!state.namespaceJob)return;}
+  if(job.reply){if(await apply(job,job.reply,true,plannedNow))return;}
+  if(!job.jobId){if(await launch(job,true,plannedNow))return;if(!state.namespaceJob)return;}
   const check=job.kind==='move'?files.checkMoveBatch:job.kind==='delete'?files.checkDeleteBatch:files.checkCreateFoldersBatch;
   if(!check)throw bad(job.kind,'Batchstatus mangler.');
   for(const delay of [0,250,750,1500,3000]){
-   if(!job.jobId){if(await launch(job))return;continue;}
+   if(!job.jobId){if(await launch(job,false,plannedNow))return;continue;}
    for(let left=delay;left>0;left-=100){await hooks.check();await new Promise(resolve=>setTimeout(resolve,Math.min(100,left)));}
    await hooks.check();let reply:MoveReply;
-   try{reply=await check(job.jobId,job.attempt);}catch(error){if(error instanceof BatchJobFailed){delete state.namespaceJob;if(error.info.code===failureCodes.throttled&&job.attempt<2){state.namespaceJob={id:crypto.randomUUID(),kind:job.kind,entries:job.entries,attempt:job.attempt+1};await hooks.save();await recover(true);return;}await hooks.save();if(error.info.code===failureCodes.throttled)throw error;throw new RetrySync();}throw error;}
-   await receipt(job,reply);if(await apply(job,reply))return;
+   try{reply=await check(job.jobId,job.attempt);}catch(error){if(error instanceof BatchJobFailed){delete state.namespaceJob;if(error.info.code===failureCodes.throttled&&job.attempt<2&&(!publicationJob(job)||plannedNow)){state.namespaceJob={id:crypto.randomUUID(),kind:job.kind,entries:job.entries,attempt:job.attempt+1};await hooks.save();await recover(true);return;}await hooks.save();if(publicationJob(job))return;if(error.info.code===failureCodes.throttled)throw error;throw new RetrySync();}throw error;}
+   await receipt(job,reply);if(await apply(job,reply,false,plannedNow))return;
   }
+  if(publicationJob(job))throw new SyncFailure({code:failureCodes.changed,stage:stage('move'),action:'check-move'},'Dropbox-jobben er ikke ferdig.');
   throw new DeferredSync('connection','Dropbox-jobben er ikke ferdig.');
  }
  async function execute(kind:NamespaceJob['kind'],entries:NamespaceJob['entries']){

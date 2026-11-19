@@ -1,18 +1,21 @@
 import {songbookName, type Songbook} from '../domain/songbook.ts';
 import type {LibrarySnapshot, songStorage} from '../storage/songs.ts';
-import {controlHeading, dialogFooter, dialogFrame} from './controls.ts';
+import {controlHeading, dialogFooter, dialogFrame, textInput} from './controls.ts';
 import {openDialog,confirmTransferCopy} from './dialog.ts';
 import {choiceControl, contextMenu, countRow, floatingAction} from './list-controls.ts';
 import {nameDialog} from './name-dialog.ts';
 import {currentPage} from './layout.ts';
+import {copyText} from './clipboard.ts';
+import {SyncFailure} from '../sync/failure.ts';
 
 export function startSongbooks(storage: ReturnType<typeof songStorage>, options: {
-  changed: (snapshot: LibrarySnapshot) => void; openBook: (id: string) => void;account?:()=>string|undefined;
+  changed: (snapshot: LibrarySnapshot) => void; openBook: (id: string) => void; account: () => string | undefined;
+  shareBook: (id: string) => Promise<string | undefined>;
 }) {
   const list = document.getElementById('songbook-list')!, status = document.getElementById('songbooks-status')!;
   const retry = document.getElementById('retry-songbooks') as HTMLButtonElement;
   let snapshot: LibrarySnapshot = {songs: [], songbooks: [], personal: []}, generation = 0;
-  let writing: Promise<void> | undefined, nameEditor: ReturnType<typeof nameDialog> | undefined;
+  let writing: Promise<void> | undefined, nameEditor: ReturnType<typeof nameDialog> | undefined, sharing = false;
   const add = floatingAction('Ny sangbok', () => edit(add)); add.id = 'add-songbook'; add.disabled = true;
   document.getElementById('songbooks')!.append(add);
   const books = (exclude?: string) => snapshot.songbooks.filter(book => book.id !== exclude).sort((a, b) => a.name.localeCompare(b.name, 'nb'));
@@ -22,6 +25,7 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
     for (const book of books()) {
       const {row, button, more} = countRow(book.name, count(book.id), () => options.openBook(book.id), opener => contextMenu(opener, [
         {name: 'Endre navn', icon: 'rediger', run: () => edit(opener, book)},
+        ...(options.account() ? [{name: 'Kopier delingslenke', icon: 'status-delt', disabled: !navigator.onLine || sharing, run: () => {void copyShare(book.id);}}] : []),
         {name: 'Slett', icon: 'slett', run: () => remove(opener, book)},
       ], 'below'));
       button.id = `songbook-${book.id}`; button.dataset.songbookId = book.id; more.id = `songbook-menu-${book.id}`;
@@ -44,6 +48,41 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
     }
   }
   retry.addEventListener('click', () => {void refresh();});
+  async function copyShare(id: string, authorized = true) {
+    if (!authorized) {status.textContent = 'Dropbox ga ikke tilgang til delingslenker. Velg Kopier delingslenke for å prøve igjen.'; return;}
+    const account = options.account();
+    if (!account || sharing || !navigator.onLine) return;
+    sharing = true;
+    const stillHere = () => options.account() === account && currentPage() === 'songbooks';
+    status.textContent = 'Henter delingslenke fra Dropbox…';
+    try {
+      const url = await options.shareBook(id);
+      if (!stillHere() || !url) return;
+      try {
+        await copyText(url, document.getElementById('songbooks')!);
+        status.textContent = 'Delingslenken er kopiert.';
+      } catch {
+        if (!stillHere()) return;
+        status.textContent = '';
+        const box = dialogFrame('Delingslenke', 'name-dialog');
+        const heading = controlHeading('Kopier delingslenken', 'status-delt');
+        const content = document.createElement('div');
+        const hint = document.createElement('p');
+        hint.textContent = 'Kopier lenken fra feltet nedenfor.';
+        const field = textInput('manual-share-link', url, 'Delingslenke');
+        field.readOnly = true;
+        field.dataset.copyable = '';
+        content.append(hint, field);
+        const actions = dialogFooter([{id: 'close', label: 'Lukk', icon: 'kryss', run: () => lifecycle.close()}]);
+        box.append(heading, content, actions);
+        const lifecycle = openDialog(box, {opener: document.getElementById(`songbook-menu-${id}`) ?? add, focus: field});
+        field.select();
+      }
+    } catch (error) {
+      if (stillHere()) status.textContent = error instanceof SyncFailure && /^(dropbox\.sharing-|publication\.shared-folder)/.test(error.info.stage) ? error.message
+        : navigator.onLine ? 'Kunne ikke hente delingslenken fra Dropbox. Prøv igjen.' : 'Uten nett. Delingslenken krever forbindelse til Dropbox.';
+    } finally {sharing = false;}
+  }
   function edit(opener: HTMLElement, book?: Songbook, selected?: (id: string) => void) {
     const id = book?.id ?? crypto.randomUUID();
     nameEditor = nameDialog({title: book ? 'Endre navn på sangbok' : 'Ny sangbok', id: 'songbook-name', initial: book?.name, opener,
@@ -101,7 +140,7 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
     const deleteButton = actions.querySelector<HTMLButtonElement>('[data-action=delete]')!;
     function update() {
       text.textContent = last ? 'Den siste sangboken kan ikke slettes. Opprett en annen sangbok først.' : affected
-        ? `Slett «${book.name}» og overfør ${affected} ${affected === 1 ? 'sang' : 'sanger'} til en annen sangbok. Sanginnhold, tilpasninger og setlister beholdes.`
+        ? `Slett «${book.name}» og overfør ${affected} ${affected === 1 ? 'sang' : 'sanger'} til en annen sangbok.${options.account() ? ' Egne sanger blir private i målboken.' : ''} Sanginnhold, tilpasninger og setlister beholdes.`
         : `Vil du slette den tomme sangboken «${book.name}»?`;
       targetArea.hidden = !affected || last; deleteButton.disabled = last || Boolean(affected && !target.valid());
     }
@@ -112,7 +151,7 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
       actions.querySelectorAll('button').forEach(button => {button.disabled = true;}); target.setDisabled(true);
       writing = (async () => {
         try {
-          const accountId=options.account?.(),plan=await storage.prepareTransfer(book.id,target.selected(),accountId);
+          const accountId=options.account(),plan=await storage.prepareTransfer(book.id,target.selected(),accountId);
           const destination=snapshot.songbooks.find(item=>item.id===target.selected())?.name??'';
           for(const match of plan.matches)if(!await confirmTransferCopy(match.title,match.filename,destination,deleteButton)){lifecycle.close();return;}
           await storage.deleteSongbook(book.id, target.selected(),{plan,accountId});
@@ -130,7 +169,7 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
     }
   }
   return {
-    accept, refresh, chooseTarget,
+    accept, refresh, chooseTarget, copyShare,
     dirty: () => Boolean(writing || nameEditor?.dirty()),
     beforeUpdate: async () => {
       if (writing) await writing;

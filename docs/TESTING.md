@@ -2,7 +2,7 @@
 
 ## Leveransegrense og kontroll
 
-Kodebasen har PWA/offline, miljøisolasjon og CI/CD, lokal sanglagring og kompakt ChordPro-visning fra issue #4, generell bevaring av lesested og Android-scrollregel fra #6 samt samlet sangredigering med lokal autosparing, felles historikk, musikalske verktøy og Råtekst/ny sang fra #30. Sangbokfilter og setlisteoversikt med lokal navneadministrasjon/tom detaljside er også implementert. Lokal sangbokadministrasjon og obligatorisk bokvalg ved Opprett/Importer er implementert i #35; eksterne kilder, konvertering, setlisteinnhold og ekstern kildesynk er senere arbeid. Privat Dropbox-synk er implementert i #37. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
+Kodebasen har PWA/offline, miljøisolasjon og CI/CD, lokal sanglagring og kompakt ChordPro-visning fra issue #4, generell bevaring av lesested og Android-scrollregel fra #6 samt samlet sangredigering med lokal autosparing, felles historikk, musikalske verktøy og Råtekst/ny sang fra #30. Sangbokfilter og setlisteoversikt med lokal navneadministrasjon/tom detaljside er også implementert. Lokal sangbokadministrasjon og obligatorisk bokvalg ved Opprett/Importer er implementert i #35; eksterne kilder, konvertering, setlisteinnhold og ekstern kildesynk er senere arbeid. Dropbox-synk er implementert i #37. Publisering og sangbøkenes delingslenker følger #39. Funksjons-PR-er trenger brukertest på fast testadresse og uttrykkelig mergegodkjenning.
 
 Node.js 24 LTS og låst npm-fil brukes lokalt og i Actions. Eksempel på full kontroll ved behov:
 
@@ -249,6 +249,18 @@ Produktansvarlig har bekreftet App Folder, eksakte F03-returadresser og account_
 Arkivkontroll må omfatte senere list_folder-sider og ukjente filer. Hele bokmappen flyttes med ID, slik at gjenværende innhold bevares. Gamle allerede journalførte tommappe-slettinger har fortsatt Dropboxs dokumenterte begrensning uten atomisk slett-bare-hvis-tom. Arkivplassering, målparent og navn må kontrolleres ved avbrudd/omdøping uten å adoptere uvedkommende mapper. Uavklart ID-flytting krever konservativ venting og kan kreve startende enhet; ingen automatisk klokkeovertakelse loves.
 
 Fysisk iPad/Safari, Android/Chrome og installert PWA gjenstår: OAuth-retur, skjermtastatur, berøring, orientering/safe-area og offline etter ekte appoppdatering. Automatisert Chromium er ikke bevis på disse plattformene. Ingen eksisterende brukerdata slettes som del av kontrollen.
+
+## Publisering av egne sanger (#39)
+
+| Kontroll | Verifikasjon |
+| --- | --- |
+| AK39-01 | `publication.spec.mjs` prøver N01/N02/D09/H03/L01/L05 ved 320/768/1440 px, global oppsummering, alfabetisk sortering, avgrenset Velg alle, valg på tvers av faner og bøker, siste rad over fast handlingsfelt og offline åpning. Frakobling skjuler Publisering. |
+| AK39-02 | `publication.test.mjs` prøver begge retninger over en batchgrense, kontrollert med stabile Dropbox-fil- og mål-ID-er, uendrede sangbytes og privat sidefil. Sang-ID-er og eksisterende referanser beholdes. |
+| AK39-03 | De samme prøvene dekker paginering, endringer fra annen enhet, første opplasting i Private, oppfylt status uten flytting, kollisjon, per-fil-resultat, asynkron jobb, HTTP 429 og tapt svar. Testene kontrollerer at oppstart og nettretur ikke sender nye publiseringsbestillinger, og at vanlig synk kan hente ubehandlet sanginnhold etter oppdatert oversikt. |
+| AK39-04 | `publication.test.mjs`, `publication.spec.mjs` og `sync-namespace-batch.test.mjs` prøver redigering og synk av en publisert sang, Avbryt, bekreftet offline boksletting og gjenopptatt overføring når kildefilen er flyttet til Shared fra en annen enhet. Ved bekreftet bokoverføring ender både private og publiserte sanger i målbokens Private. Den eksisterende arkivkontrollen sikrer at den gamle mappen flyttes etter sangoverføringen. |
+| AK39-05 | `publication.spec.mjs` og `dropbox-sharing.test.mjs` prøver H04, leselenke til valgt Shared-mappe, gjenbruk, samtidig opprettelse, faktisk tillatelse, OAuth-scopes og manuell kopiering. |
+
+På fast testadresse, med egne prøvedata og begge delingsscopene aktivert i Dropbox App Console, kontrolleres OAuth-samtykke for en eksisterende testtilkobling. Prøv én sang og blandede valg på tvers av bøker. Kontroller i Dropbox at en mottaker kan lese nøyaktig valgt Shared-mappe, og at en avpublisert sang forsvinner fra lenken. Kontroller at mottakeren mangler tilgang til Private, Import, Originals og `.app/`. Bekreft også Avbryt og Slett sangbok med publiserte sanger, overføring til målbokens Private og deretter arkivering. Fysisk iPad/Safari og Android/Chrome brukes til å verifisere berøring, safe-area, utklippstavle og manuell kopiering. Simulator og Chromium dekker API-kontrakten og appflyten. Reell Dropbox-tilgang, mottakerens rettigheter og fysiske kontroller rapporteres særskilt.
 
 ## Designsystem og appskall (#23)
 

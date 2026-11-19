@@ -6,11 +6,13 @@ import type {ApiEvent,ApiContext} from '../sync/diagnostics.ts';
 import {DropboxError,dropboxRate} from './dropbox-rate.ts';
 export {DropboxError} from './dropbox-rate.ts';
 export const requiredScopes = ['account_info.read', 'files.metadata.read', 'files.content.read', 'files.content.write'];
+export const sharingScopes = ['sharing.read', 'sharing.write'];
 export function dropboxConfig(channel: AppEnvironment['channel']) {
   return {key: channel === 'production' ? '9hivdq3nxrgtquz' : 'le5cddh388klcjz', redirect: `https://geirskoglund.github.io/hobos-songbook/${channel === 'production' ? 'app' : 'test'}/`};
 }
-interface Credentials {version: 1; accountId: string; name: string; email: string; accessToken: string; refreshToken: string; expires: number}
-interface Pending {state: string; verifier: string; redirect: string; created: number}
+interface Credentials {version: 1; accountId: string; name: string; email: string; accessToken: string; refreshToken: string; expires: number; scopes?: string[]}
+interface Pending {state: string; verifier: string; redirect: string; created: number; sharing?: {accountId: string; bookId: string}}
+export interface SharingConsent {bookId: string; authorized: boolean}
 const apiArg = (value: unknown) => JSON.stringify(value).replace(/[^\u0000-\u007f]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
 const random = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 export async function pkceChallenge(verifier: string) {
@@ -24,7 +26,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     if(typeof AbortSignal.timeout==='function')return AbortSignal.timeout(30000);
     const controller=new AbortController();setTimeout(()=>controller.abort(),30000);return controller.signal;
   }
-  const resource=(path:string):ApiContext['resource']=>/^\/\.app\/songs\//i.test(path)?'personal':/^\/\.app\/uploads\//i.test(path)?'staging':path.startsWith('/.app/')?'control':/^\/Songbooks\/[^/]+\/Private\//i.test(path)?'content':'other';
+  const resource=(path:string):ApiContext['resource']=>/^\/\.app\/songs\//i.test(path)?'personal':/^\/\.app\/uploads\//i.test(path)?'staging':path.startsWith('/.app/')?'control':/^\/Songbooks\/[^/]+\/(Private|Shared)\//i.test(path)?'content':'other';
   async function send(operation: string, source: RequestInit|(()=>RequestInit), transform?:(response:Response)=>Promise<Response>,context:ApiContext={}) {
     let details:ApiContext=context;
     return rate.send(operation,async(attempt,check)=>{
@@ -32,7 +34,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       if(typeof options.body==='string'&&options.headers&&Object.entries(options.headers).some(([key,value])=>key.toLowerCase()==='content-type'&&value==='application/json'))try{const body=JSON.parse(options.body),count=body.entries?.length??body.paths?.length;if(Number.isInteger(count))details={...details,batchSize:count};}catch{/* Never include request contents in diagnostics. */}
       // OAuth account lookup already holds the newly exchanged bearer; it is
       // not installed in credentials until that very lookup succeeds.
-      const headers=attempt&&operation.startsWith('files/')&&options.headers&&Object.keys(options.headers).some(key=>key.toLowerCase()==='authorization')?{...(options.headers as Record<string,string>),Authorization:`Bearer ${await access()}`}:options.headers;
+      const headers=attempt&&/^(files|sharing)\//.test(operation)&&options.headers&&Object.keys(options.headers).some(key=>key.toLowerCase()==='authorization')?{...(options.headers as Record<string,string>),Authorization:`Bearer ${await access()}`}:options.headers;
       if(attempt)await check();
       details={...details,requestId:undefined};
       const response=await request(`https://${operation==='files/download'||operation==='files/upload'||operation==='files/upload_session/start'?'content':'api'}.dropboxapi.com/${operation==='oauth2/token'?'':'2/'}${operation}`,{...options,headers,signal:options.signal??deadline()});
@@ -51,6 +53,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     return value;
   }
   const account = () => {const value = credentials(); return value && {id: value.accountId, name: value.name, email: value.email};};
+  const sharingAllowed = () => {const scopes = credentials()?.scopes; return Array.isArray(scopes) && sharingScopes.every(scope => scopes.includes(scope));};
   async function token(body: URLSearchParams) {
     const ticket=invalidated,refresh=body.get('refresh_token');
     const response = await send('oauth2/token', {method: 'POST', body, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
@@ -75,16 +78,22 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       localStorage.setItem(authKey, JSON.stringify(value)); return value.accessToken;
     });
   }
-  async function connect() {
+  async function connect(bookId?: string) {
     if (location.origin + location.pathname !== config.redirect) throw new SyncFailure({code:failureCodes.configuration,stage:'dropbox.oauth',action:'open-app'},'Dropbox-tilkobling må startes fra den faste appadressen.');
     const pending: Pending = {state: random(), verifier: random(), redirect: config.redirect, created: Date.now()};
+    if (bookId) {
+      const current = account();
+      if (!current) throw new DeferredSync('connection', 'Dropbox er frakoblet.');
+      pending.sharing = {accountId: current.id, bookId};
+    }
     const challenge = await pkceChallenge(pending.verifier);
     sessionStorage.setItem(pendingKey, JSON.stringify(pending));
     const url = new URL('https://www.dropbox.com/oauth2/authorize');
-    url.search = new URLSearchParams({client_id: config.key, response_type: 'code', redirect_uri: config.redirect, state: pending.state, code_challenge: challenge, code_challenge_method: 'S256', token_access_type: 'offline', scope: requiredScopes.join(' ')}).toString();
+    const scopes = pending.sharing ? [...requiredScopes, ...sharingScopes] : requiredScopes;
+    url.search = new URLSearchParams({client_id: config.key, response_type: 'code', redirect_uri: config.redirect, state: pending.state, code_challenge: challenge, code_challenge_method: 'S256', token_access_type: 'offline', scope: scopes.join(' ')}).toString();
     location.assign(url.href);
   }
-  async function callback(): Promise<boolean> {
+  async function callback(): Promise<boolean | SharingConsent> {
     const url = new URL(location.href);
     if (!url.searchParams.has('code') && !url.searchParams.has('error')) return false;
     const code = url.searchParams.get('code'), state = url.searchParams.get('state'), error = url.searchParams.get('error');
@@ -93,17 +102,25 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     const raw = sessionStorage.getItem(pendingKey); sessionStorage.removeItem(pendingKey);
     let pending: Pending | null = null;try {pending=raw?JSON.parse(raw):null;}catch{/* Invalid callback state is handled below. */}
     if (!pending || pending.state !== state || pending.redirect !== config.redirect || location.origin + location.pathname !== config.redirect || Date.now() - pending.created > 10 * 60 * 1000 || pending.created > Date.now()) throw new SyncFailure({code:failureCodes.oauthReturn,stage:'dropbox.oauth',action:'retry-login'},'Dropbox-returen er ugyldig eller utløpt.');
-    if (error === 'access_denied') return false;
+    if (error === 'access_denied') return pending.sharing ? {bookId: pending.sharing.bookId, authorized: false} : false;
     if (error || !code) throw new SyncFailure({code:failureCodes.oauthResponse,stage:'dropbox.oauth'},'Dropbox returnerte ingen gyldig innloggingskode.');
     const epoch = invalidated;
     const value = await token(new URLSearchParams({grant_type: 'authorization_code', code, client_id: config.key, redirect_uri: config.redirect, code_verifier: pending.verifier}));
-    if (!value.refresh_token || !requiredScopes.every(scope => String(value.scope ?? '').split(' ').includes(scope))) throw new SyncFailure({code:failureCodes.permission,stage:'dropbox.oauth'},'Dropbox mangler nødvendig fornybar tilgang eller nødvendige scopes.');
+    const scopes = String(value.scope ?? '').split(/\s+/).filter(Boolean);
+    if (pending.sharing && ![...requiredScopes, ...sharingScopes].every(scope => scopes.includes(scope))) {
+      return {bookId: pending.sharing.bookId, authorized: false};
+    }
+    if (!value.refresh_token || !requiredScopes.every(scope => scopes.includes(scope))) throw new SyncFailure({code:failureCodes.permission,stage:'dropbox.oauth'},'Dropbox mangler nødvendig fornybar tilgang eller nødvendige scopes.');
     const response = await send('users/get_current_account', {method: 'POST', headers: {Authorization: `Bearer ${value.access_token}`}, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
     if (!response.ok) throw new DropboxError(response.status, 'account');
     const user = await json(response,'dropbox.account');
     if(epoch!==invalidated)throw new DeferredSync('connection','Dropbox-tilkoblingen er endret.');
     if (typeof user?.account_id!=='string'||user.account_id !== value.account_id||typeof user.name?.display_name!=='string'||typeof user.email!=='string') throw new SyncFailure({code:failureCodes.oauthResponse,stage:'dropbox.account'},'Dropbox returnerte ugyldig kontorespons.');
-    localStorage.setItem(authKey, JSON.stringify({version: 1, accountId: user.account_id, name: user.name.display_name, email: user.email, accessToken: value.access_token, refreshToken: value.refresh_token, expires: Date.now() + value.expires_in * 1000} satisfies Credentials));
+    if (pending.sharing && (user.account_id !== pending.sharing.accountId || account()?.id !== pending.sharing.accountId)) {
+      return {bookId: pending.sharing.bookId, authorized: false};
+    }
+    localStorage.setItem(authKey, JSON.stringify({version: 1, accountId: user.account_id, name: user.name.display_name, email: user.email, accessToken: value.access_token, refreshToken: value.refresh_token, expires: Date.now() + value.expires_in * 1000, scopes} satisfies Credentials));
+    if (pending.sharing) return {bookId: pending.sharing.bookId, authorized: true};
     return true;
   }
   async function rpc(path: string, body: unknown,entryAttempt=0,context:ApiContext={}) {
@@ -121,7 +138,17 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       if(batch&&!rejected&&error instanceof DeferredSync)throw new SubmittedBatchInterruption(error.reason,error.message);
       throw error;
     }
-    if (!response.ok) {if (response.status===401) localStorage.removeItem(authKey); const problem = await response.json().catch(() => ({})); throw new DropboxError(response.status, problem.error_summary ?? 'request');}
+    if (!response.ok) {
+      const problem = await response.json().catch(() => ({}));
+      const summary = typeof problem?.error_summary === 'string' ? problem.error_summary : 'request';
+      if (path.startsWith('sharing/') && (problem?.error?.['.tag'] === 'missing_scope' || /^missing_scope(?:\/|$)/.test(summary))) {
+        const current = credentials();
+        if (current?.scopes) localStorage.setItem(authKey, JSON.stringify({...current, scopes: current.scopes.filter(scope => !sharingScopes.includes(scope))}));
+        throw new SyncFailure({code: failureCodes.permission, stage: 'dropbox.sharing-scope', status: response.status}, 'Dropbox mangler tillatelse til delingslenker. Velg Kopier delingslenke igjen for å gi tilgang.');
+      }
+      if (response.status === 401) localStorage.removeItem(authKey);
+      throw new DropboxError(response.status, summary);
+    }
     return json(response);
   }
   const missing = (error: unknown) => error instanceof DropboxError && error.status === 409 && /^path\/not_found/.test(error.summary);
@@ -173,6 +200,46 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
   }
   async function namespaceCheck(route:string,id:string,kind:'delete'|'folders',attempt=0){
     try{return namespaceReply(await rpc(route,{async_job_id:id},attempt),kind);}catch(error){if(error instanceof DropboxError&&error.status===409&&/^invalid_async_job_id(?:\/|$)/.test(error.summary))return{jobExpired:true} as const;throw error;}
+  }
+  async function sharedLink(folder: {id: string; path: string}) {
+    const samePath = (a: string, b: string) => a.normalize('NFC').toLowerCase() === b.normalize('NFC').toLowerCase();
+    function viewerUrl(link: any): string | undefined {
+      if (link?.['.tag'] !== 'folder' || (link.id ? link.id !== folder.id : typeof link.path_lower !== 'string' || !samePath(link.path_lower, folder.path))) return;
+      const permissions = link.link_permissions;
+      const audience = permissions?.effective_audience?.['.tag'] ?? permissions?.resolved_visibility?.['.tag'];
+      if (audience !== 'public' || permissions?.link_access_level?.['.tag'] !== 'viewer' || permissions.require_password
+        || link.expires && !(Date.parse(link.expires) > Date.now()) || typeof link.url !== 'string') return;
+      try {
+        const url = new URL(link.url);
+        if (url.protocol === 'https:' && ['www.dropbox.com', 'dropbox.com'].includes(url.hostname) && !url.username && !url.password) return link.url;
+      } catch {/* An invalid URL cannot be copied as a Dropbox link. */}
+    }
+    async function lookup() {
+      let args: {path: string; direct_only: true} | {cursor: string} = {path: folder.id, direct_only: true};
+      const cursors = new Set<string>();
+      for (;;) {
+        const page = await rpc('sharing/list_shared_links', args);
+        if (!Array.isArray(page?.links) || typeof page.has_more !== 'boolean') break;
+        const url = page.links.map(viewerUrl).find(Boolean);
+        if (url || !page.has_more) return url;
+        if (typeof page.cursor !== 'string' || !page.cursor || cursors.has(page.cursor)) break;
+        cursors.add(page.cursor);
+        args = {cursor: page.cursor};
+      }
+      throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.sharing'}, 'Kunne ikke lese hele delingsoversikten fra Dropbox.');
+    }
+    const existing = await lookup();
+    if (existing) return existing;
+    let url: string | undefined;
+    try {
+      const metadata = await rpc('sharing/create_shared_link_with_settings', {path: folder.id, settings: {audience: {'.tag': 'public'}, access: {'.tag': 'viewer'}}});
+      url = viewerUrl(metadata);
+    } catch (error) {
+      if (error instanceof DropboxError && error.status === 409 && /^shared_link_already_exists(?:\/|$)/.test(error.summary)) url = await lookup();
+      else if (!(error instanceof DropboxError && (error.status === 403 || error.status === 409 && /^(access_denied|settings_error|email_not_verified)(?:\/|$)/.test(error.summary)))) throw error;
+    }
+    if (url) return url;
+    throw new SyncFailure({code: failureCodes.permission, stage: 'dropbox.sharing-policy'}, 'Dropbox-kontoen tillater ikke en leselenke til sangbokens delingsmappe.');
   }
   const files: RemoteFiles = {
     async metadata(path){const value=await metadata(path);if(!value)return null;const actual=displayPath(value,path.startsWith('/')?path:undefined);if(typeof value.id!=='string'||!value.id||!actual||!['file','folder'].includes(value['.tag'])||value['.tag']==='file'&&(typeof value.rev!=='string'||!value.rev))throw new SyncFailure({code:failureCodes.response,stage:'dropbox.file-metadata'},'Ugyldig metadata.');return{id:value.id,path:actual,folder:value['.tag']==='folder',...(value.rev?{rev:value.rev}:{})};},
@@ -334,5 +401,5 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     const response = await send('auth/token/revoke', {method: 'POST', headers: {Authorization: `Bearer ${value.accessToken}`}, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
     return response.ok;
   }
-  return {account, connect, callback, disconnect, files,beginRun:rate.begin,cancelPending:rate.cancel};
+  return {account, connect, callback, disconnect, files, sharedLink, sharingAllowed, beginRun:rate.begin,cancelPending:rate.cancel};
 }

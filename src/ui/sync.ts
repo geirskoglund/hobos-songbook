@@ -2,6 +2,7 @@ import {actionButton, controlHeading, dialogFooter, dialogFrame, type DialogActi
 import {openDialog} from './dialog.ts';
 import type {syncController} from '../sync/controller.ts';
 import type {Conflict} from '../sync/model.ts';
+import {copyText} from './clipboard.ts';
 export function syncPage(controller: ReturnType<typeof syncController>) {
   const root = document.getElementById('sync')!;
   const disconnected = document.createElement('div'); disconnected.className = 'sync-connect';
@@ -23,14 +24,7 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
     const copy=actionButton('',()=>{void copyReport();},'kopier');copy.className='sync-error-copy';copy.setAttribute('aria-label','Kopier feillogg');copy.dataset.tooltip='Kopier feillogg';copy.hidden=true;node.append(text,code,tail,copy);
     async function copyReport(){
       const report=controller.reportText();if(!report)return;copy.disabled=true;
-      try{
-        try{if(!navigator.clipboard?.writeText)throw new Error();await navigator.clipboard.writeText(report);}
-        catch{
-          const focus=document.activeElement,field=document.createElement('textarea');field.value=report;field.readOnly=true;field.className='sr-only';node.append(field);let copied=false;
-          try{field.select();copied=document.execCommand('copy');}finally{field.remove();if(focus instanceof HTMLElement&&focus.isConnected)focus.focus({preventScroll:true});}
-          if(!copied)throw new Error();
-        }
-      }catch{/* Copying has no additional status message. */}finally{copy.disabled=false;}
+      try{await copyText(report,node);}catch{/* Copying has no additional status message. */}finally{copy.disabled=false;}
     }
     return {render(message:string,enabled:boolean){
       const parts=enabled?/^(.*?)(SYNC-\d{3}\))(.*)$/.exec(message):null;

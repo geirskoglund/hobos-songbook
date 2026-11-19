@@ -3,7 +3,7 @@ import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
 import {songbookName} from '../domain/songbook.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
 import type {syncStorage, SyncSnapshot} from '../storage/sync.ts';
-import {direction, emptyManifest, hash, mergeManifest, parseManifest, parsePersonal, personalData, same, type BookLink, type Conflict, type FileValue, type Manifest, type NamespaceJob, type FolderEntry, type PersonalFile, type RemoteFiles, type SongLink, type SyncState, type UploadIntent, type UploadJob} from './model.ts';
+import {direction, emptyManifest, hash, mergeManifest, ownSong, parseManifest, parsePersonal, personalData, same, songLocation, type BookLink, type Conflict, type FileValue, type Manifest, type MoveEntry, type NamespaceJob, type FolderEntry, type PersonalFile, type PublicationChoice, type PublicationResult, type RemoteFiles, type SongLink, type SyncState, type UploadIntent, type UploadJob} from './model.ts';
 import {DeferredSync, failureCodes, failureInfo, SyncFailure,RetrySync} from './failure.ts';
 import {indexedFiles,pathKey} from './remote.ts';
 import {syncIdentities} from './identities.ts';
@@ -14,8 +14,8 @@ import {claimReady,type UploadClaim} from './bridge.ts';
 import {namespaceQueue} from './namespace.ts';
 import {mutationFence} from './mutation.ts';
 import {archiveBooks,needsArchive} from './archive.ts';
+import {publicationCatalog,publicationError,publicationView} from './publication.ts';
 export class PausedSync extends DeferredSync {constructor() {super('session','Synkronisering er pauset mens en sang er åpen.');}}
-const privateSong = (song: Song) => song.origin.kind === 'local' || song.origin.provider === 'dropbox' && !(song.origin as any).sourceId;
 const personalOf = (snapshot: SyncSnapshot, id: string) => personalData(snapshot.personal.find(p => p.songId === id) ?? {songId: id, version: 3, chorus: {}});
 function fromRemote(link: SongLink, text: string): Song {
   const parsed = parseChordPro(text, link.origin.filename.replace(/\.[^.]+$/, ''));
@@ -50,13 +50,19 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   async function save(changes: Parameters<typeof storage.commit>[2] = {}) {await check(); await storage.commit(generation, state, identities.restore(changes), valid); hooks.changed();}
   async function start() {
     confirmedLinks={};
+    interruption=undefined;
     snapshot = await storage.snapshot(accountId); state = snapshot.state; generation = snapshot.journal.generation;
     identities=syncIdentities(snapshot);snapshot=identities.project();
     index=indexedFiles(rawFiles,state);
     namespace=namespaceQueue(index.files,state,{check,save,retireTemporary,freshList:rawFiles.list,find:index.find,removed(entry){const current=index.find(entry.fileId);if(entry.category!=='staging'||current&&pathKey(current.path)===pathKey(entry.path))index.forget(entry.fileId);},
       receipt:async job=>{if(storage.transport)await storage.transport(accountId,job);else await save();},
       moved(entry,value){
-        if(entry.link){const link={...entry.link,fileId:value.id,path:value.path};state.reservations[link.id]=link;(state.movedSongs??={})[link.id]=link;}
+        if(entry.link){
+          const link={...entry.link,fileId:value.id,path:value.path};
+          state.reservations[link.id]=link;
+          const receipts=entry.publication?(state.movedPublications??={}):(state.movedSongs??={});
+          receipts[link.id]=link;
+        }
         if(entry.book){const book={...entry.book,folderId:value.id,path:value.path};state.folders[book.id]=book;(state.movedBooks??={})[book.id]=book;}
       },
     });
@@ -90,17 +96,17 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     const local = emptyManifest();
     for (const book of snapshot.songbooks) local.books[book.id] = {...state.manifest.books[book.id], ...state.folders[book.id], ...book};
     for (const [id, book] of Object.entries(snapshot.journal.deletedBooks)) local.books[id] = {...state.manifest.books[id], ...state.folders[id], ...book};
-    for (const song of snapshot.songs.filter(privateSong)) {
+    for (const song of snapshot.songs.filter(ownSong)) {
       const previous = state.manifest.songs[song.id] ?? state.reservations[song.id];
       local.songs[song.id] = {...previous, id: song.id, songbookId: song.songbookId, origin: song.origin, path: previous?.path ?? ''};
     }
     return local;
   }
   function hasLocalWork(){
-    if(state.archivePending||state.cleanupPending||Object.values(state.manifest.books).some(book=>needsArchive(book,index.find))||state.mutationPending||state.namespaceJob||Object.keys(state.renames??{}).length||Object.keys(state.decisions).length||Object.values(state.uploads??{}).some(job=>job.status!=='done'))return true;
+    if(state.archivePending||state.cleanupPending||Object.values(state.manifest.books).some(book=>needsArchive(book,index.find))||state.mutationPending||state.namespaceJob||Object.keys(state.movedPublications??{}).length||Object.keys(state.renames??{}).length||Object.keys(state.decisions).length||Object.values(state.uploads??{}).some(job=>job.status!=='done'))return true;
     for(const book of snapshot.songbooks){const known=state.manifest.books[book.id];if(known?.deleted)continue;if(!known?.folderId||known.name!==book.name)return true;}
     for(const book of Object.values(snapshot.journal.deletedBooks))if(!state.manifest.books[book.id]?.deleted)return true;
-    for(const song of snapshot.songs.filter(privateSong)){
+    for(const song of snapshot.songs.filter(ownSong)){
       if(state.manifest.deletedSongs?.[song.id]||state.manifest.books[song.songbookId]?.deleted||state.held?.[song.id])continue;
       const base=state.bases[song.id],link=state.manifest.songs[song.id];
       if(originalFilename(song)&&!link?.originalFile&&!state.originals?.[song.id])return true;
@@ -139,13 +145,20 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     }
     const confirmed=Object.fromEntries(Object.values(state.reservations).filter(link=>link.fileId).map(link=>[link.id,link]));
     const knownSongs={...state.manifest.songs,...confirmed,...remote.songs};
+    const booksByPath=new Map(Object.values(knownBooks).filter(book=>book.path&&!book.deleted&&!remote.books[book.id]?.deleted).map(book=>[pathKey(book.path!),book]));
     for(const link of Object.values(knownSongs)){
       if(remote.deletedSongs?.[link.id]){delete remote.songs[link.id];continue;}
       const entry=state.remote?index.find(link.fileId??link.path):undefined;
       if(state.remote&&!entry){deleteSong(remote,link);continue;}
       if(entry&&!entry.folder){
-        const owner=Object.values(knownBooks).find(b=>!b.deleted&&!remote.books[b.id]?.deleted&&b.path&&pathKey(entry.path).startsWith(pathKey(b.path)+'/private/')&&!entry.path.slice(b.path.length+9).includes('/'));
-        if(owner){remote.songs[link.id]={...link,songbookId:owner.id,path:entry.path};if(link.fileId===entry.id)activeFiles.add(link.id);}
+        const location=songLocation(entry.path),owner=location&&booksByPath.get(pathKey(location.bookPath));
+        if(owner){
+          if(link.fileId===entry.id)activeFiles.add(link.id);
+          // A manually relocated initial upload is still waiting for its
+          // private first-upload receipt and sidecar. It has no active link yet.
+          if(location?.area==='Shared'&&!state.manifest.songs[link.id]&&!state.library?.value.songs[link.id])state.held[link.id]=true;
+          else remote.songs[link.id]={...link,songbookId:owner.id,path:entry.path};
+        }
         else if(remote.books[link.songbookId]?.deleted)deleteSong(remote,link);
         else if(!/^\/Songbooks\/[^/]+\//i.test(entry.path)||/^\/Songbooks\/[^/]+\/Originals\//i.test(entry.path))deleteSong(remote,link);
         else state.held[link.id]=true;
@@ -239,12 +252,12 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     if(moves.length){
       state.archivePending=true;await save();await namespace.move(moves);
       for(const move of moves){const book=merged.books[move.book!.id],current=index.find(move.fileId);if(!current||pathKey(current.path)!==pathKey(move.to))throw new RetrySync();book.name=move.book!.name;book.path=current.path;state.folders[book.id]={...book};delete state.renames?.[book.id];}
-      for(const link of Object.values(merged.songs)){const current=index.find(link.fileId??link.path);if(current&&current.id===link.fileId&&pathKey(current.path).startsWith(pathKey(merged.books[link.songbookId].path!)+'/private/'))link.path=current.path;if(link.originalFile){const original=index.find(link.originalFile.fileId);if(original)link.originalFile.path=original.path;}}
+      for(const link of Object.values(merged.songs)){const current=index.find(link.fileId??link.path),location=current&&songLocation(current.path);if(current?.id===link.fileId&&location&&pathKey(location.bookPath)===pathKey(merged.books[link.songbookId].path!))link.path=current!.path;if(link.originalFile){const original=index.find(link.originalFile.fileId);if(original)link.originalFile.path=original.path;}}
     }
     return{waiting,changed:Boolean(moves.length)};
   }
   async function discover(remote: Manifest,publishedIds:Set<string>) {
-    // Inspect only book directories and Private/. Contents of other subfolders stay out of sync.
+    // Discover unregistered songs in Private/. Known Shared files follow their existing links.
     for (const entry of await step(() => files.list('/Songbooks'))) {
       if (!entry.folder || Object.values(remote.books).some(book => book.folderId ? book.folderId === entry.id : book.path?.toLowerCase() === entry.path.toLowerCase())) continue;
       let known = Object.values(state.folders).find(book => book.folderId === entry.id);
@@ -337,7 +350,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     }
     checkSize(textBytes(chosenSong.original));
     const personal:PersonalFile={version:1,songId:link.id,original:{rev:content?.rev??'',hash:await hash(chosenSong.original)},data:chosenPersonal};
-    const contentIntent:UploadIntent|undefined=contentChoice==='upload'?{key:`content:${link.id}`,songId:link.id,kind:'content',path:link.path,text:chosenSong.original,rev:content?.rev??null,...(content?{fileId:content.id}:{}),base:{original:chosenSong.original,personal,link:{...link}}}:undefined;
+    const contentIntent:UploadIntent|undefined=contentChoice==='upload'?{key:`content:${link.id}`,songId:link.id,kind:'content',path:content?.path??link.path,text:chosenSong.original,rev:content?.rev??null,...(content?{fileId:content.id}:{}),base:{original:chosenSong.original,personal,link:{...link}}}:undefined;
     return{link,local,basis,content,person,contentChoice,personChoice,chosenSong,chosenPersonal,waitingRemote,apply:manual||Boolean(contentDecision||personDecision),contentIntent};
   }
   type SongPlan=Exclude<Awaited<ReturnType<typeof prepareSong>>,false>;
@@ -369,6 +382,14 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     }
     for(const intent of intents)checkSize(textBytes(intent.text));
     return{...plan,content,referenceRev,nextPerson,savedPerson,intents};
+  }
+  function songDestination(link: SongLink, books: Manifest['books']) {
+    const bookPath=state.folders[link.songbookId]?.path??`/Songbooks/${books[link.songbookId].name}`;
+    const current=songLocation(index.find(link.fileId??link.path)?.path??link.path);
+    // Only confirmed book transfers change Shared to Private. File edits within
+    // the same book stay where Dropbox currently has the song.
+    const area=current&&pathKey(current.bookPath)===pathKey(bookPath)?current.area:'Private';
+    return `${bookPath}/${area}`;
   }
   async function run(manual: boolean, resolution?: {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'}) {
     manualRecovery = manual;
@@ -420,11 +441,11 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       await inspectRemovals(remote);
       state.skipped={};
       if (manual) await refreshBookNames(remote);
-      const joinedBooks=identities.books(remote),joinedSongs=await identities.songs(remote,privateSong,uploads.discard,uploads.discardMany);
+      const joinedBooks=identities.books(remote),joinedSongs=await identities.songs(remote,ownSong,uploads.discard,uploads.discardMany);
       if(joinedBooks||joinedSongs){snapshot=identities.project();await save();}
       if(!state.joined&&!state.lastManual){
         const key=(song:Song)=>JSON.stringify([song.songbookId,song.origin.filename.normalize('NFC')]);
-        const locals=snapshot.songs.filter(privateSong);
+        const locals=snapshot.songs.filter(ownSong);
         for(const song of locals){
           if(!song.origin.filename)continue;
           if(state.reservations[song.id]?.fileId||state.manifest.songs[song.id]||Object.entries(state.reservations).some(([id,link])=>id.startsWith('copy:')&&link.id===song.id)||locals.filter(other=>key(other)===key(song)).length!==1)continue;
@@ -439,7 +460,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       const pendingNames=await ensureBooks(merged);
       if (manual) {
         await discover(merged,publishedIds);
-        if(await identities.songs(merged,privateSong,uploads.discard,uploads.discardMany)){
+        if(await identities.songs(merged,ownSong,uploads.discard,uploads.discardMany)){
           const previous=local;snapshot=identities.project();local=localManifest();
           for(const id of Object.keys(previous.songs))if(!local.songs[id]&&!remote.songs[id])delete merged.songs[id];
           await save();
@@ -447,7 +468,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         merged = mergeManifest(base, local, merged);
       }
       // Reserve all new file paths before contacting Dropbox, including ambiguous-response retries.
-      for (const song of snapshot.songs.filter(privateSong)) {
+      for (const song of snapshot.songs.filter(ownSong)) {
         const entry = merged.songs[song.id]; if (!entry) continue;
         if (!entry.path) {
           const reserved = state.reservations[song.id];
@@ -486,7 +507,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         if(state.held?.[entry.id]||failed.has(entry.id))return;
         if(!manual&&!snapshot.songs.some(song=>song.id===entry.id))return;
         const current=snapshot.songs.find(s=>s.id===entry.id),base=state.bases[entry.id],prior=state.manifest.songs[entry.id];
-        const desired=`${state.folders[entry.songbookId]?.path??`/Songbooks/${merged.books[entry.songbookId]?.name}`}/Private/${entry.path.split('/').at(-1)}`;
+        const desired=`${songDestination(entry,merged.books)}/${entry.path.split('/').at(-1)}`;
         const localSame=Boolean(current&&base&&prior&&base.personal.original.rev===base.contentRev&&current.original===base.original&&same(personalOf(snapshot,entry.id),base.personal.data)&&current.songbookId===entry.songbookId&&same(current.origin,entry.origin)&&entry.path===desired);
         const remoteSame=Boolean(base&&index.unchangedFile(entry.fileId,base.contentRev,entry.path)&&index.unchangedFile(undefined,base.personalRev,`/.app/songs/${entry.id}.json`));
         const unfinished=Object.values(state.uploads??{}).some(job=>job.songId===entry.id&&job.status!=='done');
@@ -506,11 +527,16 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         if(plan.contentIntent){const result=contentResults.get(plan.contentIntent.key);if(!result||!('value'in result))continue;plan.content=result.value;}
         if(!plan.content)continue;
         if(plan.contentIntent?.rev===null)plan.link.path=plan.content.path;
-        const parent=state.folders[plan.link.songbookId].path+'/Private',baseTarget=parent+'/'+plan.link.path.split('/').at(-1);
+        const parent=songDestination(plan.link,merged.books),baseTarget=parent+'/'+plan.content.path.split('/').at(-1);
         let target=baseTarget,n=1;
         while(targets.has(pathKey(target))||index.find(target)&&index.find(target)!.id!==plan.content.id)target=numberedPath(baseTarget,++n);
         targets.add(pathKey(target));
-        if(plan.content.path!==target){const destination=await folder(parent);transfers.push({key:'song:'+plan.link.id,from:plan.content.id,to:target,toReference:destination.id+'/'+target.split('/').at(-1),fileId:plan.content.id,link:{...plan.link,path:target}});}
+        if(plan.content.path!==target){
+          const source=songLocation(plan.content.path),sourceBookFolderId=source&&index.find(source.bookPath)?.id;
+          if(!source||state.remote&&!sourceBookFolderId)throw new RetrySync();
+          const destination=await folder(parent);
+          transfers.push({key:'song:'+plan.link.id,from:plan.content.id,to:target,toReference:destination.id+'/'+target.split('/').at(-1),fileId:plan.content.id,link:{...plan.link,path:target},sourceBookFolderId});
+        }
       }
       if(transfers.length){await namespace.move(transfers);for(const plan of plans){const moved=state.movedSongs?.[plan.link.id];if(moved&&plan.content){plan.content={...plan.content,path:moved.path};plan.link.path=moved.path;}}}
       const finishing:Awaited<ReturnType<typeof finishContent>>[]=[];
@@ -567,9 +593,10 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       const names=await finishBookNames(merged);if(names.changed)await publish(merged);state.archivePending=names.waiting;complete&&=!names.waiting;
       await uploads.clearClaims(merged);
       for(const id of Object.keys(state.movedSongs??{}))if(state.manifest.songs[id]&&merged.songs[id]&&state.manifest.songs[id].songbookId===merged.songs[id].songbookId||merged.deletedSongs?.[id])delete state.movedSongs![id];
+      for(const [id,receipt] of Object.entries(state.movedPublications??{}))if(merged.songs[id]?.fileId===receipt.fileId||merged.deletedSongs?.[id])delete state.movedPublications![id];
       for(const id of Object.keys(state.movedBooks??{}))if(state.manifest.books[id]&&merged.books[id]&&state.manifest.books[id].name===merged.books[id].name)delete state.movedBooks![id];
       for(const id of Object.keys(state.createdBooks??{}))if(state.manifest.books[id]&&merged.books[id]&&state.manifest.books[id].name===merged.books[id].name)delete state.createdBooks![id];
-      complete &&= !state.conflicts.length && !snapshot.songs.some(song => privateSong(song) && !merged.deletedSongs?.[song.id] && !readySongs[song.id]);
+      complete &&= !state.conflicts.length && !snapshot.songs.some(song => ownSong(song) && !merged.deletedSongs?.[song.id] && !readySongs[song.id]);
       complete &&= !Object.values(state.uploadIndex?.value.entries??{}).some(claim=>!claimReady(claim,merged));
       if(Object.values(readySongs).some(link=>snapshot.songs.some(song=>song.id===link.id)&&unprocessed(link))){complete=false;state.awaitingDownload=true;}
       state.pending = !complete;
@@ -585,9 +612,164 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       try {await save();} catch { /* The next safe run starts from durable progress. */ }
       // Unknown namespace launches and unpublished physical moves keep their
       // shared fence. Other devices must not overtake a delayed server job.
-      if(!state.archivePending&&!state.namespaceJob?.submitted&&!Object.keys(state.movedSongs??{}).length&&!Object.keys(state.movedBooks??{}).length&&!Object.keys(state.renames??{}).length)try{await fence.release();}catch{/* Same owner resumes; never expire an unknown release. */}
+      if(!state.archivePending&&!state.namespaceJob?.submitted&&!Object.keys(state.movedPublications??{}).length&&!Object.keys(state.movedSongs??{}).length&&!Object.keys(state.movedBooks??{}).length&&!Object.keys(state.renames??{}).length)try{await fence.release();}catch{/* Same owner resumes; never expire an unknown release. */}
       throw error;
     }
   }
-  return {run};
+  async function readPublicationInventory(fenced = false) {
+    await step(() => index.refresh());
+    const value = await step(() => fenced ? files.inspectFile!('/.app/library.json') : files.read('/.app/library.json'));
+    if (value) state.library = {id: value.id, rev: value.rev, value: parseManifest(value.text)};
+    else if (state.library) throw new SyncFailure({code: failureCodes.manifest, stage: 'sync.manifest'}, 'Kjent bibliotekmetadata mangler.');
+    return publicationCatalog(snapshot);
+  }
+
+  async function refreshPublication() {
+    manualRecovery = true;
+    await start();
+    const catalog = await readPublicationInventory();
+    const previous = state.publicationContent ?? {};
+    const content: NonNullable<SyncState['publicationContent']> = {};
+    await parallel(Array.from(catalog.records.values()), async ({id, local, link, entry}) => {
+      if (!entry?.id || !entry.rev || !link) return;
+      const basis = state.bases[id];
+      if (local && (!basis || local.original !== basis.original || entry.rev === basis.contentRev)) return;
+      const known = previous[entry.id];
+      if (known?.rev === entry.rev) {content[entry.id] = known; return;}
+      let value: FileValue | null;
+      try {value = await read(entry.id);}
+      catch (error) {if (error instanceof SkippedFile || error instanceof TypeError) return; throw error;}
+      if (!value || value.id !== entry.id || pathKey(value.path) !== pathKey(entry.path)) throw new RetrySync();
+      const {title, key, time} = parseChordPro(value.text, (link.origin.filename || entry.path.split('/').at(-1)!).replace(/\.[^.]+$/, ''));
+      content[entry.id] = {rev: value.rev, title, key, time};
+    });
+    state.publicationContent = content;
+    const view = publicationView(snapshot, identities);
+    await save();
+    return view;
+  }
+
+  async function savePublicationMoves() {
+    const receipts = state.movedPublications ?? {};
+    if (!Object.keys(receipts).length) return;
+    const {manifest, records} = publicationCatalog(snapshot);
+    const value = structuredClone(manifest);
+    const acknowledged: string[] = [];
+    for (const [id, receipt] of Object.entries(receipts)) {
+      const entry = records.get(id)?.entry, link = value.songs[id];
+      if (link?.fileId !== receipt.fileId || !entry || entry.id !== receipt.fileId) continue;
+      value.songs[id] = {...link, path: entry.path};
+      acknowledged.push(id);
+    }
+    if (!same(value, manifest)) {
+      const text = JSON.stringify(value);
+      parseManifest(text);
+      await write('/.app/library.json', text, state.library?.rev ?? null);
+    }
+    for (const id of acknowledged) {
+      if (state.manifest.songs[id]?.fileId === value.songs[id].fileId) state.manifest.songs[id] = value.songs[id];
+      state.reservations[id] = value.songs[id];
+      delete receipts[id];
+    }
+    await save();
+  }
+
+  async function executePublication(choices: PublicationChoice[], retryConflicts = false): Promise<PublicationResult> {
+    manualRecovery = true;
+    await start();
+    let verified = false, acquired = false, conflict = false, failure: unknown;
+    const desired = () => new Map(choices.map(choice => [identities.wireId('songs', choice.id), choice.published]));
+    try {
+      const preliminary = await readPublicationInventory();
+      verified = true;
+      const needsFirstUpload = [...desired()].some(([id, published]) => published && preliminary.records.get(id)?.local
+        && !preliminary.manifest.songs[id] && !state.manifest.songs[id]?.fileId && !preliminary.manifest.deletedSongs?.[id]);
+      if (needsFirstUpload && !snapshot.journal.recoveryRequired && !state.namespaceJob) {
+        // The ordinary, already authorized outbox prepares the initial Private
+        // file and sidecar. Publication never creates a replacement in Shared.
+        await run(false);
+        manualRecovery = true;
+        await start();
+      }
+      await fence.acquire();
+      acquired = true;
+      await readPublicationInventory(true);
+      await namespace.recover();
+      const {records, roots, find} = publicationCatalog(snapshot);
+      const targets = new Set<string>();
+      const moves: MoveEntry[] = [];
+      for (const [id, published] of desired()) {
+        const item = records.get(id), entry = item?.entry, link = item?.link;
+        if (!entry?.id || !entry.rev || !link) continue;
+        const location = songLocation(entry.path)!;
+        const area = published ? 'Shared' : 'Private';
+        if (location.area === area) {
+          if (link.path !== entry.path) (state.movedPublications ??= {})[id] = {...link, path: entry.path};
+          continue;
+        }
+        const root = roots.get(link.songbookId)!;
+        const parent = find(`${root.path}/${area}`);
+        if (!parent?.folder || !parent.id) continue;
+        if (Object.values(state.uploads ?? {}).some(job => job.songId === id && job.kind === 'content' && job.status === 'committing')) continue;
+        const basis = state.bases[id], local = item.local;
+        if (local && (!basis || local.original !== basis.original && entry.rev !== basis.contentRev)) {
+          let current: FileValue | null;
+          try {current = await read(entry.id);} catch (error) {if (error instanceof SkippedFile) {conflict = true; continue;} throw error;}
+          if (current?.id !== entry.id || current.rev !== entry.rev || current.text !== local.original && current.text !== basis?.original) {
+            conflict = true;
+            continue;
+          }
+        }
+        const base = `${parent.path}/${location.name}`;
+        let target = base, number = 1;
+        while (targets.has(pathKey(target)) || find(target)) target = numberedPath(base, ++number);
+        targets.add(pathKey(target));
+        moves.push({key: `publication:${id}`, from: entry.id, fileId: entry.id, to: target, toReference: `${parent.id}/${target.split('/').at(-1)}`,
+          link: {...link, path: target}, publication: {sourcePath: entry.path, rev: entry.rev}});
+      }
+      if (moves.length) await namespace.move(moves);
+      await savePublicationMoves();
+      await save();
+    } catch (error) {
+      failure = error;
+      // A terminated partial batch can have receipts from earlier chunks. If
+      // Dropbox is unreachable their journal remains under the shared fence.
+      if (acquired && !(error instanceof DeferredSync) && failureInfo(error).code !== failureCodes.network) {
+        try {await savePublicationMoves();} catch {/* A later run can commit the same receipts. */}
+      }
+      try {await save();} catch {/* Do not acknowledge a newer local generation. */}
+    } finally {
+      if (acquired && !state.namespaceJob?.submitted && !state.placement && !state.archivePending && !Object.keys(state.movedSongs ?? {}).length
+        && !Object.keys(state.movedPublications ?? {}).length && !Object.keys(state.movedBooks ?? {}).length && !Object.keys(state.renames ?? {}).length) {
+        try {await fence.release();} catch (error) {failure ??= error;}
+      }
+    }
+    if (retryConflicts && failure instanceof RetrySync) throw failure;
+    const {records} = publicationCatalog(snapshot);
+    const completed = verified ? choices.filter(choice => {
+      const entry = records.get(identities.wireId('songs', choice.id))?.entry;
+      return entry && (songLocation(entry.path)?.area === 'Shared') === choice.published;
+    }).map(choice => choice.id) : [];
+    const unavailable = failure instanceof DeferredSync && failure.reason === 'connection'
+      || [failureCodes.network, failureCodes.authentication, failureCodes.permission].some(code => code === failureInfo(failure).code);
+    const message = failure ? publicationError(failure) : conflict ? 'Synkroniser og avklar sangversjonen før du prøver de gjenstående valgene igjen.'
+      : completed.length !== choices.length ? 'Kontroller tilkoblingen og at sangene er synkronisert, og prøv de gjenstående valgene igjen.' : undefined;
+    return {view: publicationView(snapshot, identities), completed, message, unavailable};
+  }
+
+  async function sharedFolder(localBookId: string) {
+    manualRecovery = true;
+    await start();
+    const catalog = await readPublicationInventory();
+    const bookId = identities.wireId('books', localBookId);
+    const root = catalog.roots.get(bookId);
+    const shared = root && catalog.find(`${root.path}/Shared`);
+    if (!root || !shared?.folder || !shared.id) {
+      throw new SyncFailure({code: failureCodes.missingFolder, stage: 'publication.shared-folder'}, 'Sangboken må synkroniseres før den kan få en delingslenke.');
+    }
+    await save();
+    return {path: shared.path, id: shared.id};
+  }
+
+  return {run,refreshPublication,executePublication,sharedFolder};
 }

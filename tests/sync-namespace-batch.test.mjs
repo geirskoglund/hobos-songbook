@@ -98,9 +98,9 @@ test('namespace recovery: a known completed move with an omitted path cannot rep
  f.files.moveBatch=async entries=>{count++;return move(entries);};await run(f);assert.equal(count,1);assert.ok(f.entries.has('/songbooks/target/shared/moved.cho'));
 });
 
-test('namespace recovery: a definitively rejected transfer is recomputed after the file was moved to Shared',async()=>{
+test('AK39-04: a definitively rejected songbook transfer is recomputed from Shared to Private',async()=>{
  const f=multiple(1);f.change(d=>d.songbooks.push({id:'target',name:'Target'}));await run(f);const move=f.files.moveBatch;let first=true;f.files.moveBatch=async entries=>{if(first){first=false;throw new SyncFailure({code:failureCodes.permission,stage:'dropbox.request',status:403},'rejected');}return move(entries);};
- f.change(d=>{d.songs[0].songbookId='target';});await assert.rejects(f.run());const id=f.data.state.namespaceJob.entries[0].fileId;await f.files.move(id,'/Songbooks/Standard/Shared/moved.cho');await run(f);assert.ok(f.entries.has('/songbooks/standard/shared/moved.cho'));assert.equal(f.data.state.held['song-0'],true);
+ f.change(d=>{d.songs[0].songbookId='target';});await assert.rejects(f.run());const id=f.data.state.namespaceJob.entries[0].fileId;await f.files.move(id,'/Songbooks/Standard/Shared/moved.cho');await run(f);assert.equal(f.entries.get('/songbooks/target/private/moved.cho').id,id);assert.ok(!f.entries.has('/songbooks/standard/shared/moved.cho'));assert.equal(f.data.state.manifest.songs['song-0'].path,'/Songbooks/Target/Private/moved.cho');
 });
 
 test('namespace recovery: external rename between folder creation and its receipt preserves the sent component basis',async()=>{

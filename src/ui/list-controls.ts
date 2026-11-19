@@ -16,14 +16,22 @@ export function metadataRow(title: string, metadata: string[], choose: () => voi
 /** L05: one selected state and checkmark implementation for every choice row. */
 export function selectableRow(name: string, selected: boolean, choose: () => void) {
   const button = actionButton(name, choose); button.className = 'selectable-row';
-  button.setAttribute('role', 'option'); button.setAttribute('aria-selected', String(selected));
+  button.setAttribute('role', 'option');
   button.tabIndex = selected ? 0 : -1;
-  if (selected) {
+  setRowSelected(button, selected, 'aria-selected');
+  return button;
+}
+
+export function setRowSelected(button: HTMLButtonElement, selected: boolean, attribute: 'aria-selected' | 'aria-pressed') {
+  button.setAttribute(attribute, String(selected));
+  button.classList.toggle('row-selected', selected);
+  const existing = button.querySelector('.choice-check');
+  if (!selected) existing?.remove();
+  else if (!existing) {
     const check = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     check.setAttribute('viewBox', '0 0 24 24'); check.setAttribute('aria-hidden', 'true'); check.classList.add('choice-check');
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'm4 13 5 5 11-13'); check.append(path); button.append(check);
   }
-  return button;
 }
 
 function arrowNavigation(container: HTMLElement, items: HTMLButtonElement[] | (() => HTMLButtonElement[])) {
@@ -50,15 +58,15 @@ export function floatingAction(name: string, choose: () => void) {
 }
 
 /** H04: shared placement, focus and dismissal; actions supply only their meaning. */
-export function contextMenu(opener: HTMLButtonElement, actions: {name: string; icon: string; run: () => void}[], side: 'above' | 'below' = 'above') {
+export function contextMenu(opener: HTMLButtonElement, actions: {name: string; icon: string; run: () => void; disabled?: boolean}[], side: 'above' | 'below' = 'above') {
   const name = opener.getAttribute('aria-label') || opener.textContent || 'Handlinger';
   const box = dialogFrame(name, 'context-menu');
   const menu = document.createElement('div'); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', name);
   if (opener.id) {box.id = `${opener.id}-dialog`; menu.id = `${opener.id}-menu`; opener.setAttribute('aria-controls', menu.id);}
   const buttons = actions.map(action => {
     const button = actionButton(action.name, () => {lifecycle.close(); action.run();}, action.icon);
-    button.setAttribute('role', 'menuitem'); menu.append(button); return button;
-  });
+    button.setAttribute('role', 'menuitem'); button.disabled = Boolean(action.disabled); menu.append(button); return button;
+  }).filter(button => !button.disabled);
   box.append(menu); arrowNavigation(menu, buttons);
   opener.setAttribute('aria-expanded', 'true');
   const lifecycle = openDialog(box, {opener, focus: buttons[0], outside: true,
@@ -140,6 +148,19 @@ export function choicePicker(options: {opener: HTMLButtonElement; name: string; 
     closed: () => options.opener.setAttribute('aria-expanded', 'false')});
   control.focus();
   return lifecycle;
+}
+
+/** N01 trigger for the same D09 picker on each filtered library page. */
+export function songbookFilter(id: string, page: 'library' | 'publication', books: () => {id: string; name: string}[], selected: () => string | null, choose: (id: string | null) => void) {
+  const name = () => books().find(book => book.id === selected())?.name ?? 'Alle';
+  const button = actionButton('Alle', () => choicePicker({opener: button, name: 'Sangbok', value: name(), selected: selected(),
+    choices: [{id: null, name: 'Alle'}, ...[...books()].sort((a, b) => a.name.localeCompare(b.name, 'nb'))], choose}), 'sangbok');
+  button.id = id;
+  button.className = 'songbook-filter';
+  button.dataset.pageAction = page;
+  button.setAttribute('aria-haspopup', 'dialog');
+  button.setAttribute('aria-expanded', 'false');
+  return {button, render: () => {const text = name(); button.querySelector('span')!.textContent = text; button.setAttribute('aria-label', `Sangbok: ${text}`);}};
 }
 
 /** The collapsed value uses the same geometry in the picker and in a choice step. */
