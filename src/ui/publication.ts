@@ -67,11 +67,17 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
     return view.songs.filter(song => song.published === (active === 'published')
       && (selectedBook === null || song.songbookId === selectedBook));
   }
+  const allSelected = (songs: PublicationView['songs']) => songs.length > 0 && songs.every(song => chosen.has(song.id));
   const enabled = () => navigator.onLine && available && !checking && !executing;
   const selectAll = actionButton('Velg alle', () => {
     if (!enabled()) return;
+    const songs = visibleSongs();
+    const deselect = allSelected(songs);
     resultText = '';
-    for (const song of visibleSongs()) chosen.set(song.id, !song.published);
+    for (const song of songs) {
+      if (deselect) chosen.delete(song.id);
+      else chosen.set(song.id, !song.published);
+    }
     render();
   });
   selectAll.className = 'publication-select-all';
@@ -87,14 +93,15 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
       withdrawn ? `${files(withdrawn)} ${pending ? 'avpubliseres' : 'ble avpublisert'}` : ''].filter(Boolean).join(' · ');
   }
 
-  function renderActions() {
+  function renderActions(songs = visibleSongs()) {
     const published = [...chosen.values()].filter(Boolean).length;
     const withdrawn = chosen.size - published;
     const text = executing ? actionText(published, withdrawn, true) : resultText || `${published} valgt for publisering · ${withdrawn} for avpublisering`;
     if (text !== counts.textContent) counts.textContent = text;
     perform.toggleAttribute('data-syncing', executing);
     perform.disabled = !enabled() || !chosen.size;
-    selectAll.disabled = !enabled() || !visibleSongs().length;
+    selectAll.disabled = !enabled() || !songs.length;
+    selectAll.setAttribute('aria-pressed', String(allSelected(songs)));
   }
   function render() {
     filter.render();
@@ -124,7 +131,7 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
       empty.hidden = visible.length > 0 || checking;
     }
     status.hidden = !status.textContent;
-    renderActions();
+    renderActions(visible);
   }
   const offline = 'Uten nett. Publisering og avpublisering krever forbindelse til Dropbox.';
   async function open() {

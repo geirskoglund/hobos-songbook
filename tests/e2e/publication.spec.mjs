@@ -7,7 +7,7 @@ const url = '/hobos-songbook/test/';
 test.beforeEach(async ({request}) => {await request.post('/__test__/reset'); await mkdir('work/publication', {recursive: true});});
 const action = (page, name) => page.getByRole('button', {name, exact: true});
 async function go(page, name) {await openMenu(page); await action(page, name).click();}
-async function seed(page, context, options) {
+async function seed(page, context, {publishedInBand = false, ...options} = {}) {
   const mock = await dropboxMock(context, options);
   await page.goto(url);
   await expect.poll(() => mock.find('/.app/mutation.json') && JSON.parse(mock.find('/.app/mutation.json').text).owner).toBe(null);
@@ -23,6 +23,7 @@ async function seed(page, context, options) {
   song('zeda', 'Zulu', 'band', 'Private');
   song('bela', 'Alfa', 'band', 'Private');
   song('withdraw', 'Avpubliser meg', 'standard', 'Shared');
+  if (publishedInBand) song('band-shared', 'Delt i Band', 'band', 'Shared');
   song('hidden', 'Importert', 'standard', 'Private', true);
   for (let i = 0; i < 18; i++) song(`song-${i}`, `Sang ${String(i).padStart(2, '0')}`, 'standard', 'Shared');
   mock.put('/.app/library.json', JSON.stringify(manifest));
@@ -32,8 +33,8 @@ async function seed(page, context, options) {
 test.describe('Publisering på smal berøringsskjerm', () => {
   test.use({hasTouch: true, viewport: {width: 320, height: 560}});
 
-  test('AK39-01: touch separates the first song from Select all and only selects the active filtered tab', async ({page, context}) => {
-    await seed(page, context);
+  test('AK39-01: touch separates the first song from Select all and toggles only the active filtered tab', async ({page, context}) => {
+    await seed(page, context, {publishedInBand: true});
     await go(page, 'Publisering');
     const root = page.locator('#publication'), tabs = root.locator('.publication-tab-row');
     const all = action(page, 'Velg alle'), first = root.locator('.metadata-row').first();
@@ -58,18 +59,33 @@ test.describe('Publisering på smal berøringsskjerm', () => {
     await page.touchscreen.tap(x, song.y + 2);
     await expect(counts).toHaveText('1 valgt for publisering · 0 for avpublisering');
     await expect(first).toHaveAttribute('aria-pressed', 'true');
-    await page.touchscreen.tap(x, song.y + 2);
-    await expect(counts).toHaveText('0 valgt for publisering · 0 for avpublisering');
-    await page.touchscreen.tap(x, button.y + button.height - 2);
+    const tapAll = () => page.touchscreen.tap(x, button.y + button.height - 2);
+    await tapAll();
     await expect(counts).toHaveText('2 valgt for publisering · 0 for avpublisering');
+    await tapAll();
+    await expect(counts).toHaveText('0 valgt for publisering · 0 for avpublisering');
+    await expect(all).toHaveAttribute('aria-pressed', 'false');
+    await expect(root.locator('.choice-check')).toHaveCount(0);
+    await tapAll();
+    await expect(counts).toHaveText('2 valgt for publisering · 0 for avpublisering');
+    await expect(all).toHaveAttribute('aria-pressed', 'true');
 
     await page.getByRole('tab', {name: 'Publisert', exact: true}).tap();
-    await expect(all).toBeDisabled();
+    await expect(root.locator('.song-name')).toHaveText(['Delt i Band']);
+    await all.tap();
+    await expect(counts).toHaveText('2 valgt for publisering · 1 for avpublisering');
     await action(page, 'Sangbok: Band').tap();
     await page.getByRole('option', {name: 'Standard', exact: true}).tap();
     await geometry();
     await all.tap();
-    await expect(counts).toHaveText('2 valgt for publisering · 19 for avpublisering');
+    await expect(counts).toHaveText('2 valgt for publisering · 20 for avpublisering');
+    await all.tap();
+    await expect(counts).toHaveText('2 valgt for publisering · 1 for avpublisering');
+    await expect(all).toHaveAttribute('aria-pressed', 'false');
+    await expect(root.locator('.choice-check')).toHaveCount(0);
+    await action(page, 'Sangbok: Standard').tap();
+    await page.getByRole('option', {name: 'Band', exact: true}).tap();
+    await expect(all).toHaveAttribute('aria-pressed', 'true');
   });
 });
 
