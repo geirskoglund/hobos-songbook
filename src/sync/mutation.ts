@@ -32,7 +32,8 @@ export function mutationFence(files:RemoteFiles,state:SyncState,hooks:{check():P
   // The exact revision is the ownership proof, including when an older release
   // response was lost. A fresh acquire always precedes any subsequent write.
   await hooks.check();
-  try{await files.write(mutationPath,JSON.stringify({version:1,owner:null,libraryRev:state.library?.rev??null}),revision!);}
+  const text=JSON.stringify({version:1,owner:null,libraryRev:state.library?.rev??null});
+  try{if(files.releaseMutation)await files.releaseMutation(text,revision!);else await files.write(mutationPath,text,revision!);}
   catch(error){if(error instanceof SyncFailure&&error.info.code===failureCodes.changed)throw new RetrySync();throw error;}
   held=false;state.mutationPending=false;await hooks.save();
  }

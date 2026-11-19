@@ -1,4 +1,4 @@
-import {DeferredSync,RetrySync,SyncFailure,failureCodes} from './failure.ts';
+import {DeferredSync,RetrySync,SyncFailure,MoveStatusUnconfirmed,failureCodes} from './failure.ts';
 import {numberedPath} from './filenames.ts';
 import {metadataView,pathKey} from './remote.ts';
 import type {FileValue,MoveReply,MoveResult,RemoteEntry,RemoteFiles,SyncState,UploadJob,UploadResult} from './model.ts';
@@ -118,8 +118,25 @@ export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():P
    if(hooks.receipt)await hooks.receipt(pending);else await hooks.save();
    await hooks.check();return apply(reply);
   };
+  const checkStatus=async(id:string):Promise<MoveReply>=>{
+   if(!files.checkMoveBatch)throw new Error('Missing batch status support');
+   try{return await files.checkMoveBatch(id,pending.retryAttempt);}
+   catch(error){
+    if(!(error instanceof MoveStatusUnconfirmed))throw error;
+    const inspectMeta=await metadata(),entries:MoveResult[]=[];
+    for(const entry of pending.entries){
+     const reference=entry.toReference?.split('/')[0];
+     const parent=reference?await inspectMeta(reference):null;
+     const actual=await inspectMeta(entry.fileId);
+     const target=parent?`${parent.path}/${entry.to.split('/').at(-1)}`:entry.to;
+     if(reference&&(!parent?.folder||parent.id!==reference)||actual?.id!==entry.fileId||actual.folder||pathKey(actual.path)!==pathKey(target))throw error;
+     entries.push({value:{id:actual.id,path:actual.path,rev:actual.rev}});
+    }
+    return{entries};
+   }
+  };
   let reply:MoveReply;
-  if(pending.jobId){if(!files.checkMoveBatch)throw new Error('Missing batch status support');reply=await files.checkMoveBatch(pending.jobId,pending.retryAttempt);}
+  if(pending.jobId)reply=await checkStatus(pending.jobId);
   else {
    // A lost launch response replays the exact literal source paths. An older
    // server job can never fetch the file again from its final name or a new ID.
@@ -131,7 +148,7 @@ export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():P
   for(const delay of [0,250,750,1500,3000]){
    if(!pending.jobId)break;
    for(let left=delay;left>0;left-=100){await hooks.check();await new Promise(resolve=>setTimeout(resolve,Math.min(left,100)));}
-   await hooks.check();reply=await files.checkMoveBatch!(pending.jobId,pending.retryAttempt);
+   await hooks.check();reply=await checkStatus(pending.jobId);
    if(await receive(reply))return;
   }
   throw new DeferredSync('connection','Flytting pågår hos Dropbox.');

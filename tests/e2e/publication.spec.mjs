@@ -331,6 +331,36 @@ test('AK39-03: a terminal HTTP 429 settles earlier confirmed batches within the 
   expect(mock.find(remainingId).path_display).toMatch(/^\/Songbooks\/Band\/Private\//);
 });
 
+test('AK39-03: a move status internal_error confirms a physically finished job without replay', async ({page, context}) => {
+  const mock = await seed(page, context);
+  await go(page, 'Publisering');
+  const root = page.locator('#publication'), counts = root.locator('.publication-actions p');
+  const path = '/Songbooks/Band/Shared/bela.cho';
+  const fileId = mock.find('/Songbooks/Band/Private/bela.cho').id;
+  const start = mock.calls.length;
+  let checks = 0;
+  mock.asyncMove(0);
+  await context.route('https://api.dropboxapi.com/2/files/move_batch/check_v2', route => {
+    checks++;
+    mock.finishMoves();
+    return route.fulfill({status: 409, json: {error: {'.tag': 'internal_error'}}});
+  });
+  await root.getByRole('button', {name: 'Alfa, G, 3/4'}).click();
+  await action(page, 'Utfør').click();
+  await expect(counts).toHaveText('1 fil ble publisert');
+  expect(checks).toBe(1);
+  expect(mock.find(path).id).toBe(fileId);
+  expect(JSON.parse(mock.find('/.app/library.json').text).songs.bela.path).toBe(path);
+  expect(JSON.parse(mock.find('/.app/mutation.json').text).owner).toBe(null);
+  await root.getByRole('button', {name: 'Zulu, G, 3/4'}).click();
+  await action(page, 'Utfør').click();
+  await expect(counts).toHaveText('1 fil ble publisert');
+  const calls = mock.calls.slice(start);
+  expect(calls.filter(call => call.endpoint.endsWith('/move_batch_v2')).map(call => call.args.entries.length)).toEqual([1, 1]);
+  expect(calls.filter(call => call.endpoint.endsWith('/get_metadata'))).toHaveLength(0);
+  expect(checks).toBe(1);
+});
+
 test('AK39-05: the songbook H04 action creates and reuses one read link, with manual copy fallback', async ({page, context}) => {
   const mock = await seed(page, context, {sharing: true});
   await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {writeText: async text => {window.copied = text;}}}));
@@ -389,6 +419,48 @@ test('AK39-05: a rejected share creation verifies the active folder again after 
   expect(creates()).toHaveLength(1);
   expect(mock.links.size).toBe(0);
   expect(JSON.parse(mock.find('/.app/mutation.json').text).owner).toBe(null);
+});
+
+test('AK39-05: terminal 429 on a link lookup releases the account fence within the same run', async ({page, context, browser}) => {
+  const mock = await dropboxMock(context, {sharing: true});
+  const lockOwner = () => mock.find('/.app/mutation.json') && JSON.parse(mock.find('/.app/mutation.json').text).owner;
+  await page.goto(url);
+  await expect.poll(lockOwner).toBe(null);
+  await importAndOpenSong(page, 'Prøve.cho', '{t: Prøvesang}\nTest');
+  await goSongs(page);
+  await expect.poll(() => Object.keys(JSON.parse(mock.find('/.app/library.json').text).songs).length).toBe(1);
+  await expect.poll(lockOwner).toBe(null);
+  const peer = await browser.newContext({serviceWorkers: 'block'});
+  const copyLink = async page => {
+    await go(page, 'Sangbøker');
+    await action(page, 'Handlinger for Standard').click();
+    await page.getByRole('menuitem', {name: 'Kopier delingslenke', exact: true}).click();
+  };
+  try {
+    const second = await dropboxMock(peer, {sharing: true, backend: mock});
+    const otherPage = await peer.newPage();
+    await otherPage.goto(url);
+    await go(otherPage, 'Synkronisering');
+    await action(otherPage, 'Synkroniser').click();
+    await expect(otherPage.locator('#sync-status')).toContainText('Sist synkronisert');
+    const start = mock.calls.length;
+    mock.fault('/list_shared_links', 429, 0, {repeat: 3, retryAfter: 1});
+    await copyLink(page);
+    await expect(page.getByText('Kunne ikke hente delingslenken fra Dropbox. Prøv igjen.')).toBeVisible({timeout: 16000});
+    const calls = mock.calls.slice(start);
+    expect(calls.filter(call => call.endpoint.endsWith('/list_shared_links'))).toHaveLength(3);
+    expect(calls.filter(call => call.endpoint.endsWith('/create_shared_link_with_settings'))).toHaveLength(0);
+    expect(calls.filter(call => call.endpoint.endsWith('/upload')).map(call => call.args.path)).toEqual(['/.app/mutation.json', '/.app/mutation.json']);
+    expect(lockOwner()).toBe(null);
+    const until = await page.evaluate(() => JSON.parse(localStorage.getItem('hobos-songbook-test:dropbox-rate-v1')).until);
+    expect(Date.now()).toBeGreaterThanOrEqual(until);
+
+    await go(otherPage, 'Publisering');
+    await action(otherPage, 'Velg alle').click();
+    await action(otherPage, 'Utfør').click();
+    await expect(otherPage.locator('.publication-actions p')).toHaveText('1 fil ble publisert');
+    expect(second.calls.filter(call => call.endpoint.endsWith('/move_batch_v2')).map(call => call.args.entries.length)).toEqual([1]);
+  } finally {await peer.close();}
 });
 
 test('AK39-04: cancel leaves both songs in place, confirmed offline deletion moves them privately and archives the book', async ({page, context}) => {

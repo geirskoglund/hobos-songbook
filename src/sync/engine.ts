@@ -4,7 +4,7 @@ import {songbookName} from '../domain/songbook.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
 import type {syncStorage, SyncSnapshot} from '../storage/sync.ts';
 import {direction, emptyManifest, hash, mergeManifest, ownSong, parseManifest, parsePersonal, personalData, same, songLocation, type BookLink, type Conflict, type FileValue, type Manifest, type MoveEntry, type NamespaceJob, type FolderEntry, type PersonalFile, type PublicationChoice, type PublicationResult, type RemoteFiles, type SongLink, type SyncState, type UploadIntent, type UploadJob} from './model.ts';
-import {DeferredSync, failureCodes, failureInfo, SyncFailure,RetrySync} from './failure.ts';
+import {DeferredSync, failureCodes, failureInfo, MoveStatusUnconfirmed, SyncFailure, RetrySync} from './failure.ts';
 import {indexedFiles,pathKey} from './remote.ts';
 import {syncIdentities} from './identities.ts';
 import {uploadQueue} from './uploads.ts';
@@ -496,7 +496,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
         if(error instanceof SkippedFile){(state.skipped??={})[id]=true;return;}
         state.failure=failureInfo(error,'sync.song');hooks.failed?.(error);
       }
-      function fatal(error:unknown){return error instanceof DeferredSync||error instanceof SyncFailure&&[failureCodes.network,failureCodes.authentication,failureCodes.permission,failureCodes.throttled].some(code=>code===error.info.code);}
+      function fatal(error:unknown){return error instanceof DeferredSync||error instanceof MoveStatusUnconfirmed||error instanceof SyncFailure&&[failureCodes.network,failureCodes.authentication,failureCodes.permission,failureCodes.throttled].some(code=>code===error.info.code);}
       async function send(intents:UploadIntent[]){
         try{const results=await uploads.write(intents);for(const intent of intents){const result=results.get(intent.key);if(result&&'failure'in result)fail(intent.songId,new SyncFailure(result.failure,'En fil ble ikke overført.'));}return results;}
         catch(error){if(fatal(error))throw error;for(const intent of intents)fail(intent.songId,error);await save();return new Map();}
@@ -623,7 +623,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       try {await save();} catch { /* The next safe run starts from durable progress. */ }
       // Unknown namespace launches and unpublished physical moves keep their
       // shared fence. Other devices must not overtake a delayed server job.
-      if(!state.archivePending&&!state.namespaceJob?.submitted&&!Object.keys(state.movedPublications??{}).length&&!Object.keys(state.movedSongs??{}).length&&!Object.keys(state.movedBooks??{}).length&&!Object.keys(state.renames??{}).length)try{await fence.release();}catch{/* Same owner resumes; never expire an unknown release. */}
+      if(!hasUnconfirmedNamespaceChanges())try{await fence.release();}catch{/* Same owner resumes; never expire an unknown release. */}
       throw error;
     }
   }
@@ -772,7 +772,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     } finally {
       publicationMoves = undefined;
       if (acquired && !hasUnconfirmedNamespaceChanges()) {
-        try {await settlePublication(fence.release);} catch (error) {failure ??= error;}
+        try {await fence.release();} catch (error) {failure ??= error;}
       }
     }
     if (retryConflicts && failure instanceof RetrySync) throw failure;

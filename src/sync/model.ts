@@ -40,6 +40,7 @@ export interface RemoteIndex {cursor: string; entries: Record<string, RemoteEntr
 export interface RemoteFiles {
   read(path: string, knownPath?:string): Promise<FileValue | null>;
   write(path: string, text: string, rev: string | null): Promise<FileValue>;
+  releaseMutation?(text: string, rev: string): Promise<FileValue>;
   beginUpload?(text:string):Promise<UploadSession>;
   beginUploadBatch?(texts:string[]):Promise<BeginUploadResult[]>;
   commitBatch?(jobs:UploadJob[]):Promise<UploadResult[]>;

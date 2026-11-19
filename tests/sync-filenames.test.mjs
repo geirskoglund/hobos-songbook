@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture,song} from './sync-fixture.mjs';
-import {SyncFailure,failureCodes,RetrySync} from '../src/sync/failure.ts';
+import {MoveStatusUnconfirmed,SyncFailure,failureCodes,RetrySync} from '../src/sync/failure.ts';
 import {hash,newSyncState,emptyJournal} from '../src/sync/model.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 
@@ -57,6 +57,35 @@ test('names: async placement stores its job ID, stops without a timer and resume
  assert.equal(f.data.state.placement.jobId,'move-job');assert.equal(f.data.state.lastManual,undefined);assert.equal(launches,1);assert.ok(checks>=1&&checks<=6);
  const stopped=checks;await new Promise(resolve=>setTimeout(resolve,20));assert.equal(checks,stopped,'no checks after the allowed run has returned');
  complete=true;await retry(f);assert.equal(launches,1);assert.equal(songs(f).length,1);assert.equal(f.data.state.pending,false);assert.equal(f.data.state.placement,undefined);
+});
+
+test('names: an async status error resolves an already placed staging file by ID', async () => {
+ const f=fixture(), move=f.files.moveBatch;
+ let staged, launches=0;
+ f.files.moveBatch=async entries=>{
+  if(entries.some(entry=>entry.to.includes('/Private/'))){
+   launches++;
+   staged=structuredClone(entries);
+   return{asyncJobId:'accepted-placement'};
+  }
+  return move(entries);
+ };
+ f.files.checkMoveBatch=async id=>{
+  assert.equal(id,'accepted-placement');
+  throw new MoveStatusUnconfirmed({code:failureCodes.changed,stage:'dropbox.move-batch',status:409},'status unavailable');
+ };
+ await assert.rejects(f.run(),MoveStatusUnconfirmed);
+ assert.equal(f.data.state.placement.jobId,'accepted-placement');
+ assert.ok(JSON.parse(f.entries.get('/.app/mutation.json').text).owner);
+ await move(staged);
+ const start=f.calls.length;
+ await retry(f);
+ assert.equal(launches,1);
+ assert.equal(manifest(f).songs.one.fileId,staged[0].fileId);
+ assert.equal(manifest(f).songs.one.path,staged[0].to);
+ assert.equal(f.data.state.placement,undefined);
+ assert.equal(JSON.parse(f.entries.get('/.app/mutation.json').text).owner,null);
+ assert.equal(f.calls.slice(start).filter(([kind])=>kind==='metadata').length,0);
 });
 
 test('names: lost move launch, destination collision and a late old server job cannot move the final file again',async()=>{

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {syncEngine} from '../src/sync/engine.ts';
-import {SyncFailure, failureCodes} from '../src/sync/failure.ts';
+import {MoveStatusUnconfirmed, SyncFailure, failureCodes} from '../src/sync/failure.ts';
 import {fixture, song} from './sync-fixture.mjs';
 
 const engine = f => syncEngine(f.storage, f.files, 'account', {valid: () => true, changed() {}});
@@ -167,6 +167,43 @@ test('AK39-03: a batch internal error acknowledges only the move verified at its
   assert.equal(f.calls.slice(start).filter(([kind]) => kind === 'metadata').length, 0);
   assert.deepEqual(moves(f, start), [1]);
   assert.equal(JSON.parse(f.entries.get('/.app/mutation.json').text).owner, null);
+});
+
+test('AK39-03: a partial status error retains the job ID until all moved files are verified', async () => {
+  const f = fixture();
+  f.change(d => d.songs.push(withSource('two', 'standard')));
+  await f.run();
+  const move = f.files.moveBatch;
+  let planned, launches = 0, checks = 0;
+  f.files.moveBatch = async entries => {
+    launches++;
+    planned = entries;
+    await move([entries[0]]);
+    return {asyncJobId: 'accepted-job'};
+  };
+  f.files.checkMoveBatch = async id => {
+    assert.equal(id, 'accepted-job');
+    checks++;
+    throw new MoveStatusUnconfirmed({code: failureCodes.changed, stage: 'dropbox.move-batch', status: 409}, 'status unavailable');
+  };
+  const lock = () => JSON.parse(f.entries.get('/.app/mutation.json').text).owner;
+  const start = f.calls.length;
+  const first = await engine(f).executePublication([change('one'), change('two')]);
+  assert.deepEqual(first.moved, ['one']);
+  assert.equal(f.data.state.namespaceJob.jobId, 'accepted-job');
+  assert.ok(lock());
+  const stillPending = await engine(f).executePublication([change('two')]);
+  assert.deepEqual(stillPending.moved, []);
+  assert.equal(f.data.state.namespaceJob.jobId, 'accepted-job');
+  assert.ok(lock());
+  await move([planned[1]]);
+  const recovered = await engine(f).executePublication([change('two')]);
+  assert.deepEqual(recovered.moved, ['two']);
+  assert.equal(f.data.state.namespaceJob, undefined);
+  assert.equal(lock(), null);
+  assert.equal(launches, 1);
+  assert.equal(checks, 3);
+  assert.equal(f.calls.slice(start).filter(([kind]) => kind === 'metadata').length, 0);
 });
 
 test('AK39-03: a file now in Originals is shown as unpublished and cannot be moved by Utfør', async () => {

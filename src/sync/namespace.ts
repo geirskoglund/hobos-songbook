@@ -1,4 +1,4 @@
-import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch,MovePlanNeedsRefresh} from './failure.ts';
+import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch,MovePlanNeedsRefresh,MoveStatusUnconfirmed} from './failure.ts';
 import {metadataView,pathKey} from './remote.ts';
 import {ownSong,songLocation} from './model.ts';
 import type {BookLink,DeleteEntry,FolderEntry,MoveEntry,MoveReply,MoveResult,NamespaceJob,RemoteEntry,RemoteFiles,SyncState} from './model.ts';
@@ -154,7 +154,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   }
   return true;
  }
- async function observeUnknown(job:NamespaceJob){
+ async function observeUnknown(job:NamespaceJob,requireMoveProof=false){
   // A lost nonce-folder create cannot overwrite or move any existing ID. Once
   // every old path is durably reserved, a fresh nonce may be used. Never reuse
   // this rule for ID moves, mixed batches or a job with a usable receipt/ID.
@@ -165,7 +165,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   if(publicationJob(job)){
    for(const entry of job.entries as MoveEntry[]){
     const target=await publicationTarget(entry),actual=await inspect(entry.fileId);
-    if(actual&&!actual.folder&&target&&pathKey(actual.path)===pathKey(target.path)){
+    if(actual?.id===entry.fileId&&!actual.folder&&target&&pathKey(actual.path)===pathKey(target.path)){
      hooks.moved(entry,{id:entry.fileId,path:actual.path});entries.push({value:{id:entry.fileId,path:actual.path,rev:actual.rev}});
     }
    }
@@ -176,10 +176,10 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   for(const item of job.entries){
    if(job.kind==='move'){
     const entry=item as MoveEntry,actual=await inspect(entry.fileId);
-    if(!actual){if(entry.archive)throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-move'},'Arkivflyttingen er fortsatt uavklart.');entries.push({failure:{code:failureCodes.missingFile,stage:stage('move')},missing:true});continue;}
+    if(!actual){if(entry.archive||requireMoveProof)throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-move'},'Flyttingen er fortsatt uavklart.');entries.push({failure:{code:failureCodes.missingFile,stage:stage('move')},missing:true});continue;}
     const reference=entry.toReference?.split('/')[0],parent=reference?(hooks.find(reference)??await inspect(reference)):null;
     const target=parent?parent.path+'/'+entry.to.split('/').at(-1):entry.to;
-    if(pathKey(actual.path)!==pathKey(target))throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-move'},'Flyttingen er fortsatt uavklart.');
+    if(actual.id!==entry.fileId||Boolean(actual.folder)!==Boolean(entry.folder)||requireMoveProof&&reference&&(!parent?.folder||parent.id!==reference)||pathKey(actual.path)!==pathKey(target))throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-move'},'Flyttingen er fortsatt uavklart.');
     entries.push({value:{id:entry.fileId,path:actual.path,folder:actual.folder,rev:actual.rev}});
    }else{
     const entry=item as FolderEntry,actual=await inspect(entry.path);
@@ -250,7 +250,14 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    if(!job.jobId){if(await launch(job,false,plannedNow,revalidations))return;continue;}
    for(let left=delay;left>0;left-=100){await hooks.check();await new Promise(resolve=>setTimeout(resolve,Math.min(100,left)));}
    await hooks.check();let reply:MoveReply;
-   try{reply=await check(job.jobId,job.attempt);}catch(error){if(error instanceof BatchJobFailed){delete state.namespaceJob;if(error.info.code===failureCodes.throttled&&job.attempt<2&&(!publicationJob(job)||plannedNow)){state.namespaceJob={id:crypto.randomUUID(),kind:job.kind,entries:job.entries,attempt:job.attempt+1};await hooks.save();await recover(true);return;}await hooks.save();if(publicationJob(job))return;if(error.info.code===failureCodes.throttled)throw error;throw new RetrySync();}throw error;}
+   try{reply=await check(job.jobId,job.attempt);}catch(error){
+    if(error instanceof MoveStatusUnconfirmed&&job.kind==='move'){
+     await refresh();await authorize(job);
+     return observeUnknown(job,true);
+    }
+    if(error instanceof BatchJobFailed){delete state.namespaceJob;if(error.info.code===failureCodes.throttled&&job.attempt<2&&(!publicationJob(job)||plannedNow)){state.namespaceJob={id:crypto.randomUUID(),kind:job.kind,entries:job.entries,attempt:job.attempt+1};await hooks.save();await recover(true);return;}await hooks.save();if(publicationJob(job))return;if(error.info.code===failureCodes.throttled)throw error;throw new RetrySync();}
+    throw error;
+   }
    await receipt(job,reply);if(await apply(job,reply,false,plannedNow))return;
   }
   if(publicationJob(job))throw new SyncFailure({code:failureCodes.changed,stage:stage('move'),action:'check-move'},'Dropbox-jobben er ikke ferdig.');

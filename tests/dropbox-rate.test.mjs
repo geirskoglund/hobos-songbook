@@ -23,9 +23,16 @@ test('move settlement respects an HTTP 429 beyond the remaining wait budget',()=
  const gate=dropboxRate('rate',()=> 'account',()=>{},()=>{}), requests=[];
  const exhausted=error=>error.info.code===failureCodes.throttled&&error.info.stage==='dropbox.move-batch';
  await assert.rejects(gate.send('files/move_batch_v2',async()=>{requests.push('move');return limited(60);},undefined,{movePlanAttempt:2}),exhausted);
- await assert.rejects(gate.send('files/list_folder/continue',async()=>{requests.push('metadata');return new Response('unexpected');},undefined,{finishMove:true}),exhausted);
+ await assert.rejects(gate.send('files/list_folder/continue',async()=>{requests.push('metadata');return new Response('unexpected');},undefined,{settlement:'move-receipt'}),exhausted);
  await assert.rejects(gate.send('files/move_batch_v2',async()=>{requests.push('move');return new Response('unexpected');}),exhausted);
  assert.deepEqual(requests,['move']);
+}));
+test('a fence release respects an HTTP 429 beyond the remaining wait budget',()=>setup(async()=>{
+ const gate=dropboxRate('rate',()=> 'account',()=>{},()=>{}), requests=[];
+ const exhausted=error=>error.info.code===failureCodes.throttled&&error.info.retryAfterMs>30000;
+ await assert.rejects(gate.send('sharing/list_shared_links',async()=>{requests.push('lookup');return limited(60);}),exhausted);
+ await assert.rejects(gate.send('files/upload',async()=>{requests.push('release');return new Response('unexpected');},undefined,{settlement:'fence-release'}),exhausted);
+ assert.deepEqual(requests,['lookup']);
 }));
 test('a shared cooldown prevents new requests and serializes remaining writes after 429',()=>setup(async()=>{
  const gate=dropboxRate('rate',()=> 'account',()=>{},()=>{});let resolveFirst,first=true,limitedAt=0;const started=new Promise(resolve=>resolveFirst=resolve),starts=[];let active=0,maxAfter=0;

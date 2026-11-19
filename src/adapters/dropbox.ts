@@ -1,7 +1,8 @@
 import type {AppEnvironment} from '../environment.ts';
 import type {FileValue, RemoteFiles, RemoteEntry,UploadResult,MoveReply} from '../sync/model.ts';
 import {checkSize,textBytes,maxFileBytes,maxBatchAppendBytes,SkippedFile} from '../sync/limits.ts';
-import {DeferredSync,SubmittedBatchInterruption, failureCodes, SyncFailure,BatchJobFailed,UnsentBatch,MovePlanNeedsRefresh} from '../sync/failure.ts';
+import {DeferredSync,SubmittedBatchInterruption, failureCodes, SyncFailure,BatchJobFailed,UnsentBatch,MovePlanNeedsRefresh,MoveStatusUnconfirmed} from '../sync/failure.ts';
+import {mutationPath} from '../sync/mutation.ts';
 import type {ApiEvent,ApiContext} from '../sync/diagnostics.ts';
 import {DropboxError,dropboxRate} from './dropbox-rate.ts';
 export {DropboxError} from './dropbox-rate.ts';
@@ -13,7 +14,7 @@ export function dropboxConfig(channel: AppEnvironment['channel']) {
 interface Credentials {version: 1; accountId: string; name: string; email: string; accessToken: string; refreshToken: string; expires: number; scopes?: string[]}
 interface Pending {state: string; verifier: string; redirect: string; created: number; sharing?: {accountId: string; bookId: string}}
 export interface SharingConsent {bookId: string; authorized: boolean}
-interface RequestOptions {finishMove?: boolean; movePlanAttempt?: number; beforeSend?: () => void | Promise<void>}
+interface RequestOptions {finishMove?: boolean; releaseFence?: boolean; movePlanAttempt?: number; beforeSend?: () => void | Promise<void>}
 const apiArg = (value: unknown) => JSON.stringify(value).replace(/[^\u0000-\u007f]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
 const contentRoutes = new Set(['files/download', 'files/upload', 'files/upload_session/start', 'files/upload_session/append_batch']);
 const moveReceiptReads = new Set(['files/list_folder', 'files/list_folder/continue', 'files/get_metadata', 'oauth2/token']);
@@ -41,7 +42,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       let headers=init.headers;
       if(attempt)try{
         if(/^(files|sharing)\//.test(operation)&&headers&&Object.keys(headers).some(key=>key.toLowerCase()==='authorization')){
-          headers={...(headers as Record<string,string>),Authorization:`Bearer ${await access()}`};
+          headers={...(headers as Record<string,string>),Authorization:`Bearer ${await access(undefined, options.releaseFence)}`};
         }
         await check();
       }catch(error){
@@ -61,7 +62,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       details={...details,requestId:response.headers.get('X-Dropbox-Request-Id')??undefined};
       if(transform)try{return await transform(response);}catch(error){Object.defineProperty(response,'transformFailure',{value:error});}
       return response;
-    },()=>details,{movePlanAttempt:options.movePlanAttempt,finishMove:finishingMove>0&&(options.finishMove||moveReceiptReads.has(operation))});
+    },()=>details,{movePlanAttempt:options.movePlanAttempt,settlement:options.releaseFence?'fence-release':finishingMove>0&&(options.finishMove||moveReceiptReads.has(operation))?'move-receipt':undefined});
   }
   async function json(response: Response, stage = 'dropbox.request') {
     try {return await response.json();} catch (cause) {throw new SyncFailure({code:cause instanceof SyntaxError?failureCodes.response:failureCodes.network,stage,status:response.status},'Dropbox-responsen kunne ikke leses.',cause);}
@@ -74,9 +75,9 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
   }
   const account = () => {const value = credentials(); return value && {id: value.accountId, name: value.name, email: value.email};};
   const sharingAllowed = () => {const scopes = credentials()?.scopes; return Array.isArray(scopes) && sharingScopes.every(scope => scopes.includes(scope));};
-  async function token(body: URLSearchParams) {
+  async function token(body: URLSearchParams, releaseFence=false) {
     const ticket=invalidated,refresh=body.get('refresh_token');
-    const response = await send('oauth2/token', {method: 'POST', body, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
+    const response = await send('oauth2/token', {method: 'POST', body, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},undefined,{}, {releaseFence});
     if (!response.ok) {
       const problem=await response.json().catch(()=>null),expired=response.status===400&&problem?.error==='invalid_grant';
       if((expired||response.status===401)&&refresh&&ticket===invalidated&&credentials()?.refreshToken===refresh)localStorage.removeItem(authKey);
@@ -86,13 +87,13 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     if(typeof value?.access_token!=='string'||!value.access_token||typeof value.expires_in!=='number'||!Number.isFinite(value.expires_in)||value.expires_in<0)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.token'},'Ugyldig tokenrespons.');
     return value;
   }
-  async function access(onRenew?: () => void) {
+  async function access(onRenew?: () => void, releaseFence=false) {
     return navigator.locks.request(`${env.namespace}:dropbox-token`, async () => {
       let value = credentials(); if (!value) throw new DeferredSync('connection','Dropbox er frakoblet.');
       if (value.expires > Date.now() + 60000) return value.accessToken;
       const epoch = invalidated, previous = value.refreshToken;
       onRenew?.();
-      const next = await token(new URLSearchParams({grant_type: 'refresh_token', refresh_token: previous, client_id: config.key}));
+      const next = await token(new URLSearchParams({grant_type: 'refresh_token', refresh_token: previous, client_id: config.key}), releaseFence);
       value = credentials();
       if (epoch !== invalidated || value?.refreshToken !== previous) throw new DeferredSync('connection','Dropbox-tilkoblingen er endret.');
       value.accessToken = next.access_token; value.expires = Date.now() + next.expires_in * 1000;
@@ -173,6 +174,10 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     if (!response.ok) {
       const problem = await response.json().catch(() => ({}));
       const summary = typeof problem?.error_summary === 'string' ? problem.error_summary : 'request';
+      const tag = problem?.error?.['.tag'];
+      if (path==='files/move_batch/check_v2' && response.status===409 && (tag==='internal_error'||tag===undefined&&/^internal_error(?:\/|$)/.test(summary))) {
+        throw new MoveStatusUnconfirmed({code:failureCodes.changed,stage:'dropbox.move-batch',status:409,action:'check-move'}, 'Dropbox kunne ikke bekrefte statusen for flyttingen.');
+      }
       if (path.startsWith('sharing/') && (problem?.error?.['.tag'] === 'missing_scope' || /^missing_scope(?:\/|$)/.test(summary))) {
         const current = credentials();
         if (current?.scopes) localStorage.setItem(authKey, JSON.stringify({...current, scopes: current.scopes.filter(scope => !sharingScopes.includes(scope))}));
@@ -290,6 +295,15 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     }
     throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.sharing-verification'}, 'Kunne ikke bekrefte lesetilgang til sangbokens delingsmappe.');
   }
+  async function writeFile(path: string, text: string, rev: string | null, releaseFence=false) {
+    checkSize(textBytes(text));
+    await beforeRequest(); const accessToken = await access(undefined, releaseFence); await beforeRequest();
+    const args = {path, mode: rev ? {'.tag': 'update', update: rev} : {'.tag': 'add'}, autorename: false, strict_conflict: true, mute: true};
+    const response = await send('files/upload', {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/octet-stream', 'Dropbox-API-Arg': apiArg(args)}, body: new TextEncoder().encode(text), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},undefined,{resource:resource(path)},{releaseFence,finishMove:path==='/.app/library.json'});
+    await beforeRequest();
+    if (!response.ok) {if (response.status===401) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); throw new DropboxError(response.status, value.error_summary ?? 'upload');}
+    return fileValue(await json(response,'dropbox.upload'), text,path);
+  }
   const files: RemoteFiles = {
     async withMoveReceipt(work){
       finishingMove++;
@@ -344,15 +358,8 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
       return fileValue(meta, new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(bytes),knownPath??path);
     },
-    async write(path, text, rev) {
-      checkSize(textBytes(text));
-      await beforeRequest(); const accessToken = await access(); await beforeRequest();
-      const args = {path, mode: rev ? {'.tag': 'update', update: rev} : {'.tag': 'add'}, autorename: false, strict_conflict: true, mute: true};
-      const response = await send('files/upload', {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/octet-stream', 'Dropbox-API-Arg': apiArg(args)}, body: new TextEncoder().encode(text), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},undefined,{resource:resource(path)},{finishMove:path==='/.app/library.json'||path==='/.app/mutation.json'});
-      await beforeRequest();
-      if (!response.ok) {if (response.status===401) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); throw new DropboxError(response.status, value.error_summary ?? 'upload');}
-      return fileValue(await json(response,'dropbox.upload'), text,path);
-    },
+    write: writeFile,
+    releaseMutation: (text, rev) => writeFile(mutationPath, text, rev, true),
     async beginUpload(text){
       checkSize(textBytes(text));await beforeRequest();const accessToken=await access();await beforeRequest();
       const response=await send('files/upload_session/start',{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/octet-stream','Dropbox-API-Arg':apiArg({close:true})},body:new TextEncoder().encode(text),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'});
