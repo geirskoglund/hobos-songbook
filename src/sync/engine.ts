@@ -621,9 +621,10 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       else {state.failure=failureInfo(error,'sync.run');hooks.failed?.(error);}
       // A stale run must not acknowledge work or overwrite state belonging to a newer session.
       try {await save();} catch { /* The next safe run starts from durable progress. */ }
-      // Unknown namespace launches and unpublished physical moves keep their
-      // shared fence. Other devices must not overtake a delayed server job.
-      if(!hasUnconfirmedNamespaceChanges())try{await fence.release();}catch{/* Same owner resumes; never expire an unknown release. */}
+      // Keep the fence for known staging jobs and unconfirmed namespace work.
+      // With no staging job ID, the shared upload index and unique source
+      // paths already protect recovery while other devices sync.
+      if(!state.placement?.jobId&&!hasUnconfirmedNamespaceChanges())try{await fence.release();}catch{/* Same owner resumes; never expire an unknown release. */}
       throw error;
     }
   }
@@ -691,7 +692,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   }
 
   function hasUnconfirmedNamespaceChanges() {
-    return state.namespaceJob?.submitted || state.placement || state.archivePending || Object.keys(state.movedSongs ?? {}).length
+    return state.namespaceJob?.submitted || state.archivePending || Object.keys(state.movedSongs ?? {}).length
       || Object.keys(state.movedPublications ?? {}).length || Object.keys(state.movedBooks ?? {}).length || Object.keys(state.renames ?? {}).length;
   }
 
@@ -771,7 +772,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       try {await save();} catch {/* Do not acknowledge a newer local generation. */}
     } finally {
       publicationMoves = undefined;
-      if (acquired && !hasUnconfirmedNamespaceChanges()) {
+      if (acquired && !state.placement && !hasUnconfirmedNamespaceChanges()) {
         try {await fence.release();} catch (error) {failure ??= error;}
       }
     }
@@ -800,7 +801,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   async function withSharedFolder(localBookId: string, link: (folder: {id: string; path: string}, verifyTarget: () => Promise<void>) => Promise<string>) {
     manualRecovery = true;
     await start();
-    if (hasUnconfirmedNamespaceChanges()) {
+    if (state.placement || hasUnconfirmedNamespaceChanges()) {
       throw new SyncFailure({code: failureCodes.changed,stage: 'publication.shared-folder'}, 'Fullfør den ventende Dropbox-flyttingen før du kopierer delingslenken.');
     }
     let completed = false;
