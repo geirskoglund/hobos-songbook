@@ -13,11 +13,60 @@ test('bulk automatic upload recovers from simulated HTTP 429 with serial namespa
  await page.locator('#dropbox-sync').click();await expect(page.locator('#sync-status')).toContainText('Sist synkronisert:');
 });
 test('persistent 429 produces a bounded error with safe rate details; elapsed cooldown does not schedule background sync',async({page,context})=>{
- const mock=await setup(page,context);mock.fault('/list_folder/continue',429,0,{repeat:3});const start=mock.calls.length;await page.locator('#dropbox-sync').click();await expect(page.locator('#sync-status')).toHaveText('Synkronisering feilet (Feilkode SYNC-007)');expect(mock.calls.slice(start).filter(c=>c.endpoint.endsWith('/list_folder/continue'))).toHaveLength(3);expect(mock.find('/.app/sync-errors.json')).toBeUndefined();
- const log=await page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('hobos-songbook-test:sync-diagnostics-v1'));return s.entries.find(e=>e.id===s.active);});expect(log.failure.limitReason).toBe('too_many_write_operations');expect(log.failure.retryAfterMs).toBeGreaterThanOrEqual(1000);expect(log.operations.filter(e=>e.status===429).map(e=>e.retryAttempt)).toEqual([0,1,2]);
- await context.grantPermissions(['clipboard-read','clipboard-write']);const copy=page.getByRole('button',{name:'Kopier feillogg',exact:true});await copy.click();const copied=await page.evaluate(()=>navigator.clipboard.readText());expect(JSON.parse(copied.split('\n\n')[1]).failure.limitReason).toBe('too_many_write_operations');for(const forbidden of ['fixture-access','fixture-refresh','dbid:fixture','@eksempel.no','error_summary'])expect(copied).not.toContain(forbidden);await expect(page.locator('#sync-status')).toHaveText('Synkronisering feilet (Feilkode SYNC-007)');
- for(const width of [320,800]){await page.setViewportSize({width,height:1202});const dimensions=await copy.evaluate(node=>{const r=node.getBoundingClientRect();return{width:r.width,height:r.height,icon:node.querySelector('svg').getBoundingClientRect().width,underline:getComputedStyle(node.closest('p')).textDecorationLine,overflow:document.documentElement.scrollWidth>innerWidth};});expect(dimensions).toEqual({width:44,height:44,icon:20,underline:'none',overflow:false});}
- const stopped=mock.calls.length;await page.waitForTimeout(4100);expect(mock.calls.length).toBe(stopped);await page.locator('#dropbox-sync').click();await expect(page.locator('#sync-status')).toContainText('Sist synkronisert:');expect((await savedSongs(page))).toHaveLength(1);
+ const mock=await setup(page,context);
+ const sync=page.locator('#dropbox-sync'),status=page.locator('#sync-status');
+ const fencePath='/.app/mutation.json',releases=[];
+ await context.route('https://content.dropboxapi.com/2/files/upload',async route=>{
+  const request=route.request(),args=JSON.parse(request.headers()['dropbox-api-arg']);
+  if(args.path===fencePath&&request.postDataJSON().owner===null){
+   releases.push({time:Date.now(),revision:mock.find(fencePath).rev});
+  }
+  await route.fallback();
+ });
+ mock.fault('/list_folder/continue',429,0,{repeat:3});
+ const start=mock.calls.length;
+ await sync.click();
+ const failure='Synkronisering feilet (Feilkode SYNC-007)';
+ await expect(status).toHaveText(failure);
+ const log=await page.evaluate(()=>{
+  const saved=JSON.parse(localStorage.getItem('hobos-songbook-test:sync-diagnostics-v1'));
+  return saved.entries.find(entry=>entry.id===saved.active);
+ });
+ expect(log.failure.limitReason).toBe('too_many_write_operations');
+ expect(log.failure.retryAfterMs).toBeGreaterThanOrEqual(1000);
+ expect(log.operations.filter(event=>event.status===429).map(event=>event.retryAttempt)).toEqual([0,1,2]);
+ await context.grantPermissions(['clipboard-read','clipboard-write']);
+ const copy=page.getByRole('button',{name:'Kopier feillogg',exact:true});
+ await copy.click();
+ const copied=await page.evaluate(()=>navigator.clipboard.readText());
+ expect(JSON.parse(copied.split('\n\n')[1]).failure.limitReason).toBe('too_many_write_operations');
+ for(const forbidden of ['fixture-access','fixture-refresh','dbid:fixture','@eksempel.no','error_summary'])expect(copied).not.toContain(forbidden);
+ await expect(status).toHaveText(failure);
+ for(const width of [320,800]){
+  await page.setViewportSize({width,height:1202});
+  const dimensions=await copy.evaluate(node=>{const r=node.getBoundingClientRect();return{width:r.width,height:r.height,icon:node.querySelector('svg').getBoundingClientRect().width,underline:getComputedStyle(node.closest('p')).textDecorationLine,overflow:document.documentElement.scrollWidth>innerWidth};});
+  expect(dimensions).toEqual({width:44,height:44,icon:20,underline:'none',overflow:false});
+ }
+ // The error text can be shown while the original run waits to release its fence.
+ await expect(sync).toBeEnabled({timeout:8000});
+ const stopped=mock.calls.length;
+ await page.waitForTimeout(4100);
+ expect(mock.calls).toHaveLength(stopped);
+ const calls=mock.calls.slice(start);
+ expect(calls.filter(call=>call.endpoint.endsWith('/list_folder/continue'))).toHaveLength(3);
+ expect(releases).toHaveLength(1);
+ const [{time,revision}]=releases;
+ const until=await page.evaluate(()=>JSON.parse(localStorage.getItem('hobos-songbook-test:dropbox-rate-v1')).until);
+ expect(time).toBeGreaterThanOrEqual(until);
+ const afterLastAttempt=calls.slice(calls.findLastIndex(call=>call.endpoint.endsWith('/list_folder/continue'))+1);
+ expect(afterLastAttempt).toEqual([{
+  endpoint:'/2/files/upload',args:expect.objectContaining({path:fencePath,mode:{'.tag':'update',update:revision}})
+ }]);
+ expect(JSON.parse(mock.find(fencePath).text).owner).toBe(null);
+ expect(mock.find('/.app/sync-errors.json')).toBeUndefined();
+ await sync.click();
+ await expect(status).toContainText('Sist synkronisert:');
+ expect(await savedSongs(page)).toHaveLength(1);
 });
 test('opening a song cancels a pending retry; an explicit manual request resumes only after actual exit',async({page,context})=>{
  const mock=await setup(page,context),song=(await savedSongs(page))[0],link=JSON.parse(mock.find('/.app/library.json').text).songs[song.id];mock.put(link.path,'{t: Fra Dropbox}\nNy tekst');mock.fault('/download',429,0,{retryAfter:1,path:link.fileId});await page.locator('#dropbox-sync').click();await expect.poll(()=>mock.throttled()).toBe(1);await goSongs(page);await page.locator('#song-list .song-choice').click();await expect(page.locator('#song-title')).toHaveText('Lokal');const start=mock.calls.length;await page.waitForTimeout(1100);expect(mock.calls.slice(start).filter(c=>c.endpoint.endsWith('/download'))).toHaveLength(0);await expect(page.locator('#song-title')).toHaveText('Lokal');await goSongs(page);await expect.poll(async()=>(await savedSongs(page))[0].title).toBe('Fra Dropbox');await syncPage(page);await expect(page.locator('#sync-status')).toContainText('Sist synkronisert:');expect(mock.find('/.app/sync-errors.json')).toBeUndefined();
