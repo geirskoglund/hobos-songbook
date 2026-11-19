@@ -1,4 +1,4 @@
-import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch} from './failure.ts';
+import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch,MovePlanNeedsRefresh} from './failure.ts';
 import {metadataView,pathKey} from './remote.ts';
 import {ownSong,songLocation} from './model.ts';
 import type {BookLink,DeleteEntry,FolderEntry,MoveEntry,MoveReply,MoveResult,NamespaceJob,RemoteEntry,RemoteFiles,SyncState} from './model.ts';
@@ -190,7 +190,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   }
   return apply(job,{entries},true);
  }
- async function launch(job:NamespaceJob,authorized=false,active=false){
+ async function launch(job:NamespaceJob,authorized:boolean,active:boolean,revalidations:number){
   await hooks.check();if(!authorized){await refresh();await authorize(job);}
   if(job.submitted&&job.kind!=='delete')return observeUnknown(job);
   if(publicationJob(job)){
@@ -219,7 +219,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    // This guard is still before transport. Its cancellation must durably undo
    // the sent flag even when a newer local generation prevents ordinary save.
    await hooks.check();
-   if(job.kind==='move'){if(!files.moveBatch)throw bad(job.kind,'Batchflytting mangler.');reply=await files.moveBatch(job.entries as MoveEntry[],job.attempt,{revalidateOnThrottle:true});}
+   if(job.kind==='move'){if(!files.moveBatch)throw bad(job.kind,'Batchflytting mangler.');reply=await files.moveBatch(job.entries as MoveEntry[],job.attempt,{revalidateAfterWait:true});}
    else if(job.kind==='delete'){if(!files.deleteBatch)throw bad(job.kind,'Batchsletting mangler.');reply=await files.deleteBatch(job.entries as DeleteEntry[],job.attempt);}
    else{if(!files.createFoldersBatch)throw bad(job.kind,'Batchoppretting mangler.');reply=await files.createFoldersBatch(job.entries as FolderEntry[],job.attempt);}
   }catch(error){
@@ -228,12 +228,13 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    // prove that this launch was not accepted, unlike an unknown network reply.
    const rejected=error instanceof UnsentBatch||error instanceof DeferredSync&&!(error instanceof SubmittedBatchInterruption)||error instanceof SyncFailure&&error.info.status!==undefined&&error.info.status>=400&&error.info.status<500&&error.info.status!==408;
    if(rejected){job.submitted=false;delete job.jobId;await hooks.receipt(job);if(error instanceof SyncFailure&&error.info.status===409)throw new RetrySync();}
-   if(error instanceof BatchRateRejected&&job.attempt<2){job.attempt++;await hooks.save();await recover(true);return true;}
+   if(error instanceof BatchRateRejected&&job.attempt<2){job.attempt++;await hooks.save();await recover(true,revalidations);return true;}
+   if(error instanceof MovePlanNeedsRefresh&&revalidations<2){await recover(true,revalidations+1);return true;}
    throw error;
   }
   await receipt(job,reply);return apply(job,reply,false,active);
  }
- async function recover(plannedNow=false){
+ async function recover(plannedNow=false,revalidations=0){
   const job=state.namespaceJob;if(!job)return;
   await refresh();await authorize(job);
   // A journal saved before launch, or explicitly rejected by Dropbox, has no
@@ -242,11 +243,11 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   if(!plannedNow&&!job.submitted&&!job.jobId&&!job.reply){delete state.namespaceJob;await hooks.save();if(publicationJob(job))return;throw new RetrySync();}
   for(const id of job.quarantinedParents??[])if(await inspect(id))throw new SyncFailure({code:failureCodes.bookChanges,stage:'sync.namespace',action:'check-folders'},'En uavklart foreldermappe finnes fortsatt.');
   if(job.reply){if(await apply(job,job.reply,true,plannedNow))return;}
-  if(!job.jobId){if(await launch(job,true,plannedNow))return;if(!state.namespaceJob)return;}
+  if(!job.jobId){if(await launch(job,true,plannedNow,revalidations))return;if(!state.namespaceJob)return;}
   const check=job.kind==='move'?files.checkMoveBatch:job.kind==='delete'?files.checkDeleteBatch:files.checkCreateFoldersBatch;
   if(!check)throw bad(job.kind,'Batchstatus mangler.');
   for(const delay of [0,250,750,1500,3000]){
-   if(!job.jobId){if(await launch(job,false,plannedNow))return;continue;}
+   if(!job.jobId){if(await launch(job,false,plannedNow,revalidations))return;continue;}
    for(let left=delay;left>0;left-=100){await hooks.check();await new Promise(resolve=>setTimeout(resolve,Math.min(100,left)));}
    await hooks.check();let reply:MoveReply;
    try{reply=await check(job.jobId,job.attempt);}catch(error){if(error instanceof BatchJobFailed){delete state.namespaceJob;if(error.info.code===failureCodes.throttled&&job.attempt<2&&(!publicationJob(job)||plannedNow)){state.namespaceJob={id:crypto.randomUUID(),kind:job.kind,entries:job.entries,attempt:job.attempt+1};await hooks.save();await recover(true);return;}await hooks.save();if(publicationJob(job))return;if(error.info.code===failureCodes.throttled)throw error;throw new RetrySync();}throw error;}

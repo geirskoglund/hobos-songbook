@@ -1,7 +1,7 @@
 import type {AppEnvironment} from '../environment.ts';
 import type {FileValue, RemoteFiles, RemoteEntry,UploadResult,MoveReply} from '../sync/model.ts';
 import {checkSize,textBytes,maxFileBytes,maxBatchAppendBytes,SkippedFile} from '../sync/limits.ts';
-import {DeferredSync,SubmittedBatchInterruption, failureCodes, SyncFailure,BatchJobFailed,UnsentBatch} from '../sync/failure.ts';
+import {DeferredSync,SubmittedBatchInterruption, failureCodes, SyncFailure,BatchJobFailed,UnsentBatch,MovePlanNeedsRefresh} from '../sync/failure.ts';
 import type {ApiEvent,ApiContext} from '../sync/diagnostics.ts';
 import {DropboxError,dropboxRate} from './dropbox-rate.ts';
 export {DropboxError} from './dropbox-rate.ts';
@@ -13,6 +13,7 @@ export function dropboxConfig(channel: AppEnvironment['channel']) {
 interface Credentials {version: 1; accountId: string; name: string; email: string; accessToken: string; refreshToken: string; expires: number; scopes?: string[]}
 interface Pending {state: string; verifier: string; redirect: string; created: number; sharing?: {accountId: string; bookId: string}}
 export interface SharingConsent {bookId: string; authorized: boolean}
+interface RequestOptions {finishMove?: boolean; movePlanAttempt?: number; beforeSend?: () => void | Promise<void>}
 const apiArg = (value: unknown) => JSON.stringify(value).replace(/[^\u0000-\u007f]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
 const contentRoutes = new Set(['files/download', 'files/upload', 'files/upload_session/start', 'files/upload_session/append_batch']);
 const moveReceiptReads = new Set(['files/list_folder', 'files/list_folder/continue', 'files/get_metadata', 'oauth2/token']);
@@ -30,14 +31,14 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     const controller=new AbortController();setTimeout(()=>controller.abort(),30000);return controller.signal;
   }
   const resource=(path:string):ApiContext['resource']=>/^\/\.app\/songs\//i.test(path)?'personal':/^\/\.app\/uploads\//i.test(path)?'staging':path.startsWith('/.app/')?'control':/^\/Songbooks\/[^/]+\/(Private|Shared)\//i.test(path)?'content':'other';
-  async function send(operation: string, source: RequestInit|(()=>RequestInit), transform?:(response:Response)=>Promise<Response>,context:ApiContext={},options: {finishMove?:boolean;movePlanAttempt?:number} = {}) {
+  async function send(operation: string, source: RequestInit|(()=>RequestInit), transform?:(response:Response)=>Promise<Response>,context:ApiContext={},options: RequestOptions = {}) {
     let details:ApiContext=context;
     return rate.send(operation,async(attempt,check)=>{
-      const options=typeof source==='function'?source():source;
-      if(typeof options.body==='string'&&options.headers&&Object.entries(options.headers).some(([key,value])=>key.toLowerCase()==='content-type'&&value==='application/json'))try{const body=JSON.parse(options.body),count=body.entries?.length??body.paths?.length??body.num_sessions;if(Number.isInteger(count))details={...details,batchSize:count};}catch{/* Never include request contents in diagnostics. */}
+      const init=typeof source==='function'?source():source;
+      if(typeof init.body==='string'&&init.headers&&Object.entries(init.headers).some(([key,value])=>key.toLowerCase()==='content-type'&&value==='application/json'))try{const body=JSON.parse(init.body),count=body.entries?.length??body.paths?.length??body.num_sessions;if(Number.isInteger(count))details={...details,batchSize:count};}catch{/* Never include request contents in diagnostics. */}
       // OAuth account lookup already holds the newly exchanged bearer; it is
       // not installed in credentials until that very lookup succeeds.
-      let headers=options.headers;
+      let headers=init.headers;
       if(attempt)try{
         if(/^(files|sharing)\//.test(operation)&&headers&&Object.keys(headers).some(key=>key.toLowerCase()==='authorization')){
           headers={...(headers as Record<string,string>),Authorization:`Bearer ${await access()}`};
@@ -47,12 +48,20 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
         if(batchLaunchRoutes.has(operation)&&error instanceof SyncFailure)throw new UnsentBatch(error);
         throw error;
       }
+      if (options.beforeSend) {
+        const accountId = credentials()?.accountId;
+        await options.beforeSend();
+        // The final metadata request can itself have renewed the bearer.
+        const verified = credentials();
+        if (!verified?.accessToken || verified.accountId !== accountId) throw new DeferredSync('connection', 'Dropbox-tilkoblingen er endret.');
+        headers = {...headers as Record<string,string>, Authorization: `Bearer ${verified.accessToken}`};
+      }
       details={...details,requestId:undefined};
-      const response=await request(`https://${contentRoutes.has(operation)?'content':'api'}.dropboxapi.com/${operation==='oauth2/token'?'':'2/'}${operation}`,{...options,headers,signal:options.signal??deadline()});
+      const response=await request(`https://${contentRoutes.has(operation)?'content':'api'}.dropboxapi.com/${operation==='oauth2/token'?'':'2/'}${operation}`,{...init,headers,signal:init.signal??deadline()});
       details={...details,requestId:response.headers.get('X-Dropbox-Request-Id')??undefined};
       if(transform)try{return await transform(response);}catch(error){Object.defineProperty(response,'transformFailure',{value:error});}
       return response;
-    },()=>details,{...options,finishMove:finishingMove>0&&(options.finishMove||moveReceiptReads.has(operation))});
+    },()=>details,{movePlanAttempt:options.movePlanAttempt,finishMove:finishingMove>0&&(options.finishMove||moveReceiptReads.has(operation))});
   }
   async function json(response: Response, stage = 'dropbox.request') {
     try {return await response.json();} catch (cause) {throw new SyncFailure({code:cause instanceof SyntaxError?failureCodes.response:failureCodes.network,stage,status:response.status},'Dropbox-responsen kunne ikke leses.',cause);}
@@ -77,11 +86,12 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     if(typeof value?.access_token!=='string'||!value.access_token||typeof value.expires_in!=='number'||!Number.isFinite(value.expires_in)||value.expires_in<0)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.token'},'Ugyldig tokenrespons.');
     return value;
   }
-  async function access() {
+  async function access(onRenew?: () => void) {
     return navigator.locks.request(`${env.namespace}:dropbox-token`, async () => {
       let value = credentials(); if (!value) throw new DeferredSync('connection','Dropbox er frakoblet.');
       if (value.expires > Date.now() + 60000) return value.accessToken;
       const epoch = invalidated, previous = value.refreshToken;
+      onRenew?.();
       const next = await token(new URLSearchParams({grant_type: 'refresh_token', refresh_token: previous, client_id: config.key}));
       value = credentials();
       if (epoch !== invalidated || value?.refreshToken !== previous) throw new DeferredSync('connection','Dropbox-tilkoblingen er endret.');
@@ -134,19 +144,25 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     if (pending.sharing) return {bookId: pending.sharing.bookId, authorized: true};
     return true;
   }
-  async function rpc(path: string, body: unknown,entryAttempt=0,context:ApiContext={},movePlanAttempt?:number) {
+  async function rpc(path: string, body: unknown,entryAttempt=0,context:ApiContext={},options: RequestOptions = {}) {
     const batch=['files/move_batch_v2','files/move_batch/check_v2','files/delete_batch','files/delete_batch/check','files/create_folder_batch','files/create_folder_batch/check'].includes(path);
+    const validatePlan = options.movePlanAttempt !== undefined, waits = rate.waitCount();
+    let renewed = false;
     let accessToken: string;
-    try {await beforeRequest();accessToken = await access();await beforeRequest();}
+    try {await beforeRequest();accessToken = await access(validatePlan ? () => {renewed = true;} : undefined);await beforeRequest();}
     catch (error) {
       if (batchLaunchRoutes.has(path) && error instanceof SyncFailure) throw new UnsentBatch(error);
       throw error;
     }
+    // The namespace queue can refresh the whole plan before any move is sent.
+    const beforeSend = validatePlan ? () => {
+      if (renewed || rate.waitCount() !== waits) throw new MovePlanNeedsRefresh();
+    } : options.beforeSend;
     const locked=(failure:any):boolean=>failure?.['.tag']==='too_many_write_operations'||['path','path_write','from_write','to','relocation_error','failed'].some(key=>failure?.[key]&&locked(failure[key]));
     const response = await send(path, {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json'}, body: JSON.stringify(body), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},batch?async reply=>{
       if(reply.status===200){const value=await reply.clone().json().catch(()=>null);if(Array.isArray(value?.entries)&&value.entries.some((entry:any)=>locked(entry?.failure))||value?.['.tag']==='failed'&&locked(value.failed))Object.defineProperty(reply,'entryRateAttempt',{value:entryAttempt});}
       return reply;
-    }:undefined,context,{movePlanAttempt});
+    }:undefined,context,{...options,beforeSend});
     // Successful transport receipts must reach the account/operation journal
     // before a generation/session guard discards the local continuation.
     if(!batch||!response.ok)try{await beforeRequest();}catch(error){
@@ -192,7 +208,8 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       const collision=relocation?.['.tag']==='to'&&relocation.to?.['.tag']==='conflict';
       const missing=relocation?.['.tag']==='from_lookup'&&relocation.from_lookup?.['.tag']==='not_found';
       const throttled=problem['.tag']==='too_many_write_operations'||relocation?.['.tag']==='to'&&relocation.to?.['.tag']==='too_many_write_operations'||relocation?.['.tag']==='from_write'&&relocation.from_write?.['.tag']==='too_many_write_operations';
-      return{failure:{code:collision?failureCodes.changed:missing?failureCodes.missingFile:throttled?failureCodes.throttled:failureCodes.request,stage:'dropbox.move-batch',status:200,...(throttled?{limitReason:'too_many_write_operations' as const,retryAfterMs:0}:{})},...(collision?{collision:true}:{}),...(missing?{missing:true}:{}),...(problem['.tag']==='internal_error'?{verifyEffect:true}:{})};
+      const verifyEffect = problem['.tag'] === 'internal_error' || relocation?.['.tag'] === 'internal_error';
+      return{failure:{code:collision?failureCodes.changed:missing?failureCodes.missingFile:throttled?failureCodes.throttled:failureCodes.request,stage:'dropbox.move-batch',status:200,...(throttled?{limitReason:'too_many_write_operations' as const,retryAfterMs:0}:{})},...(collision?{collision:true}:{}),...(missing?{missing:true}:{}),...(verifyEffect?{verifyEffect:true}:{})};
     })};
   }
   function namespaceReply(value:any,kind:'delete'|'folders'):MoveReply{
@@ -259,9 +276,8 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     }
     const existing = await lookup();
     if (existing) return existing;
-    await verifyTarget?.();
     try {
-      const metadata = await rpc('sharing/create_shared_link_with_settings', {path: folder.id, settings: {audience: {'.tag': 'public'}, access: {'.tag': 'viewer'}}});
+      const metadata = await rpc('sharing/create_shared_link_with_settings', {path: folder.id, settings: {audience: {'.tag': 'public'}, access: {'.tag': 'viewer'}}}, 0, {}, {beforeSend: verifyTarget});
       const url = viewerUrl(metadata);
       if (url === null) throw policyError();
       if (url) return url;
@@ -294,7 +310,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     checkCreateFoldersBatch:(id,attempt)=>namespaceCheck('files/create_folder_batch/check',id,'folders',attempt),
     async moveBatch(entries,retryAttempt=0,options){
       if(!entries.length||entries.length>1000)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ugyldig flyttegruppe.');
-      const result=moveReply(await rpc('files/move_batch_v2',{entries:entries.map(entry=>({from_path:entry.from,to_path:entry.toReference??entry.to})),autorename:false,allow_ownership_transfer:false},retryAttempt,{},options?.revalidateOnThrottle?retryAttempt:undefined),true);
+      const result=moveReply(await rpc('files/move_batch_v2',{entries:entries.map(entry=>({from_path:entry.from,to_path:entry.toReference??entry.to})),autorename:false,allow_ownership_transfer:false},retryAttempt,{},{movePlanAttempt:options?.revalidateAfterWait?retryAttempt:undefined}),true);
       if('entries'in result&&result.entries.length!==entries.length)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ufullstendig flytterespons.');
       return result;
     },

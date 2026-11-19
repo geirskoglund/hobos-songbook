@@ -407,7 +407,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     const incoming=Object.values(library.books).some(book=>{
       const local=localBooks.get(book.id);
       if(book.deleted)return Boolean(local);
-      return local?.name!==book.name||Boolean(book.folderId&&book.path&&pathKey(index.find(book.folderId)?.path??'')!==pathKey(book.path));
+      return local?.name!==book.name||Boolean(book.folderId&&book.path&&index.find(book.folderId)?.path!==book.path);
     })||Object.values(library.songs).some(song=>localSongs.get(song.id)?.songbookId!==song.songbookId||unprocessed(song))
       ||snapshot.songs.some(song=>library.deletedSongs?.[song.id])||Object.values(state.remote?.entries??{}).some(entry=>{
       if(entry.folder&&/^\/Songbooks\/[^/]+$/i.test(entry.path))return !retiredPath(entry.path)&&!Object.values(library.books).some(book=>book.folderId===entry.id);

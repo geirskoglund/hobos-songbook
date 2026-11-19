@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dropboxAdapter} from '../src/adapters/dropbox.ts';
 import {maxFileBytes,SkippedFile} from '../src/sync/limits.ts';
-import {UnsentBatch,failureCodes} from '../src/sync/failure.ts';
+import {MovePlanNeedsRefresh,UnsentBatch,failureCodes} from '../src/sync/failure.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 import {fixture} from './sync-fixture.mjs';
 
@@ -64,6 +64,16 @@ test('Dropbox move batch contract: a failed token refresh proves that a batch wa
   assert.deepEqual(calls,['/oauth2/token']);
 });
 
+test('Dropbox move batch contract: waiting at the shared rate gate sends the plan back for fresh metadata', async () => {
+  const calls = [];
+  await adapterTest(async url => {calls.push(new URL(url).pathname);return Response.json({'.tag': 'complete', entries: []});}, async adapter => {
+    localStorage.setItem('bulk-test:dropbox-rate-v1', JSON.stringify({version: 1, accountId: 'fixture', until: Date.now() + 1000, reason: 'too_many_requests'}));
+    const entries = [{from: 'id:source', to: '/destination.cho', fileId: 'id:source'}];
+    await assert.rejects(adapter.files.moveBatch(entries, 0, {revalidateAfterWait: true}), MovePlanNeedsRefresh);
+    assert.deepEqual(calls, []);
+  });
+});
+
 test('AK39-03: a rejected move followed by a failed token refresh can be requested again safely', async () => {
   const f = fixture();
   await f.run();
@@ -101,10 +111,12 @@ test('AK39-03: a rejected move followed by a failed token refresh can be request
   assert.equal(JSON.parse(f.entries.get('/.app/mutation.json').text).owner, null);
 });
 
-test('Dropbox move batch contract: internal_error requires checking the actual location', async () => {
-  await adapterTest(async () => Response.json({'.tag': 'complete', entries: [{'.tag': 'failure', failure: {'.tag': 'internal_error'}}]}), async adapter => {
-    const result = await adapter.files.moveBatch([{from: 'id:source', to: '/destination.cho', fileId: 'id:source'}]);
-    assert.equal(result.entries[0].verifyEffect, true);
+test('Dropbox move batch contract: both internal_error variants require checking the actual location', async () => {
+  const internal = {'.tag': 'internal_error'};
+  const failures = [internal, {'.tag': 'relocation_error', relocation_error: internal}];
+  await adapterTest(async () => Response.json({'.tag': 'complete', entries: failures.map(failure => ({'.tag': 'failure', failure}))}), async adapter => {
+    const result = await adapter.files.moveBatch(['a', 'b'].map(id => ({from: `id:${id}`, to: `/${id}.cho`, fileId: `id:${id}`})));
+    assert.deepEqual(result.entries.map(entry => entry.verifyEffect), [true, true]);
   });
 });
 

@@ -7,7 +7,7 @@ const url = '/hobos-songbook/test/';
 test.beforeEach(async ({request}) => {await request.post('/__test__/reset'); await mkdir('work/publication', {recursive: true});});
 const action = (page, name) => page.getByRole('button', {name, exact: true});
 async function go(page, name) {await openMenu(page); await action(page, name).click();}
-async function seed(page, context, {publishedInBand = false, ...options} = {}) {
+async function seed(page, context, {publishedInBand = false, additionalPrivate = 0, ...options} = {}) {
   const mock = await dropboxMock(context, options);
   await page.goto(url);
   await expect.poll(() => mock.find('/.app/mutation.json') && JSON.parse(mock.find('/.app/mutation.json').text).owner).toBe(null);
@@ -25,6 +25,7 @@ async function seed(page, context, {publishedInBand = false, ...options} = {}) {
   song('withdraw', 'Avpubliser meg', 'standard', 'Shared');
   if (publishedInBand) song('band-shared', 'Delt i Band', 'band', 'Shared');
   song('hidden', 'Importert', 'standard', 'Private', true);
+  for (let i = 0; i < additionalPrivate; i++) song(`private-${i}`, `Privat ${String(i).padStart(3, '0')}`, 'band', 'Private');
   for (let i = 0; i < 18; i++) song(`song-${i}`, `Sang ${String(i).padStart(2, '0')}`, 'standard', 'Shared');
   mock.put('/.app/library.json', JSON.stringify(manifest));
   return mock;
@@ -241,6 +242,49 @@ test('AK39-03: an HTTP 429 retry leaves songs with a changed path or revision ou
   expect(JSON.parse(mock.find('/.app/mutation.json').text).owner).toBe(null);
 });
 
+test('AK39-03: a throttled OAuth refresh after fresh metadata revalidates the whole move batch', async ({page, context}) => {
+  const mock = await seed(page, context);
+  await go(page, 'Publisering');
+  const root = page.locator('#publication'), counts = root.locator('.publication-actions p');
+  await action(page, 'Velg alle').click();
+  const start = mock.calls.length, moveRoute = '/2/files/move_batch_v2';
+  const movedExternally = '/Songbooks/Band/Originals/bela.cho';
+  const eligible = mock.find('/Songbooks/Band/Private/zeda.cho').id;
+  let renewalNeeded = false, tokenCalls = 0;
+  await context.route('https://api.dropboxapi.com/2/files/list_folder/continue', async route => {
+    if (!renewalNeeded && mock.calls.slice(start).some(call => call.endpoint === moveRoute)) {
+      renewalNeeded = true;
+      // The current metadata request already holds a valid bearer.
+      await page.evaluate(() => {
+        const key = 'hobos-songbook-test:dropbox-auth-v1';
+        const auth = JSON.parse(localStorage.getItem(key));
+        localStorage.setItem(key, JSON.stringify({...auth, expires: Date.now() + 59000}));
+      });
+    }
+    await route.fallback();
+  });
+  await context.route('https://api.dropboxapi.com/oauth2/token', async route => {
+    if (++tokenCalls !== 1) return route.fallback();
+    mock.rename('/Songbooks/Band/Private/bela.cho', movedExternally);
+    mock.put(movedExternally, '{t: Alfa, ny versjon}\nEndret fra Dropbox');
+    return route.fulfill({status: 429, headers: {'Retry-After': '1'}, json: {error: {reason: {'.tag': 'too_many_requests'}}}});
+  });
+  mock.fault('/move_batch_v2', 429);
+  await action(page, 'Utfør').click();
+  await expect(counts).toHaveText('1 fil ble publisert', {timeout: 15000});
+  expect(tokenCalls).toBe(2);
+  const calls = mock.calls.slice(start), writes = calls.filter(call => call.endpoint === moveRoute);
+  expect(writes.map(call => call.args.entries.length)).toEqual([2, 1]);
+  expect(writes[1].args.entries[0].from_path).toBe(eligible);
+  const renewal = calls.findIndex(call => call.endpoint === '/oauth2/token');
+  expect(renewal).toBeGreaterThan(-1);
+  expect(calls.slice(renewal + 1, calls.indexOf(writes[1])).some(call => call.endpoint.endsWith('/list_folder/continue'))).toBe(true);
+  expect(calls.filter(call => call.endpoint.endsWith('/get_metadata'))).toHaveLength(0);
+  expect(mock.find(movedExternally).text).toContain('Endret fra Dropbox');
+  expect(mock.find('/Songbooks/Band/Shared/bela.cho')).toBeFalsy();
+  expect(mock.find('/Songbooks/Band/Shared/zeda.cho').id).toBe(eligible);
+});
+
 test('AK39-03: a terminal per-file Dropbox write lock acknowledges successes and frees the mutation fence', async ({page, context}) => {
   const mock = await seed(page, context);
   await go(page, 'Publisering');
@@ -263,6 +307,28 @@ test('AK39-03: a terminal per-file Dropbox write lock acknowledges successes and
   await go(page, 'Sanger');
   await go(page, 'Publisering');
   await expect(counts).toHaveText('0 valgt for publisering · 0 for avpublisering');
+});
+
+test('AK39-03: a terminal HTTP 429 settles earlier confirmed batches within the cooldown budget', async ({page, context}) => {
+  const mock = await seed(page, context, {additionalPrivate: 99});
+  await go(page, 'Publisering');
+  const root = page.locator('#publication'), counts = root.locator('.publication-actions p');
+  await action(page, 'Velg alle').click();
+  await expect(counts).toHaveText('101 valgt for publisering · 0 for avpublisering');
+  mock.fault('/move_batch_v2', 429, 1, {repeat: 3, retryAfter: 1});
+  const start = mock.calls.length;
+  await action(page, 'Utfør').click();
+  await expect(counts).toHaveText('100 filer ble publisert', {timeout: 20000});
+  await expect(root.getByText(/1 gjenstår.*Dropbox ber om en pause/)).toBeVisible();
+  const manifest = JSON.parse(mock.find('/.app/library.json').text);
+  expect(Object.values(manifest.songs).filter(link => link.path.startsWith('/Songbooks/Band/Shared/'))).toHaveLength(100);
+  expect(JSON.parse(mock.find('/.app/mutation.json').text).owner).toBe(null);
+  const moves = mock.calls.slice(start).filter(call => call.endpoint.endsWith('/move_batch_v2'));
+  expect(moves.map(call => call.args.entries.length)).toEqual([100, 1, 1, 1]);
+  const remainingId = moves[1].args.entries[0].from_path;
+  expect(moves.slice(1).map(call => call.args.entries[0].from_path)).toEqual(Array(3).fill(remainingId));
+  expect(moves[0].args.entries.some(entry => entry.from_path === remainingId)).toBe(false);
+  expect(mock.find(remainingId).path_display).toMatch(/^\/Songbooks\/Band\/Private\//);
 });
 
 test('AK39-05: the songbook H04 action creates and reuses one read link, with manual copy fallback', async ({page, context}) => {
@@ -303,6 +369,26 @@ test('AK39-05: the songbook H04 action creates and reuses one read link, with ma
   await expect(page.getByRole('menuitem', {name: 'Merk alt'})).toBeVisible();
   await expect(page.getByRole('menuitem', {name: 'Kopier', exact: true})).toBeVisible();
   expect(mock.calls.filter(call => call.endpoint.endsWith('/create_shared_link_with_settings'))).toEqual(created);
+});
+
+test('AK39-05: a rejected share creation verifies the active folder again after waiting', async ({page, context}) => {
+  const mock = await seed(page, context, {sharing: true});
+  await go(page, 'Sangbøker');
+  await action(page, 'Handlinger for Standard').click();
+  const share = page.getByRole('menuitem', {name: 'Kopier delingslenke', exact: true});
+  const creates = () => mock.calls.filter(call => call.endpoint.endsWith('/create_shared_link_with_settings'));
+  mock.fault('/create_shared_link_with_settings', 429, 0, {retryAfter: 1});
+  const release = mock.hold('/create_shared_link_with_settings');
+  try {
+    await share.click();
+    await expect.poll(() => creates().length).toBe(1);
+    mock.put('/Deleted', '', true);
+    mock.rename('/Songbooks/Standard', '/Deleted/Standard');
+  } finally {release();}
+  await expect(page.getByText('Sangbokens delingsmappe har flyttet seg. Kontroller sangboken og prøv igjen.')).toBeVisible();
+  expect(creates()).toHaveLength(1);
+  expect(mock.links.size).toBe(0);
+  expect(JSON.parse(mock.find('/.app/mutation.json').text).owner).toBe(null);
 });
 
 test('AK39-04: cancel leaves both songs in place, confirmed offline deletion moves them privately and archives the book', async ({page, context}) => {

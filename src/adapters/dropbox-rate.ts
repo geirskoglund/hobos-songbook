@@ -17,7 +17,7 @@ interface Cooldown {version:1;accountId:string;until:number;reason:RateLimitReas
 /** Request-scoped recovery, never a scheduled/background synchronization. */
 export function dropboxRate(namespace:string,account:()=>string|null,before:()=>void|Promise<void>,observe:(event:ApiEvent)=>void){
   const key=`${namespace}:dropbox-rate-v1`,wakeSlots=new Set<()=>void>();
-  let lease=0,writeLimit=4,writes=0,waited=0,retries=true,halted:SyncFailure|null=null,memory:Cooldown|null=null;
+  let lease=0,writeLimit=4,writes=0,waited=0,waitCount=0,retries=true,halted:SyncFailure|null=null,memory:Cooldown|null=null;
   let waiting:{promise:Promise<void>;wake():void}|undefined;
   function emit(event:ApiEvent){try{observe(event);}catch{/* Diagnostics do not change requests. */}}
   function cooldown(id:string|null){
@@ -34,7 +34,8 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
   function stop(rate:RateInfo,status:200|429=429,stage='dropbox.move-batch'){halted=limitError(rate,status,stage);wake();return halted;}
   function checkTicket(ticket:number,finishMove=false){
     if(ticket!==lease)throw new DeferredSync('changed','Forespørselen er avbrutt.');
-    if(halted&&!(finishMove&&halted.info.status===200&&halted.info.stage==='dropbox.move-batch'))throw halted;
+    // Receipt writes and release can finish within the same wait budget.
+    if(halted&&!(finishMove&&halted.info.stage==='dropbox.move-batch'))throw halted;
   }
   async function guard(ticket:number,checkBefore=true,finishMove=false){checkTicket(ticket,finishMove);if(checkBefore)await before();checkTicket(ticket,finishMove);}
   function wake(){waiting?.wake();for(const resume of [...wakeSlots])resume();}
@@ -49,12 +50,13 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
         const timer=setTimeout(done,delay),current={promise,wake(){clearTimeout(timer);done();}};waiting=current;
         void promise.then(()=>{clearTimeout(timer);if(ticket===lease)waited+=Math.max(0,Date.now()-start);if(waiting===current)waiting=undefined;});
       }
+      waitCount++;
       await waiting.promise;
     }
   }
   function releaseWrite(){writes--;for(const resume of [...wakeSlots])resume();}
   async function slot(ticket:number,finishMove:boolean){
-    for(;;){await guard(ticket,true,finishMove);if(writes<writeLimit){writes++;return releaseWrite;}await new Promise<void>(resolve=>{const resume=()=>{wakeSlots.delete(resume);resolve();};wakeSlots.add(resume);});}
+    for(;;){await guard(ticket,true,finishMove);if(writes<writeLimit){writes++;return releaseWrite;}waitCount++;await new Promise<void>(resolve=>{const resume=()=>{wakeSlots.delete(resume);resolve();};wakeSlots.add(resume);});}
   }
   async function rateInfo(response:Response,attempt:number):Promise<RateInfo>{
     const body=await response.clone().json().catch(()=>null),value=body?.error??body;
@@ -107,5 +109,5 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
       attempt++;
     }
   }
-  return{send,begin,cancel};
+  return{send,begin,cancel,waitCount:()=>waitCount};
 }

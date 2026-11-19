@@ -236,6 +236,23 @@ test('AK39-04: published content remains editable and an inactive device downloa
   assert.equal(f.data.state.manifest.songs.one.fileId, id);
 });
 
+test('AK39-04: manual sync applies a Dropbox book name case change after publication refreshed its cursor', async () => {
+  const f = fixture();
+  await f.run();
+  const bookId = f.data.state.manifest.books.standard.folderId;
+  await f.files.move(bookId, '/Songbooks/Midlertidig');
+  await f.files.move(bookId, '/Songbooks/STANDARD');
+  await engine(f).refreshPublication();
+  assert.equal(f.data.songbooks[0].name, 'Standard');
+  await f.run();
+  assert.equal(f.data.songbooks[0].name, 'STANDARD');
+  assert.equal(f.data.state.manifest.books.standard.path, '/Songbooks/STANDARD');
+  assert.match(f.data.state.manifest.songs.one.path, /^\/Songbooks\/STANDARD\/Private\//);
+  const start = f.calls.length;
+  await f.run();
+  assert.deepEqual(f.calls.slice(start), [['changes']]);
+});
+
 test('AK39-05: link lookup and creation hold the same account fence as book archival', async () => {
   const f = fixture();
   f.change(d => {d.songs[0].songbookId = 'target'; setBook(d, 'target', 'Target');});

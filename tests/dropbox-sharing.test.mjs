@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dropboxAdapter, dropboxConfig, requiredScopes, sharingScopes} from '../src/adapters/dropbox.ts';
-import {failureCodes} from '../src/sync/failure.ts';
+import {failureCodes, SyncFailure} from '../src/sync/failure.ts';
 
 const namespace = 'sharing-test';
 const authKey = `${namespace}:dropbox-auth-v1`;
@@ -87,7 +87,7 @@ test('AK39-05: a link with the same folder ID and an archived path fails closed 
     assert.deepEqual(calls, ['/2/sharing/list_shared_links']);
     calls.length = 0;
     exists = false;
-    const moved = new Error('folder moved since lookup');
+    const moved = new SyncFailure({code: failureCodes.changed, stage: 'publication.shared-folder'}, 'Folder moved since lookup');
     await assert.rejects(adapter.sharedLink(folder, async () => {throw moved;}), error => error === moved);
     assert.deepEqual(calls, ['/2/sharing/list_shared_links']);
     calls.length = 0;

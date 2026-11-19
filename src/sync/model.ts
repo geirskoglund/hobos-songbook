@@ -43,7 +43,7 @@ export interface RemoteFiles {
   beginUpload?(text:string):Promise<UploadSession>;
   beginUploadBatch?(texts:string[]):Promise<BeginUploadResult[]>;
   commitBatch?(jobs:UploadJob[]):Promise<UploadResult[]>;
-  moveBatch?(entries:MoveEntry[],retryAttempt?:number,options?:{revalidateOnThrottle:boolean}):Promise<MoveReply>;
+  moveBatch?(entries:MoveEntry[],retryAttempt?:number,options?:{revalidateAfterWait:boolean}):Promise<MoveReply>;
   withMoveReceipt?(work:()=>Promise<void>):Promise<void>;
   checkMoveBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
   deleteBatch?(entries:DeleteEntry[],retryAttempt?:number):Promise<MoveReply>;
