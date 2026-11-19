@@ -34,6 +34,31 @@ test('bulk: hundreds of songs use bounded batch commits and sidecars reference c
   const count=f.batches.length;await f.run();assert.equal(f.batches.length,count);assert.equal(f.data.state.pending,false);assert.deepEqual(f.data.state.uploads,{});
 });
 
+test('bulk: a rejected append entry leaves other sessions ready to commit',async()=>{
+  const f=bulkFixture(3),started=[];
+  let rejected=false;
+  f.files.beginUploadBatch=async texts=>{
+    started.push(texts.length);
+    return Promise.all(texts.map(async text=>{
+      if(!rejected&&text.startsWith('{t: Song 1}')){rejected=true;return{failure:{code:failureCodes.request,stage:'dropbox.upload',status:200}};}
+      return{session:await f.files.beginUpload(text)};
+    }));
+  };
+  const syncWithReport=()=>syncEngine(f.storage,f.files,'account',{valid:()=>true,changed(){},failed(){}}).run(true);
+  await syncWithReport();
+  assert.deepEqual(started,[3,2]);
+  assert.deepEqual(f.batches.map(batch=>batch.length),[2,2]);
+  const partial=JSON.parse(f.entries.get('/.app/library.json').text);
+  assert.deepEqual(Object.keys(partial.songs).sort(),['bulk-0','bulk-2']);
+  assert.equal(f.data.state.pending,true);
+  await syncWithReport();
+  const manifest=JSON.parse(f.entries.get('/.app/library.json').text);
+  assert.equal(manifest.songs['bulk-0'].fileId,partial.songs['bulk-0'].fileId);
+  assert.equal(manifest.songs['bulk-2'].fileId,partial.songs['bulk-2'].fileId);
+  assert.ok(manifest.songs['bulk-1']);
+  assert.equal(f.data.state.pending,false);
+});
+
 test('bulk: lost commit response plus a newer local generation resumes exact receipts without false conflicts or duplicates',async()=>{
   const f=bulkFixture(),commit=f.files.commitBatch;let lost=false;
   f.files.commitBatch=async jobs=>{const result=await commit(jobs);if(!lost){lost=true;f.change(d=>{d.songs[0].original='{t: Newer}\nNew local words';d.personal[0].capo=8;});throw new SyncFailure({code:failureCodes.network,stage:'test.batch'},'lost response');}return result;};

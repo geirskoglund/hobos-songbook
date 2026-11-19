@@ -33,6 +33,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
   let interruption:unknown;
   let removedIds=new Set<string>();
   let confirmedLinks:Record<string,SongLink>={};
+  let publicationMoves: Set<string> | undefined;
   let claims:UploadClaim[]=[];
   let snapshot: SyncSnapshot, state: SyncState, generation = 0, manualRecovery = false;
   const valid = () => hooks.valid();
@@ -62,6 +63,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
           state.reservations[link.id]=link;
           const receipts=entry.publication?(state.movedPublications??={}):(state.movedSongs??={});
           receipts[link.id]=link;
+          if(entry.publication)publicationMoves?.add(identities.localId('songs',link.id));
         }
         if(entry.book){const book={...entry.book,folderId:value.id,path:value.path};state.folders[book.id]=book;(state.movedBooks??={})[book.id]=book;}
       },
@@ -674,9 +676,15 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     await save();
   }
 
-  async function executePublication(choices: PublicationChoice[], retryConflicts = false): Promise<PublicationResult> {
+  async function settlePublication(work: () => Promise<void>) {
+    if (files.withMoveReceipt) await files.withMoveReceipt(work);
+    else await work();
+  }
+
+  async function executePublication(choices: PublicationChoice[], retryConflicts = false, confirmedMoves = new Set<string>()): Promise<PublicationResult> {
     manualRecovery = true;
     await start();
+    publicationMoves = confirmedMoves;
     let verified = false, acquired = false, conflict = false, failure: unknown;
     const desired = () => new Map(choices.map(choice => [identities.wireId('songs', choice.id), choice.published]));
     try {
@@ -732,16 +740,26 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       await save();
     } catch (error) {
       failure = error;
+      const pending = state.namespaceJob;
+      if (acquired && failureInfo(error).code === failureCodes.network && pending?.submitted && pending.kind === 'move'
+        && pending.entries.every(entry => (entry as MoveEntry).publication)) {
+        // The reply can be lost while metadata is still reachable. Only check
+        // the submitted operation. Never re-send the choices after this failure.
+        try {await namespace.recover();failure = undefined;}
+        catch (cause) {failure = cause;}
+      }
       // A terminated partial batch can have receipts from earlier chunks. If
       // Dropbox is unreachable their journal remains under the shared fence.
-      if (acquired && !(error instanceof DeferredSync) && failureInfo(error).code !== failureCodes.network) {
-        try {await savePublicationMoves();} catch {/* A later run can commit the same receipts. */}
+      if (acquired && !(failure instanceof DeferredSync) && failureInfo(failure).code !== failureCodes.network) {
+        try {await settlePublication(savePublicationMoves);}
+        catch (cause) {failure ??= cause;}
       }
       try {await save();} catch {/* Do not acknowledge a newer local generation. */}
     } finally {
+      publicationMoves = undefined;
       if (acquired && !state.namespaceJob?.submitted && !state.placement && !state.archivePending && !Object.keys(state.movedSongs ?? {}).length
         && !Object.keys(state.movedPublications ?? {}).length && !Object.keys(state.movedBooks ?? {}).length && !Object.keys(state.renames ?? {}).length) {
-        try {await fence.release();} catch (error) {failure ??= error;}
+        try {await settlePublication(fence.release);} catch (error) {failure ??= error;}
       }
     }
     if (retryConflicts && failure instanceof RetrySync) throw failure;
@@ -750,11 +768,20 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       const entry = records.get(identities.wireId('songs', choice.id))?.entry;
       return entry && (songLocation(entry.path)?.area === 'Shared') === choice.published;
     }).map(choice => choice.id) : [];
+    const pending = state.namespaceJob;
+    if (pending?.kind === 'move' && pending.reply && 'entries' in pending.reply) {
+      pending.reply.entries.forEach((result, i) => {
+        const entry = pending.entries[i] as MoveEntry;
+        if (entry?.publication && entry.link && 'value' in result && result.value.id === entry.fileId && pathKey(result.value.path) === pathKey(entry.to)) {
+          confirmedMoves.add(identities.localId('songs', entry.link.id));
+        }
+      });
+    }
     const unavailable = failure instanceof DeferredSync && failure.reason === 'connection'
       || [failureCodes.network, failureCodes.authentication, failureCodes.permission].some(code => code === failureInfo(failure).code);
     const message = failure ? publicationError(failure) : conflict ? 'Synkroniser og avklar sangversjonen før du prøver de gjenstående valgene igjen.'
       : completed.length !== choices.length ? 'Kontroller tilkoblingen og at sangene er synkronisert, og prøv de gjenstående valgene igjen.' : undefined;
-    return {view: publicationView(snapshot, identities), completed, message, unavailable};
+    return {view: publicationView(snapshot, identities), completed, moved: completed.filter(id => confirmedMoves.has(id)), message, unavailable};
   }
 
   async function sharedFolder(localBookId: string) {

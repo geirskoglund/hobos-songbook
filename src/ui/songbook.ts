@@ -45,6 +45,8 @@ export function startSongbook() {
   let songs: Song[] = [], importing = false, active: Song | null = null;
   let songbooks: Songbook[] = [], listPersonal = new Map<string, Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>>();
   let selectedBook: string | null = null, libraryReady = false, readGeneration = 0;
+  let remoteFilterBook: Songbook | undefined;
+  const filterBooks = () => remoteFilterBook ? [...songbooks, remoteFilterBook] : songbooks;
   let lastUsedBook: string | null = null, importBook: string | null = null;
   const filterStatus = query('filter-status');
   try {selectedBook = readSongbookFilter(__APP_ENV__.namespace);}
@@ -152,7 +154,7 @@ export function startSongbook() {
   if (pendingUpdateView) {history.scrollRestoration = 'manual'; app.style.visibility = 'hidden';}
   let settingsReturn:UpdateView|undefined;
   const nav=navigation(page=>{void navigate(page);});
-  const libraryFilter = songbookFilter('songbook-filter', 'library', () => songbooks, () => selectedBook, selectFilter);
+  const libraryFilter = songbookFilter('songbook-filter', 'library', filterBooks, () => selectedBook, selectFilter);
   const filter = libraryFilter.button;
   filter.disabled = true;
   const add = floatingAction('Legg til sang', () => {
@@ -171,12 +173,30 @@ export function startSongbook() {
       await bookManager.copyShare(consent.bookId, consent.authorized);
     }});
   const cloudPage = syncPage(cloud);
-  const publication = publicationPage(cloud);
+  const publication = publicationPage(cloud, {books: filterBooks, selected: () => selectedBook, choose: selectFilter, refreshed(books) {
+    if (!remoteFilterBook) return;
+    const selected = books.find(book => book.id === selectedBook);
+    if (selected) remoteFilterBook = selected;
+    else selectFilter(null);
+  }});
+  const headerSync = query('header-sync'), headerSyncStatus = query('header-sync-status');
+  headerSync.append(icon('synkroniser'));
+  const environment = headerSync.parentElement!.querySelector('.environment')!;
+  let filterAccount = cloud.account()?.id;
   function updateDropbox() {
     const id = cloud.account()?.id;
+    if (id !== filterAccount) {
+      filterAccount = id;
+      if (remoteFilterBook) selectFilter(null);
+    }
     nav.publicationAvailable(Boolean(id));
     publication.accountChanged(id);
     cloudPage.render();
+    const syncing = cloud.syncing();
+    headerSync.parentElement!.toggleAttribute('data-syncing', syncing);
+    environment.setAttribute('aria-hidden', String(syncing));
+    const syncText = syncing ? 'Synkroniserer…' : '';
+    if (syncText !== headerSyncStatus.textContent) headerSyncStatus.textContent = syncText;
     if (!id && currentPage() === 'publication') void navigate('library');
   }
   let openingSong = false, sessionEdited = false;
@@ -231,22 +251,26 @@ export function startSongbook() {
     catch{query('settings-status').textContent='Visningen er endret, men valget kunne ikke lagres til neste oppstart.';}
   };
   window.addEventListener('beforeunload', event => {if (dirty() || setlists.dirty() || bookManager.dirty()) {event.preventDefault(); event.returnValue = '';}});
-  function selectFilter(id: string | null) {
+  function selectFilter(id: string | null, book?: Songbook) {
     selectedBook = id;
+    const known = book ?? remoteFilterBook;
+    remoteFilterBook = known?.id === id && !songbooks.some(local => local.id === id) ? known : undefined;
     try {saveSongbookFilter(__APP_ENV__.namespace, id); filterStatus.textContent = '';}
     catch {filterStatus.textContent = 'Filteret er endret, men sangbokvalget kunne ikke lagres til neste oppstart.';}
     drawList();
+    publication.render();
   }
   function acceptLibrary(snapshot: LibrarySnapshot) {
     songs = snapshot.songs; songbooks = snapshot.songbooks;
     listPersonal = new Map(snapshot.personal.map(state => [state.songId, state]));
-    if (selectedBook && !songbooks.some(book => book.id === selectedBook)) selectFilter(null);
+    if (songbooks.some(book => book.id === selectedBook)) remoteFilterBook = undefined;
+    else if (selectedBook && !remoteFilterBook) selectFilter(null);
     bookManager.accept(snapshot); drawList();
   }
   function drawList() {
     list.replaceChildren();
     libraryStatus.dataset.error = 'false';
-    const bookName = songbooks.find(book => book.id === selectedBook)?.name ?? 'Alle';
+    const bookName = filterBooks().find(book => book.id === selectedBook)?.name ?? 'Alle';
     libraryFilter.render();
     songs.sort((a, b) => a.title.localeCompare(b.title, 'nb') || a.origin.importedAt.localeCompare(b.origin.importedAt));
     const visible = songs.filter(song => selectedBook === null || song.songbookId === selectedBook);
@@ -267,6 +291,12 @@ export function startSongbook() {
     try {
       const snapshot = await storage.library();
       if (generation !== readGeneration) return false;
+      const bookId = selectedBook;
+      if (bookId && !remoteFilterBook && !songbooks.some(book => book.id === bookId) && !snapshot.songbooks.some(book => book.id === bookId)) {
+        const cached = await cloud.cachedPublication().catch(() => undefined);
+        if (generation !== readGeneration) return false;
+        if (bookId === selectedBook) remoteFilterBook = cached?.books.find(book => book.id === bookId);
+      }
       acceptLibrary(snapshot);
       libraryReady = true; filter.disabled = false; add.disabled = importing;
       drawList(); return true;

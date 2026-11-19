@@ -1,4 +1,4 @@
-import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed} from './failure.ts';
+import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,UnsentBatch} from './failure.ts';
 import {metadataView,pathKey} from './remote.ts';
 import {ownSong,songLocation} from './model.ts';
 import type {BookLink,DeleteEntry,FolderEntry,MoveEntry,MoveReply,MoveResult,NamespaceJob,RemoteEntry,RemoteFiles,SyncState} from './model.ts';
@@ -99,8 +99,10 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   if('jobExpired'in reply){delete job.jobId;delete job.reply;await hooks.save();return false;}
   if(reply.entries.length!==job.entries.length)throw bad(job.kind,'Ufullstendig batchkvittering.');
   // The whole transport receipt was persisted before this network/guard boundary.
-  if(!fresh&&(job.kind!=='delete'||reply.entries.some(result=>'missing'in result&&result.missing)))await refresh();
   const publishing=publicationJob(job);
+  if(!fresh&&(job.kind!=='delete'||reply.entries.some(result=>'missing'in result&&result.missing))){
+   if(publishing&&files.withMoveReceipt)await files.withMoveReceipt(refresh);else await refresh();
+  }
   let failure:MoveResult|undefined,missingCreation=false;const retry:NamespaceJob['entries']=[],limited:NamespaceJob['entries']=[];
   for(let i=0;i<job.entries.length;i++){
    const entry=job.entries[i],result=reply.entries[i];
@@ -140,6 +142,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
   if(missingCreation)throw new RetrySync();
   if(publishing){
    if(active&&limited.length&&job.attempt<2){state.namespaceJob={id:crypto.randomUUID(),kind:'move',entries:limited,attempt:job.attempt+1};await hooks.save();await recover(true);}
+   if(active&&limited.length&&job.attempt>=2)throw new SyncFailure({code:failureCodes.throttled,stage:stage('move'),status:200,limitReason:'too_many_write_operations'},'Dropbox begrenser flyttingene.');
    if(active&&reply.entries.some(result=>'failure'in result&&result.collision))throw new RetrySync();
    return true;
   }
@@ -223,7 +226,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    // This adapter returns successful transport receipts before its post-request
    // generation guard. Preflight guards and explicit 4xx rejection therefore
    // prove that this launch was not accepted, unlike an unknown network reply.
-   const rejected=error instanceof DeferredSync&&!(error instanceof SubmittedBatchInterruption)||error instanceof SyncFailure&&error.info.status!==undefined&&error.info.status>=400&&error.info.status<500&&error.info.status!==408;
+   const rejected=error instanceof UnsentBatch||error instanceof DeferredSync&&!(error instanceof SubmittedBatchInterruption)||error instanceof SyncFailure&&error.info.status!==undefined&&error.info.status>=400&&error.info.status<500&&error.info.status!==408;
    if(rejected){job.submitted=false;delete job.jobId;await hooks.receipt(job);if(error instanceof SyncFailure&&error.info.status===409)throw new RetrySync();}
    throw error;
   }

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dropboxAdapter} from '../src/adapters/dropbox.ts';
 import {maxFileBytes,SkippedFile} from '../src/sync/limits.ts';
+import {UnsentBatch,failureCodes} from '../src/sync/failure.ts';
 
 async function adapterTest(request,run){
   const old={localStorage:globalThis.localStorage,navigator:Object.getOwnPropertyDescriptor(globalThis,'navigator')};
@@ -26,6 +27,39 @@ test('Dropbox bulk contract: closed content sessions, byte offsets, strict add/u
     const session=await adapter.files.beginUpload(a.text);assert.equal(session.id,'session-a');
     const results=await adapter.files.commitBatch([a,b]);assert.equal(results[0].value.text,a.text);assert.equal(results[1].value.rev,'new');assert.equal(calls.length,2);
   });
+});
+
+test('Dropbox bulk contract: start and append group UTF-8 bytes and retain each independent result',async()=>{
+  const texts=['æ🎸','', 'Tre'], ids=['a','b','c'], calls=[];
+  await adapterTest(async(url,options)=>{
+    calls.push(new URL(url).pathname);
+    if(url.endsWith('/start_batch')){
+      assert.equal(new URL(url).host,'api.dropboxapi.com');
+      assert.deepEqual(JSON.parse(options.body),{num_sessions:3});
+      return Response.json({session_ids:ids});
+    }
+    assert.ok(url.endsWith('/append_batch'));
+    assert.equal(new URL(url).host,'content.dropboxapi.com');
+    assert.equal(Buffer.from(options.body).toString(),texts.join(''));
+    assert.deepEqual(JSON.parse(options.headers['Dropbox-API-Arg']).entries,texts.map((text,index)=>({cursor:{session_id:ids[index],offset:0},length:Buffer.byteLength(text),close:true})));
+    return Response.json({entries:[{'.tag':'success'},{'.tag':'failure',failure:{'.tag':'not_found'}},{'.tag':'success'}]});
+  },async(adapter,events)=>{
+    const results=await adapter.files.beginUploadBatch(texts);
+    assert.deepEqual(results.map(result=>result.session?.id),['a',undefined,'c']);
+    assert.equal(results[1].failure.code,failureCodes.request);
+    assert.deepEqual(calls,['/2/files/upload_session/start_batch','/2/files/upload_session/append_batch']);
+    assert.deepEqual(events.map(event=>event.batchSize),[3,3]);
+  });
+});
+
+test('Dropbox move batch contract: a failed token refresh proves that a batch was never sent',async()=>{
+  const calls=[];
+  await adapterTest(async url=>{calls.push(new URL(url).pathname);throw new TypeError('offline');},async adapter=>{
+    const key='bulk-test:dropbox-auth-v1', credentials=JSON.parse(localStorage.getItem(key));
+    localStorage.setItem(key,JSON.stringify({...credentials,expires:0}));
+    await assert.rejects(adapter.files.moveBatch([{from:'id:source',to:'/destination.cho',fileId:'id:source'}]),error=>error instanceof UnsentBatch&&error.info.code===failureCodes.network);
+  });
+  assert.deepEqual(calls,['/oauth2/token']);
 });
 
 test('Dropbox bulk contract: HTTP 200 can contain an independent revision failure and expired session',async()=>{

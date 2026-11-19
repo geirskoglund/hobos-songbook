@@ -46,6 +46,15 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   await action(page, 'Sangbok: Alle').click();
   await expect(page.getByRole('dialog', {name: 'Sangbok'})).toBeVisible();
   await page.getByRole('option', {name: 'Band', exact: true}).click();
+  await go(page, 'Sanger');
+  await expect(action(page, 'Sangbok: Band')).toBeVisible();
+  await expect(page.locator('#song-list li')).toHaveCount(0);
+  await action(page, 'Sangbok: Band').click();
+  await page.getByRole('option', {name: 'Alle', exact: true}).click();
+  await go(page, 'Publisering');
+  await expect(action(page, 'Sangbok: Alle')).toBeVisible();
+  await action(page, 'Sangbok: Alle').click();
+  await page.getByRole('option', {name: 'Band', exact: true}).click();
   await action(page, 'Velg alle').click();
   await expect(selected).toHaveText('2 valgt for publisering · 0 for avpublisering');
   await expect(root.locator('.choice-check')).toHaveCount(2);
@@ -83,9 +92,25 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   }
   const before = mock.calls.length;
   mock.fault('/move_batch_v2', 429);
-  await action(page, 'Utfør').click();
-  await expect(root.getByText('3 handlinger bekreftet.')).toBeVisible();
-  await expect(selected).toHaveText('0 valgt for publisering · 0 for avpublisering');
+  const release = mock.hold('/move_batch_v2');
+  try {
+    await action(page, 'Utfør').click();
+    await expect(selected).toHaveText('2 filer publiseres · 1 fil avpubliseres');
+    await expect(action(page, 'Utfør')).toBeDisabled();
+    await expect(action(page, 'Velg alle')).toBeDisabled();
+    await expect(root.locator('.metadata-row').first()).toBeDisabled();
+    await expect(action(page, 'Utfør').locator('svg')).toHaveCSS('animation-name', 'sync-rotation');
+    await expect(page.locator('#header-sync')).toHaveCSS('opacity', '0.65');
+    await expect(page.locator('.environment')).toHaveCSS('opacity', '0');
+    await page.screenshot({path: 'work/publication/under-utfør-1440.png'});
+    await page.emulateMedia({reducedMotion: 'reduce'});
+    await expect(action(page, 'Utfør').locator('svg')).toHaveCSS('animation-name', 'none');
+    await expect(page.locator('#header-sync svg')).toHaveCSS('animation-name', 'none');
+    await expect(page.locator('#header-sync')).toHaveCSS('transition-duration', '0s');
+    await page.emulateMedia({reducedMotion: 'no-preference'});
+  } finally {release();}
+  await expect(selected).toHaveText('2 filer ble publisert · 1 fil ble avpublisert');
+  await expect(page.locator('.environment')).toHaveCSS('opacity', '1');
   await expect(summary).toHaveText(['21', '20', '1']);
   const writes = mock.calls.slice(before).filter(call => call.endpoint.endsWith('/move_batch_v2'));
   expect(writes.map(call => call.args.entries.length)).toEqual([3, 3]);
@@ -94,6 +119,10 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   expect(mock.find('/Songbooks/Standard/Private/withdraw.cho')).toBeTruthy();
   expect(mock.calls.some(call => call.endpoint.includes('/sharing/'))).toBe(false);
   await page.screenshot({path: 'work/publication/etter-utfør-1440.png'});
+  const next = root.getByRole('button', {name: 'Alfa, G, 3/4'});
+  await next.click();
+  await expect(selected).toHaveText('0 valgt for publisering · 1 for avpublisering');
+  await next.click();
   await context.setOffline(true);
   await expect(action(page, 'Velg alle')).toBeDisabled();
   await expect(action(page, 'Utfør')).toBeDisabled();
@@ -101,6 +130,7 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   await go(page, 'Sanger');
   await go(page, 'Publisering');
   await expect(summary).toHaveText(['21', '20', '1']);
+  await expect(selected).toHaveText('0 valgt for publisering · 0 for avpublisering');
   await page.setViewportSize({width: 320, height: 560});
   await page.screenshot({path: 'work/publication/offline-320.png'});
   await context.setOffline(false);
@@ -112,6 +142,30 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   await page.getByRole('dialog').getByRole('button', {name: 'Koble fra', exact: true}).click();
   await openMenu(page);
   await expect(action(page, 'Publisering')).toHaveCount(0);
+});
+
+test('AK39-03: a terminal per-file Dropbox write lock acknowledges successes and frees the mutation fence', async ({page, context}) => {
+  const mock = await seed(page, context);
+  await go(page, 'Publisering');
+  const root = page.locator('#publication'), counts = root.locator('.publication-actions p');
+  await action(page, 'Velg alle').click();
+  const failed = mock.find('/Songbooks/Band/Private/zeda.cho').id;
+  mock.failMoveEntry(failed, 3);
+  const start = mock.calls.length;
+  await action(page, 'Utfør').click();
+  await expect(counts).toHaveText('2 filer publiseres');
+  await expect(counts).toHaveText('1 fil ble publisert', {timeout: 15000});
+  await expect(root.getByText(/1 gjenstår.*Dropbox ber om en pause/)).toBeVisible();
+  expect(JSON.parse(mock.find('/.app/library.json').text).songs.bela.path).toBe('/Songbooks/Band/Shared/bela.cho');
+  expect(JSON.parse(mock.find('/.app/mutation.json').text).owner).toBe(null);
+  expect(mock.calls.slice(start).filter(call => call.endpoint.endsWith('/move_batch_v2')).map(call =>
+    call.args.entries.map(entry => entry.from_path).sort())).toEqual([[mock.find('/Songbooks/Band/Shared/bela.cho').id, failed].sort(), [failed], [failed]]);
+  await action(page, 'Utfør').click();
+  await expect(counts).toHaveText('1 fil ble publisert');
+  await expect(root.getByText('Ingen upubliserte sanger.')).toBeVisible();
+  await go(page, 'Sanger');
+  await go(page, 'Publisering');
+  await expect(counts).toHaveText('0 valgt for publisering · 0 for avpublisering');
 });
 
 test('AK39-05: the songbook H04 action creates and reuses one read link, with manual copy fallback', async ({page, context}) => {
@@ -172,7 +226,7 @@ test('AK39-04: cancel leaves both songs in place, confirmed offline deletion mov
   await go(page, 'Publisering');
   await page.locator(`#publication [data-song-id="${two.id}"]`).click();
   await action(page, 'Utfør').click();
-  await expect(page.getByText('1 handling bekreftet.')).toBeVisible();
+  await expect(page.locator('#publication .publication-actions p')).toHaveText('1 fil ble publisert');
   const before = manifest(), sidecar = mock.find(`/.app/songs/${two.id}.json`).text;
   await go(page, 'Sangbøker');
   const dialog = page.getByRole('dialog', {name: 'Slett sangbok'});

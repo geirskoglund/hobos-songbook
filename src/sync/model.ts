@@ -17,14 +17,16 @@ export function songLocation(path: string) {
 export interface PublicationSong {id:string; songbookId:string; title:string; key:string|null; time:string|null; published:boolean}
 export interface PublicationView {songs:PublicationSong[]; books:{id:string;name:string}[]}
 export interface PublicationChoice {id:string; published:boolean}
-export interface PublicationResult {view:PublicationView; completed:string[]; message?:string; unavailable?:boolean}
+export interface PublicationResult {view:PublicationView; completed:string[]; moved:string[]; message?:string; unavailable?:boolean}
 export interface DeletedSong {id: string; fileId?: string; songbookId?: string}
 export interface Manifest {version: 1; books: Record<string, BookLink>; songs: Record<string, SongLink>; deletedSongs?: Record<string, DeletedSong>}
 export interface PersonalFile {version: 1; songId: string; original: {rev: string; hash: string}; data: SongPersonal}
 export interface FileValue {text: string; rev: string; id: string; path: string}
 export interface RemoteEntry {id?: string; path: string; folder?: boolean; rev?: string; deleted?: boolean; size?:number}
 export interface UploadIntent {key:string; songId:string; kind:'content'|'personal'|'original'|'seed'; path:string; text:string; rev:string|null; fileId?:string; base:{original:string;personal:PersonalFile;link?:SongLink}}
-export interface UploadJob extends UploadIntent {status:'planned'|'committing'|'done'; session?:{id:string;created:number}; value?:FileValue; creation?:{path:string;basePath:string;number:number;file?:FileValue;attempted?:boolean;collision?:boolean;failure?:FailureInfo;discarded?:boolean;folderId?:string;book?:BookLink}}
+export interface UploadSession {id:string;created:number}
+export interface UploadJob extends UploadIntent {status:'planned'|'committing'|'done'; session?:UploadSession; value?:FileValue; creation?:{path:string;basePath:string;number:number;file?:FileValue;attempted?:boolean;collision?:boolean;failure?:FailureInfo;discarded?:boolean;folderId?:string;book?:BookLink}}
+export type BeginUploadResult={session:UploadSession}|{failure:FailureInfo};
 export type UploadResult={value:FileValue}|{failure:FailureInfo;resetSession?:boolean};
 export interface MoveEntry {key:string;from:string;to:string;fileId:string;toReference?:string;folder?:boolean;link?:SongLink;book?:BookLink;archive?:{bookId:string;sourcePath:string}; sourceBookFolderId?:string; publication?:{sourcePath:string; rev:string}}
 export type MoveResult={value:{id:string;path:string;rev?:string;folder?:boolean}}|{failure:FailureInfo;collision?:boolean;missing?:boolean};
@@ -38,9 +40,11 @@ export interface RemoteIndex {cursor: string; entries: Record<string, RemoteEntr
 export interface RemoteFiles {
   read(path: string, knownPath?:string): Promise<FileValue | null>;
   write(path: string, text: string, rev: string | null): Promise<FileValue>;
-  beginUpload?(text:string):Promise<{id:string;created:number}>;
+  beginUpload?(text:string):Promise<UploadSession>;
+  beginUploadBatch?(texts:string[]):Promise<BeginUploadResult[]>;
   commitBatch?(jobs:UploadJob[]):Promise<UploadResult[]>;
   moveBatch?(entries:MoveEntry[],retryAttempt?:number):Promise<MoveReply>;
+  withMoveReceipt?(work:()=>Promise<void>):Promise<void>;
   checkMoveBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
   deleteBatch?(entries:DeleteEntry[],retryAttempt?:number):Promise<MoveReply>;
   checkDeleteBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;

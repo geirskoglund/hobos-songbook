@@ -58,6 +58,7 @@ test('AK39-03: opening refreshes changed titles without acknowledging content an
   assert.equal(f.data.songs[0].title, 'En sang');
   const checked = await engine(f).executePublication([change('one')]);
   assert.deepEqual(checked.completed, ['one']);
+  assert.deepEqual(checked.moved, []);
   assert.deepEqual(moves(f, first), []);
   await f.run();
   assert.equal(f.data.songs[0].title, 'Endret på en annen enhet');
@@ -127,7 +128,10 @@ test('AK39-03: a lost batch reply retains the shared fence and per-file proof un
     throw new SyncFailure({code: failureCodes.network, stage: 'dropbox.move-batch'}, 'lost response');
   };
   const first = await engine(f).executePublication([change('one'), change('two')]);
-  assert.equal(first.unavailable, true);
+  assert.equal(first.unavailable, false);
+  assert.deepEqual(first.completed, ['one']);
+  assert.deepEqual(first.moved, ['one']);
+  assert.match(f.data.state.manifest.songs.one.path, /\/Shared\//);
   assert.ok(f.data.state.namespaceJob.submitted);
   assert.ok(JSON.parse(f.entries.get('/.app/mutation.json').text).owner);
   const view = await engine(f).refreshPublication();

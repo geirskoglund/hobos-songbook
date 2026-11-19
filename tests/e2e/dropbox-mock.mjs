@@ -1,6 +1,6 @@
 /** HTTP-level Dropbox simulator; app builds contain no test hooks or credentials. */
 export async function dropboxMock(context, {connected=true,pageSize=2000,backend,sharing=false}={}) {
-  let sequence=0;const entries=backend?.entries??new Map(),history=backend?.history??new Map(),sessions=backend?.sessions??new Map(),moveJobs=backend?.moveJobs??new Map(),calls=[];let fault=null,hold=null,lostBatch=false,batchFailure=null,lostMove=false,nextAsyncMove=null;
+  let sequence=0;const entries=backend?.entries??new Map(),history=backend?.history??new Map(),sessions=backend?.sessions??new Map(),moveJobs=backend?.moveJobs??new Map(),calls=[];let fault=null,hold=null,lostBatch=false,batchFailure=null,lostMove=false,nextAsyncMove=null,moveFailure=null;
   let latency=0,active=0,maximum=0,namespaceAsync=null,lostDelete=false,lostFolders=false;const namespaceJobs=backend?.namespaceJobs??new Map();
   let limitWrites=false,activeWrites=0,rateCount=0;
   const links = new Map();
@@ -14,6 +14,7 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
   const relocation=(from,to)=>{
     to=reference(to);
     const value=find(from),failure=error=>({'.tag':'failure',failure:{'.tag':'relocation_error',relocation_error:error}});
+    if(moveFailure?.source===from){if(--moveFailure.remaining<=0)moveFailure=null;return failure({'.tag':'from_write',from_write:{'.tag':'too_many_write_operations'}});}
     if(!value)return failure({'.tag':'from_lookup',from_lookup:{'.tag':'not_found'}});
     if(to.startsWith('id:'))return failure({'.tag':'to',to:{'.tag':'not_found'}});
     if(find(to))return failure({'.tag':'to',to:{'.tag':'conflict',conflict:{'.tag':'file'}}});
@@ -76,13 +77,30 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
     if(endpoint.endsWith('/download')){const value=find(args.path);if(!value)return missing();const meta=metadata(value);delete meta['.tag'];return route.fulfill({status:200,contentType:'application/octet-stream',headers:{'Access-Control-Expose-Headers':'Dropbox-API-Result','Dropbox-API-Result':JSON.stringify(meta)},body:Buffer.from(value.text)});}
     if(endpoint.endsWith('/upload')){const old=find(args.path);if(args.mode['.tag']==='update'?old?.rev!==args.mode.update:Boolean(old))return route.fulfill({status:409,json:{error_summary:'path/conflict/file/'}});const value=metadata(put(args.path,Buffer.from(request.postDataBuffer()).toString('utf8')));delete value['.tag'];return ok(value);}
     if(endpoint.endsWith('/upload_session/start')){if(url.host!=='content.dropboxapi.com')throw Error('Upload session has wrong host');if(args.close!==true)throw Error('Session must be closed');const id='session-'+crypto.randomUUID();sessions.set(id,Buffer.from(request.postDataBuffer()));return ok({session_id:id});}
+    if(endpoint.endsWith('/upload_session/start_batch')){
+      if(url.host!=='api.dropboxapi.com'||!Number.isInteger(args.num_sessions)||args.num_sessions<1||args.num_sessions>1000)throw Error('Invalid batch start');
+      return ok({session_ids:Array.from({length:args.num_sessions},()=>{const id='session-'+crypto.randomUUID();sessions.set(id,null);return id;})});
+    }
+    if(endpoint.endsWith('/upload_session/append_batch')){
+      const bytes=request.postDataBuffer()??Buffer.alloc(0);
+      if(url.host!=='content.dropboxapi.com'||!args.entries.length||args.entries.length>500||bytes.length>150*1024*1024||args.entries.reduce((sum,item)=>sum+item.length,0)!==bytes.length)throw Error('Invalid batch append');
+      let offset=0;
+      const results=args.entries.map(({cursor,length,close})=>{
+        if(cursor.offset!==0||close!==true||!Number.isInteger(length)||length<0)throw Error('Expected complete upload sessions');
+        const content=bytes.subarray(offset,offset+length);offset+=length;
+        if(!sessions.has(cursor.session_id))return{'.tag':'failure',failure:{'.tag':'not_found'}};
+        if(sessions.get(cursor.session_id)!==null)return{'.tag':'failure',failure:{'.tag':'closed'}};
+        sessions.set(cursor.session_id,content);return{'.tag':'success'};
+      });
+      return ok({entries:results});
+    }
     if(endpoint.endsWith('/upload_session/finish_batch_v2')){
       if(url.host!=='api.dropboxapi.com'||!args.entries.length||args.entries.length>1000)throw Error('Invalid batch request');
       const results=args.entries.map(({cursor,commit})=>{
         if(commit.autorename!==false||commit.strict_conflict!==true)throw Error('Batch must preserve revision guards');
         if(batchFailure&&commit.path===batchFailure.path){const failure={'.tag':'failure',failure:batchFailure.tag==='path/too_many_write_operations'?{'.tag':'path',path:{'.tag':'too_many_write_operations'}}:{'.tag':batchFailure.tag}};if(--batchFailure.remaining<=0)batchFailure=null;return failure;}
         const bytes=sessions.get(cursor.session_id);
-        if(!bytes)return{'.tag':'failure',failure:{'.tag':'lookup_failed',lookup_failed:{'.tag':'not_found'}}};
+        if(!bytes)return{'.tag':'failure',failure:{'.tag':'lookup_failed',lookup_failed:{'.tag':bytes===null?'not_closed':'not_found'}}};
         if(cursor.offset!==bytes.length)throw Error('Wrong byte offset');
         const old=find(commit.path);
         if(commit.mode['.tag']==='update'?old?.rev!==commit.mode.update:Boolean(old))return{'.tag':'failure',failure:{'.tag':'path',path:{'.tag':'conflict',conflict:{'.tag':'file'}}}};
@@ -101,5 +119,5 @@ export async function dropboxMock(context, {connected=true,pageSize=2000,backend
     throw Error('Unexpected Dropbox endpoint '+endpoint);
     }finally{active--;if(writing)activeWrites--;}
   });
-  return {entries,history,sessions,moveJobs,namespaceJobs,cursors,calls,links,find,put,loseDeleteReply(){lostDelete=true;},loseFoldersReply(){lostFolders=true;},asyncNamespace(kind,checks=1,loseLaunch=false){namespaceAsync={kind,checks,loseLaunch};},finishNamespaceJobs(){for(const job of namespaceJobs.values())namespaceResult(job);},loseBatchReply(){lostBatch=true;},loseMoveReply(){lostMove=true;},asyncMove(checks=1,loseLaunch=false){nextAsyncMove={checks,loseLaunch};},finishMoves(){for(const job of moveJobs.values())moveResult(job);},failBatchEntry(path,tag='too_many_write_operations',repeat=1){batchFailure={path,tag,remaining:repeat};},latency(ms){latency=ms;maximum=0;},maximum:()=>maximum,throttled:()=>rateCount,limitConcurrentWrites(){limitWrites=true;},resetCursors(){cursors.clear();},rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status,skip=0,{repeat=1,retryAfter=0,reason='too_many_write_operations',path}={}){fault={endpoint,status,skip,remaining:repeat,retryAfter,reason,path};},hold(endpoint,all=false,path){let release;const resolve=new Promise(r=>release=r),waiting={endpoint,resolve,all,path};hold=waiting;return ()=>{if(hold===waiting)hold=null;release();};}};
+  return {entries,history,sessions,moveJobs,namespaceJobs,cursors,calls,links,find,put,loseDeleteReply(){lostDelete=true;},loseFoldersReply(){lostFolders=true;},asyncNamespace(kind,checks=1,loseLaunch=false){namespaceAsync={kind,checks,loseLaunch};},finishNamespaceJobs(){for(const job of namespaceJobs.values())namespaceResult(job);},loseBatchReply(){lostBatch=true;},loseMoveReply(){lostMove=true;},asyncMove(checks=1,loseLaunch=false){nextAsyncMove={checks,loseLaunch};},finishMoves(){for(const job of moveJobs.values())moveResult(job);},failBatchEntry(path,tag='too_many_write_operations',repeat=1){batchFailure={path,tag,remaining:repeat};},failMoveEntry(source,repeat){moveFailure={source,remaining:repeat};},latency(ms){latency=ms;maximum=0;},maximum:()=>maximum,throttled:()=>rateCount,limitConcurrentWrites(){limitWrites=true;},resetCursors(){cursors.clear();},rename(from,to){const value=find(from);const prefix=value.path_display;for(const [k,e]of [...entries])if(e.path_display===prefix||e.path_display.startsWith(prefix+'/')){entries.delete(k);e.path_display=to+e.path_display.slice(prefix.length);e.path_lower=key(e.path_display);entries.set(e.path_lower,e);}},fault(endpoint,status,skip=0,{repeat=1,retryAfter=0,reason='too_many_write_operations',path}={}){fault={endpoint,status,skip,remaining:repeat,retryAfter,reason,path};},hold(endpoint,all=false,path){let release;const resolve=new Promise(r=>release=r),waiting={endpoint,resolve,all,path};hold=waiting;return ()=>{if(hold===waiting)hold=null;release();};}};
 }

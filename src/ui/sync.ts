@@ -34,7 +34,8 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
   function render() {
     const account = controller.account(); disconnected.hidden = Boolean(account); connected.hidden = !account;
     identity.textContent = account ? `${account.name} · ${account.email}` : '';
-    sync.disabled = controller.running()||navigator.onLine===false;const message=controller.status(),hasReport=Boolean(controller.reportText());
+    sync.toggleAttribute('data-syncing', controller.running());
+    sync.disabled = controller.syncing()||navigator.onLine===false;const message=controller.status(),hasReport=Boolean(controller.reportText());
     messages[0].render(account?'':message,!account&&hasReport);messages[1].render(account?message:'',Boolean(account)&&hasReport);
   }
   function confirmDisconnect() {

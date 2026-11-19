@@ -71,6 +71,27 @@ test('AK39-05: effective restricted audience, edit links and scope errors never 
   } finally {f.cleanup();}
 });
 
+test('AK39-05: reuse or create a legacy public folder link and distinguish unverifiable modern permissions', async () => {
+  const f = setup();
+  try {
+    const older = link({url:'https://www.dropbox.com/sh/folder?dl=0',link_permissions:{resolved_visibility:{'.tag':'public'},require_password:false}});
+    let mode = 'reuse', creates = 0;
+    const adapter = dropboxAdapter({namespace, channel: 'test'}, async url => {
+      if(url.endsWith('/list_shared_links'))return result({has_more:false,links:mode==='reuse'?[older]:[]});
+      creates++;
+      if(mode==='create')return result(older);
+      if(mode==='denied')return result({error_summary:'settings_error/'},409);
+      return result(link({link_permissions:{effective_audience:{'.tag':'public'}}}));
+    });
+    assert.equal(await adapter.sharedLink(folder),older.url);
+    assert.equal(creates,0);
+    mode='create';assert.equal(await adapter.sharedLink(folder),older.url);
+    assert.equal(creates,1);
+    mode='unverified';await assert.rejects(adapter.sharedLink(folder),error=>error.info.stage==='dropbox.sharing-verification');
+    mode='denied';await assert.rejects(adapter.sharedLink(folder),error=>error.info.stage==='dropbox.sharing-policy');
+  } finally {f.cleanup();}
+});
+
 test('AK39-05: additional scopes require explicit PKCE consent and keep the existing connection on a different account', async () => {
   const f = setup();
   try {
