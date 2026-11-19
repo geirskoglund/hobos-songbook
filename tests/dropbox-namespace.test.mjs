@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {dropboxAdapter} from '../src/adapters/dropbox.ts';
 import {fixture,song} from './sync-fixture.mjs';
 import {syncEngine} from '../src/sync/engine.ts';
-import {DeferredSync,SubmittedBatchInterruption,BatchJobFailed} from '../src/sync/failure.ts';
+import {namespaceQueue} from '../src/sync/namespace.ts';
+import {DeferredSync,SubmittedBatchInterruption,BatchJobFailed,RetrySync} from '../src/sync/failure.ts';
 async function adapterTest(request,run,guard=()=>{}){
  const old={localStorage:globalThis.localStorage,navigator:Object.getOwnPropertyDescriptor(globalThis,'navigator')},store=new Map([['namespace-test:dropbox-auth-v1',JSON.stringify({version:1,accountId:'fixture',name:'Fixture',email:'fixture@example.invalid',accessToken:'token',refreshToken:'refresh',expires:Date.now()+3600000})]]);
  globalThis.localStorage={getItem:key=>store.get(key)??null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)};Object.defineProperty(globalThis,'navigator',{configurable:true,value:{locks:{request:async(_key,operation)=>operation()}}});
@@ -115,6 +116,63 @@ test('namespace contract: a successful job receipt reaches its journal even when
 });
 test('namespace contract: malformed batch results cannot acknowledge work',async()=>{
  for(const value of [{'.tag':'complete',entries:[]},{'.tag':'complete',entries:[{'.tag':'success',success:{metadata:{id:'wrong-shape'}}}]},{'.tag':'async_job_id'}])await adapterTest(async()=>Response.json(value),async adapter=>{await assert.rejects(adapter.files.createFoldersBatch([{key:'a',path:'/A'}]),error=>error.info.code==='SYNC-008');});
+});
+
+test('namespace recovery: a rejected empty-folder delete checks for new contents after token renewal', async () => {
+ const folder={id:'id:retired',path:'/Songbooks/Retired',folder:true};
+ const added={id:'id:new',path:`${folder.path}/New.cho`,rev:'new',folder:false};
+ const entries=[folder],calls=[];
+ const book={id:'retired',name:'Retired',path:folder.path,folderId:folder.id,deleted:true};
+ const manifest={books:{retired:book},songs:{}},state={manifest,library:{value:manifest},folders:{},reservations:{}};
+ const noop=()=>{};
+ await adapterTest(async (url, init) => {
+  const route=new URL(url).pathname;
+  calls.push(route);
+  if(route==='/oauth2/token'){
+   entries.push(added);
+   return Response.json({access_token:'renewed',expires_in:3600});
+  }
+  assert.equal(route,'/2/files/delete_batch');
+  assert.deepEqual(JSON.parse(init.body),{entries:[{path:folder.id}]});
+  if(calls.filter(call=>call===route).length===1)return Response.json({error:{'.tag':'expired_access_token'}},{status:401});
+  entries.length=0; // Dropbox recursively deletes the contents of a folder.
+  return Response.json({'.tag':'complete',entries:[{'.tag':'success',metadata:{'.tag':'folder',id:folder.id,path_display:folder.path}}]});
+ },async adapter=>{
+  const files={...adapter.files,async metadataSnapshot(){calls.push('snapshot');return structuredClone(entries);}};
+  const queue=namespaceQueue(files,state,{check:noop,save:noop,receipt:noop,freshList:async()=>[],find:noop,removed:noop,moved:noop});
+  await assert.rejects(queue.remove([{...deletion('retired',true),sourcePath:folder.path,bookId:book.id}]),error=>error.reason==='remote');
+  assert.equal(state.namespaceJob,undefined);
+  assert.equal(adapter.account().id,'fixture');
+ });
+ assert.deepEqual(calls,['snapshot','/2/files/delete_batch','/oauth2/token','snapshot']);
+ assert.deepEqual(entries,[folder,added]);
+});
+
+test('namespace recovery: a rejected folder create checks its parent identity after token renewal', async () => {
+ const root={id:'id:book',path:'/Songbooks/Book',folder:true};
+ const book={id:'book',name:'Book',path:root.path,folderId:root.id};
+ const entries=[root],calls=[];
+ const manifest={books:{book},songs:{}},state={manifest,library:{value:manifest},folders:{},reservations:{}};
+ const noop=()=>{};
+ await adapterTest(async (url, init) => {
+  const route=new URL(url).pathname;
+  calls.push(route);
+  if(route==='/oauth2/token'){
+   entries[0]={...root,path:'/Songbooks/Renamed'};
+   entries.push({...root,id:'id:unrelated'});
+   return Response.json({access_token:'renewed',expires_in:3600});
+  }
+  assert.equal(route,'/2/files/create_folder_batch');
+  assert.deepEqual(JSON.parse(init.body).paths,[root.path+'/Private']);
+  if(calls.filter(call=>call===route).length===1)return Response.json({error:{'.tag':'expired_access_token'}},{status:401});
+  throw new Error('Creation would use the unrelated replacement parent');
+ },async adapter=>{
+  const files={...adapter.files,async metadataSnapshot(){calls.push('snapshot');return structuredClone(entries);}};
+  const queue=namespaceQueue(files,state,{check:noop,save:noop,receipt:noop,freshList:async()=>[],find:path=>entries.find(entry=>entry.path===path),removed:noop,moved:noop});
+  await assert.rejects(queue.folders([{key:'private',path:root.path+'/Private'}]),RetrySync);
+  assert.equal(state.namespaceJob,undefined);
+ });
+ assert.deepEqual(calls,['snapshot','/2/files/create_folder_batch','/oauth2/token','snapshot']);
 });
 
 for(const status of [500,408])test(`namespace contract: HTTP${status} followed by a new-generation guard retains the already submitted ID move`,async()=>{

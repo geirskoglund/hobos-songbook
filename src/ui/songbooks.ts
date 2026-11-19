@@ -81,7 +81,10 @@ export function startSongbooks(storage: ReturnType<typeof songStorage>, options:
     } catch (error) {
       if (stillHere()) status.textContent = error instanceof SyncFailure && /^(dropbox\.sharing-|publication\.shared-folder)/.test(error.info.stage) ? error.message
         : navigator.onLine ? 'Kunne ikke hente delingslenken fra Dropbox. Prøv igjen.' : 'Uten nett. Delingslenken krever forbindelse til Dropbox.';
-    } finally {sharing = false;}
+    } finally {
+      if (options.account() !== account) status.textContent = '';
+      sharing = false;
+    }
   }
   function edit(opener: HTMLElement, book?: Songbook, selected?: (id: string) => void) {
     const id = book?.id ?? crypto.randomUUID();

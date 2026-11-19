@@ -5,11 +5,12 @@ import type {Conflict, PublicationChoice, PublicationResult, SyncState} from './
 import {publicationError, publicationView} from './publication.ts';
 import {DeferredSync, failureCodes, failureInfo, failureText, PublicationInProgress, SyncFailure,RetrySync, type FailureInfo} from './failure.ts';
 import {syncDiagnostics, type ApiEvent, type SyncLog} from './diagnostics.ts';
-export function syncController(storage: ReturnType<typeof songStorage>, hooks: {busy(): boolean; downloaded(): Promise<unknown>; notify(): void; connected(): void; sharing(consent: SharingConsent): Promise<void>}) {
+export function syncController(storage: ReturnType<typeof songStorage>, hooks: {busy(): boolean; downloaded(): Promise<unknown>; notify(): void; connected(): void; accessLost(): void; sharing(consent: SharingConsent): Promise<void>}) {
   const env = __APP_ENV__, owner = crypto.randomUUID();
   const events:ApiEvent[]=[],operationTotals:Record<string,number>={},diagnostics=syncDiagnostics(env,()=>hooks.notify());let logging=false;
   let requestEpoch = -1, requestAccount: string | null = null, requestManual = false;
   let requestGeneration:number|null=null;
+  let captureAccessLoss: ((failure: SyncFailure) => void) | undefined;
   const adapter = dropboxAdapter(env, fetch, async () => {
     if(navigator.onLine===false)throw new DeferredSync('connection','Venter på nett.');
     const allowed = () => !paused && !hooks.busy() && requestEpoch === epoch && requestAccount === account()?.id;
@@ -18,7 +19,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
     if (!allowed() || Object.keys(snapshot.journal.sessions).length) throw new PausedSync();
     if(requestGeneration!==null&&snapshot.journal.generation!==requestGeneration)throw new DeferredSync('changed','Nyere lokale endringer venter.');
     if (snapshot.journal.recoveryRequired && !requestManual) throw new DeferredSync('recovery','Lagrede endringer etter avbrudd venter på Synkroniser.');
-  },event=>{if(!logging){operationTotals[event.operation]=(operationTotals[event.operation]??0)+1;events.push(event);if(events.length>30)events.shift();}});
+  },event=>{if(!logging){operationTotals[event.operation]=(operationTotals[event.operation]??0)+1;events.push(event);if(events.length>30)events.shift();}},failure=>captureAccessLoss?.(failure));
   let paused = false, epoch = 0, running = false, started = false, requestedManual = false, immediate = false, localPending = false;
   let changedDuringRun = false, recoveryRequired = false, workingWithDropbox = false, syncingPublication = false;
   let activeManual=false,activeEpoch=-1;
@@ -113,6 +114,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
     workingWithDropbox = true;
     syncingPublication = publication;
     if (publication) notify();
+    let lost: SyncFailure | undefined;
     const valid = () => ticket === epoch && !paused && !hooks.busy() && account()?.id === user.id;
     try {
       await opening;
@@ -123,21 +125,30 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
         const latest = await storage.sync.status();
         requestEpoch = ticket; requestAccount = user.id; requestManual = true;
         requestGeneration = latest.journal.generation;
+        events.length = 0;
+        for (const operation of Object.keys(operationTotals)) delete operationTotals[operation];
         adapter.beginRun();
-        for (let attempt = 0; ; attempt++) {
-          try {
-            const engine = syncEngine(storage.sync, adapter.files, user.id, {valid, changed: () => {}});
-            const result = await work(engine, attempt < 2);
-            if (!valid()) throw new PausedSync();
-            return result;
-          } catch (error) {
-            if (!(error instanceof RetrySync) || attempt === 2) throw error;
+        captureAccessLoss = failure => {lost = failure;};
+        try {
+          for (let attempt = 0; ; attempt++) {
+            try {
+              const engine = syncEngine(storage.sync, adapter.files, user.id, {valid, changed: () => {}});
+              const result = await work(engine, attempt < 2);
+              if (!valid()) throw new PausedSync();
+              return result;
+            } catch (error) {
+              if (!(error instanceof RetrySync) || attempt === 2) throw error;
+            }
           }
-        }
+        } finally {captureAccessLoss = undefined;}
       });
     } finally {
       workingWithDropbox = false;
       syncingPublication = false;
+      if (lost && ticket === epoch && !account()) {
+        report(lost, 'sync.run', true, user.id);
+        hooks.accessLost();
+      }
       if (publication) notify();
       await refresh().catch(() => {});
       if (requestedManual || changedDuringRun) queueMicrotask(() => {void execute();});

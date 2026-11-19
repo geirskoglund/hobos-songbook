@@ -374,6 +374,42 @@ test('AK39-05/F61: a rejected sharing grant returns to the songbook action with 
   await expect(action(page, 'Koble til Dropbox')).toBeHidden();
 });
 
+for (const operation of ['share link','publish']) test(`F04: confirmed access loss during ${operation} shows the existing reconnect action`, async ({page,context}) => {
+  const mock = await seed(page,context,{sharing:true});
+  const sharing = operation === 'share link';
+  const endpoint = sharing ? '/2/sharing/list_shared_links' : '/2/files/move_batch_v2';
+  let rejected = 0, refreshes = 0;
+  await context.route('https://api.dropboxapi.com'+endpoint, route => {
+    rejected++;
+    return route.fulfill({status:401,json:{error:{'.tag':'expired_access_token'}}});
+  });
+  await context.route('https://api.dropboxapi.com/oauth2/token', route => {
+    refreshes++;
+    return route.fulfill({status:400,json:{error:'invalid_grant'}});
+  });
+  if (sharing) {
+    await go(page,'Sangbøker');
+    await action(page,'Handlinger for Standard').click();
+    await page.getByRole('menuitem',{name:'Kopier delingslenke',exact:true}).click();
+  } else {
+    await go(page,'Publisering');
+    await action(page,'Velg alle').click();
+    await action(page,'Utfør').click();
+  }
+  await expect(action(page,'Koble til Dropbox')).toBeVisible();
+  await expect(page.locator('#sync .sync-connect [role=status]')).toHaveText('Synkronisering feilet (Feilkode SYNC-004). Koble til Dropbox på nytt.');
+  await expect(page.getByRole('button',{name:'Kopier feillogg',exact:true})).toBeVisible();
+  const report = await page.evaluate(()=>{
+    const log=JSON.parse(localStorage.getItem('hobos-songbook-test:sync-diagnostics-v1'));
+    return log.entries.find(entry=>entry.id===log.active);
+  });
+  expect(report.failure).toMatchObject({code:'SYNC-004',status:400,action:'reconnect'});
+  expect(report.operations.map(call=>call.status)).toEqual(expect.arrayContaining([401,400]));
+  await expect(page.locator('#songbooks-status')).toHaveText('');
+  expect([rejected,refreshes]).toEqual([1,1]);
+  expect(mock.find('/Songbooks/Band/Private/bela.cho')).toBeTruthy();
+});
+
 test('AK39-03: a terminal per-file Dropbox write lock acknowledges successes and frees the mutation fence', async ({page, context}) => {
   const mock = await seed(page, context);
   await go(page, 'Publisering');

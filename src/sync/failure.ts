@@ -41,9 +41,9 @@ export class BatchRateRejected extends SyncFailure {}
 export class UnsentBatch extends SyncFailure {
   constructor(error: SyncFailure) {super(error.info,error.message,error);}
 }
-/** A move waited after its metadata check and has not been sent. */
-export class MovePlanNeedsRefresh extends UnsentBatch {
-  constructor() {super(new SyncFailure({code: failureCodes.changed, stage: 'dropbox.move-batch'}, 'Flytteplanen må kontrolleres på nytt etter venting.'));}
+/** The namespace plan met a delay or definitive rejection before acceptance. */
+export class NamespacePlanNeedsRefresh extends UnsentBatch {
+  constructor() {super(new SyncFailure({code: failureCodes.changed, stage: 'sync.namespace'}, 'Batchplanen må kontrolleres på nytt etter venting.'));}
 }
 /** Normal interruption; never reported or logged as a sync failure. */
 export class DeferredSync extends Error {

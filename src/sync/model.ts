@@ -37,6 +37,7 @@ export type NamespaceEntry=MoveEntry|DeleteEntry|FolderEntry;
 export interface NamespaceJob {id:string;kind:'move'|'delete'|'folders';entries:NamespaceEntry[];submitted?:boolean;jobId?:string;attempt:number;reply?:MoveReply;quarantinedParents?:string[]}
 export interface PlacementJob {id?:string;entries:MoveEntry[];jobId?:string;retryAttempt?:number;reply?:MoveReply}
 export interface RemoteIndex {cursor: string; entries: Record<string, RemoteEntry>; beforeUpdates?:Record<string,RemoteEntry|null>;epoch?:number}
+export interface NamespaceBatchOptions {revalidateAfterWait: boolean}
 export interface RemoteFiles {
   read(path: string, knownPath?:string): Promise<FileValue | null>;
   write(path: string, text: string, rev: string | null): Promise<FileValue>;
@@ -44,12 +45,12 @@ export interface RemoteFiles {
   beginUpload?(text:string):Promise<UploadSession>;
   beginUploadBatch?(texts:string[]):Promise<BeginUploadResult[]>;
   commitBatch?(jobs:UploadJob[]):Promise<UploadResult[]>;
-  moveBatch?(entries:MoveEntry[],retryAttempt?:number,options?:{revalidateAfterWait:boolean}):Promise<MoveReply>;
+  moveBatch?(entries:MoveEntry[],retryAttempt?:number,options?:NamespaceBatchOptions):Promise<MoveReply>;
   withMoveReceipt?(work:()=>Promise<void>):Promise<void>;
   checkMoveBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
-  deleteBatch?(entries:DeleteEntry[],retryAttempt?:number):Promise<MoveReply>;
+  deleteBatch?(entries:DeleteEntry[],retryAttempt?:number,options?:NamespaceBatchOptions):Promise<MoveReply>;
   checkDeleteBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
-  createFoldersBatch?(entries:FolderEntry[],retryAttempt?:number):Promise<MoveReply>;
+  createFoldersBatch?(entries:FolderEntry[],retryAttempt?:number,options?:NamespaceBatchOptions):Promise<MoveReply>;
   checkCreateFoldersBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
   metadata?(path:string):Promise<RemoteEntry|null>;
   /** Complete, freshly paginated metadata, detached from later local receipts. */

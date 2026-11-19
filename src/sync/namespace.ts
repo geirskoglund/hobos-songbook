@@ -1,4 +1,4 @@
-import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch,MovePlanNeedsRefresh,BatchStatusUnconfirmed,PublicationInProgress} from './failure.ts';
+import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch,NamespacePlanNeedsRefresh,BatchStatusUnconfirmed,PublicationInProgress} from './failure.ts';
 import {metadataView,pathKey} from './remote.ts';
 import {ownSong,songLocation} from './model.ts';
 import type {BookLink,DeleteEntry,FolderEntry,MoveEntry,MoveReply,MoveResult,NamespaceJob,RemoteEntry,RemoteFiles,SyncState} from './model.ts';
@@ -223,9 +223,10 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    // This guard is still before transport. Its cancellation must durably undo
    // the sent flag even when a newer local generation prevents ordinary save.
    await hooks.check();
-   if(job.kind==='move'){if(!files.moveBatch)throw bad(job.kind,'Batchflytting mangler.');reply=await files.moveBatch(job.entries as MoveEntry[],job.attempt,{revalidateAfterWait:true});}
-   else if(job.kind==='delete'){if(!files.deleteBatch)throw bad(job.kind,'Batchsletting mangler.');reply=await files.deleteBatch(job.entries as DeleteEntry[],job.attempt);}
-   else{if(!files.createFoldersBatch)throw bad(job.kind,'Batchoppretting mangler.');reply=await files.createFoldersBatch(job.entries as FolderEntry[],job.attempt);}
+   const options={revalidateAfterWait:true};
+   if(job.kind==='move'){if(!files.moveBatch)throw bad(job.kind,'Batchflytting mangler.');reply=await files.moveBatch(job.entries as MoveEntry[],job.attempt,options);}
+   else if(job.kind==='delete'){if(!files.deleteBatch)throw bad(job.kind,'Batchsletting mangler.');reply=await files.deleteBatch(job.entries as DeleteEntry[],job.attempt,options);}
+   else{if(!files.createFoldersBatch)throw bad(job.kind,'Batchoppretting mangler.');reply=await files.createFoldersBatch(job.entries as FolderEntry[],job.attempt,options);}
   }catch(error){
    // This adapter returns successful transport receipts before its post-request
    // generation guard. Preflight guards and explicit 4xx rejection therefore
@@ -233,7 +234,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    const rejected=error instanceof UnsentBatch||error instanceof DeferredSync&&!(error instanceof SubmittedBatchInterruption)||error instanceof SyncFailure&&error.info.status!==undefined&&error.info.status>=400&&error.info.status<500&&error.info.status!==408;
    if(rejected){job.submitted=false;delete job.jobId;await hooks.receipt(job);if(error instanceof SyncFailure&&error.info.status===409)throw new RetrySync();}
    if(error instanceof BatchRateRejected&&job.attempt<2){job.attempt++;await hooks.save();await recover(true,revalidations);return true;}
-   if(error instanceof MovePlanNeedsRefresh&&revalidations<2){await recover(true,revalidations+1);return true;}
+   if(error instanceof NamespacePlanNeedsRefresh&&revalidations<2){await recover(true,revalidations+1);return true;}
    throw error;
   }
   await receipt(job,reply);return apply(job,reply,false,active);

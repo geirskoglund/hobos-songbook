@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dropboxAdapter} from '../src/adapters/dropbox.ts';
 import {maxFileBytes,SkippedFile} from '../src/sync/limits.ts';
-import {MovePlanNeedsRefresh,UnsentBatch,failureCodes} from '../src/sync/failure.ts';
+import {NamespacePlanNeedsRefresh,UnsentBatch,failureCodes} from '../src/sync/failure.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 import {fixture} from './sync-fixture.mjs';
 
@@ -69,7 +69,7 @@ test('Dropbox move batch contract: waiting at the shared rate gate sends the pla
   await adapterTest(async url => {calls.push(new URL(url).pathname);return Response.json({'.tag': 'complete', entries: []});}, async adapter => {
     localStorage.setItem('bulk-test:dropbox-rate-v1', JSON.stringify({version: 1, accountId: 'fixture', until: Date.now() + 1000, reason: 'too_many_requests'}));
     const entries = [{from: 'id:source', to: '/destination.cho', fileId: 'id:source'}];
-    await assert.rejects(adapter.files.moveBatch(entries, 0, {revalidateAfterWait: true}), MovePlanNeedsRefresh);
+    await assert.rejects(adapter.files.moveBatch(entries, 0, {revalidateAfterWait: true}), NamespacePlanNeedsRefresh);
     assert.deepEqual(calls, []);
   });
 });

@@ -168,7 +168,9 @@ export function startSongbook() {
   query('header-actions').append(filter,editMenu);
   query('back').replaceChildren(icon('tilbake'));
   const cloud = syncController(storage, {busy: () => Boolean(active || importing || creating || leaving || openingSong), downloaded: refreshLibrary,
-    notify: updateDropbox, connected: () => {void navigate('sync');}, sharing: async consent => {
+    notify: updateDropbox, connected: () => {void navigate('sync');}, accessLost: () => {
+      if (currentPage() === 'publication' || currentPage() === 'songbooks') void navigate('sync');
+    }, sharing: async consent => {
       await navigate('songbooks');
       await bookManager.copyShare(consent.bookId, consent.authorized);
     }});

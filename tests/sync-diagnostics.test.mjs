@@ -114,6 +114,21 @@ test('known user guidance survives local persistence without storing arbitrary m
  assert.equal(failureText(restored.entry(callback.id).failure),'Synkronisering feilet (Feilkode SYNC-004)');
 }));
 
+test('technical OAuth entries retain the active sync failure through rotation and reload',()=>browser(async()=>{
+ const diagnostics=syncDiagnostics(env);
+ const active=diagnostics.record(new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'connection error'),'sync.run',true,[]).entry;
+ const callback=new SyncFailure({code:failureCodes.oauthReturn,stage:'dropbox.oauth'},'callback error');
+ const hidden=[];
+ for(let index=0;index<20;index++)hidden.push(diagnostics.record(callback,'dropbox.oauth',false,[],undefined,undefined,false).entry.id);
+ await new Promise(setImmediate);
+ const restored=syncDiagnostics(env);
+ assert.equal(restored.active().id,active.id);
+ assert.equal(failureText(restored.active().failure),'Synkronisering feilet (Feilkode SYNC-002)');
+ assert.equal(restored.entry(hidden[0]),null);
+ assert.equal(restored.entry(hidden.at(-1)).failure.code,'SYNC-019');
+ assert.equal(JSON.parse(localStorage.getItem(env.namespace+':sync-diagnostics-v1')).entries.length,20);
+}));
+
 test('batch diagnostics retain only resource category, count and transport class, never file names or IDs',()=>browser(async()=>{
  const events=[],adapter=dropboxAdapter(env,async()=>{throw new TypeError('PRIVATE_PATH PRIVATE_ID');},()=>{},event=>events.push(event));
  await assert.rejects(adapter.files.deleteBatch([{key:'PRIVATE_KEY',path:'id:PRIVATE_ID',fileId:'id:PRIVATE_ID',rev:'PRIVATE_REV',category:'personal'}]),error=>error.info.code===failureCodes.network);
