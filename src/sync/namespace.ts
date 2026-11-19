@@ -1,4 +1,4 @@
-import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch,MovePlanNeedsRefresh,BatchStatusUnconfirmed} from './failure.ts';
+import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch,MovePlanNeedsRefresh,BatchStatusUnconfirmed,PublicationInProgress} from './failure.ts';
 import {metadataView,pathKey} from './remote.ts';
 import {ownSong,songLocation} from './model.ts';
 import type {BookLink,DeleteEntry,FolderEntry,MoveEntry,MoveReply,MoveResult,NamespaceJob,RemoteEntry,RemoteFiles,SyncState} from './model.ts';
@@ -264,7 +264,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    }
    await receipt(job,reply);if(await apply(job,reply,false,plannedNow))return;
   }
-  if(publicationJob(job))throw new SyncFailure({code:failureCodes.changed,stage:stage('move'),action:'check-move'},'Dropbox-jobben er ikke ferdig.');
+  if(publicationJob(job))throw new PublicationInProgress();
   throw new DeferredSync('connection','Dropbox-jobben er ikke ferdig.');
  }
  async function execute(kind:NamespaceJob['kind'],entries:NamespaceJob['entries']){

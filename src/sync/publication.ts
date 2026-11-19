@@ -1,7 +1,7 @@
 import {parseChordPro} from '../domain/chordpro.ts';
 import type {Song} from '../domain/song.ts';
 import type {SyncSnapshot} from '../storage/sync.ts';
-import {DeferredSync, failureCodes, failureInfo} from './failure.ts';
+import {DeferredSync, failureCodes, failureInfo, PublicationInProgress} from './failure.ts';
 import {syncIdentities} from './identities.ts';
 import {ownSong, songLocation, type PublicationView, type RemoteEntry, type SongLink} from './model.ts';
 import {metadataView, pathKey} from './remote.ts';
@@ -61,9 +61,9 @@ export function publicationView(source: SyncSnapshot, identities = syncIdentitie
 export function publicationError(error: unknown): string {
   const {code, action} = failureInfo(error, 'publication');
   if (code === failureCodes.throttled) return 'Dropbox ber om en pause. Prøv igjen om litt.';
-  if (code === failureCodes.authentication) return 'Koble til Dropbox på nytt i Synkronisering.';
+  if (action === 'reconnect') return 'Koble til Dropbox på nytt i Synkronisering.';
   if (code === failureCodes.permission) return 'Dropbox ga ikke nødvendig tilgang. Kontroller tilkoblingen i Synkronisering.';
-  if (action === 'check-move') return 'Dropbox har ennå ikke bekreftet alle flyttingene. Prøv igjen for å kontrollere status.';
+  if (action === 'check-move' || error instanceof PublicationInProgress) return 'Dropbox har ennå ikke bekreftet alle flyttingene. Prøv igjen for å kontrollere status.';
   if (code === failureCodes.network || error instanceof DeferredSync && error.reason === 'connection') return 'Dropbox er utilgjengelig akkurat nå. Åpne Publisering på nytt når forbindelsen er tilbake.';
   if (error instanceof DeferredSync && error.reason === 'remote') return 'Dropbox har en uferdig overføring. Prøv igjen når den er ferdig.';
   return 'Kunne ikke fullføre Dropbox-handlingen. Prøv igjen.';

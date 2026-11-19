@@ -4,7 +4,7 @@ import type {ApiEvent,ApiContext} from '../sync/diagnostics.ts';
 export class DropboxError extends SyncFailure {
   status:number;summary:string;
   constructor(status:number,summary:string,stage='dropbox.request',rate:RateInfo={}){
-    super({code:status===401?failureCodes.authentication:status===403?failureCodes.permission:status===409?failureCodes.changed:status===429?failureCodes.throttled:failureCodes.request,stage,status,...(status===429?rate:{}),...(status===401?{action:'reconnect'}:{})},'Dropbox avviste forespørselen.');
+    super({code:status===401?failureCodes.authentication:status===403?failureCodes.permission:status===409?failureCodes.changed:status===429?failureCodes.throttled:failureCodes.request,stage,status,...(status===429?rate:{})},'Dropbox avviste forespørselen.');
     this.name='DropboxError';this.status=status;this.summary=summary;
   }
 }
@@ -14,6 +14,7 @@ const reasons=new Set<RateLimitReason>(['too_many_requests','too_many_write_oper
 const maxWait=30000,maxRetries=2;
 interface Cooldown {version:1;accountId:string;until:number;reason:RateLimitReason;status?:200|429;stage?:string}
 type Settlement = 'move-receipt' | 'fence-release';
+type RecoverAuthentication = (response: Response, guard: () => Promise<void>) => Promise<boolean>;
 
 /** Request-scoped recovery, never a scheduled/background synchronization. */
 export function dropboxRate(namespace:string,account:()=>string|null,before:()=>void|Promise<void>,observe:(event:ApiEvent)=>void){
@@ -70,7 +71,7 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
     const hints=[headerMs,bodyMs].filter(Number.isFinite),minimum=hints.length?Math.max(...hints):1000;
     return{limitReason:reason,retryAfterMs:Math.ceil(Math.max(minimum,1000*2**attempt))};
   }
-  async function send(operation:string,perform:(attempt:number,check:()=>Promise<void>)=>Promise<Response>,context:()=>ApiContext=()=>({}),{settlement,movePlanAttempt}: {settlement?:Settlement;movePlanAttempt?:number} = {}){
+  async function send(operation:string,perform:(attempt:number,check:()=>Promise<void>)=>Promise<Response>,context:()=>ApiContext=()=>({}),{settlement,movePlanAttempt,recoverAuthentication}: {settlement?:Settlement;movePlanAttempt?:number;recoverAuthentication?:RecoverAuthentication} = {}){
     // Revoke must remain immediate after local disconnect. Every other route,
     // including queued token renewals, shares the same bounded Retry-After gate.
     const recover=operation!=='auth/token/revoke',checkBefore=/^(files|sharing)\//.test(operation),ticket=lease,id=recover?account()??'oauth':null;let attempt=0;
@@ -106,6 +107,7 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
         }
         if(recover){if(rate){if(!deferred||ticket===lease)remember(id,rate,deferred?200:429,batchStage);if(!deferred||!transportBatches.has(operation))await guard(ticket,checkBefore,settlement);if(ticket===lease){writeLimit=1;if(deferred){if(!retries||deferredAttempt!>=maxRetries)stop(rate,200,batchStage);}else if(!retries||attempt>=maxRetries)throw stop(rate,429,batchStage);}}else if(!transportBatches.has(operation))checkTicket(ticket,settlement);}
       }finally{release();}
+      if(retries&&response.status===401&&recoverAuthentication&&await recoverAuthentication(response,()=>guard(ticket,checkBefore,settlement)))continue;
       if(!recover||response.status!==429)return response;
       attempt++;
     }

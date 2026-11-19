@@ -106,8 +106,12 @@ test('reports remain associated with their own incident and are never uploaded t
  const state=JSON.parse(localStorage.getItem(`${env.namespace}:sync-diagnostics-v1`));assert.deepEqual(state.pending,[b.id]);
 }));
 test('known user guidance survives local persistence without storing arbitrary message text',()=>browser(async()=>{
- const d=syncDiagnostics(env);d.record(new DropboxError(401,'PRIVATE_API_DETAILS'),'sync.run',true,[]);await new Promise(setImmediate);
+ const d=syncDiagnostics(env);
+ d.record(new SyncFailure({code:failureCodes.authentication,stage:'dropbox.request',status:401,action:'reconnect'},'PRIVATE_API_DETAILS'),'sync.run',true,[]);
+ const callback=d.record(new DropboxError(401,'PRIVATE_API_DETAILS','dropbox.account'),'dropbox.oauth',false,[],undefined,undefined,false).entry;
+ await new Promise(setImmediate);
  const restored=syncDiagnostics(env),entry=restored.active();assert.equal(failureText(entry.failure),'Synkronisering feilet (Feilkode SYNC-004). Koble til Dropbox på nytt.');assert.ok(!restored.text(entry).includes('PRIVATE_API_DETAILS'));
+ assert.equal(failureText(restored.entry(callback.id).failure),'Synkronisering feilet (Feilkode SYNC-004)');
 }));
 
 test('batch diagnostics retain only resource category, count and transport class, never file names or IDs',()=>browser(async()=>{

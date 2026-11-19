@@ -285,6 +285,95 @@ test('AK39-03: a throttled OAuth refresh after fresh metadata revalidates the wh
   expect(mock.find('/Songbooks/Band/Shared/zeda.cho').id).toBe(eligible);
 });
 
+test('AK39-03: server-reported token expiry revalidates publication before a second batched launch', async ({page, context}) => {
+  const mock = await seed(page, context);
+  await go(page, 'Publisering');
+  await action(page, 'Velg alle').click();
+  const start = mock.calls.length;
+  const movedExternally = '/Songbooks/Band/Originals/bela.cho';
+  const eligible = mock.find('/Songbooks/Band/Private/zeda.cho').id;
+  let offered = 0, renewed = 0, afterExpiry = 0;
+  await context.route('https://api.dropboxapi.com/2/files/move_batch_v2', async route => {
+    if (offered++) {
+      expect(mock.calls.slice(afterExpiry).some(call => call.endpoint.endsWith('/list_folder/continue'))).toBe(true);
+      expect(route.request().headers().authorization).toBe('Bearer renewed');
+      return route.fallback();
+    }
+    expect(route.request().postDataJSON().entries).toHaveLength(2);
+    afterExpiry = mock.calls.length;
+    mock.rename('/Songbooks/Band/Private/bela.cho', movedExternally);
+    return route.fulfill({status:401,json:{error:{'.tag':'expired_access_token'}}});
+  });
+  await context.route('https://api.dropboxapi.com/oauth2/token', async route => {
+    renewed++;
+    return route.fulfill({json:{access_token:'renewed',expires_in:3600}});
+  });
+  await action(page, 'Utfør').click();
+  await expect(page.locator('#publication .publication-actions p')).toHaveText('1 fil ble publisert');
+  expect(renewed).toBe(1);
+  expect(offered).toBe(2);
+  const calls = mock.calls.slice(start);
+  expect(calls.filter(call => call.endpoint.endsWith('/move_batch_v2')).map(call => call.args.entries.map(entry => entry.from_path))).toEqual([[eligible]]);
+  expect(calls.filter(call => call.endpoint.endsWith('/get_metadata'))).toHaveLength(0);
+  expect(mock.find(movedExternally)).toBeTruthy();
+});
+
+test('F61/AK39-03: a publication still in progress keeps the job and leaves ordinary sync status alone', async ({page, context}) => {
+  const mock = await seed(page, context);
+  await go(page, 'Publisering');
+  await action(page, 'Velg alle').click();
+  mock.asyncMove(100);
+  await action(page, 'Utfør').click();
+  await expect(page.getByText(/2 gjenstår\. Dropbox har ennå ikke bekreftet/)).toBeVisible({timeout:12000});
+  expect(mock.moveJobs.size).toBe(1);
+  const [jobId] = mock.moveJobs.keys();
+  await go(page, 'Synkronisering');
+  const status = page.locator('#sync-status');
+  await expect(status).toHaveText('Ikke synkronisert');
+  const start = mock.calls.length;
+  await action(page, 'Synkroniser').click();
+  await expect(status).toHaveText('Synkroniserer…');
+  await expect(status).toHaveText('Ikke synkronisert', {timeout:12000});
+  await expect(page.getByRole('button',{name:'Kopier feillogg',exact:true})).toBeHidden();
+  const calls = mock.calls.slice(start);
+  expect(calls.filter(call=>call.endpoint.endsWith('/check_v2')).map(call=>call.args.async_job_id)).toEqual(Array(5).fill(jobId));
+  expect(calls.filter(call=>call.endpoint.endsWith('/move_batch_v2'))).toHaveLength(0);
+  expect(JSON.parse(mock.find('/.app/mutation.json').text).owner).toBeTruthy();
+});
+
+test('AK39-05/F61: a rejected sharing grant returns to the songbook action with ordinary sync still connected', async ({page, context, request}) => {
+  const preview = 'https://geirskoglund.github.io/hobos-songbook/test/';
+  const mock = await dropboxMock(context);
+  await context.addInitScript(redirect => {
+    sessionStorage.setItem('hobos-songbook-test:dropbox-pkce-v1', JSON.stringify({
+      state:'sharing-return', verifier:'fixture-verifier', redirect, created:Date.now(), sharing:{accountId:'dbid:fixture',bookId:'standard'},
+    }));
+  }, preview);
+  await context.route('https://geirskoglund.github.io/hobos-songbook/**', async route => {
+    const requested = new URL(route.request().url());
+    const response = await request.get('http://127.0.0.1:4173'+requested.pathname);
+    await route.fulfill({response});
+  });
+  await context.route('https://api.dropboxapi.com/oauth2/token', route => route.fulfill({json:{
+    access_token:'sharing-access',refresh_token:'sharing-refresh',expires_in:3600,account_id:'dbid:fixture',
+    scope:'account_info.read files.metadata.read files.content.read files.content.write sharing.read sharing.write',
+  }}));
+  let rejected = 0;
+  await context.route('https://api.dropboxapi.com/2/users/get_current_account', route => {
+    rejected++;
+    expect(route.request().headers().authorization).toBe('Bearer sharing-access');
+    return route.fulfill({status:401,json:{error:{'.tag':'invalid_access_token'}}});
+  });
+  await page.goto(preview+'?code=synthetic&state=sharing-return');
+  await expect(page.locator('#songbooks-status')).toHaveText('Dropbox ga ikke tilgang til delingslenker. Velg Kopier delingslenke for å prøve igjen.');
+  expect(rejected).toBe(1);
+  expect(mock.calls.filter(call=>call.endpoint.startsWith('/2/sharing/'))).toHaveLength(0);
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('hobos-songbook-test:dropbox-auth-v1')).refreshToken)).toBe('fixture-refresh');
+  await go(page, 'Synkronisering');
+  await expect(page.locator('#sync-status')).toHaveText('Ikke synkronisert');
+  await expect(action(page, 'Koble til Dropbox')).toBeHidden();
+});
+
 test('AK39-03: a terminal per-file Dropbox write lock acknowledges successes and frees the mutation fence', async ({page, context}) => {
   const mock = await seed(page, context);
   await go(page, 'Publisering');

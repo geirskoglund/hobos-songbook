@@ -13,8 +13,9 @@ export function dropboxConfig(channel: AppEnvironment['channel']) {
 }
 interface Credentials {version: 1; accountId: string; name: string; email: string; accessToken: string; refreshToken: string; expires: number; scopes?: string[]}
 interface Pending {state: string; verifier: string; redirect: string; created: number; sharing?: {accountId: string; bookId: string}}
-export interface SharingConsent {bookId: string; authorized: boolean}
+export interface SharingConsent {bookId: string; authorized: boolean; failure?: unknown}
 interface RequestOptions {finishMove?: boolean; releaseFence?: boolean; movePlanAttempt?: number; beforeSend?: () => void | Promise<void>}
+interface RejectedToken {grant: Credentials; accessToken: string; guard: () => Promise<void>}
 const apiArg = (value: unknown) => JSON.stringify(value).replace(/[^\u0000-\u007f]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
 const contentRoutes = new Set(['files/download', 'files/upload', 'files/upload_session/start', 'files/upload_session/append_batch']);
 const moveReceiptReads = new Set(['files/list_folder', 'files/list_folder/continue', 'files/get_metadata', 'oauth2/token']);
@@ -38,15 +39,44 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
   }
   const resource=(path:string):ApiContext['resource']=>/^\/\.app\/songs\//i.test(path)?'personal':/^\/\.app\/uploads\//i.test(path)?'staging':path.startsWith('/.app/')?'control':/^\/Songbooks\/[^/]+\/(Private|Shared)\//i.test(path)?'content':'other';
   async function send(operation: string, source: RequestInit|(()=>RequestInit), transform?:(response:Response)=>Promise<Response>,context:ApiContext={},options: RequestOptions = {}) {
+    // OAuth exchange/account lookup use their own temporary grant. Only file
+    // and sharing routes are allowed to recover the saved connection.
+    const grant = /^(files|sharing)\//.test(operation) ? credentials() : null;
     let details:ApiContext=context;
+    let rejectedToken: string | undefined;
+    let renewedAfterRejection = false;
+    async function recoverAuthentication(response: Response, guard: () => Promise<void>) {
+      if (!grant || !rejectedToken) return false;
+      const problem = await response.clone().json().catch(() => null);
+      const reason = problem?.error?.['.tag'] ?? (typeof problem?.error_summary === 'string' ? problem.error_summary.split('/')[0] : undefined);
+      if (reason !== 'invalid_access_token' && (reason !== 'expired_access_token' || renewedAfterRejection)) return false;
+      try {
+        await guard();
+        const saved = credentials();
+        if (!sameGrant(grant, saved)) throw new DeferredSync('connection', 'Dropbox-tilkoblingen er endret.');
+        if (reason === 'invalid_access_token') {
+          if (saved.accessToken !== rejectedToken) throw new DeferredSync('changed', 'Dropbox-tilgangen er allerede fornyet.');
+          localStorage.removeItem(authKey);
+          throw new SyncFailure({code:failureCodes.authentication,stage:'dropbox.request',status:401,action:'reconnect'}, 'Dropbox avviste den lagrede tilgangen.');
+        }
+        await access(undefined, options.releaseFence, {grant, accessToken: rejectedToken, guard});
+      } catch (error) {
+        if (batchLaunchRoutes.has(operation) && error instanceof SyncFailure) throw new UnsentBatch(error);
+        throw error;
+      }
+      // A definitively rejected publication launch needs its aggregate
+      // source/target preflight again before any further submission.
+      if (options.movePlanAttempt !== undefined) throw new MovePlanNeedsRefresh();
+      renewedAfterRejection = true;
+      return true;
+    }
     return rate.send(operation,async(attempt,check)=>{
       const init=typeof source==='function'?source():source;
       if(typeof init.body==='string'&&init.headers&&Object.entries(init.headers).some(([key,value])=>key.toLowerCase()==='content-type'&&value==='application/json'))try{const body=JSON.parse(init.body),count=body.entries?.length??body.paths?.length??body.num_sessions;if(Number.isInteger(count))details={...details,batchSize:count};}catch{/* Never include request contents in diagnostics. */}
-      // OAuth account lookup already holds the newly exchanged bearer; it is
-      // not installed in credentials until that very lookup succeeds.
       let headers=init.headers;
-      if(attempt)try{
-        if(/^(files|sharing)\//.test(operation)&&headers&&Object.keys(headers).some(key=>key.toLowerCase()==='authorization')){
+      if(attempt||renewedAfterRejection)try{
+        if(grant){
+          if (!sameGrant(grant, credentials())) throw new DeferredSync('connection', 'Dropbox-tilkoblingen er endret.');
           headers={...(headers as Record<string,string>),Authorization:`Bearer ${await access(undefined, options.releaseFence)}`};
         }
         await check();
@@ -59,15 +89,16 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
         await options.beforeSend();
         // The final metadata request can itself have renewed the bearer.
         const verified = credentials();
-        if (!verified?.accessToken || verified.accountId !== accountId) throw new DeferredSync('connection', 'Dropbox-tilkoblingen er endret.');
+        if (!verified?.accessToken || verified.accountId !== accountId || grant && !sameGrant(grant, verified)) throw new DeferredSync('connection', 'Dropbox-tilkoblingen er endret.');
         headers = {...headers as Record<string,string>, Authorization: `Bearer ${verified.accessToken}`};
       }
       details={...details,requestId:undefined};
       const response=await request(`https://${contentRoutes.has(operation)?'content':'api'}.dropboxapi.com/${operation==='oauth2/token'?'':'2/'}${operation}`,{...init,headers,signal:init.signal??deadline()});
+      if(grant&&response.status===401)rejectedToken=new Headers(headers).get('Authorization')?.slice('Bearer '.length);
       details={...details,requestId:response.headers.get('X-Dropbox-Request-Id')??undefined};
       if(transform)try{return await transform(response);}catch(error){Object.defineProperty(response,'transformFailure',{value:error});}
       return response;
-    },()=>details,{movePlanAttempt:options.movePlanAttempt,settlement:options.releaseFence?'fence-release':finishingMove>0&&(options.finishMove||moveReceiptReads.has(operation))?'move-receipt':undefined});
+    },()=>details,{recoverAuthentication:grant?recoverAuthentication:undefined,movePlanAttempt:options.movePlanAttempt,settlement:options.releaseFence?'fence-release':finishingMove>0&&(options.finishMove||moveReceiptReads.has(operation))?'move-receipt':undefined});
   }
   async function json(response: Response, stage = 'dropbox.request') {
     try {return await response.json();} catch (cause) {throw new SyncFailure({code:cause instanceof SyntaxError?failureCodes.response:failureCodes.network,stage,status:response.status},'Dropbox-responsen kunne ikke leses.',cause);}
@@ -78,27 +109,35 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     if (value?.version !== 1 || !value.accountId || !value.refreshToken) throw new SyncFailure({code:failureCodes.credentials,stage:'dropbox.oauth',action:'reconnect'},'Ugyldig lagret tilkobling.');
     return value;
   }
+  const sameGrant = (previous: Credentials, current: Credentials | null): current is Credentials => current?.accountId === previous.accountId && current.refreshToken === previous.refreshToken;
   const account = () => {const value = credentials(); return value && {id: value.accountId, name: value.name, email: value.email};};
   const sharingAllowed = () => {const scopes = credentials()?.scopes; return Array.isArray(scopes) && sharingScopes.every(scope => scopes.includes(scope));};
   async function token(body: URLSearchParams, releaseFence=false) {
     const ticket=invalidated,refresh=body.get('refresh_token');
     const response = await send('oauth2/token', {method: 'POST', body, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},undefined,{}, {releaseFence});
     if (!response.ok) {
-      const problem=await response.json().catch(()=>null),expired=response.status===400&&problem?.error==='invalid_grant';
-      if((expired||response.status===401)&&refresh&&ticket===invalidated&&credentials()?.refreshToken===refresh)localStorage.removeItem(authKey);
-      throw new DropboxError(expired?401:response.status,'token','dropbox.token');
+      const problem = await response.json().catch(() => null);
+      if ((response.status === 400 || response.status === 401) && problem?.error === 'invalid_grant') {
+        const lost = Boolean(refresh && ticket === invalidated && credentials()?.refreshToken === refresh);
+        if (lost) localStorage.removeItem(authKey);
+        throw new SyncFailure({code:failureCodes.authentication,stage:'dropbox.token',status:response.status,...(lost?{action:'reconnect'}:{})}, 'Dropbox avviste tilgangen.');
+      }
+      throw new DropboxError(response.status,'token','dropbox.token');
     }
     const value=await json(response,'dropbox.token');
     if(typeof value?.access_token!=='string'||!value.access_token||typeof value.expires_in!=='number'||!Number.isFinite(value.expires_in)||value.expires_in<0)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.token'},'Ugyldig tokenrespons.');
     return value;
   }
-  async function access(onRenew?: () => void, releaseFence=false) {
+  async function access(onRenew?: () => void, releaseFence=false, rejected?: RejectedToken) {
     return navigator.locks.request(`${env.namespace}:dropbox-token`, async () => {
-      let value = credentials(); if (!value) throw new DeferredSync('connection','Dropbox er frakoblet.');
-      if (value.expires > Date.now() + 60000) return value.accessToken;
+      if (rejected) await rejected.guard();
+      let value = credentials();
+      if (!value || rejected && !sameGrant(rejected.grant, value)) throw new DeferredSync('connection','Dropbox-tilkoblingen er endret.');
+      if ((!rejected || value.accessToken !== rejected.accessToken) && value.expires > Date.now() + 60000) return value.accessToken;
       const epoch = invalidated, previous = value.refreshToken;
       onRenew?.();
       const next = await token(new URLSearchParams({grant_type: 'refresh_token', refresh_token: previous, client_id: config.key}), releaseFence);
+      if (rejected) await rejected.guard();
       value = credentials();
       if (epoch !== invalidated || value?.refreshToken !== previous) throw new DeferredSync('connection','Dropbox-tilkoblingen er endret.');
       value.accessToken = next.access_token; value.expires = Date.now() + next.expires_in * 1000;
@@ -128,27 +167,33 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     history.replaceState(history.state, '', url.pathname + url.search + url.hash);
     const raw = sessionStorage.getItem(pendingKey); sessionStorage.removeItem(pendingKey);
     let pending: Pending | null = null;try {pending=raw?JSON.parse(raw):null;}catch{/* Invalid callback state is handled below. */}
-    if (!pending || pending.state !== state || pending.redirect !== config.redirect || location.origin + location.pathname !== config.redirect || Date.now() - pending.created > 10 * 60 * 1000 || pending.created > Date.now()) throw new SyncFailure({code:failureCodes.oauthReturn,stage:'dropbox.oauth',action:'retry-login'},'Dropbox-returen er ugyldig eller utløpt.');
-    if (error === 'access_denied') return pending.sharing ? {bookId: pending.sharing.bookId, authorized: false} : false;
-    if (error || !code) throw new SyncFailure({code:failureCodes.oauthResponse,stage:'dropbox.oauth'},'Dropbox returnerte ingen gyldig innloggingskode.');
-    const epoch = invalidated;
-    const value = await token(new URLSearchParams({grant_type: 'authorization_code', code, client_id: config.key, redirect_uri: config.redirect, code_verifier: pending.verifier}));
-    const scopes = String(value.scope ?? '').split(/\s+/).filter(Boolean);
-    if (pending.sharing && ![...requiredScopes, ...sharingScopes].every(scope => scopes.includes(scope))) {
-      return {bookId: pending.sharing.bookId, authorized: false};
+    if (!pending || !state || pending.state !== state || !pending.verifier || !Number.isFinite(pending.created) || pending.redirect !== config.redirect || location.origin + location.pathname !== config.redirect || Date.now() - pending.created > 10 * 60 * 1000 || pending.created > Date.now()) throw new SyncFailure({code:failureCodes.oauthReturn,stage:'dropbox.oauth',action:'retry-login'},'Dropbox-returen er ugyldig eller utløpt.');
+    const sharing = pending.sharing;
+    if (sharing && account()?.id !== sharing.accountId) return false;
+    if (error === 'access_denied') return sharing ? {bookId: sharing.bookId, authorized: false} : false;
+    try {
+      if (error || !code) throw new SyncFailure({code:failureCodes.oauthResponse,stage:'dropbox.oauth'},'Dropbox returnerte ingen gyldig innloggingskode.');
+      const epoch = invalidated;
+      const value = await token(new URLSearchParams({grant_type: 'authorization_code', code, client_id: config.key, redirect_uri: config.redirect, code_verifier: pending.verifier}));
+      const scopes = String(value.scope ?? '').split(/\s+/).filter(Boolean);
+      if (sharing && ![...requiredScopes, ...sharingScopes].every(scope => scopes.includes(scope))) {
+        return {bookId: sharing.bookId, authorized: false};
+      }
+      if (!value.refresh_token || !requiredScopes.every(scope => scopes.includes(scope))) throw new SyncFailure({code:failureCodes.permission,stage:'dropbox.oauth'},'Dropbox mangler nødvendig fornybar tilgang eller nødvendige scopes.');
+      const response = await send('users/get_current_account', {method: 'POST', headers: {Authorization: `Bearer ${value.access_token}`}, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
+      if (!response.ok) throw new DropboxError(response.status, 'account', 'dropbox.account');
+      const user = await json(response,'dropbox.account');
+      if(epoch!==invalidated)throw new DeferredSync('connection','Dropbox-tilkoblingen er endret.');
+      if (typeof user?.account_id!=='string'||user.account_id !== value.account_id||typeof user.name?.display_name!=='string'||typeof user.email!=='string') throw new SyncFailure({code:failureCodes.oauthResponse,stage:'dropbox.account'},'Dropbox returnerte ugyldig kontorespons.');
+      if (sharing && (user.account_id !== sharing.accountId || account()?.id !== sharing.accountId)) {
+        return {bookId: sharing.bookId, authorized: false};
+      }
+      localStorage.setItem(authKey, JSON.stringify({version: 1, accountId: user.account_id, name: user.name.display_name, email: user.email, accessToken: value.access_token, refreshToken: value.refresh_token, expires: Date.now() + value.expires_in * 1000, scopes} satisfies Credentials));
+      return sharing ? {bookId: sharing.bookId, authorized: true} : true;
+    } catch (failure) {
+      if (!sharing || failure instanceof DeferredSync) throw failure;
+      return account()?.id === sharing.accountId ? {bookId: sharing.bookId, authorized: false, failure} : false;
     }
-    if (!value.refresh_token || !requiredScopes.every(scope => scopes.includes(scope))) throw new SyncFailure({code:failureCodes.permission,stage:'dropbox.oauth'},'Dropbox mangler nødvendig fornybar tilgang eller nødvendige scopes.');
-    const response = await send('users/get_current_account', {method: 'POST', headers: {Authorization: `Bearer ${value.access_token}`}, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'});
-    if (!response.ok) throw new DropboxError(response.status, 'account');
-    const user = await json(response,'dropbox.account');
-    if(epoch!==invalidated)throw new DeferredSync('connection','Dropbox-tilkoblingen er endret.');
-    if (typeof user?.account_id!=='string'||user.account_id !== value.account_id||typeof user.name?.display_name!=='string'||typeof user.email!=='string') throw new SyncFailure({code:failureCodes.oauthResponse,stage:'dropbox.account'},'Dropbox returnerte ugyldig kontorespons.');
-    if (pending.sharing && (user.account_id !== pending.sharing.accountId || account()?.id !== pending.sharing.accountId)) {
-      return {bookId: pending.sharing.bookId, authorized: false};
-    }
-    localStorage.setItem(authKey, JSON.stringify({version: 1, accountId: user.account_id, name: user.name.display_name, email: user.email, accessToken: value.access_token, refreshToken: value.refresh_token, expires: Date.now() + value.expires_in * 1000, scopes} satisfies Credentials));
-    if (pending.sharing) return {bookId: pending.sharing.bookId, authorized: true};
-    return true;
   }
   async function rpc(path: string, body: unknown,entryAttempt=0,context:ApiContext={},options: RequestOptions = {}) {
     const statusStage = batchStatusStages.get(path);
@@ -194,7 +239,6 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
         if (current?.scopes) localStorage.setItem(authKey, JSON.stringify({...current, scopes: current.scopes.filter(scope => !sharingScopes.includes(scope))}));
         throw new SyncFailure({code: failureCodes.permission, stage: 'dropbox.sharing-scope', status: response.status}, 'Dropbox mangler tillatelse til delingslenker. Velg Kopier delingslenke igjen for å gi tilgang.');
       }
-      if (response.status === 401) localStorage.removeItem(authKey);
       throw new DropboxError(response.status, summary);
     }
     return json(response);
@@ -312,7 +356,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     const args = {path, mode: rev ? {'.tag': 'update', update: rev} : {'.tag': 'add'}, autorename: false, strict_conflict: true, mute: true};
     const response = await send('files/upload', {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/octet-stream', 'Dropbox-API-Arg': apiArg(args)}, body: new TextEncoder().encode(text), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},undefined,{resource:resource(path)},{releaseFence,finishMove:path==='/.app/library.json'});
     await beforeRequest();
-    if (!response.ok) {if (response.status===401) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); throw new DropboxError(response.status, value.error_summary ?? 'upload');}
+    if (!response.ok) {const value = await response.json().catch(() => ({})); throw new DropboxError(response.status, value.error_summary ?? 'upload');}
     return fileValue(await json(response,'dropbox.upload'), text,path);
   }
   const files: RemoteFiles = {
@@ -361,7 +405,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       await beforeRequest(); const accessToken = await access(); await beforeRequest();
       const response = await send('files/download', {method: 'POST', headers: {Authorization: `Bearer ${accessToken}`, 'Dropbox-API-Arg': apiArg({path})}, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'},undefined,{resource:resource(path)});
       await beforeRequest();
-      if (!response.ok) {if (response.status===401) localStorage.removeItem(authKey); const value = await response.json().catch(() => ({})); const error = new DropboxError(response.status, value.error_summary ?? 'download'); if (missing(error)) return null; throw error;}
+      if (!response.ok) {const value = await response.json().catch(() => ({})); const error = new DropboxError(response.status, value.error_summary ?? 'download'); if (missing(error)) return null; throw error;}
       let meta;try{meta=JSON.parse(response.headers.get('Dropbox-API-Result')??'null');}catch(cause){throw new SyncFailure({code:failureCodes.response,stage:'dropbox.download'},'Ugyldig metadataheader.',cause);}
       if(meta?.size>maxFileBytes){await response.body?.cancel();throw new SkippedFile();}
       const reader=response.body?.getReader(),chunks:Uint8Array[]=[];let size=0;
@@ -374,7 +418,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     async beginUpload(text){
       checkSize(textBytes(text));await beforeRequest();const accessToken=await access();await beforeRequest();
       const response=await send('files/upload_session/start',{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/octet-stream','Dropbox-API-Arg':apiArg({close:true})},body:new TextEncoder().encode(text),cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'});
-      await beforeRequest();if(!response.ok){if(response.status===401)localStorage.removeItem(authKey);throw new DropboxError(response.status,'session','dropbox.upload');}
+      await beforeRequest();if(!response.ok){throw new DropboxError(response.status,'session','dropbox.upload');}
       const value=await json(response,'dropbox.upload');
       if(typeof value?.session_id!=='string'||!value.session_id)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.upload'},'Ugyldig opplastingsøkt.');
       return{id:value.session_id,created:Date.now()};
@@ -401,7 +445,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       await beforeRequest();const accessToken=await access();await beforeRequest();
       const response=await send('files/upload_session/append_batch', {method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/octet-stream','Dropbox-API-Arg':apiArg({entries})},body,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'}, undefined, {batchSize:entries.length});
       await beforeRequest();
-      if(!response.ok){if(response.status===401)localStorage.removeItem(authKey);throw new DropboxError(response.status,'append-batch',stage);}
+      if(!response.ok){throw new DropboxError(response.status,'append-batch',stage);}
       const value = await json(response,stage);
       if (!Array.isArray(value?.entries) || value.entries.length !== ids.length) throw new SyncFailure({code:failureCodes.response,stage},'Ufullstendig svar for opplastingsgruppen.');
       return value.entries.map((entry: any,i: number) => {
@@ -436,7 +480,7 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
         if(pending.length){const limited=new Response(JSON.stringify({error:{reason:{'.tag':'too_many_write_operations'},retry_after:0}}),{status:429,headers:{'Retry-After':'0','Content-Type':'application/json'}});Object.defineProperty(limited,'entryLimit',{value:true});return limited;}
         return new Response(JSON.stringify({entries:results}),{headers:{'Content-Type':'application/json'}});
       });
-      await beforeRequest();if(!response.ok){if(response.status===401)localStorage.removeItem(authKey);throw new DropboxError(response.status,'batch','dropbox.batch');}
+      await beforeRequest();if(!response.ok){throw new DropboxError(response.status,'batch','dropbox.batch');}
       return (await json(response,'dropbox.batch')).entries;
     },
     async folder(path, expectedId, knownMissing) {

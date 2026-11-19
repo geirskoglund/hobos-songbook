@@ -3,7 +3,7 @@ import type {songStorage} from '../storage/songs.ts';
 import {syncEngine, PausedSync} from './engine.ts';
 import type {Conflict, PublicationChoice, PublicationResult, SyncState} from './model.ts';
 import {publicationError, publicationView} from './publication.ts';
-import {DeferredSync, failureCodes, failureInfo, failureText, SyncFailure,RetrySync, type FailureInfo} from './failure.ts';
+import {DeferredSync, failureCodes, failureInfo, failureText, PublicationInProgress, SyncFailure,RetrySync, type FailureInfo} from './failure.ts';
 import {syncDiagnostics, type ApiEvent, type SyncLog} from './diagnostics.ts';
 export function syncController(storage: ReturnType<typeof songStorage>, hooks: {busy(): boolean; downloaded(): Promise<unknown>; notify(): void; connected(): void; sharing(consent: SharingConsent): Promise<void>}) {
   const env = __APP_ENV__, owner = crypto.randomUUID();
@@ -79,7 +79,10 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
       if (wasManual) {await hooks.downloaded(); await refresh();}
       channel.postMessage('changed');
     } catch (cause) {
-      if (cause instanceof DeferredSync) {if(wasManual&&ticket===epoch&&account()?.id===user.id)requestedManual=true;}
+      if (cause instanceof DeferredSync) {
+        if(wasManual&&ticket===epoch&&account()?.id===user.id)requestedManual=true;
+        if(cause instanceof PublicationInProgress&&previousFailure?.code===failureCodes.changed&&previousFailure.action==='check-move')clearFailure();
+      }
       else failed(cause);
       try {await refresh();} catch { /* Keep the actual failure visible. */ }
     } finally {if(!error&&account()?.id===user.id&&errorEntry?.id===previousEntry?.id){if(completed)clearFailure();else error=previousFailure;}running = false;activeManual=false; notify();uploadLog(user.id,ticket,wasManual);}
@@ -175,9 +178,30 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
     try {
       await ready;
       await recover(restoredSongId);
-      const first = await adapter.callback(); started = true; await refresh();
+      const user = account();
+      // Older builds saved OAuth returns as the active sync error. Keep the
+      // technical entry while restoring the status of the connected account.
+      if (user && errorEntry && (errorEntry.failure.code === failureCodes.oauthReturn
+        || errorEntry.failure.code === failureCodes.authentication && (errorEntry.operationTotals?.['users/get_current_account']
+          || errorEntry.operations.some(event => event.operation === 'users/get_current_account')))) clearFailure();
+      let first: boolean | SharingConsent;
+      try {first = await adapter.callback();}
+      catch (cause) {
+        const connected = account();
+        if (!connected || cause instanceof DeferredSync) throw cause;
+        diagnostics.record(cause,'dropbox.oauth',false,events,connected.id,operationTotals,false);
+        started = true; await refresh(); return;
+      }
+      started = true; await refresh();
       if (first === true) {hooks.connected(); await execute(true);}
-      else {if (first) await hooks.sharing(first); await execute();}
+      else {
+        if (first) {
+          if (first.failure) diagnostics.record(first.failure,'dropbox.oauth',false,events,account()?.id,operationTotals,false);
+          await hooks.sharing(first);
+          if (first.failure) return;
+        }
+        await execute();
+      }
     } catch (cause) {started = true;report(cause,'app.start');notify();}
   }
   function begin(songId: string, edited = false) {
@@ -203,12 +227,15 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
   }
   function status() {
     const pieces: string[] = [];
-    const user=account();if(error)return failureText(error);if(!user)return '';
+    const user=account();if(error)return statusFailure(error,Boolean(user));if(!user)return '';
     if (running) pieces.push('Synkroniserer…');
     if(pieces.length)return pieces[0];
     return state?.lastManual?`Sist synkronisert: ${new Date(state.lastManual).toLocaleString('nb-NO')}`:'Ikke synkronisert';
   }
-  function reportText(){const entry=errorEntry&&(diagnostics.entry(errorEntry.id)??errorEntry);return error&&entry?`${failureText(error)}\n\n${diagnostics.text(entry)}`:null;}
+  function statusFailure(failure: FailureInfo, connected: boolean) {
+    return failureText(connected && (failure.action === 'reconnect' || failure.action === 'retry-login') ? {...failure,action:undefined} : failure);
+  }
+  function reportText(){const connected=Boolean(account()),entry=errorEntry&&(diagnostics.entry(errorEntry.id)??errorEntry);return error&&entry?`${statusFailure(error,connected)}\n\n${diagnostics.text(entry)}`:null;}
   return {start, begin, end, resume: () => {if (localPending || requestedManual || immediate) void execute();}, manual, disconnect, account, status, reportText,
     readPublication, cachedPublication, publish, shareBook, running: () => running, syncing: () => running || syncingPublication,
     connect: async () => {try{await ready;clearFailure();await adapter.connect();}catch(cause){report(cause,'app.connect');notify();}}, conflictHandler: (handler: typeof offer) => {offer = handler;}};

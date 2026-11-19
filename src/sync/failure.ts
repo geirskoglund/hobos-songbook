@@ -50,6 +50,10 @@ export class DeferredSync extends Error {
   readonly reason: 'session' | 'changed' | 'recovery' | 'connection' | 'remote';
   constructor(reason: DeferredSync['reason'], message: string) {super(message); this.name = 'DeferredSync'; this.reason = reason;}
 }
+/** Dropbox is still processing a publication that already has a job ID. */
+export class PublicationInProgress extends DeferredSync {
+  constructor() {super('remote', 'Dropbox-jobben er ikke ferdig.');}
+}
 /** A post-response guard interrupted an already sent batch with an uncertain
  * response. Unlike preflight/definitive 4xx, this cannot authorize replay. */
 export class SubmittedBatchInterruption extends DeferredSync {}

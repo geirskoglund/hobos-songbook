@@ -4,7 +4,7 @@ import {songbookName} from '../domain/songbook.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
 import type {syncStorage, SyncSnapshot} from '../storage/sync.ts';
 import {direction, emptyManifest, hash, mergeManifest, ownSong, parseManifest, parsePersonal, personalData, same, songLocation, type BookLink, type Conflict, type FileValue, type Manifest, type MoveEntry, type NamespaceJob, type FolderEntry, type PersonalFile, type PublicationChoice, type PublicationResult, type RemoteFiles, type SongLink, type SyncState, type UploadIntent, type UploadJob} from './model.ts';
-import {DeferredSync, failureCodes, failureInfo, BatchStatusUnconfirmed, SyncFailure, RetrySync} from './failure.ts';
+import {DeferredSync, failureCodes, failureInfo, BatchStatusUnconfirmed, SyncFailure, RetrySync, PublicationInProgress} from './failure.ts';
 import {indexedFiles,pathKey} from './remote.ts';
 import {syncIdentities} from './identities.ts';
 import {uploadQueue} from './uploads.ts';
@@ -765,7 +765,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       }
       // A terminated partial batch can have receipts from earlier chunks. If
       // Dropbox is unreachable their journal remains under the shared fence.
-      if (acquired && !(failure instanceof DeferredSync) && failureInfo(failure).code !== failureCodes.network) {
+      if (acquired && (!(failure instanceof DeferredSync) || failure instanceof PublicationInProgress) && failureInfo(failure).code !== failureCodes.network) {
         try {await settlePublication(savePublicationMoves);}
         catch (cause) {failure ??= cause;}
       }
