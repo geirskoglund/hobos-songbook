@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture,song} from './sync-fixture.mjs';
-import {MoveStatusUnconfirmed,SyncFailure,failureCodes,RetrySync} from '../src/sync/failure.ts';
+import {BatchStatusUnconfirmed,SyncFailure,failureCodes,RetrySync} from '../src/sync/failure.ts';
 import {hash,newSyncState,emptyJournal} from '../src/sync/model.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 
@@ -72,9 +72,9 @@ test('names: an async status error resolves an already placed staging file by ID
  };
  f.files.checkMoveBatch=async id=>{
   assert.equal(id,'accepted-placement');
-  throw new MoveStatusUnconfirmed({code:failureCodes.changed,stage:'dropbox.move-batch',status:409},'status unavailable');
+  throw new BatchStatusUnconfirmed({code:failureCodes.changed,stage:'dropbox.move-batch',status:409},'status unavailable');
  };
- await assert.rejects(f.run(),MoveStatusUnconfirmed);
+ await assert.rejects(f.run(),BatchStatusUnconfirmed);
  assert.equal(f.data.state.placement.jobId,'accepted-placement');
  assert.ok(JSON.parse(f.entries.get('/.app/mutation.json').text).owner);
  await move(staged);

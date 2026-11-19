@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {syncEngine} from '../src/sync/engine.ts';
-import {MoveStatusUnconfirmed, SyncFailure, failureCodes} from '../src/sync/failure.ts';
+import {BatchStatusUnconfirmed, SyncFailure, failureCodes} from '../src/sync/failure.ts';
 import {fixture, song} from './sync-fixture.mjs';
 
 const engine = f => syncEngine(f.storage, f.files, 'account', {valid: () => true, changed() {}});
@@ -184,7 +184,7 @@ test('AK39-03: a partial status error retains the job ID until all moved files a
   f.files.checkMoveBatch = async id => {
     assert.equal(id, 'accepted-job');
     checks++;
-    throw new MoveStatusUnconfirmed({code: failureCodes.changed, stage: 'dropbox.move-batch', status: 409}, 'status unavailable');
+    throw new BatchStatusUnconfirmed({code: failureCodes.changed, stage: 'dropbox.move-batch', status: 409}, 'status unavailable');
   };
   const lock = () => JSON.parse(f.entries.get('/.app/mutation.json').text).owner;
   const start = f.calls.length;

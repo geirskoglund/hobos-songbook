@@ -1,7 +1,7 @@
 import type {AppEnvironment} from '../environment.ts';
 import type {FileValue, RemoteFiles, RemoteEntry,UploadResult,MoveReply} from '../sync/model.ts';
 import {checkSize,textBytes,maxFileBytes,maxBatchAppendBytes,SkippedFile} from '../sync/limits.ts';
-import {DeferredSync,SubmittedBatchInterruption, failureCodes, SyncFailure,BatchJobFailed,UnsentBatch,MovePlanNeedsRefresh,MoveStatusUnconfirmed} from '../sync/failure.ts';
+import {DeferredSync,SubmittedBatchInterruption, failureCodes, SyncFailure,BatchJobFailed,UnsentBatch,MovePlanNeedsRefresh,BatchStatusUnconfirmed} from '../sync/failure.ts';
 import {mutationPath} from '../sync/mutation.ts';
 import type {ApiEvent,ApiContext} from '../sync/diagnostics.ts';
 import {DropboxError,dropboxRate} from './dropbox-rate.ts';
@@ -19,6 +19,11 @@ const apiArg = (value: unknown) => JSON.stringify(value).replace(/[^\u0000-\u007
 const contentRoutes = new Set(['files/download', 'files/upload', 'files/upload_session/start', 'files/upload_session/append_batch']);
 const moveReceiptReads = new Set(['files/list_folder', 'files/list_folder/continue', 'files/get_metadata', 'oauth2/token']);
 const batchLaunchRoutes = new Set(['files/move_batch_v2', 'files/delete_batch', 'files/create_folder_batch']);
+const batchStatusStages = new Map([
+  ['files/move_batch/check_v2', 'dropbox.move-batch'],
+  ['files/delete_batch/check', 'dropbox.delete-batch'],
+  ['files/create_folder_batch/check', 'dropbox.folders-batch'],
+]);
 const random = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 export async function pkceChallenge(verifier: string) {
   return btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))))).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
@@ -146,7 +151,8 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
     return true;
   }
   async function rpc(path: string, body: unknown,entryAttempt=0,context:ApiContext={},options: RequestOptions = {}) {
-    const batch=['files/move_batch_v2','files/move_batch/check_v2','files/delete_batch','files/delete_batch/check','files/create_folder_batch','files/create_folder_batch/check'].includes(path);
+    const statusStage = batchStatusStages.get(path);
+    const batch = batchLaunchRoutes.has(path) || Boolean(statusStage);
     const validatePlan = options.movePlanAttempt !== undefined, waits = rate.waitCount();
     let renewed = false;
     let accessToken: string;
@@ -175,8 +181,13 @@ export function dropboxAdapter(env: AppEnvironment, request: typeof fetch = fetc
       const problem = await response.json().catch(() => ({}));
       const summary = typeof problem?.error_summary === 'string' ? problem.error_summary : 'request';
       const tag = problem?.error?.['.tag'];
-      if (path==='files/move_batch/check_v2' && response.status===409 && (tag==='internal_error'||tag===undefined&&/^internal_error(?:\/|$)/.test(summary))) {
-        throw new MoveStatusUnconfirmed({code:failureCodes.changed,stage:'dropbox.move-batch',status:409,action:'check-move'}, 'Dropbox kunne ikke bekrefte statusen for flyttingen.');
+      if (statusStage && response.status===409) {
+        const pollError = tag ?? summary.split('/')[0];
+        if (pollError==='invalid_async_job_id') throw new DropboxError(409,pollError,statusStage);
+        if (pollError==='internal_error') {
+          const action = statusStage==='dropbox.move-batch'?'check-move':statusStage==='dropbox.folders-batch'?'check-folders':undefined;
+          throw new BatchStatusUnconfirmed({code:failureCodes.changed,stage:statusStage,status:409,action}, 'Dropbox kunne ikke bekrefte statusen for batchen.');
+        }
       }
       if (path.startsWith('sharing/') && (problem?.error?.['.tag'] === 'missing_scope' || /^missing_scope(?:\/|$)/.test(summary))) {
         const current = credentials();

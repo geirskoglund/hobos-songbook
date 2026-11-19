@@ -1,4 +1,4 @@
-import {DeferredSync,RetrySync,SyncFailure,MoveStatusUnconfirmed,failureCodes} from './failure.ts';
+import {DeferredSync,RetrySync,SyncFailure,BatchStatusUnconfirmed,failureCodes} from './failure.ts';
 import {numberedPath} from './filenames.ts';
 import {metadataView,pathKey} from './remote.ts';
 import type {FileValue,MoveReply,MoveResult,RemoteEntry,RemoteFiles,SyncState,UploadJob,UploadResult} from './model.ts';
@@ -122,7 +122,7 @@ export function creationQueue(files:RemoteFiles,state:SyncState,hooks:{check():P
    if(!files.checkMoveBatch)throw new Error('Missing batch status support');
    try{return await files.checkMoveBatch(id,pending.retryAttempt);}
    catch(error){
-    if(!(error instanceof MoveStatusUnconfirmed))throw error;
+    if(!(error instanceof BatchStatusUnconfirmed))throw error;
     const inspectMeta=await metadata(),entries:MoveResult[]=[];
     for(const entry of pending.entries){
      const reference=entry.toReference?.split('/')[0];

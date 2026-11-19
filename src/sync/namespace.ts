@@ -1,4 +1,4 @@
-import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch,MovePlanNeedsRefresh,MoveStatusUnconfirmed} from './failure.ts';
+import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch,MovePlanNeedsRefresh,BatchStatusUnconfirmed} from './failure.ts';
 import {metadataView,pathKey} from './remote.ts';
 import {ownSong,songLocation} from './model.ts';
 import type {BookLink,DeleteEntry,FolderEntry,MoveEntry,MoveReply,MoveResult,NamespaceJob,RemoteEntry,RemoteFiles,SyncState} from './model.ts';
@@ -181,11 +181,15 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
     const target=parent?parent.path+'/'+entry.to.split('/').at(-1):entry.to;
     if(actual.id!==entry.fileId||Boolean(actual.folder)!==Boolean(entry.folder)||requireMoveProof&&reference&&(!parent?.folder||parent.id!==reference)||pathKey(actual.path)!==pathKey(target))throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-move'},'Flyttingen er fortsatt uavklart.');
     entries.push({value:{id:entry.fileId,path:actual.path,folder:actual.folder,rev:actual.rev}});
+   }else if(job.kind==='delete'){
+    const entry=item as DeleteEntry,reference=entry.category==='staging'?entry.path:entry.fileId;
+    if(await inspect(reference))throw new SyncFailure({code:failureCodes.changed,stage:stage('delete')},'Dropbox har ennå ikke bekreftet alle slettingene.');
+    entries.push({failure:{code:failureCodes.missingFile,stage:stage('delete')},missing:true});
    }else{
     const entry=item as FolderEntry,actual=await inspect(entry.path);
     if(entry.temporary)throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-folders'},'Opprettelsen av den midlertidige bokmappen er fortsatt uavklart.');
-    if(!actual?.folder)throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-folders'},'Mappeopprettelsen er fortsatt uavklart.');
-    entries.push({value:{id:actual.id!,path:actual.path,folder:true}});
+    if(!actual?.folder||!actual.id)throw new SyncFailure({code:failureCodes.changed,stage:'sync.namespace',action:'check-folders'},'Mappeopprettelsen er fortsatt uavklart.');
+    entries.push({value:{id:actual.id,path:actual.path,folder:true}});
    }
   }
   return apply(job,{entries},true);
@@ -251,7 +255,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    for(let left=delay;left>0;left-=100){await hooks.check();await new Promise(resolve=>setTimeout(resolve,Math.min(100,left)));}
    await hooks.check();let reply:MoveReply;
    try{reply=await check(job.jobId,job.attempt);}catch(error){
-    if(error instanceof MoveStatusUnconfirmed&&job.kind==='move'){
+    if(error instanceof BatchStatusUnconfirmed){
      await refresh();await authorize(job);
      return observeUnknown(job,true);
     }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture,song} from './sync-fixture.mjs';
 import {syncEngine} from '../src/sync/engine.ts';
-import {RetrySync,SyncFailure,failureCodes} from '../src/sync/failure.ts';
+import {BatchStatusUnconfirmed,RetrySync,SyncFailure,failureCodes} from '../src/sync/failure.ts';
 
 async function run(f,files=f.files,manual=true){for(let i=0;i<5;i++)try{return await syncEngine(f.storage,files,'account',{valid:()=>true,changed(){}}).run(manual);}catch(e){if(!(e instanceof RetrySync)||i===4)throw e;}}
 const manifest=f=>JSON.parse(f.entries.get('/.app/library.json').text);
@@ -69,6 +69,29 @@ test('temporary folder conflict cannot adopt or move a foreign folder as the rep
 });
 test('unknown temporary-folder creation retires its path before retrying; a foreign folder is never adopted',async()=>{
  const f=await setup(),create=f.files.createFoldersBatch;let foreign;f.files.createFoldersBatch=async entries=>{const temporary=entries.find(e=>e.temporary);if(temporary&&!foreign){foreign=await f.files.folder(temporary.path);await f.files.folder(temporary.path+'/Private');await f.files.write(temporary.path+'/Private/foreign.cho','{t: Foreign content}',null);throw new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'unknown create launch');}return create(entries);};remove(f);f.change(d=>d.songbooks.push({id:'replacement',name:'Archive.A'}));await assert.rejects(run(f));await run(f);assert.equal(f.data.state.namespaceJob,undefined);assert.ok([...f.entries.values()].some(e=>e.id===foreign.id&&e.path===foreign.path));assert.notEqual(manifest(f).books.replacement.folderId,foreign.id);assert.ok(Object.values(manifest(f).books).some(b=>b.deleted&&!b.folderId&&b.path===foreign.path));assert.ok(Object.values(manifest(f).songs).every(s=>s.origin.filename!=='foreign.cho'));assert.equal(f.data.state.pending,false);
+});
+test('a temporary folder at the expected path is insufficient proof after a status error',async()=>{
+ const f=await setup(),create=f.files.createFoldersBatch;
+ let foreign,launches=0;
+ f.files.createFoldersBatch=async entries=>{
+  const temporary=entries.find(entry=>entry.temporary);
+  if(!temporary)return create(entries);
+  launches++;
+  foreign=await f.files.folder(temporary.path);
+  return{asyncJobId:'pending-temporary'};
+ };
+ f.files.checkCreateFoldersBatch=async id=>{
+  assert.equal(id,'pending-temporary');
+  throw new BatchStatusUnconfirmed({code:failureCodes.changed,stage:'dropbox.folders-batch',status:409},'status unavailable');
+ };
+ remove(f);f.change(d=>d.songbooks.push({id:'replacement',name:'Archive.A'}));
+ await assert.rejects(run(f),error=>error.info?.action==='check-folders');
+ await assert.rejects(run(f),error=>error.info?.action==='check-folders');
+ assert.equal(launches,1);
+ assert.equal(f.data.state.namespaceJob.jobId,'pending-temporary');
+ assert.ok(JSON.parse(f.entries.get('/.app/mutation.json').text).owner);
+ assert.notEqual(manifest(f).books.replacement?.folderId,foreign.id);
+ assert.equal(f.entries.get(foreign.path.toLowerCase()).id,foreign.id);
 });
 test('retired temporary paths survive a late create effect and never become books on an inactive client',async()=>{
  const f=await setup(),before=structuredClone(f.data),create=f.files.createFoldersBatch;let plan;f.files.createFoldersBatch=async entries=>{if(!plan&&entries.some(e=>e.temporary)){plan=structuredClone(entries);throw new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'delayed temporary create');}return create(entries);};remove(f);f.change(d=>d.songbooks.push({id:'replacement',name:'Archive.A'}));await assert.rejects(run(f));const other=stale(before);other.change(d=>d.personal[0].capo=7);await assert.rejects(run(other,f.files),e=>e.reason==='remote');await run(f);const replacement=structuredClone(manifest(f).books.replacement);assert.equal(f.entries.has(plan[0].path.toLowerCase()),false);await create(plan);await f.files.folder(plan[0].path+'/Private');await f.files.write(plan[0].path+'/Private/late.cho','{t: Late unrelated file}',null);await run(other,f.files);assert.deepEqual(other.data.songbooks.map(b=>b.id).sort(),['replacement','target']);assert.equal(manifest(f).books.replacement.folderId,replacement.folderId);assert.equal(other.data.songs.length,1);assert.equal(other.data.state.pending,false);const start=f.calls.length;await run(other,f.files);assert.deepEqual(f.calls.slice(start),[['changes']]);
