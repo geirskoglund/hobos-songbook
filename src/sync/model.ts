@@ -29,7 +29,7 @@ export interface UploadJob extends UploadIntent {status:'planned'|'committing'|'
 export type BeginUploadResult={session:UploadSession}|{failure:FailureInfo};
 export type UploadResult={value:FileValue}|{failure:FailureInfo;resetSession?:boolean};
 export interface MoveEntry {key:string;from:string;to:string;fileId:string;toReference?:string;folder?:boolean;link?:SongLink;book?:BookLink;archive?:{bookId:string;sourcePath:string}; sourceBookFolderId?:string; publication?:{sourcePath:string; rev:string}}
-export type MoveResult={value:{id:string;path:string;rev?:string;folder?:boolean}}|{failure:FailureInfo;collision?:boolean;missing?:boolean};
+export type MoveResult={value:{id:string;path:string;rev?:string;folder?:boolean}}|{failure:FailureInfo;collision?:boolean;missing?:boolean;verifyEffect?:boolean};
 export type MoveReply={entries:MoveResult[]}|{asyncJobId:string}|{inProgress:true}|{jobExpired:true};
 export interface DeleteEntry {key:string;path:string;fileId:string;rev?:string;folder?:boolean;category:'personal'|'staging'|'folder';sourcePath?:string;bookId?:string}
 export interface FolderEntry {key:string;path:string;parentId?:string;book?:BookLink;temporary?:boolean}
@@ -43,7 +43,7 @@ export interface RemoteFiles {
   beginUpload?(text:string):Promise<UploadSession>;
   beginUploadBatch?(texts:string[]):Promise<BeginUploadResult[]>;
   commitBatch?(jobs:UploadJob[]):Promise<UploadResult[]>;
-  moveBatch?(entries:MoveEntry[],retryAttempt?:number):Promise<MoveReply>;
+  moveBatch?(entries:MoveEntry[],retryAttempt?:number,options?:{revalidateOnThrottle:boolean}):Promise<MoveReply>;
   withMoveReceipt?(work:()=>Promise<void>):Promise<void>;
   checkMoveBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
   deleteBatch?(entries:DeleteEntry[],retryAttempt?:number):Promise<MoveReply>;

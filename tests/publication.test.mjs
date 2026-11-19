@@ -148,6 +148,76 @@ test('AK39-03: a lost batch reply retains the shared fence and per-file proof un
   assert.equal(JSON.parse(f.entries.get('/.app/mutation.json').text).owner, null);
 });
 
+test('AK39-03: a batch internal error acknowledges only the move verified at its exact destination', async () => {
+  const f = fixture();
+  f.change(d => d.songs.push(withSource('two', 'standard')));
+  await f.run();
+  const expected = f.data.state.manifest.songs, move = f.files.moveBatch;
+  const error = {failure: {code: failureCodes.request, stage: 'dropbox.move-batch', status: 200}, verifyEffect: true};
+  f.files.moveBatch = async entries => {
+    await move(entries.filter(entry => entry.fileId === expected.one.fileId));
+    await f.files.move(expected.two.fileId, '/Songbooks/Standard/Shared/Other.cho');
+    return {entries: entries.map(() => error)};
+  };
+  const start = f.calls.length;
+  const result = await engine(f).executePublication([change('one'), change('two')]);
+  assert.deepEqual(result.moved, ['one']);
+  assert.equal(f.data.state.manifest.songs.one.path, '/Songbooks/Standard/Shared/en.cho');
+  assert.equal(f.data.state.manifest.songs.two.path, expected.two.path);
+  assert.equal(f.calls.slice(start).filter(([kind]) => kind === 'metadata').length, 0);
+  assert.deepEqual(moves(f, start), [1]);
+  assert.equal(JSON.parse(f.entries.get('/.app/mutation.json').text).owner, null);
+});
+
+test('AK39-03: a file now in Originals is shown as unpublished and cannot be moved by Utfør', async () => {
+  const f = fixture();
+  await f.run();
+  const known = f.data.state.manifest.songs.one;
+  await engine(f).executePublication([change('one')]);
+  const originalPath = '/Songbooks/Standard/Originals/en.cho';
+  await f.files.move(known.fileId, originalPath);
+  const view = await engine(f).refreshPublication();
+  assert.equal(view.songs.find(song => song.id === 'one').published, false);
+  const start = f.calls.length;
+  const result = await engine(f).executePublication([change('one')]);
+  assert.deepEqual(result.completed, []);
+  assert.deepEqual(moves(f, start), []);
+  assert.equal(physical(f, known.fileId).path, originalPath);
+});
+
+test('AK39-04: publication refresh sees a relisted song in its new book and leaves local membership for ordinary sync', async () => {
+  const f = fixture();
+  f.change(d => setBook(d, 'target', 'Target'));
+  await f.run();
+  await engine(f).executePublication([change('one')]);
+  const older = structuredClone(f.data), inactive = fixture();
+  delete older.state.mutationOwner;
+  delete older.state.mutationPending;
+  inactive.data = older;
+  const secondary = () => syncEngine(inactive.storage, f.files, 'account', {valid: () => true, changed() {}});
+  f.change(d => {
+    d.songbooks = d.songbooks.filter(book => book.id !== 'standard');
+    d.songs[0].songbookId = 'target';
+    d.journal.deletedBooks.standard = {id: 'standard', name: 'Standard', deleted: true};
+  });
+  const waiting = await engine(f).refreshPublication();
+  assert.equal(waiting.songs.find(song => song.id === 'one').songbookId, 'target');
+  assert.equal(waiting.songs.find(song => song.id === 'one').published, false);
+  assert.deepEqual((await engine(f).executePublication([change('one')])).completed, []);
+  await f.run();
+  assert.deepEqual((await engine(f).executePublication([change('one')])).moved, ['one']);
+  const view = await secondary().refreshPublication();
+  assert.equal(view.songs.find(song => song.id === 'one').songbookId, 'target');
+  assert.equal(view.songs.find(song => song.id === 'one').published, true);
+  assert.equal(inactive.data.songs[0].songbookId, 'standard');
+  await secondary().run(true);
+  assert.equal(inactive.data.songs[0].songbookId, 'target');
+  assert.deepEqual(inactive.data.songbooks.map(book => book.id), ['target']);
+  const start = f.calls.length;
+  await secondary().run(true);
+  assert.deepEqual(f.calls.slice(start), [['changes']]);
+});
+
 test('AK39-04: published content remains editable and an inactive device downloads the same song and its private sidecar', async () => {
   const f = fixture();
   await f.run();
@@ -164,4 +234,42 @@ test('AK39-04: published content remains editable and an inactive device downloa
   assert.equal(f.data.songs[0].original, '{t: Oppdatert}\nNy tekst');
   assert.equal(f.data.personal[0].capo, 7);
   assert.equal(f.data.state.manifest.songs.one.fileId, id);
+});
+
+test('AK39-05: link lookup and creation hold the same account fence as book archival', async () => {
+  const f = fixture();
+  f.change(d => {d.songs[0].songbookId = 'target'; setBook(d, 'target', 'Target');});
+  await f.run();
+  const older = structuredClone(f.data), deleting = fixture();
+  delete older.state.mutationOwner;
+  delete older.state.mutationPending;
+  deleting.data = older;
+  deleting.change(d => {
+    d.songbooks = d.songbooks.filter(book => book.id !== 'standard');
+    d.journal.deletedBooks.standard = {id: 'standard', name: 'Standard', deleted: true};
+  });
+  const archive = () => syncEngine(deleting.storage, f.files, 'account', {valid: () => true, changed() {}}).run(true);
+  const url = 'https://www.dropbox.com/scl/fo/example/Shared';
+  assert.equal(await engine(f).withSharedFolder('standard', async (folder, verifyTarget) => {
+    assert.equal(folder.path, '/Songbooks/Standard/Shared');
+    assert.ok(JSON.parse(f.entries.get('/.app/mutation.json').text).owner);
+    await assert.rejects(archive(), error => error.reason === 'remote');
+    await verifyTarget();
+    return url;
+  }), url);
+  assert.equal(JSON.parse(f.entries.get('/.app/mutation.json').text).owner, null);
+  await archive();
+  await assert.rejects(engine(f).withSharedFolder('standard', async () => assert.fail('archived folder must never be shared')),
+    error => error.info.code === failureCodes.missingFolder);
+  assert.equal(JSON.parse(f.entries.get('/.app/mutation.json').text).owner, null);
+});
+
+test('AK39-05: check the actual Shared path before handing a URL back to the caller', async () => {
+  const f = fixture();
+  await f.run();
+  await assert.rejects(engine(f).withSharedFolder('standard', async folder => {
+    await f.files.move(folder.id, '/Deleted/Standard/Shared');
+    return 'https://www.dropbox.com/scl/fo/example/Shared';
+  }), error => error.info.stage === 'publication.shared-folder' && error.info.code === failureCodes.changed);
+  assert.equal(JSON.parse(f.entries.get('/.app/mutation.json').text).owner, null);
 });

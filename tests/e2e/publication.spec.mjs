@@ -29,6 +29,50 @@ async function seed(page, context, options) {
   return mock;
 }
 
+test.describe('Publisering på smal berøringsskjerm', () => {
+  test.use({hasTouch: true, viewport: {width: 320, height: 560}});
+
+  test('AK39-01: touch separates the first song from Select all and only selects the active filtered tab', async ({page, context}) => {
+    await seed(page, context);
+    await go(page, 'Publisering');
+    const root = page.locator('#publication'), tabs = root.locator('.publication-tab-row');
+    const all = action(page, 'Velg alle'), first = root.locator('.metadata-row').first();
+    const counts = root.locator('.publication-actions p');
+    await expect(root.locator('.song-name')).toHaveText(['Alfa', 'Zulu']);
+    await action(page, 'Sangbok: Alle').tap();
+    await page.getByRole('option', {name: 'Band', exact: true}).tap();
+    const geometry = async () => {
+      const row = await tabs.boundingBox(), button = await all.boundingBox(), song = await first.boundingBox();
+      expect(row.height).toBe(52);
+      expect(button.width).toBeGreaterThanOrEqual(44);
+      expect(button.height).toBeGreaterThanOrEqual(44);
+      expect(button.x + button.width).toBeLessThanOrEqual(row.x + row.width);
+      expect(button.y + button.height).toBeLessThanOrEqual(row.y + row.height);
+      expect(song.y).toBeGreaterThanOrEqual(row.y + row.height);
+      expect(await tabs.evaluate(node => node.scrollWidth)).toBeLessThanOrEqual(Math.ceil(row.width));
+      return {button, song};
+    };
+    await expect(tabs.getByRole('tablist').getByRole('button', {name: 'Velg alle'})).toHaveCount(0);
+    const {button, song} = await geometry();
+    const x = button.x + button.width / 2;
+    await page.touchscreen.tap(x, song.y + 2);
+    await expect(counts).toHaveText('1 valgt for publisering · 0 for avpublisering');
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await page.touchscreen.tap(x, song.y + 2);
+    await expect(counts).toHaveText('0 valgt for publisering · 0 for avpublisering');
+    await page.touchscreen.tap(x, button.y + button.height - 2);
+    await expect(counts).toHaveText('2 valgt for publisering · 0 for avpublisering');
+
+    await page.getByRole('tab', {name: 'Publisert', exact: true}).tap();
+    await expect(all).toBeDisabled();
+    await action(page, 'Sangbok: Band').tap();
+    await page.getByRole('option', {name: 'Standard', exact: true}).tap();
+    await geometry();
+    await all.tap();
+    await expect(counts).toHaveText('2 valgt for publisering · 19 for avpublisering');
+  });
+});
+
 test('AK39-01–03: shared components, paginated refresh, scoped selection, mixed bulk, last row and offline', async ({page, context}) => {
   const mock = await seed(page, context, {pageSize: 7});
   await page.setViewportSize({width: 320, height: 560});
@@ -71,14 +115,19 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({width, height: 560});
     const geometry = await root.evaluate(node => {
-      const style = selector => {const item = document.querySelector(selector), computed = getComputedStyle(item), box = item.getBoundingClientRect();return {x: box.x, bottom: box.bottom, height: box.height, width: box.width, size: computed.fontSize, background: computed.backgroundColor, color: computed.color, border: computed.borderBottomWidth, font: computed.fontFamily};};
+      const style = selector => {const item = document.querySelector(selector), computed = getComputedStyle(item), box = item.getBoundingClientRect();return {x: box.x, top: box.top, bottom: box.bottom, height: box.height, width: box.width, size: computed.fontSize, background: computed.backgroundColor, color: computed.color, border: computed.borderBottomWidth, font: computed.fontFamily};};
       const offset = innerWidth / 2;
-      return {width: innerWidth, offset, title: style('#page-title'), filter: style('#publication-songbook-filter'), tabs: style('.tab-switcher'), active: style('[role=tab][aria-selected=true]'), row: style('.metadata-row[aria-pressed=true]'), check: style('.choice-check'), button: style('.primary-action'), bar: style('.publication-actions'), overflow: document.documentElement.scrollWidth > innerWidth};
+      return {width: innerWidth, offset, title: style('#page-title'), filter: style('#publication-songbook-filter'), tabRow: style('.publication-tab-row'), tabs: style('.tab-switcher'), selectAll: style('.publication-select-all'), active: style('[role=tab][aria-selected=true]'), row: style('.metadata-row[aria-pressed=true]'), check: style('.choice-check'), button: style('.primary-action'), bar: style('.publication-actions'), overflow: document.documentElement.scrollWidth > innerWidth};
     });
     expect(geometry.overflow).toBe(false);
     expect(Math.abs(geometry.filter.x + geometry.filter.width / 2 - geometry.offset)).toBeLessThan(1);
     expect(geometry.title.height).toBeLessThan(36);
     expect(geometry.tabs.height).toBe(52);
+    expect(geometry.tabRow.height).toBe(52);
+    expect(geometry.selectAll.height).toBeGreaterThanOrEqual(44);
+    expect(geometry.selectAll.width).toBeGreaterThanOrEqual(44);
+    expect(geometry.selectAll.x + geometry.selectAll.width).toBeLessThanOrEqual(geometry.tabRow.x + geometry.tabRow.width);
+    expect(geometry.selectAll.bottom).toBeLessThan(geometry.row.top);
     expect(geometry.check.width).toBe(24);
     expect(geometry.row.background).toBe('rgb(64, 56, 49)');
     expect(geometry.button.height).toBeGreaterThanOrEqual(44);
@@ -115,6 +164,7 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   const writes = mock.calls.slice(before).filter(call => call.endpoint.endsWith('/move_batch_v2'));
   expect(writes.map(call => call.args.entries.length)).toEqual([3, 3]);
   expect(writes[1].args.entries.every(entry => entry.from_path.startsWith('id:') && entry.to_path.startsWith('id:'))).toBe(true);
+  expect(mock.calls.slice(mock.calls.indexOf(writes[0]) + 1, mock.calls.indexOf(writes[1])).some(call => call.endpoint.endsWith('/list_folder/continue'))).toBe(true);
   expect(mock.find('/Songbooks/Band/Shared/bela.cho')).toBeTruthy();
   expect(mock.find('/Songbooks/Standard/Private/withdraw.cho')).toBeTruthy();
   expect(mock.calls.some(call => call.endpoint.includes('/sharing/'))).toBe(false);
@@ -142,6 +192,37 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   await page.getByRole('dialog').getByRole('button', {name: 'Koble fra', exact: true}).click();
   await openMenu(page);
   await expect(action(page, 'Publisering')).toHaveCount(0);
+});
+
+test('AK39-03: an HTTP 429 retry leaves songs with a changed path or revision out of the next batch', async ({page, context}) => {
+  const mock = await seed(page, context);
+  await go(page, 'Publisering');
+  const root = page.locator('#publication'), counts = root.locator('.publication-actions p');
+  await action(page, 'Velg alle').click();
+  await page.getByRole('tab', {name: 'Publisert', exact: true}).click();
+  await root.getByRole('button', {name: 'Avpubliser meg, G, 3/4'}).click();
+  const start = mock.calls.length, originalPath = '/Songbooks/Band/Originals/bela.cho';
+  const refreshedPath = '/Songbooks/Band/Private/zeda.cho';
+  const withdrawal = mock.find('/Songbooks/Standard/Shared/withdraw.cho').id;
+  mock.fault('/move_batch_v2', 429);
+  const release = mock.hold('/move_batch_v2');
+  try {
+    await action(page, 'Utfør').click();
+    await expect.poll(() => mock.calls.slice(start).some(call => call.endpoint.endsWith('/move_batch_v2'))).toBe(true);
+    mock.rename('/Songbooks/Band/Private/bela.cho', originalPath);
+    mock.put(refreshedPath, '{t: Zulu, ny revisjon}\nEndret i Dropbox');
+  } finally {release();}
+  await expect(counts).toHaveText('1 fil ble avpublisert');
+  await expect(root.getByText(/2 gjenstår/)).toBeVisible();
+  const writes = mock.calls.slice(start).filter(call => call.endpoint.endsWith('/move_batch_v2'));
+  expect(writes.map(call => call.args.entries.length)).toEqual([3, 1]);
+  expect(writes[1].args.entries[0].from_path).toBe(withdrawal);
+  expect(mock.find(originalPath)).toBeTruthy();
+  expect(mock.find(refreshedPath).text).toContain('Endret i Dropbox');
+  expect(mock.find('/Songbooks/Band/Shared/bela.cho')).toBeFalsy();
+  expect(mock.find('/Songbooks/Band/Shared/zeda.cho')).toBeFalsy();
+  expect(mock.calls.slice(start).filter(call => call.endpoint.endsWith('/get_metadata'))).toHaveLength(0);
+  expect(JSON.parse(mock.find('/.app/mutation.json').text).owner).toBe(null);
 });
 
 test('AK39-03: a terminal per-file Dropbox write lock acknowledges successes and frees the mutation fence', async ({page, context}) => {

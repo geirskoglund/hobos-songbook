@@ -398,9 +398,18 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     await start();
     if(!manual&&!resolution&&!hasLocalWork()){state.localGeneration=generation;hooks.idle?.();await save();return state;}
     const library=state.library?.value??state.manifest;
+    const localBooks=new Map(snapshot.songbooks.map(book=>[book.id,book]));
+    const localSongs=new Map(snapshot.songs.map(song=>[song.id,song]));
     const retiredPath=(path:string)=>Object.values(library.books).some(book=>book.deleted&&!book.folderId&&book.path&&pathKey(book.path)===pathKey(path));
     const unprocessed=(link:SongLink)=>{const basis=state.bases[link.id],entry=index.find(link.fileId??link.path);return !basis||entry?.rev!==basis.contentRev||pathKey(entry?.path??'')!==pathKey(link.path)||!index.unchangedFile(undefined,basis.personalRev,`/.app/songs/${link.id}.json`);};
-    const incoming=Object.values(library.books).some(book=>!book.deleted&&!snapshot.songbooks.some(local=>local.id===book.id))||Object.values(library.songs).some(song=>!snapshot.songs.some(local=>local.id===song.id)||unprocessed(song))||Object.values(state.remote?.entries??{}).some(entry=>{
+    // Reading the remote manifest in Publisering also advances the cursor.
+    // The manual shortcut must still detect domain changes not applied locally.
+    const incoming=Object.values(library.books).some(book=>{
+      const local=localBooks.get(book.id);
+      if(book.deleted)return Boolean(local);
+      return local?.name!==book.name||Boolean(book.folderId&&book.path&&pathKey(index.find(book.folderId)?.path??'')!==pathKey(book.path));
+    })||Object.values(library.songs).some(song=>localSongs.get(song.id)?.songbookId!==song.songbookId||unprocessed(song))
+      ||snapshot.songs.some(song=>library.deletedSongs?.[song.id])||Object.values(state.remote?.entries??{}).some(entry=>{
       if(entry.folder&&/^\/Songbooks\/[^/]+$/i.test(entry.path))return !retiredPath(entry.path)&&!Object.values(library.books).some(book=>book.folderId===entry.id);
       if(!entry.folder&&/^\/Songbooks\/[^/]+\/Private\/[^/]+\.cho$/i.test(entry.path)&&(entry.size??0)<=maxFileBytes)return !retiredPath(entry.path.split('/').slice(0,3).join('/'))&&!Object.values(library.songs).some(song=>song.fileId===entry.id);
       return false;
@@ -681,6 +690,11 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     else await work();
   }
 
+  function hasUnconfirmedNamespaceChanges() {
+    return state.namespaceJob?.submitted || state.placement || state.archivePending || Object.keys(state.movedSongs ?? {}).length
+      || Object.keys(state.movedPublications ?? {}).length || Object.keys(state.movedBooks ?? {}).length || Object.keys(state.renames ?? {}).length;
+  }
+
   async function executePublication(choices: PublicationChoice[], retryConflicts = false, confirmedMoves = new Set<string>()): Promise<PublicationResult> {
     manualRecovery = true;
     await start();
@@ -757,8 +771,7 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
       try {await save();} catch {/* Do not acknowledge a newer local generation. */}
     } finally {
       publicationMoves = undefined;
-      if (acquired && !state.namespaceJob?.submitted && !state.placement && !state.archivePending && !Object.keys(state.movedSongs ?? {}).length
-        && !Object.keys(state.movedPublications ?? {}).length && !Object.keys(state.movedBooks ?? {}).length && !Object.keys(state.renames ?? {}).length) {
+      if (acquired && !hasUnconfirmedNamespaceChanges()) {
         try {await settlePublication(fence.release);} catch (error) {failure ??= error;}
       }
     }
@@ -784,19 +797,41 @@ export function syncEngine(storage: ReturnType<typeof syncStorage>, files: Remot
     return {view: publicationView(snapshot, identities), completed, moved: completed.filter(id => confirmedMoves.has(id)), message, unavailable};
   }
 
-  async function sharedFolder(localBookId: string) {
+  async function withSharedFolder(localBookId: string, link: (folder: {id: string; path: string}, verifyTarget: () => Promise<void>) => Promise<string>) {
     manualRecovery = true;
     await start();
-    const catalog = await readPublicationInventory();
-    const bookId = identities.wireId('books', localBookId);
-    const root = catalog.roots.get(bookId);
-    const shared = root && catalog.find(`${root.path}/Shared`);
-    if (!root || !shared?.folder || !shared.id) {
-      throw new SyncFailure({code: failureCodes.missingFolder, stage: 'publication.shared-folder'}, 'Sangboken må synkroniseres før den kan få en delingslenke.');
+    if (hasUnconfirmedNamespaceChanges()) {
+      throw new SyncFailure({code: failureCodes.changed,stage: 'publication.shared-folder'}, 'Fullfør den ventende Dropbox-flyttingen før du kopierer delingslenken.');
     }
-    await save();
-    return {path: shared.path, id: shared.id};
+    let completed = false;
+    try {
+      // Hold the same account-wide fence as book moves through link lookup and
+      // creation. A stable folder ID can otherwise follow a book into Deleted.
+      await fence.acquire();
+      const catalog = await readPublicationInventory(true);
+      const bookId = identities.wireId('books', localBookId);
+      const root = catalog.roots.get(bookId);
+      const shared = root && catalog.find(`${root.path}/Shared`);
+      if (!shared?.folder || !shared.id) {
+        throw new SyncFailure({code: failureCodes.missingFolder, stage: 'publication.shared-folder'}, 'Sangboken må synkroniseres før den kan få en delingslenke.');
+      }
+      const target = {id: shared.id, path: shared.path};
+      const verifyTarget = async () => {
+        await check();
+        const actual = await rawFiles.locateFolder(target.id);
+        await check();
+        if (actual?.id !== target.id || pathKey(actual.path) !== pathKey(target.path)) {
+          throw new SyncFailure({code: failureCodes.changed,stage: 'publication.shared-folder'}, 'Sangbokens delingsmappe har flyttet seg. Kontroller sangboken og prøv igjen.');
+        }
+      };
+      const url = await link(target, verifyTarget);
+      await verifyTarget();
+      completed = true;
+      return url;
+    } finally {
+      try {await fence.release();} catch (error) {if (completed) throw error;}
+    }
   }
 
-  return {run,refreshPublication,executePublication,sharedFolder};
+  return {run,refreshPublication,executePublication,withSharedFolder};
 }

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {dropboxAdapter} from '../src/adapters/dropbox.ts';
 import {maxFileBytes,SkippedFile} from '../src/sync/limits.ts';
 import {UnsentBatch,failureCodes} from '../src/sync/failure.ts';
+import {syncEngine} from '../src/sync/engine.ts';
+import {fixture} from './sync-fixture.mjs';
 
 async function adapterTest(request,run){
   const old={localStorage:globalThis.localStorage,navigator:Object.getOwnPropertyDescriptor(globalThis,'navigator')};
@@ -60,6 +62,50 @@ test('Dropbox move batch contract: a failed token refresh proves that a batch wa
     await assert.rejects(adapter.files.moveBatch([{from:'id:source',to:'/destination.cho',fileId:'id:source'}]),error=>error instanceof UnsentBatch&&error.info.code===failureCodes.network);
   });
   assert.deepEqual(calls,['/oauth2/token']);
+});
+
+test('AK39-03: a rejected move followed by a failed token refresh can be requested again safely', async () => {
+  const f = fixture();
+  await f.run();
+  const move = f.files.moveBatch, routes = [], id = f.data.state.manifest.songs.one.fileId;
+  const persist = f.storage.transport, receipts = [];
+  f.storage.transport = async (account, job) => {
+    await persist(account, job);
+    receipts.push(f.data.state.namespaceJob?.submitted);
+  };
+  const engine = () => syncEngine(f.storage, f.files, 'account', {valid: () => true, changed() {}});
+  const choices = [{id: 'one', published: true}];
+  await adapterTest(async url => {
+    const route = new URL(url).pathname;
+    routes.push(route);
+    if (route === '/oauth2/token') throw new TypeError('offline');
+    assert.equal(route, '/2/files/move_batch_v2');
+    const key = 'bulk-test:dropbox-auth-v1', credentials = JSON.parse(localStorage.getItem(key));
+    localStorage.setItem(key, JSON.stringify({...credentials, expires: 0}));
+    return Response.json({error: {reason: {'.tag': 'too_many_write_operations'}}}, {status: 429, headers: {'Retry-After': '1'}});
+  }, async adapter => {
+    f.files.moveBatch = adapter.files.moveBatch;
+    const result = await engine().executePublication(choices);
+    assert.deepEqual(result.completed, []);
+    assert.equal(result.unavailable, true);
+    assert.equal(f.data.state.namespaceJob?.submitted, false);
+    assert.deepEqual(routes, ['/2/files/move_batch_v2', '/oauth2/token']);
+    assert.deepEqual(receipts, [false, false]);
+    assert.equal(f.entries.get('/songbooks/standard/private/en.cho').id, id);
+  });
+  f.files.moveBatch = move;
+  const next = await engine().executePublication(choices);
+  assert.deepEqual(next.completed, ['one']);
+  assert.deepEqual(next.moved, ['one']);
+  assert.equal(f.entries.get('/songbooks/standard/shared/en.cho').id, id);
+  assert.equal(JSON.parse(f.entries.get('/.app/mutation.json').text).owner, null);
+});
+
+test('Dropbox move batch contract: internal_error requires checking the actual location', async () => {
+  await adapterTest(async () => Response.json({'.tag': 'complete', entries: [{'.tag': 'failure', failure: {'.tag': 'internal_error'}}]}), async adapter => {
+    const result = await adapter.files.moveBatch([{from: 'id:source', to: '/destination.cho', fileId: 'id:source'}]);
+    assert.equal(result.entries[0].verifyEffect, true);
+  });
 });
 
 test('Dropbox bulk contract: HTTP 200 can contain an independent revision failure and expired session',async()=>{

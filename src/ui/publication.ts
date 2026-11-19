@@ -75,7 +75,10 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
     render();
   });
   selectAll.className = 'publication-select-all';
-  root.append(summary, status, switcher.element, selectAll, ...panels.map(({panel}) => panel), bar);
+  const tabRow = document.createElement('div');
+  tabRow.className = 'publication-tab-row';
+  tabRow.append(switcher.element, selectAll);
+  root.append(summary, status, tabRow, ...panels.map(({panel}) => panel), bar);
   new ResizeObserver(() => root.style.setProperty('--publication-action-height', `${bar.getBoundingClientRect().height}px`)).observe(bar);
 
   function actionText(published: number, withdrawn: number, pending = false) {

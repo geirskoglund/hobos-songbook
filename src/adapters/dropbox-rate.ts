@@ -1,4 +1,4 @@
-import {DeferredSync,failureCodes,SyncFailure,type RateInfo,type RateLimitReason} from '../sync/failure.ts';
+import {BatchRateRejected,DeferredSync,failureCodes,SyncFailure,type RateInfo,type RateLimitReason} from '../sync/failure.ts';
 import type {ApiEvent,ApiContext} from '../sync/diagnostics.ts';
 
 export class DropboxError extends SyncFailure {
@@ -67,7 +67,7 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
     const hints=[headerMs,bodyMs].filter(Number.isFinite),minimum=hints.length?Math.max(...hints):1000;
     return{limitReason:reason,retryAfterMs:Math.ceil(Math.max(minimum,1000*2**attempt))};
   }
-  async function send(operation:string,perform:(attempt:number,check:()=>Promise<void>)=>Promise<Response>,context:()=>ApiContext=()=>({}),finishMove=false){
+  async function send(operation:string,perform:(attempt:number,check:()=>Promise<void>)=>Promise<Response>,context:()=>ApiContext=()=>({}),{finishMove=false,movePlanAttempt}: {finishMove?:boolean;movePlanAttempt?:number} = {}){
     // Revoke must remain immediate after local disconnect. Every other route,
     // including queued token renewals, shares the same bounded Retry-After gate.
     const recover=operation!=='auth/token/revoke',checkBefore=/^(files|sharing)\//.test(operation),ticket=lease,id=recover?account()??'oauth':null;let attempt=0;
@@ -84,15 +84,23 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
         const start=performance.now();
         try{response=await perform(attempt,()=>wait(ticket,id,checkBefore,finishMove));}catch(cause){if(cause instanceof DeferredSync||cause instanceof SyncFailure)throw cause;emit({operation,status:0,durationMs:Math.round(performance.now()-start),...context(),transport:cause instanceof Error&&cause.name==='TimeoutError'?'timeout':cause instanceof Error&&cause.name==='AbortError'?'abort':'network'});throw new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'Dropbox-forespørselen kunne ikke fullføres.',cause);}
         const durationMs=Math.round(performance.now()-start);
-        if(response.status===429)rate=await rateInfo(response,attempt);
+        const requestAttempt=movePlanAttempt??attempt;
+        if(response.status===429)rate=await rateInfo(response,requestAttempt);
         const deferredAttempt=(response as Response&{entryRateAttempt?:number}).entryRateAttempt;
         const deferred=Number.isInteger(deferredAttempt)&&deferredAttempt!>=0&&deferredAttempt!<=maxRetries;
         if(deferred)rate={...await rateInfo(response,deferredAttempt!),limitReason:'too_many_write_operations'};
         const entryLimit=(response as Response&{entryLimit?:boolean}).entryLimit===true||deferred;
-        emit({operation,status:entryLimit?200:response.status,durationMs,...context(),...(entryLimit?{entryLimit:true}:{}),...(rate?{...rate,retryAttempt:deferred?deferredAttempt:attempt}:{})});
+        emit({operation,status:entryLimit?200:response.status,durationMs,...context(),...(entryLimit?{entryLimit:true}:{}),...(rate?{...rate,retryAttempt:deferred?deferredAttempt:requestAttempt}:{})});
         // Parsing a received body can fail after the server accepted a write.
         // Count its actual HTTP receipt before preserving that unknown result.
         if(Object.hasOwn(response,'transformFailure'))throw(response as Response&{transformFailure:unknown}).transformFailure;
+        if(rate&&response.status===429&&movePlanAttempt!==undefined){
+          // Return the definitive rejection before any preflight for the next
+          // attempt. Its first metadata request shares this cooldown and budget.
+          remember(id,rate,429,batchStage);
+          if(ticket===lease){writeLimit=1;if(!retries||movePlanAttempt>=maxRetries)throw stop(rate,429,batchStage);}
+          throw new BatchRateRejected({code:failureCodes.throttled,stage:batchStage,status:429,...rate},'Dropbox avviste flyttingen med en ratebegrensning.');
+        }
         if(recover){if(rate){if(!deferred||ticket===lease)remember(id,rate,deferred?200:429,batchStage);if(!deferred||!transportBatches.has(operation))await guard(ticket,checkBefore,finishMove);if(ticket===lease){writeLimit=1;if(deferred){if(!retries||deferredAttempt!>=maxRetries)stop(rate,200,batchStage);}else if(!retries||attempt>=maxRetries)throw stop(rate,429,batchStage);}}else if(!transportBatches.has(operation))checkTicket(ticket,finishMove);}
       }finally{release();}
       if(!recover||response.status!==429)return response;

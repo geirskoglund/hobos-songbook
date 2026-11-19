@@ -33,6 +33,8 @@ export class SyncFailure extends Error {
 }
 /** A terminal server job failed; a new plan may be computed after refresh. */
 export class BatchJobFailed extends SyncFailure {}
+/** Dropbox rejected the launch with HTTP 429. Revalidate before submitting again. */
+export class BatchRateRejected extends SyncFailure {}
 /** A batch request failed before its destination endpoint was called. */
 export class UnsentBatch extends SyncFailure {
   constructor(error: SyncFailure) {super(error.info,error.message,error);}

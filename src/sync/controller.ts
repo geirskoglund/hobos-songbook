@@ -159,7 +159,7 @@ export function syncController(storage: ReturnType<typeof songStorage>, hooks: {
   async function shareBook(bookId: string) {
     if (!account() || navigator.onLine === false) throw new DeferredSync('connection', 'Koble til Dropbox for å kopiere delingslenken.');
     if (!adapter.sharingAllowed()) {await adapter.connect(bookId); return undefined;}
-    return withDropbox(async engine => adapter.sharedLink(await engine.sharedFolder(bookId)));
+    return withDropbox(engine => engine.withSharedFolder(bookId, adapter.sharedLink));
   }
   function localChanged() {adapter.cancelPending();if (running || workingWithDropbox) changedDuringRun = true; localPending = true; notify(); if (!popup) void execute();}
   document.addEventListener('library-local-change', localChanged);

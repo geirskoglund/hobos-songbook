@@ -1,4 +1,4 @@
-import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,UnsentBatch} from './failure.ts';
+import {DeferredSync,SubmittedBatchInterruption,RetrySync,SyncFailure,failureCodes,BatchJobFailed,BatchRateRejected,UnsentBatch} from './failure.ts';
 import {metadataView,pathKey} from './remote.ts';
 import {ownSong,songLocation} from './model.ts';
 import type {BookLink,DeleteEntry,FolderEntry,MoveEntry,MoveReply,MoveResult,NamespaceJob,RemoteEntry,RemoteFiles,SyncState} from './model.ts';
@@ -126,10 +126,10 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
      continue;
     }
     if(result.collision){if(creation.temporary){missingCreation=true;continue;}const actual=await inspect(creation.path);if(actual?.folder){await verifyFolder(creation,{id:actual.id!,path:actual.path});if(creation.book)state.folders[creation.book.id]={...creation.book,folderId:actual.id,path:actual.path};continue;}}
-   }else if('value'in result){
-    const move=entry as MoveEntry;if(result.value.id!==move.fileId)throw bad(job.kind,'Flytting bekreftet en annen identitet.');
+   }else if('value'in result||publishing&&result.verifyEffect){
+    const move=entry as MoveEntry;if('value'in result&&result.value.id!==move.fileId)throw bad(job.kind,'Flytting bekreftet en annen identitet.');
     const actual=await inspect(move.fileId);
-    if(publishing){const target=await publicationTarget(move);if(actual&&!actual.folder&&target&&pathKey(actual.path)===pathKey(target.path))hooks.moved(move,{id:move.fileId,path:actual.path});continue;}
+    if(publishing){const target=await publicationTarget(move);if(actual?.id===move.fileId&&!actual.folder&&target&&pathKey(actual.path)===pathKey(target.path))hooks.moved(move,{id:move.fileId,path:actual.path});continue;}
     if(!actual){failure={failure:{code:failureCodes.changed,stage:stage(job.kind)}};continue;}
     const path=actual.path;hooks.moved(move,{id:move.fileId,path});
     if(pathKey(path)!==pathKey(move.to))failure={failure:{code:failureCodes.changed,stage:stage(job.kind)}};
@@ -219,7 +219,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    // This guard is still before transport. Its cancellation must durably undo
    // the sent flag even when a newer local generation prevents ordinary save.
    await hooks.check();
-   if(job.kind==='move'){if(!files.moveBatch)throw bad(job.kind,'Batchflytting mangler.');reply=await files.moveBatch(job.entries as MoveEntry[],job.attempt);}
+   if(job.kind==='move'){if(!files.moveBatch)throw bad(job.kind,'Batchflytting mangler.');reply=await files.moveBatch(job.entries as MoveEntry[],job.attempt,{revalidateOnThrottle:true});}
    else if(job.kind==='delete'){if(!files.deleteBatch)throw bad(job.kind,'Batchsletting mangler.');reply=await files.deleteBatch(job.entries as DeleteEntry[],job.attempt);}
    else{if(!files.createFoldersBatch)throw bad(job.kind,'Batchoppretting mangler.');reply=await files.createFoldersBatch(job.entries as FolderEntry[],job.attempt);}
   }catch(error){
@@ -228,6 +228,7 @@ export function namespaceQueue(files:RemoteFiles,state:SyncState,hooks:Hooks){
    // prove that this launch was not accepted, unlike an unknown network reply.
    const rejected=error instanceof UnsentBatch||error instanceof DeferredSync&&!(error instanceof SubmittedBatchInterruption)||error instanceof SyncFailure&&error.info.status!==undefined&&error.info.status>=400&&error.info.status<500&&error.info.status!==408;
    if(rejected){job.submitted=false;delete job.jobId;await hooks.receipt(job);if(error instanceof SyncFailure&&error.info.status===409)throw new RetrySync();}
+   if(error instanceof BatchRateRejected&&job.attempt<2){job.attempt++;await hooks.save();await recover(true);return true;}
    throw error;
   }
   await receipt(job,reply);return apply(job,reply,false,active);

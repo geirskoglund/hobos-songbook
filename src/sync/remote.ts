@@ -84,7 +84,7 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
     ...(raw.beginUploadBatch?{beginUploadBatch:raw.beginUploadBatch}:{}),
     ...(raw.withMoveReceipt?{withMoveReceipt:raw.withMoveReceipt}:{}),
     ...(raw.commitBatch?{async commitBatch(jobs){const results=await raw.commitBatch!(jobs);for(const result of results)if('value'in result)put({id:result.value.id,path:result.value.path,rev:result.value.rev,folder:false,size:textBytes(result.value.text)});return results;}}:{}),
-    ...(raw.moveBatch?{async moveBatch(entries,retryAttempt){return moved(await raw.moveBatch!(entries,retryAttempt),entries);}}:{}),
+    ...(raw.moveBatch?{async moveBatch(entries,retryAttempt,options){return moved(await raw.moveBatch!(entries,retryAttempt,options),entries);}}:{}),
     ...(raw.checkMoveBatch?{async checkMoveBatch(id,retryAttempt){return moved(await raw.checkMoveBatch!(id,retryAttempt),state.namespaceJob?.kind==='move'?state.namespaceJob.entries as MoveEntry[]:state.placement?.entries??[]);}}:{}),
     ...(raw.createFoldersBatch?{async createFoldersBatch(entries,retryAttempt){const reply=await raw.createFoldersBatch!(entries,retryAttempt);return foldersCreated(reply,entries);}}:{}),
     ...(raw.checkCreateFoldersBatch?{async checkCreateFoldersBatch(id,retryAttempt){return foldersCreated(await raw.checkCreateFoldersBatch!(id,retryAttempt),state.namespaceJob?.entries as import('./model.ts').FolderEntry[]??[]);}}:{}),

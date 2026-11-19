@@ -71,6 +71,31 @@ test('AK39-05: effective restricted audience, edit links and scope errors never 
   } finally {f.cleanup();}
 });
 
+test('AK39-05: a link with the same folder ID and an archived path fails closed on lookup or creation', async () => {
+  const f = setup();
+  try {
+    const archived = link({path_lower: '/deleted/standard/shared'}), calls = [];
+    let exists = true;
+    const adapter = dropboxAdapter({namespace, channel: 'test'}, async url => {
+      const route = new URL(url).pathname;
+      calls.push(route);
+      if (route.endsWith('/list_shared_links')) return result({has_more: false, links: exists ? [archived] : []});
+      return result(archived);
+    });
+    const wrongTarget = error => error.info.stage === 'dropbox.sharing-target' && error.info.code === failureCodes.changed;
+    await assert.rejects(adapter.sharedLink(folder), wrongTarget);
+    assert.deepEqual(calls, ['/2/sharing/list_shared_links']);
+    calls.length = 0;
+    exists = false;
+    const moved = new Error('folder moved since lookup');
+    await assert.rejects(adapter.sharedLink(folder, async () => {throw moved;}), error => error === moved);
+    assert.deepEqual(calls, ['/2/sharing/list_shared_links']);
+    calls.length = 0;
+    await assert.rejects(adapter.sharedLink(folder, async () => {calls.push('verify');}), wrongTarget);
+    assert.deepEqual(calls, ['/2/sharing/list_shared_links', 'verify', '/2/sharing/create_shared_link_with_settings']);
+  } finally {f.cleanup();}
+});
+
 test('AK39-05: reuse or create a legacy public folder link and distinguish unverifiable modern permissions', async () => {
   const f = setup();
   try {
