@@ -15,7 +15,7 @@
       <header class="topbar">
         <div class="nav-left"><button id="back" type="button" aria-label="← Mine sanger" hidden>←</button><span id="page-title">Sanger</span></div>
         <div id="header-actions"></div>
-        <div class="nav-right"><span class="environment">__APP_LABEL__</span><button id="menu-button" type="button" aria-expanded="false" aria-controls="main-menu" aria-label="Meny"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div>
+        <div class="nav-right"><div class="environment-status"><span class="environment">__APP_LABEL__</span><span id="header-sync" aria-hidden="true"></span><span id="header-sync-status" class="sr-only" role="status"></span></div><button id="menu-button" type="button" aria-expanded="false" aria-controls="main-menu" aria-label="Meny"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div>
       </header>
       <div id="menu-backdrop" hidden></div>
       <nav id="main-menu" aria-label="Hovedmeny" hidden></nav>
@@ -53,7 +53,7 @@
         <section id="setlist" aria-labelledby="setlist-title" hidden><h1 id="setlist-title" class="sr-only" tabindex="-1">Setliste</h1></section>
         <section id="songbooks" aria-labelledby="songbooks-title" hidden><h1 id="songbooks-title" class="sr-only" tabindex="-1">Sangbøker</h1><p id="songbooks-status" role="status"></p><button id="retry-songbooks" type="button" hidden>Prøv igjen</button><ul id="songbook-list" class="song-list"></ul></section>
         <section id="sync" aria-labelledby="sync-title" hidden><h1 id="sync-title" class="sr-only" tabindex="-1">Synkronisering</h1></section>
-        <section id="files" aria-labelledby="files-title" hidden><h1 id="files-title" class="sr-only" tabindex="-1">Filer</h1></section>
+        <section id="publication" aria-labelledby="publication-title" hidden><h1 id="publication-title" class="sr-only" tabindex="-1">Publisering</h1></section>
         <p id="song-status" role="status" aria-live="polite"></p>
         <noscript><p>JavaScript må være aktivert for å starte offline-oppsettet.</p></noscript>
       </main>

@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dropboxAdapter} from '../src/adapters/dropbox.ts';
 import {maxFileBytes,SkippedFile} from '../src/sync/limits.ts';
+import {NamespacePlanNeedsRefresh,UnsentBatch,failureCodes} from '../src/sync/failure.ts';
+import {syncEngine} from '../src/sync/engine.ts';
+import {fixture} from './sync-fixture.mjs';
 
 async function adapterTest(request,run){
   const old={localStorage:globalThis.localStorage,navigator:Object.getOwnPropertyDescriptor(globalThis,'navigator')};
@@ -25,6 +28,95 @@ test('Dropbox bulk contract: closed content sessions, byte offsets, strict add/u
   },async adapter=>{
     const session=await adapter.files.beginUpload(a.text);assert.equal(session.id,'session-a');
     const results=await adapter.files.commitBatch([a,b]);assert.equal(results[0].value.text,a.text);assert.equal(results[1].value.rev,'new');assert.equal(calls.length,2);
+  });
+});
+
+test('Dropbox bulk contract: start and append group UTF-8 bytes and retain each independent result',async()=>{
+  const texts=['æ🎸','', 'Tre'], ids=['a','b','c'], calls=[];
+  await adapterTest(async(url,options)=>{
+    calls.push(new URL(url).pathname);
+    if(url.endsWith('/start_batch')){
+      assert.equal(new URL(url).host,'api.dropboxapi.com');
+      assert.deepEqual(JSON.parse(options.body),{num_sessions:3});
+      return Response.json({session_ids:ids});
+    }
+    assert.ok(url.endsWith('/append_batch'));
+    assert.equal(new URL(url).host,'content.dropboxapi.com');
+    assert.equal(Buffer.from(options.body).toString(),texts.join(''));
+    assert.deepEqual(JSON.parse(options.headers['Dropbox-API-Arg']).entries,texts.map((text,index)=>({cursor:{session_id:ids[index],offset:0},length:Buffer.byteLength(text),close:true})));
+    return Response.json({entries:[{'.tag':'success'},{'.tag':'failure',failure:{'.tag':'not_found'}},{'.tag':'success'}]});
+  },async(adapter,events)=>{
+    const results=await adapter.files.beginUploadBatch(texts);
+    assert.deepEqual(results.map(result=>result.session?.id),['a',undefined,'c']);
+    assert.equal(results[1].failure.code,failureCodes.request);
+    assert.deepEqual(calls,['/2/files/upload_session/start_batch','/2/files/upload_session/append_batch']);
+    assert.deepEqual(events.map(event=>event.batchSize),[3,3]);
+  });
+});
+
+test('Dropbox move batch contract: a failed token refresh proves that a batch was never sent',async()=>{
+  const calls=[];
+  await adapterTest(async url=>{calls.push(new URL(url).pathname);throw new TypeError('offline');},async adapter=>{
+    const key='bulk-test:dropbox-auth-v1', credentials=JSON.parse(localStorage.getItem(key));
+    localStorage.setItem(key,JSON.stringify({...credentials,expires:0}));
+    await assert.rejects(adapter.files.moveBatch([{from:'id:source',to:'/destination.cho',fileId:'id:source'}]),error=>error instanceof UnsentBatch&&error.info.code===failureCodes.network);
+  });
+  assert.deepEqual(calls,['/oauth2/token']);
+});
+
+test('Dropbox move batch contract: waiting at the shared rate gate sends the plan back for fresh metadata', async () => {
+  const calls = [];
+  await adapterTest(async url => {calls.push(new URL(url).pathname);return Response.json({'.tag': 'complete', entries: []});}, async adapter => {
+    localStorage.setItem('bulk-test:dropbox-rate-v1', JSON.stringify({version: 1, accountId: 'fixture', until: Date.now() + 1000, reason: 'too_many_requests'}));
+    const entries = [{from: 'id:source', to: '/destination.cho', fileId: 'id:source'}];
+    await assert.rejects(adapter.files.moveBatch(entries, 0, {revalidateAfterWait: true}), NamespacePlanNeedsRefresh);
+    assert.deepEqual(calls, []);
+  });
+});
+
+test('AK39-03: a rejected move followed by a failed token refresh can be requested again safely', async () => {
+  const f = fixture();
+  await f.run();
+  const move = f.files.moveBatch, routes = [], id = f.data.state.manifest.songs.one.fileId;
+  const persist = f.storage.transport, receipts = [];
+  f.storage.transport = async (account, job) => {
+    await persist(account, job);
+    receipts.push(f.data.state.namespaceJob?.submitted);
+  };
+  const engine = () => syncEngine(f.storage, f.files, 'account', {valid: () => true, changed() {}});
+  const choices = [{id: 'one', published: true}];
+  await adapterTest(async url => {
+    const route = new URL(url).pathname;
+    routes.push(route);
+    if (route === '/oauth2/token') throw new TypeError('offline');
+    assert.equal(route, '/2/files/move_batch_v2');
+    const key = 'bulk-test:dropbox-auth-v1', credentials = JSON.parse(localStorage.getItem(key));
+    localStorage.setItem(key, JSON.stringify({...credentials, expires: 0}));
+    return Response.json({error: {reason: {'.tag': 'too_many_write_operations'}}}, {status: 429, headers: {'Retry-After': '1'}});
+  }, async adapter => {
+    f.files.moveBatch = adapter.files.moveBatch;
+    const result = await engine().executePublication(choices);
+    assert.deepEqual(result.completed, []);
+    assert.equal(result.unavailable, true);
+    assert.equal(f.data.state.namespaceJob?.submitted, false);
+    assert.deepEqual(routes, ['/2/files/move_batch_v2', '/oauth2/token']);
+    assert.deepEqual(receipts, [false, false]);
+    assert.equal(f.entries.get('/songbooks/standard/private/en.cho').id, id);
+  });
+  f.files.moveBatch = move;
+  const next = await engine().executePublication(choices);
+  assert.deepEqual(next.completed, ['one']);
+  assert.deepEqual(next.moved, ['one']);
+  assert.equal(f.entries.get('/songbooks/standard/shared/en.cho').id, id);
+  assert.equal(JSON.parse(f.entries.get('/.app/mutation.json').text).owner, null);
+});
+
+test('Dropbox move batch contract: both internal_error variants require checking the actual location', async () => {
+  const internal = {'.tag': 'internal_error'};
+  const failures = [internal, {'.tag': 'relocation_error', relocation_error: internal}];
+  await adapterTest(async () => Response.json({'.tag': 'complete', entries: failures.map(failure => ({'.tag': 'failure', failure}))}), async adapter => {
+    const result = await adapter.files.moveBatch(['a', 'b'].map(id => ({from: `id:${id}`, to: `/${id}.cho`, fileId: `id:${id}`})));
+    assert.deepEqual(result.entries.map(entry => entry.verifyEffect), [true, true]);
   });
 });
 

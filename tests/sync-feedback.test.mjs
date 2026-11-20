@@ -41,6 +41,12 @@ for(const phase of ['upload','placement'])for(const initiallyEmpty of [true,fals
  const run=resolution=>syncEngine(local.storage,cloud.files,'account',{valid:()=>true,changed(){}}).run(true,resolution);
  await assert.rejects(run());
  assert.ok(Object.values(local.data.state.reservations).some(link=>!link.fileId));
+ if(phase==='placement'){
+  const placement=local.data.state.placement;
+  assert.equal(placement.jobId,undefined);
+  assert.ok(placement.entries.every(entry=>entry.from.startsWith('/.app/uploads/')));
+ }
+ assert.equal(JSON.parse(cloud.entries.get('/.app/mutation.json').text).owner,null);
  block=false;seed(cloud,'cloud-',[0,1,2]);await cloud.run();await run();
  let choices=0;while(local.data.state.conflicts.length){assert.ok(++choices<10);await run({conflict:local.data.state.conflicts[0],choice:'dropbox'});}
  await run();

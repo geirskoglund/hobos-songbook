@@ -1,7 +1,8 @@
 import {placeOverlay} from './layout.ts';
+import {copyText} from './clipboard.ts';
 type TextControl = HTMLInputElement | HTMLTextAreaElement;
 const textControl = (target: EventTarget | null): TextControl | undefined => {
-  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) || target.disabled || target.readOnly) return;
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) || target.disabled || target.readOnly && target.dataset.copyable === undefined) return;
   return target instanceof HTMLTextAreaElement || ['text','number','search','email','tel','url'].includes(target.type) ? target : undefined;
 };
 /** App-wide policy: page-owned text tools, no browser context/selection callouts. */
@@ -36,7 +37,8 @@ export function startAppInteractions() {
     const selected=()=>control.value.slice(control.selectionStart ?? 0,control.selectionEnd ?? control.value.length);
     async function copy() {
       const text=selected();if(!text)return;
-      await navigator.clipboard.writeText(text);
+      if (control.readOnly) await copyText(text, parent(control));
+      else await navigator.clipboard.writeText(text);
     }
     for(const [label,action,keep] of [
       ['Merk alt',()=>select(control,0,control.value.length),true],
@@ -49,6 +51,7 @@ export function startAppInteractions() {
         const text=await navigator.clipboard.readText();replace(control,text);
       },false],
     ] as const){
+      if (control.readOnly && (label === 'Klipp ut' || label === 'Lim inn')) continue;
       const button=document.createElement('button');button.type='button';button.textContent=label;button.setAttribute('role','menuitem');
       button.addEventListener('pointerdown',event=>event.preventDefault());
       button.addEventListener('click',()=>{Promise.resolve().then(action).then(()=>{if(!keep&&!error.textContent){closeMenu();control.focus({preventScroll:true});}}).catch(()=>{error.className='text-action-error';error.textContent='Utklippstavlen er utilgjengelig. Bruk tastaturets kopier/lim inn.';});});box.append(button);

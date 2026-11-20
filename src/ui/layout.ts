@@ -1,14 +1,14 @@
 /** Shared viewport and app geometry. Consumers never copy header/toolbar heights. */
-export const pages = ['library', 'reader', 'settings', 'setlists', 'setlist', 'songbooks', 'sync', 'files'] as const;
+export const pages = ['library', 'reader', 'settings', 'setlists', 'setlist', 'songbooks', 'sync', 'publication'] as const;
 export type Page = typeof pages[number];
-export const pageNames: Record<Page, string> = {library:'Sanger', reader:'', settings:'Innstillinger', setlists:'Setlister', setlist:'Setliste', songbooks:'Sangbøker', sync:'Synkronisering', files:'Filer'};
+export const pageNames: Record<Page, string> = {library:'Sanger', reader:'', settings:'Innstillinger', setlists:'Setlister', setlist:'Setliste', songbooks:'Sangbøker', sync:'Synkronisering', publication:'Publisering'};
 let layoutFrame=0;
 export function flushLayout(){cancelAnimationFrame(layoutFrame);layoutFrame=0;document.dispatchEvent(new Event('app-layout'));}
 export function requestLayout(){if(!layoutFrame)layoutFrame=requestAnimationFrame(flushLayout);}
 export function currentPage(): Page {return (document.documentElement.dataset.page as Page) || 'library';}
 export function showPage(page: Page, canGoBack = page === 'reader' || page === 'setlist') {
   document.documentElement.dataset.page = page;
-  document.querySelector('.topbar')!.classList.toggle('has-center-action', page === 'library' || page === 'reader');
+  document.querySelector('.topbar')!.classList.toggle('has-center-action', page === 'library' || page === 'reader' || page === 'publication');
   document.getElementById('back')!.hidden = !canGoBack;
   document.getElementById('back')!.setAttribute('aria-label',page==='setlist'?'Tilbake til Setlister':page==='settings'?'Tilbake':'← Mine sanger');
   for (const id of pages) document.getElementById(id)!.hidden = id !== page;

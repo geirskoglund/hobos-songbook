@@ -19,6 +19,21 @@ test('Retry-After header/body are honored; a long limit stops without sleeping o
 test('persistent rate limit is bounded; queued requests stop at the same failure',()=>setup(async()=>{
  const gate=dropboxRate('rate',()=> 'account',()=>{},()=>{});let sent=0;await assert.rejects(gate.send('files/upload',async()=>{sent++;return limited();}),e=>e.info.code===failureCodes.throttled);assert.equal(sent,3);await assert.rejects(gate.send('files/upload',async()=>{sent++;return new Response('unexpected');}),e=>e.info.code===failureCodes.throttled);assert.equal(sent,3);
 }));
+test('move settlement respects an HTTP 429 beyond the remaining wait budget',()=>setup(async()=>{
+ const gate=dropboxRate('rate',()=> 'account',()=>{},()=>{}), requests=[];
+ const exhausted=error=>error.info.code===failureCodes.throttled&&error.info.stage==='dropbox.move-batch';
+ await assert.rejects(gate.send('files/move_batch_v2',async()=>{requests.push('move');return limited(60);},undefined,{namespacePlanAttempt:2}),exhausted);
+ await assert.rejects(gate.send('files/list_folder/continue',async()=>{requests.push('metadata');return new Response('unexpected');},undefined,{settlement:'move-receipt'}),exhausted);
+ await assert.rejects(gate.send('files/move_batch_v2',async()=>{requests.push('move');return new Response('unexpected');}),exhausted);
+ assert.deepEqual(requests,['move']);
+}));
+test('a fence release respects an HTTP 429 beyond the remaining wait budget',()=>setup(async()=>{
+ const gate=dropboxRate('rate',()=> 'account',()=>{},()=>{}), requests=[];
+ const exhausted=error=>error.info.code===failureCodes.throttled&&error.info.retryAfterMs>30000;
+ await assert.rejects(gate.send('sharing/list_shared_links',async()=>{requests.push('lookup');return limited(60);}),exhausted);
+ await assert.rejects(gate.send('files/upload',async()=>{requests.push('release');return new Response('unexpected');},undefined,{settlement:'fence-release'}),exhausted);
+ assert.deepEqual(requests,['lookup']);
+}));
 test('a shared cooldown prevents new requests and serializes remaining writes after 429',()=>setup(async()=>{
  const gate=dropboxRate('rate',()=> 'account',()=>{},()=>{});let resolveFirst,first=true,limitedAt=0;const started=new Promise(resolve=>resolveFirst=resolve),starts=[];let active=0,maxAfter=0;
  const write=()=>gate.send('files/upload',async()=>{const now=Date.now();starts.push(now);if(first){first=false;limitedAt=now;resolveFirst();return limited();}active++;maxAfter=Math.max(maxAfter,active);await new Promise(resolve=>setTimeout(resolve,10));active--;return Response.json({ok:true});});

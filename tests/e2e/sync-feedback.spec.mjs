@@ -30,7 +30,7 @@ test.beforeEach(async({request})=>{await request.post('/__test__/reset');});
 test('feedback F65: interrupted first coordination and all-Dropbox choices preserve exactly two distinct Banner versions',async({page,context})=>{
  const mock=await dropboxMock(context,{connected:false});remote(mock,[1]);
  await seed(page,'local-',[originals[0],originals[1]+'\nLocal edit',originals[2]]);
- mock.fault('/upload_session/start',0);await connect(page);await expect(page.locator('#sync-status')).toContainText('Feilkode SYNC-002');
+ mock.fault('/upload_session/append_batch',0);await connect(page);await expect(page.locator('#sync-status')).toContainText('Feilkode SYNC-002');
  expect(Object.values(account(await state(page)).reservations).some(link=>!link.fileId)).toBe(true);
  remote(mock,[0,2]);await page.reload();await syncPage(page);await page.locator('#dropbox-sync').click();
  let choices=0;const dialog=page.getByRole('dialog',{name:'Synkroniseringskonflikt',exact:true});

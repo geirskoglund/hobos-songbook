@@ -43,6 +43,9 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
       path||=plan.to;
       const matches=plan.toReference?pathKey(path.split('/').at(-1)!)===pathKey(plan.to.split('/').at(-1)!):pathKey(path)===pathKey(plan.to);
       if(result.value.id!==plan.fileId||!matches)throw new SyncFailure({code:failureCodes.response,stage:'dropbox.move-batch'},'Ugyldig flyttekvittering.');
+      // A complete receipt for the folder-ID request can confirm a result
+      // before the next inventory. A different or omitted path needs lookup.
+      if(plan.publication&&pathKey(path)!==pathKey(plan.to))continue;
       result.value.path=path;const old=find(result.value.id);put({...old,...result.value,folder:result.value.folder??plan.folder??false});
     }
     return reply;
@@ -78,12 +81,14 @@ export function indexedFiles(raw:RemoteFiles,state:SyncState){
     },
     async write(path,text,rev){const result=await raw.write(path,text,rev);put({id:result.id,path:result.path,rev:result.rev,folder:false});if(pathKey(path)==='/.app/library.json')state.library={id:result.id,rev:result.rev,value:parseManifest(text)};if(pathKey(path)===uploadIndexPath)state.uploadIndex={id:result.id,rev:result.rev,value:parseUploadIndex(text)};return result;},
     ...(raw.beginUpload?{beginUpload:raw.beginUpload}:{}),
+    ...(raw.beginUploadBatch?{beginUploadBatch:raw.beginUploadBatch}:{}),
+    ...(raw.withMoveReceipt?{withMoveReceipt:raw.withMoveReceipt}:{}),
     ...(raw.commitBatch?{async commitBatch(jobs){const results=await raw.commitBatch!(jobs);for(const result of results)if('value'in result)put({id:result.value.id,path:result.value.path,rev:result.value.rev,folder:false,size:textBytes(result.value.text)});return results;}}:{}),
-    ...(raw.moveBatch?{async moveBatch(entries,retryAttempt){return moved(await raw.moveBatch!(entries,retryAttempt),entries);}}:{}),
+    ...(raw.moveBatch?{async moveBatch(entries,retryAttempt,options){return moved(await raw.moveBatch!(entries,retryAttempt,options),entries);}}:{}),
     ...(raw.checkMoveBatch?{async checkMoveBatch(id,retryAttempt){return moved(await raw.checkMoveBatch!(id,retryAttempt),state.namespaceJob?.kind==='move'?state.namespaceJob.entries as MoveEntry[]:state.placement?.entries??[]);}}:{}),
-    ...(raw.createFoldersBatch?{async createFoldersBatch(entries,retryAttempt){const reply=await raw.createFoldersBatch!(entries,retryAttempt);return foldersCreated(reply,entries);}}:{}),
+    ...(raw.createFoldersBatch?{async createFoldersBatch(entries,retryAttempt,options){const reply=await raw.createFoldersBatch!(entries,retryAttempt,options);return foldersCreated(reply,entries);}}:{}),
     ...(raw.checkCreateFoldersBatch?{async checkCreateFoldersBatch(id,retryAttempt){return foldersCreated(await raw.checkCreateFoldersBatch!(id,retryAttempt),state.namespaceJob?.entries as import('./model.ts').FolderEntry[]??[]);}}:{}),
-    ...(raw.deleteBatch?{async deleteBatch(entries,retryAttempt){return deleted(await raw.deleteBatch!(entries,retryAttempt),entries);}}:{}),
+    ...(raw.deleteBatch?{async deleteBatch(entries,retryAttempt,options){return deleted(await raw.deleteBatch!(entries,retryAttempt,options),entries);}}:{}),
     ...(raw.checkDeleteBatch?{async checkDeleteBatch(id,retryAttempt){return deleted(await raw.checkDeleteBatch!(id,retryAttempt),state.namespaceJob?.entries as import('./model.ts').DeleteEntry[]??[]);}}:{}),
     async folder(path,expectedId){
       const current=find(expectedId??path);

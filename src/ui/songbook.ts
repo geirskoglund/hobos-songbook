@@ -22,11 +22,12 @@ import {applyPreferences, defaultPreferences, readPreferences, savePreferences} 
 import {readSongbookFilter, saveSongbookFilter} from '../storage/songbook-filter.ts';
 import {MissingSongbookError, suggestedSongbook, type Songbook} from '../domain/songbook.ts';
 import type {LibrarySnapshot} from '../storage/songs.ts';
-import {choicePicker, contextMenu, floatingAction, metadataRow} from './list-controls.ts';
+import {contextMenu, floatingAction, metadataRow, songbookFilter} from './list-controls.ts';
 import {startSetlists} from './setlists.ts';
 import {syncController} from '../sync/controller.ts';
 import {syncPage} from './sync.ts';
 import {startSongbooks} from './songbooks.ts';
+import {publicationPage} from './publication.ts';
 
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) => {
   const node = document.createElement(tag);
@@ -44,11 +45,13 @@ export function startSongbook() {
   let songs: Song[] = [], importing = false, active: Song | null = null;
   let songbooks: Songbook[] = [], listPersonal = new Map<string, Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>>();
   let selectedBook: string | null = null, libraryReady = false, readGeneration = 0;
+  let remoteFilterBook: Songbook | undefined;
+  const filterBooks = () => remoteFilterBook ? [...songbooks, remoteFilterBook] : songbooks;
   let lastUsedBook: string | null = null, importBook: string | null = null;
   const filterStatus = query('filter-status');
   try {selectedBook = readSongbookFilter(__APP_ENV__.namespace);}
   catch {filterStatus.textContent = 'Sangbokvalget kunne ikke hentes. Viser alle sanger.';}
-  const bookManager = startSongbooks(storage, {changed: acceptLibrary,account:()=>cloud.account()?.id, openBook: id => {
+  const bookManager = startSongbooks(storage, {changed: acceptLibrary, account: () => cloud.account()?.id, shareBook: id => cloud.shareBook(id), openBook: id => {
     selectFilter(id); void navigate('library');
   }});
   let disposeView = () => {};
@@ -151,14 +154,9 @@ export function startSongbook() {
   if (pendingUpdateView) {history.scrollRestoration = 'manual'; app.style.visibility = 'hidden';}
   let settingsReturn:UpdateView|undefined;
   const nav=navigation(page=>{void navigate(page);});
-  const filter = actionButton('Alle', () => {
-    const name = songbooks.find(book => book.id === selectedBook)?.name ?? 'Alle';
-    choicePicker({opener: filter, name: 'Sangbok', value: name, selected: selectedBook,
-      choices: [{id: null, name: 'Alle'}, ...[...songbooks].sort((a, b) => a.name.localeCompare(b.name, 'nb'))],
-      choose: selectFilter});
-  }, 'sangbok');
-  filter.id = 'songbook-filter'; filter.dataset.pageAction = 'library'; filter.disabled = true;
-  filter.setAttribute('aria-haspopup', 'dialog'); filter.setAttribute('aria-expanded', 'false');
+  const libraryFilter = songbookFilter('songbook-filter', 'library', filterBooks, () => selectedBook, selectFilter);
+  const filter = libraryFilter.button;
+  filter.disabled = true;
   const add = floatingAction('Legg til sang', () => {
     contextMenu(add, [
       {name: 'Opprett', icon: 'ny', run: () => {void beginSongChoice('create');}},
@@ -169,9 +167,40 @@ export function startSongbook() {
   library.append(add);
   query('header-actions').append(filter,editMenu);
   query('back').replaceChildren(icon('tilbake'));
-  const cloud = syncController(storage, {busy: () => Boolean(active || importing || creating || leaving || openingSong), downloaded: refreshLibrary, notify: () => cloudPage?.render(), connected: () => {void navigate('sync');}});
-  let cloudPage: ReturnType<typeof syncPage> | undefined;
-  cloudPage = syncPage(cloud);
+  const cloud = syncController(storage, {busy: () => Boolean(active || importing || creating || leaving || openingSong), downloaded: refreshLibrary,
+    notify: updateDropbox, connected: () => {void navigate('sync');}, accessLost: () => {
+      if (currentPage() === 'publication' || currentPage() === 'songbooks') void navigate('sync');
+    }, sharing: async consent => {
+      await navigate('songbooks');
+      await bookManager.copyShare(consent.bookId, consent.authorized);
+    }});
+  const cloudPage = syncPage(cloud);
+  const publication = publicationPage(cloud, {books: filterBooks, selected: () => selectedBook, choose: selectFilter, refreshed(books) {
+    if (!remoteFilterBook) return;
+    const selected = books.find(book => book.id === selectedBook);
+    if (selected) remoteFilterBook = selected;
+    else selectFilter(null);
+  }});
+  const headerSync = query('header-sync'), headerSyncStatus = query('header-sync-status');
+  headerSync.append(icon('synkroniser'));
+  const environment = headerSync.parentElement!.querySelector('.environment')!;
+  let filterAccount = cloud.account()?.id;
+  function updateDropbox() {
+    const id = cloud.account()?.id;
+    if (id !== filterAccount) {
+      filterAccount = id;
+      if (remoteFilterBook) selectFilter(null);
+    }
+    nav.publicationAvailable(Boolean(id));
+    publication.accountChanged(id);
+    cloudPage.render();
+    const syncing = cloud.syncing();
+    headerSync.parentElement!.toggleAttribute('data-syncing', syncing);
+    environment.setAttribute('aria-hidden', String(syncing));
+    const syncText = syncing ? 'Synkroniserer…' : '';
+    if (syncText !== headerSyncStatus.textContent) headerSyncStatus.textContent = syncText;
+    if (!id && currentPage() === 'publication') void navigate('library');
+  }
   let openingSong = false, sessionEdited = false;
   let creating=false;
   async function beginSongChoice(action: 'create' | 'import') {
@@ -188,20 +217,22 @@ export function startSongbook() {
   }
   async function navigate(page:Page){
     if(leaving||creating)return;
+    if(page==='publication'&&!cloud.account())return;
     if(page==='settings'){
       if(currentPage()!=='settings')settingsReturn=captureView(active?.id??null,document.activeElement?.id??null,editing,undefined,setlists.context());
       showPage(page,Boolean(settingsReturn));editMenu.hidden=true;query('settings-heading').focus({preventScroll:true});window.scrollTo(0,0);return;
     }
-    if(page===currentPage()){nav.close(false);return;}
+    if(page===currentPage()){nav.close(false);if(page==='publication')void publication.open();return;}
     leaving=true;
     try{
       if(session&&!await settleDraft())return;
       editing=undefined;settingsReturn=undefined;await resetSong();setlists.reset();showPage(page);editMenu.hidden=true;
       if(page==='library')void refreshLibrary();
       if(page==='setlists')void setlists.refresh();
-      if(page==='songbooks')void bookManager.refresh();
+      if(page==='songbooks')await bookManager.refresh();
       query(page==='library'?'library-title':`${page}-title`).focus({preventScroll:true});window.scrollTo(0,0);
     }finally{leaving=false;cloud.resume();}
+    if(page==='publication')void publication.open();
   }
   const notify = (message: string, error = false, target = status) => {target.textContent = message; target.dataset.error = String(error);};
   let preferences = {...defaultPreferences};
@@ -222,23 +253,27 @@ export function startSongbook() {
     catch{query('settings-status').textContent='Visningen er endret, men valget kunne ikke lagres til neste oppstart.';}
   };
   window.addEventListener('beforeunload', event => {if (dirty() || setlists.dirty() || bookManager.dirty()) {event.preventDefault(); event.returnValue = '';}});
-  function selectFilter(id: string | null) {
+  function selectFilter(id: string | null, book?: Songbook) {
     selectedBook = id;
+    const known = book ?? remoteFilterBook;
+    remoteFilterBook = known?.id === id && !songbooks.some(local => local.id === id) ? known : undefined;
     try {saveSongbookFilter(__APP_ENV__.namespace, id); filterStatus.textContent = '';}
     catch {filterStatus.textContent = 'Filteret er endret, men sangbokvalget kunne ikke lagres til neste oppstart.';}
     drawList();
+    publication.render();
   }
   function acceptLibrary(snapshot: LibrarySnapshot) {
     songs = snapshot.songs; songbooks = snapshot.songbooks;
     listPersonal = new Map(snapshot.personal.map(state => [state.songId, state]));
-    if (selectedBook && !songbooks.some(book => book.id === selectedBook)) selectFilter(null);
+    if (songbooks.some(book => book.id === selectedBook)) remoteFilterBook = undefined;
+    else if (selectedBook && !remoteFilterBook) selectFilter(null);
     bookManager.accept(snapshot); drawList();
   }
   function drawList() {
     list.replaceChildren();
     libraryStatus.dataset.error = 'false';
-    const bookName = songbooks.find(book => book.id === selectedBook)?.name ?? 'Alle';
-    filter.querySelector('span')!.textContent = bookName; filter.setAttribute('aria-label', `Sangbok: ${bookName}`);
+    const bookName = filterBooks().find(book => book.id === selectedBook)?.name ?? 'Alle';
+    libraryFilter.render();
     songs.sort((a, b) => a.title.localeCompare(b.title, 'nb') || a.origin.importedAt.localeCompare(b.origin.importedAt));
     const visible = songs.filter(song => selectedBook === null || song.songbookId === selectedBook);
     for (const song of visible) {
@@ -258,6 +293,12 @@ export function startSongbook() {
     try {
       const snapshot = await storage.library();
       if (generation !== readGeneration) return false;
+      const bookId = selectedBook;
+      if (bookId && !remoteFilterBook && !songbooks.some(book => book.id === bookId) && !snapshot.songbooks.some(book => book.id === bookId)) {
+        const cached = await cloud.cachedPublication().catch(() => undefined);
+        if (generation !== readGeneration) return false;
+        if (bookId === selectedBook) remoteFilterBook = cached?.books.find(book => book.id === bookId);
+      }
       acceptLibrary(snapshot);
       libraryReady = true; filter.disabled = false; add.disabled = importing;
       drawList(); return true;
@@ -278,6 +319,10 @@ export function startSongbook() {
         const song = songs.find(song => song.id === resume.songId);
         if (song) await openSong(song, resume);
       } else if (resume){
+        if (!cloud.account()) {
+          if (resume.page === 'publication') resume.page = 'library';
+          if (resume.settingsReturn?.page === 'publication') resume.settingsReturn = undefined;
+        }
         settingsReturn=resume.settingsReturn;
         if (resume.page === 'songbooks' || resume.settingsReturn?.page === 'songbooks') {
           if (!await bookManager.refresh(true)) {showPage('songbooks'); return;}
@@ -406,7 +451,7 @@ export function startSongbook() {
     await cloud.end(edited);
   }
   async function back(){
-    if(currentPage()==='settings'&&settingsReturn){const view=settingsReturn;settingsReturn=undefined;await restoreUpdateView(view,()=>true);editMenu.hidden=!active;focusUpdateView(view);return;}
+    if(currentPage()==='settings'&&settingsReturn){const view=settingsReturn;settingsReturn=undefined;if(view.page==='publication'&&!cloud.account())view.page='library';await restoreUpdateView(view,()=>true);editMenu.hidden=!active;focusUpdateView(view);if(view.page==='publication')void publication.open();return;}
     if(currentPage()==='setlist'){void setlists.back();return;}
     if(leaving||switchingMode)return;
     leaving=true;
@@ -450,6 +495,7 @@ export function startSongbook() {
     finally {setImporting(false);file.value = '';cloud.resume();}
   });
   showPage('library');
+  nav.publicationAvailable(Boolean(cloud.account()));
   void load().then(() => cloud.start(active?.id === restoredSongId ? restoredSongId : null));
   return {beforeUpdateReload: async (focusId: string | null) => {
     await setlists.beforeUpdate();

@@ -12,7 +12,7 @@ Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende design
 - Lagre = diskett. Synkroniser = sirkelpil. Publiser = systemdeling. Eksporter = fil med nedoverpil.
 - Flytende pluss er en komponent med transparent glassflate og subtil kant; selve ikonformen er et vanlig pluss.
 - Sticky bruker pin-on for aktiv og pin-off for frigjort tilstand. Knappen er synlig og betjenbar i begge tilstander og veksler sticky av/på. Den dempede pinnen betyr ikke at knappen er deaktivert.
-- «Upublisert» har ikke eget ikon. Vis aktuell status med tekst der det gir verdi, og skille fra ulagret og usynkronisert.
+- Privat og Delt viser delingsstatus i Publisering med de godkjente statusikonene. Begge fanene har også tekst.
 
 ## Status
 
@@ -82,7 +82,7 @@ Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende design
 | `synkroniser.svg` | Synkroniser | Sirkelpil |
 | `importer.svg` | Importer | Fil inn |
 | `eksporter.svg` | Eksporter | Fil ut |
-| `publiser.svg` | Publiser | OS-deling |
+| `publiser.svg` | Publisering | Systemdelingssymbolet i hovedmenyen for Publisering. |
 | `kilde.svg` | Kilde | Ekstern eller lokal |
 | `kilde-mangler.svg` | Kilde mangler | Behold reserve |
 | `offline.svg` | Offline | Ingen nett |
@@ -96,8 +96,8 @@ Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende design
 | `visning.svg` | Visning | Sang kan spilles |
 | `personlig.svg` | Personlig data | Privat datalag |
 
-| [status-privat.svg](ikoner/status-privat.svg) | Privat | Privat sang; godkjent i #37, tilgjengelig for senere sangradstatus. |
-| [status-delt.svg](ikoner/status-delt.svg) | Delt | Delt sang; godkjent i #37, vises ikke på sangrader nå. |
+| [status-privat.svg](ikoner/status-privat.svg) | Privat | Privat sang. I Publisering står symbolet foran Upublisert. |
+| [status-delt.svg](ikoner/status-delt.svg) | Delt | Delt sang. Symbolet står foran Publisert og Kopier delingslenke. |
 | [status-importert.svg](ikoner/status-importert.svg) | Importert | Importert sang; godkjent i #37, vises ikke på sangrader nå. |
 | [status-slettet.svg](ikoner/status-slettet.svg) | Slettet | Godkjent versjon 18; tilgjengelig for senere leveranse. |
 | [status-slettet-hos-kilden.svg](ikoner/status-slettet-hos-kilden.svg) | Slettet hos kilden | Slettet kildefil; tilgjengelig for senere leveranse. |

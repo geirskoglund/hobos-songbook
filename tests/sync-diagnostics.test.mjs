@@ -106,8 +106,27 @@ test('reports remain associated with their own incident and are never uploaded t
  const state=JSON.parse(localStorage.getItem(`${env.namespace}:sync-diagnostics-v1`));assert.deepEqual(state.pending,[b.id]);
 }));
 test('known user guidance survives local persistence without storing arbitrary message text',()=>browser(async()=>{
- const d=syncDiagnostics(env);d.record(new DropboxError(401,'PRIVATE_API_DETAILS'),'sync.run',true,[]);await new Promise(setImmediate);
+ const d=syncDiagnostics(env);
+ d.record(new SyncFailure({code:failureCodes.authentication,stage:'dropbox.request',status:401,action:'reconnect'},'PRIVATE_API_DETAILS'),'sync.run',true,[]);
+ const callback=d.record(new DropboxError(401,'PRIVATE_API_DETAILS','dropbox.account'),'dropbox.oauth',false,[],undefined,undefined,false).entry;
+ await new Promise(setImmediate);
  const restored=syncDiagnostics(env),entry=restored.active();assert.equal(failureText(entry.failure),'Synkronisering feilet (Feilkode SYNC-004). Koble til Dropbox på nytt.');assert.ok(!restored.text(entry).includes('PRIVATE_API_DETAILS'));
+ assert.equal(failureText(restored.entry(callback.id).failure),'Synkronisering feilet (Feilkode SYNC-004)');
+}));
+
+test('technical OAuth entries retain the active sync failure through rotation and reload',()=>browser(async()=>{
+ const diagnostics=syncDiagnostics(env);
+ const active=diagnostics.record(new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'connection error'),'sync.run',true,[]).entry;
+ const callback=new SyncFailure({code:failureCodes.oauthReturn,stage:'dropbox.oauth'},'callback error');
+ const hidden=[];
+ for(let index=0;index<20;index++)hidden.push(diagnostics.record(callback,'dropbox.oauth',false,[],undefined,undefined,false).entry.id);
+ await new Promise(setImmediate);
+ const restored=syncDiagnostics(env);
+ assert.equal(restored.active().id,active.id);
+ assert.equal(failureText(restored.active().failure),'Synkronisering feilet (Feilkode SYNC-002)');
+ assert.equal(restored.entry(hidden[0]),null);
+ assert.equal(restored.entry(hidden.at(-1)).failure.code,'SYNC-019');
+ assert.equal(JSON.parse(localStorage.getItem(env.namespace+':sync-diagnostics-v1')).entries.length,20);
 }));
 
 test('batch diagnostics retain only resource category, count and transport class, never file names or IDs',()=>browser(async()=>{

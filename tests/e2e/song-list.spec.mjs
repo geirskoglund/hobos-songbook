@@ -63,7 +63,7 @@ test('book choices filter real songs, preserve membership and persist separately
   await seed(page,2);await page.goto(url);await importAndOpenSong(page,'local.txt','{t: Lokal}\nTekst');await goSongs(page);
   await page.locator('#songbook-filter').click();await expect(page.getByRole('option')).toHaveText(['Alle','Band','Standard','Tom sangbok']);
   await page.getByRole('option',{name:'Band',exact:true}).click();await expect(page.locator('.song-choice')).toHaveCount(1);await expect(page.locator('.song-choice')).toContainText('Behold meg');
-  await openMenu(page);await page.getByRole('button',{name:'Filer',exact:true}).click();await goSongs(page);await expect(page.locator('#songbook-filter')).toHaveText('Band');
+  await openMenu(page);await page.getByRole('button',{name:'Synkronisering',exact:true}).click();await goSongs(page);await expect(page.locator('#songbook-filter')).toHaveText('Band');
   await page.reload();await expect(page.locator('#songbook-filter')).toHaveText('Band');expect((await snapshot(page)).songs.find(s=>s.id===legacy.id).songbookId).toBe('band');
   await chooseBook(page,'Tom sangbok');await expect(page.locator('#library-status')).toContainText('Ingen sanger i Tom sangbok');await expect(page.locator('#add-song')).toBeEnabled();
   await chooseBook(page,'Alle');await expect(page.locator('.song-choice')).toHaveCount(2);

@@ -6,16 +6,15 @@ test('all destinations use one header and a toggled accessible right panel',asyn
  await page.goto(url);
  for(const width of [320,768,1440]){
   await page.setViewportSize({width,height:800});
-  for(const [label,id] of [['Setlister','setlists'],['Synkronisering','sync'],['Sangbøker','songbooks'],['Filer','files'],['Innstillinger','settings'],['Sanger','library']]){
+  for(const [label,id] of [['Setlister','setlists'],['Synkronisering','sync'],['Sangbøker','songbooks'],['Innstillinger','settings'],['Sanger','library']]){
    await openMenu(page);const header=await page.locator('.topbar').boundingBox(),panel=await page.locator('#main-menu').boundingBox();expect(panel.y).toBe(header.y+header.height);expect(panel.y+panel.height).toBe(800);
    // N02: every destination keeps the same icon and label columns, including the active row.
-   const columns=await page.locator('#main-menu button').evaluateAll(rows=>rows.map(row=>{
+   const columns=await page.locator('#main-menu button:not([hidden])').evaluateAll(rows=>rows.map(row=>{
     const bounds=row.getBoundingClientRect(),glyph=row.querySelector('.icon').getBoundingClientRect(),label=document.createRange();label.selectNodeContents(row.lastChild);
     return {icon:glyph.left-bounds.left,label:label.getBoundingClientRect().left-bounds.left,font:getComputedStyle(row).fontSize};
    }));
-   expect(columns).toHaveLength(6);for(const column of columns){expect(column.icon).toBeCloseTo(24,0);expect(column.label).toBeCloseTo(68,0);expect(column.font).toBe('19px');}
+   expect(columns).toHaveLength(5);for(const column of columns){expect(column.icon).toBeCloseTo(24,0);expect(column.label).toBeCloseTo(68,0);expect(column.font).toBe('19px');}
    await page.getByRole('button',{name:label,exact:true}).click();await expect(page.locator('html')).toHaveAttribute('data-page',id);await expect(page.locator('#page-title')).toHaveText(label);
-   if(id==='files'){await expect(page.locator(`#${id} button`)).toHaveCount(0);await expect(page.locator(`#${id}`)).toBeVisible();}
    if(id==='setlists')await expect(page.locator('#add-setlist')).toBeEnabled();
    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }

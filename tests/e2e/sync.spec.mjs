@@ -53,8 +53,63 @@ test('AK37-05/07: in-flight response after song opening cannot change song or pe
  const mock=await dropboxMock(context);await page.goto(url);await importAndOpenSong(page,'sang.cho','{t: Behold}\nOrd');await goSongs(page);await expect.poll(()=>Object.keys(JSON.parse(mock.find('/.app/library.json')?.text ?? '{"songs":{}}').songs).length).toBe(1);
  const manifest=JSON.parse(mock.find('/.app/library.json')?.text ?? '{"songs":{}}'),id=Object.keys(manifest.songs)[0];mock.put(manifest.songs[id].path,'{t: Ny}\nFjerntekst');const release=mock.hold('/download');await syncPage(page);await page.locator('#dropbox-sync').click();await goSongs(page);await page.locator('#song-list .song-choice').click();release();await expect(page.locator('#song-title')).toHaveText('Behold');await page.waitForTimeout(100);expect((await savedSongs(page))[0].title).toBe('Behold');
 });
-test('AK37-01: rejected callback clears OAuth query without damaging library; 401 requests reconnection',async({page,context})=>{
- const mock=await dropboxMock(context);await page.goto(url+'?code=wrong&state=wrong');await expect.poll(()=>page.url().includes('code=')).toBe(false);await syncPage(page);await expect(page.locator('#sync-status')).toContainText('Feilkode SYNC-019');mock.fault('/list_folder',401);await synchronize(page);await expect(page.locator('#dropbox-connect')).toBeVisible();await expect(page.locator('.sync-connect [role=status]')).toContainText('Koble til Dropbox på nytt');
+test('AK37-01/F61: a rejected OAuth return leaves the connected sync status and saves its technical report',async({page,context})=>{
+ const mock=await dropboxMock(context);
+ await page.goto(url+'?code=wrong&state=wrong');
+ await expect.poll(()=>page.url().includes('code=')).toBe(false);
+ await syncPage(page);
+ await expect(page.locator('#sync-status')).toHaveText('Ikke synkronisert');
+ await expect(page.locator('#dropbox-connect')).toBeHidden();
+ const logs=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('hobos-songbook-test:sync-diagnostics-v1')));
+ await expect.poll(async()=>(await logs())?.entries[0]?.failure.code).toBe('SYNC-019');
+ expect((await logs()).active).toBeNull();
+ expect(mock.calls.filter(call=>call.endpoint==='/oauth2/token'||call.endpoint.endsWith('/get_current_account'))).toHaveLength(0);
+
+ // The same report can already be active in a browser upgraded from an older build.
+ await page.evaluate(()=>{
+  const key='hobos-songbook-test:sync-diagnostics-v1', legacy=JSON.parse(localStorage.getItem(key));
+  legacy.active=legacy.entries[0].id;
+  localStorage.setItem(key,JSON.stringify(legacy));
+ });
+ await page.reload();
+ await syncPage(page);
+ await expect(page.locator('#sync-status')).toHaveText('Ikke synkronisert');
+ await expect.poll(async()=>(await logs()).active).toBeNull();
+ expect((await logs()).entries[0].failure.code).toBe('SYNC-019');
+ await synchronize(page);
+ await expect(page.locator('#sync-status')).toContainText('Sist synkronisert:');
+});
+
+test('AK37-01: an invalid OAuth return without a saved account provides the visible login action',async({page,context})=>{
+ const mock=await dropboxMock(context,{connected:false});
+ await page.goto(url+'?code=wrong&state=wrong');
+ await syncPage(page);
+ await expect(page.locator('#dropbox-connect')).toBeVisible();
+ await expect(page.locator('.sync-connect [role=status]')).toHaveText('Synkronisering feilet (Feilkode SYNC-019). Start tilkoblingen på nytt med Koble til Dropbox.');
+ expect(mock.calls).toHaveLength(0);
+});
+
+test('AK37-01: file-call token expiry renews the ordinary connection during explicit sync',async({page,context})=>{
+ const mock=await dropboxMock(context);
+ await page.goto(url);
+ await expect.poll(()=>mock.find('/.app/mutation.json')&&JSON.parse(mock.find('/.app/mutation.json').text).owner).toBeNull();
+ await syncPage(page);
+ let expired=false,renewals=0;
+ await context.route('https://api.dropboxapi.com/2/files/list_folder/continue',async route=>{
+  if(expired)return route.fallback();
+  expired=true;
+  await route.fulfill({status:401,json:{error:{'.tag':'expired_access_token'}}});
+ });
+ await context.route('https://api.dropboxapi.com/oauth2/token',async route=>{
+  renewals++;
+  expect(new URLSearchParams(route.request().postData()).get('grant_type')).toBe('refresh_token');
+  await route.fulfill({json:{access_token:'renewed',expires_in:3600}});
+ });
+ await synchronize(page);
+ await expect(page.locator('#sync-status')).toContainText('Sist synkronisert:');
+ expect(expired).toBe(true);
+ expect(renewals).toBe(1);
+ await expect(page.locator('#dropbox-connect')).toBeHidden();
 });
 test('AK37-05/07: interrupted edit survives reload, and failed data write cannot commit its outbox',async({page,context})=>{
  const mock=await dropboxMock(context);await page.goto(url);await importAndOpenSong(page,'sang.cho','{t: Avbrutt}\nOrd');const imported=Object.keys(JSON.parse(mock.find('/.app/library.json').text).songs)[0],initialPersonal=mock.find(`/.app/songs/${imported}.json`).text;await setCapo(page,3);await page.reload();await syncPage(page);await expect(page.locator('#sync-status')).toHaveText('Ikke synkronisert');expect((await state(page)).sync.find(s=>s.id==='private-local-v1').recoveryRequired).toBe(true);expect(mock.find(`/.app/songs/${imported}.json`).text).toBe(initialPersonal);

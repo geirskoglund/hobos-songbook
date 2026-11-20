@@ -1,4 +1,4 @@
-import { actionButton, icon, textArea } from './controls.ts';
+import { actionButton, icon, tabSwitcher, textArea } from './controls.ts';
 import { dialogFrame, dialogFooter, openDialog } from './dialog.ts';
 import { valueControl } from './value-controls.ts';
 import { overlayWidth, placeOverlay, currentPage } from './layout.ts';
@@ -45,10 +45,10 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
     } | undefined;
   const toolbar = document.createElement('div');
   toolbar.className = 'edit-toolbar';
-  const tabs = document.createElement('div');
-  tabs.className = 'editor-tabs';
-  tabs.setAttribute('role', 'tablist');
-  tabs.setAttribute('aria-label', 'Redigeringsområde');
+  const tabs = tabSwitcher('Redigeringsområde', 'edit', [{id: 'file', label: 'Filinnhold'}, {id: 'personal', label: 'Egentilpasning'}], tab, id => {
+    tab = id;
+    reflectTab();
+  });
   const panels = document.createElement('div');
   panels.className = 'editor-tool-panels';
   const filePanel = document.createElement('div'),
@@ -56,12 +56,14 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
   filePanel.className = personalPanel.className = 'editor-tool-panel';
   filePanel.dataset.tab = 'file';
   personalPanel.dataset.tab = 'personal';
+  filePanel.id = 'edit-panel-file';
+  personalPanel.id = 'edit-panel-personal';
   filePanel.setAttribute('role', 'toolbar');
   personalPanel.setAttribute('role', 'toolbar');
   filePanel.setAttribute('aria-label', 'Filinnhold');
   personalPanel.setAttribute('aria-label', 'Egentilpasning');
   panels.append(filePanel, personalPanel);
-  toolbar.append(tabs, panels);
+  toolbar.append(tabs.element, panels);
   const buttons = new Map<string, HTMLButtonElement[]>();
   function paintTools() {
     for (const [name, items] of buttons) for (const b of items) {
@@ -320,17 +322,6 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       buttons.set(name, [...(buttons.get(name) ?? []), b]);
     }
   }
-  for (const [id, name] of [['file', 'Filinnhold'], ['personal', 'Egentilpasning']]) {
-    const b = actionButton(name, () => {
-      tab = id;
-      reflectTab();
-    });
-    b.setAttribute('role', 'tab');
-    b.id = `edit-tab-${id}`;
-    b.setAttribute('aria-controls', `edit-panel-${id}`);
-    tabs.append(b);
-    (id === 'file' ? filePanel : personalPanel).id = `edit-panel-${id}`;
-  }
   panels.addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     const items = [...(tab === 'file' ? filePanel : personalPanel).querySelectorAll<HTMLButtonElement>('button:not(:disabled)')],
@@ -341,22 +332,9 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
   });
   function reflectTab() {
     toolbar.dataset.tab = tab;
-    for (const b of tabs.querySelectorAll<HTMLButtonElement>('button')) {
-      const selected = b.id === `edit-tab-${tab}`;
-      b.setAttribute('aria-selected', String(selected));
-      b.tabIndex = selected ? 0 : -1;
-    }
     filePanel.setAttribute('aria-hidden', String(tab !== 'file'));
     personalPanel.setAttribute('aria-hidden', String(tab !== 'personal'));
   }
-  tabs.addEventListener('keydown', event => {
-    if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
-      event.preventDefault();
-      tab = event.key === 'Home' ? 'file' : event.key === 'End' ? 'personal' : tab === 'file' ? 'personal' : 'file';
-      reflectTab();
-      tabs.querySelector<HTMLElement>('[aria-selected=true]')?.focus();
-    }
-  });
   function rowAt(y: number) {
     return [...(body?.querySelectorAll<HTMLElement>('[data-source-line],[data-note-line]') ?? [])].filter(r => !r.closest('[hidden]') && r.getClientRects().length).reduce<HTMLElement | undefined>((best, r) => {
       const distance = (n: HTMLElement) => {

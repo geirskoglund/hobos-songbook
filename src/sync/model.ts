@@ -6,16 +6,30 @@ import {failureCodes, SyncFailure, type FailureInfo} from './failure.ts';
 export interface BookArchive {at:string;basePath:string;path:string;parentId:string;done?:boolean}
 export interface BookLink {id: string; name: string; deleted?: boolean; folderId?: string; path?: string;archive?:BookArchive}
 export interface SongLink {id: string; songbookId: string; origin: Song['origin']; fileId?: string; path: string;originalFile?:{fileId:string;path:string}}
+export const ownSong = ({origin}: Pick<Song, 'origin'>) => origin.kind === 'local' || origin.provider === 'dropbox' && !origin.sourceId;
+export type SongArea = 'Private' | 'Shared';
+export function songLocation(path: string) {
+  const match = /^(\/Songbooks\/[^/]+)\/(Private|Shared)\/([^/]+\.cho)$/i.exec(path);
+  if (!match) return undefined;
+  const area: SongArea = match[2].toLowerCase() === 'shared' ? 'Shared' : 'Private';
+  return {bookPath: match[1], area, name: match[3]};
+}
+export interface PublicationSong {id:string; songbookId:string; title:string; key:string|null; time:string|null; published:boolean}
+export interface PublicationView {songs:PublicationSong[]; books:{id:string;name:string}[]}
+export interface PublicationChoice {id:string; published:boolean}
+export interface PublicationResult {view:PublicationView; completed:string[]; moved:string[]; message?:string; unavailable?:boolean}
 export interface DeletedSong {id: string; fileId?: string; songbookId?: string}
 export interface Manifest {version: 1; books: Record<string, BookLink>; songs: Record<string, SongLink>; deletedSongs?: Record<string, DeletedSong>}
 export interface PersonalFile {version: 1; songId: string; original: {rev: string; hash: string}; data: SongPersonal}
 export interface FileValue {text: string; rev: string; id: string; path: string}
 export interface RemoteEntry {id?: string; path: string; folder?: boolean; rev?: string; deleted?: boolean; size?:number}
 export interface UploadIntent {key:string; songId:string; kind:'content'|'personal'|'original'|'seed'; path:string; text:string; rev:string|null; fileId?:string; base:{original:string;personal:PersonalFile;link?:SongLink}}
-export interface UploadJob extends UploadIntent {status:'planned'|'committing'|'done'; session?:{id:string;created:number}; value?:FileValue; creation?:{path:string;basePath:string;number:number;file?:FileValue;attempted?:boolean;collision?:boolean;failure?:FailureInfo;discarded?:boolean;folderId?:string;book?:BookLink}}
+export interface UploadSession {id:string;created:number}
+export interface UploadJob extends UploadIntent {status:'planned'|'committing'|'done'; session?:UploadSession; value?:FileValue; creation?:{path:string;basePath:string;number:number;file?:FileValue;attempted?:boolean;collision?:boolean;failure?:FailureInfo;discarded?:boolean;folderId?:string;book?:BookLink}}
+export type BeginUploadResult={session:UploadSession}|{failure:FailureInfo};
 export type UploadResult={value:FileValue}|{failure:FailureInfo;resetSession?:boolean};
-export interface MoveEntry {key:string;from:string;to:string;fileId:string;toReference?:string;folder?:boolean;link?:SongLink;book?:BookLink;archive?:{bookId:string;sourcePath:string}}
-export type MoveResult={value:{id:string;path:string;rev?:string;folder?:boolean}}|{failure:FailureInfo;collision?:boolean;missing?:boolean};
+export interface MoveEntry {key:string;from:string;to:string;fileId:string;toReference?:string;folder?:boolean;link?:SongLink;book?:BookLink;archive?:{bookId:string;sourcePath:string}; sourceBookFolderId?:string; publication?:{sourcePath:string; rev:string}}
+export type MoveResult={value:{id:string;path:string;rev?:string;folder?:boolean}}|{failure:FailureInfo;collision?:boolean;missing?:boolean;verifyEffect?:boolean};
 export type MoveReply={entries:MoveResult[]}|{asyncJobId:string}|{inProgress:true}|{jobExpired:true};
 export interface DeleteEntry {key:string;path:string;fileId:string;rev?:string;folder?:boolean;category:'personal'|'staging'|'folder';sourcePath?:string;bookId?:string}
 export interface FolderEntry {key:string;path:string;parentId?:string;book?:BookLink;temporary?:boolean}
@@ -23,16 +37,20 @@ export type NamespaceEntry=MoveEntry|DeleteEntry|FolderEntry;
 export interface NamespaceJob {id:string;kind:'move'|'delete'|'folders';entries:NamespaceEntry[];submitted?:boolean;jobId?:string;attempt:number;reply?:MoveReply;quarantinedParents?:string[]}
 export interface PlacementJob {id?:string;entries:MoveEntry[];jobId?:string;retryAttempt?:number;reply?:MoveReply}
 export interface RemoteIndex {cursor: string; entries: Record<string, RemoteEntry>; beforeUpdates?:Record<string,RemoteEntry|null>;epoch?:number}
+export interface NamespaceBatchOptions {revalidateAfterWait: boolean}
 export interface RemoteFiles {
   read(path: string, knownPath?:string): Promise<FileValue | null>;
   write(path: string, text: string, rev: string | null): Promise<FileValue>;
-  beginUpload?(text:string):Promise<{id:string;created:number}>;
+  releaseMutation?(text: string, rev: string): Promise<FileValue>;
+  beginUpload?(text:string):Promise<UploadSession>;
+  beginUploadBatch?(texts:string[]):Promise<BeginUploadResult[]>;
   commitBatch?(jobs:UploadJob[]):Promise<UploadResult[]>;
-  moveBatch?(entries:MoveEntry[],retryAttempt?:number):Promise<MoveReply>;
+  moveBatch?(entries:MoveEntry[],retryAttempt?:number,options?:NamespaceBatchOptions):Promise<MoveReply>;
+  withMoveReceipt?(work:()=>Promise<void>):Promise<void>;
   checkMoveBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
-  deleteBatch?(entries:DeleteEntry[],retryAttempt?:number):Promise<MoveReply>;
+  deleteBatch?(entries:DeleteEntry[],retryAttempt?:number,options?:NamespaceBatchOptions):Promise<MoveReply>;
   checkDeleteBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
-  createFoldersBatch?(entries:FolderEntry[],retryAttempt?:number):Promise<MoveReply>;
+  createFoldersBatch?(entries:FolderEntry[],retryAttempt?:number,options?:NamespaceBatchOptions):Promise<MoveReply>;
   checkCreateFoldersBatch?(id:string,retryAttempt?:number):Promise<MoveReply>;
   metadata?(path:string):Promise<RemoteEntry|null>;
   /** Complete, freshly paginated metadata, detached from later local receipts. */
@@ -67,6 +85,7 @@ export interface SyncState {
   mutationFileId?:string;
   mutationPending?:boolean;
   movedSongs?:Record<string,SongLink>;
+  movedPublications?:Record<string,SongLink>;
   movedBooks?:Record<string,BookLink>;
   createdBooks?:Record<string,BookLink>;
   abandoned?:{path:string;fileId?:string;rev?:string}[];
@@ -78,6 +97,7 @@ export interface SyncState {
   skipped?:Record<string,boolean>;
   held?:Record<string,boolean>;
   joined?:boolean;
+  publicationContent?:Record<string, {rev:string; title:string; key:string|null; time:string|null}>;
   // Account-local links preserve local IDs while using one cloud identity.
   bindings?:{books:Record<string,string>;songs:Record<string,string>};
 }
@@ -119,7 +139,7 @@ function readManifest(text: string): Manifest {
   }
   const fileIds=new Set<string>();
   for (const [id, song] of Object.entries(value.songs) as [string, SongLink][]) {
-    if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id) || song.id !== id || !song.origin || !value.books[song.songbookId] || !/^\/Songbooks\/[^/]+\/Private\/[^/]+\.cho$/i.test(song.path)) throw new Error('Ugyldig sangkobling i Dropbox.');
+    if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id) || song.id !== id || !song.origin || !value.books[song.songbookId] || !songLocation(song.path)) throw new Error('Ugyldig sangkobling i Dropbox.');
     if(song.fileId){if(fileIds.has(song.fileId))throw new Error('Dropbox-filen har flere sangidentiteter.');fileIds.add(song.fileId);}
     // A receipt for the generated source copy survives a later external move.
     if(song.originalFile&&(typeof song.originalFile.fileId!=='string'||!song.originalFile.fileId||typeof song.originalFile.path!=='string'||!/^\/[^\u0000]+$/.test(song.originalFile.path)))throw new Error('Ugyldig originalkopi.');

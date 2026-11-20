@@ -1,5 +1,5 @@
 import {RetrySync,SyncFailure,failureCodes} from './failure.ts';
-import {checkSize,textBytes,SkippedFile} from './limits.ts';
+import {checkSize,maxBatchAppendBytes,textBytes,SkippedFile} from './limits.ts';
 import {same,type FileValue,type RemoteFiles,type SyncState,type UploadIntent,type UploadJob,type UploadResult} from './model.ts';
 import {creationQueue} from './creations.ts';
 import {uploadBridge,claimReady} from './bridge.ts';
@@ -33,6 +33,39 @@ export function uploadQueue(files:RemoteFiles,state:SyncState,hooks:{check():Pro
     }
     await hooks.save();
   }
+  async function beginSessions(jobs:UploadJob[], results:Map<string,UploadResult>) {
+    if (!files.beginUploadBatch || jobs.length < 2) {
+      let next = 0, interrupted: unknown;
+      await Promise.all(Array.from({length:Math.min(4,jobs.length)},async()=>{
+        while(next<jobs.length&&!interrupted){const job=jobs[next++];try{
+          await hooks.check();job.session=await files.beginUpload!(job.text);await hooks.check();await hooks.save();
+        }catch(error){interrupted=error;}}
+      }));
+      if (interrupted) throw interrupted;
+      return;
+    }
+    let group:UploadJob[] = [], bytes = 0;
+    async function sendGroup() {
+      await hooks.check();
+      if (group.length === 1) group[0].session = await files.beginUpload!(group[0].text);
+      else {
+        const started = await files.beginUploadBatch!(group.map(job => job.text));
+        if (started.length !== group.length) throw new SyncFailure({code:failureCodes.response,stage:'dropbox.upload'},'Ufullstendig svar for opplastingsøktene.');
+        started.forEach((value,i) => {
+          if ('session' in value) group[i].session = value.session;
+          else results.set(group[i].key,value);
+        });
+      }
+      await hooks.check();await hooks.save();
+      group = []; bytes = 0;
+    }
+    for (const job of jobs) {
+      const size = textBytes(job.text);
+      if (bytes + size > maxBatchAppendBytes) await sendGroup();
+      group.push(job); bytes += size;
+    }
+    if (group.length) await sendGroup();
+  }
   async function write(intents:UploadIntent[]):Promise<Map<string,UploadResult>>{
     const results=new Map<string,UploadResult>();
     for(const intent of intents)checkSize(textBytes(intent.text));
@@ -52,24 +85,17 @@ export function uploadQueue(files:RemoteFiles,state:SyncState,hooks:{check():Pro
       }
       await hooks.save();
       if(!jobs.length)continue;
-      const needed=jobs.filter(job=>!creations.ready(job));
+      let needed=jobs.filter(job=>!creations.ready(job));
       const bulk=(needed.length>1||needed.some(job=>job.session||job.creation))&&files.beginUpload&&files.commitBatch;
       if(bulk){
-        let next=0,interrupted:unknown;
-        await Promise.all(Array.from({length:Math.min(4,needed.length)},async()=>{
-          while(next<needed.length&&!interrupted){const job=needed[next++];try{
-            await hooks.check();
-            if(!job.session){job.session=await files.beginUpload!(job.text);await hooks.check();await hooks.save();}
-            await hooks.check();
-          }catch(error){interrupted=error;}}
-        }));
-        if(interrupted)throw interrupted;
+        await beginSessions(needed.filter(job => !job.session), results);
+        needed=needed.filter(job => job.session);
       }
       // Persist exact bytes, revisions and session IDs before any commit request.
-      for(const job of jobs)job.status='committing';
+      for(const job of jobs)if(!results.has(job.key))job.status='committing';
       await hooks.save();await hooks.check();
       let values:UploadResult[];
-      if(bulk)values=await files.commitBatch!(needed.map(creations.request));
+      if(bulk)values=needed.length?await files.commitBatch!(needed.map(creations.request)):[];
       else {values=[];for(const job of needed){await hooks.check();try{const request=creations.request(job);values.push({value:await files.write(request.path,request.text,request.rev)});}catch(error){if(!(error instanceof SyncFailure)||[failureCodes.network,failureCodes.authentication,failureCodes.permission,failureCodes.throttled].some(code=>code===error.info.code))throw error;values.push({failure:error.info});}}}
       await hooks.check();
       let retry=false;

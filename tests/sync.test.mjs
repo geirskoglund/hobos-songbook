@@ -83,7 +83,7 @@ test('AK37-01: single-use callback, exact environment, granted scopes, refresh, 
     requests.push({url,options});if(url.endsWith('/oauth2/token'))return new Response(JSON.stringify({access_token:'access',refresh_token:'refresh',expires_in:0,account_id:'dbid:one',scope:requiredScopes.join(' ')}));
     if(url.endsWith('/get_current_account'))return new Response(JSON.stringify({account_id:'dbid:one',name:{display_name:'Navn'},email:'navn@eksempel.no'}));
     if(url.endsWith('/token/revoke')){revoked=true;return new Response('null');}
-    return new Response(JSON.stringify({error_summary:'expired_access_token/'}),{status:401});
+    return new Response(JSON.stringify({error_summary:'invalid_access_token/'}),{status:401});
   });
   try {
     pending.set('hobos-songbook-test:dropbox-pkce-v1',JSON.stringify({state:'known',verifier:'verifier',redirect:dropboxConfig('test').redirect,created:Date.now()}));assert.equal(await adapter.callback(),true);assert.equal(loc.search,'');assert.equal(await adapter.callback(),false);assert.equal(adapter.account().id,'dbid:one');

@@ -33,6 +33,94 @@ for(const method of ['metadata','read','write','beginUpload','commitBatch'])test
  const args={metadata:['/fixture'],read:['/fixture'],write:['/fixture','text','rev'],beginUpload:['text'],commitBatch:[[{path:'/fixture',text:'text',rev:'rev',session:{id:'session'}}]]};
  await assert.rejects(a.files[method](...args[method]),e=>e.info.code==='SYNC-005');assert.equal(a.account()?.id,'fixture');
 }));
+test('AK37-01: a server-expired access token renews a rejected write with the same revision and bytes', async () => {
+ const requests = [];
+ await adapterTest(async (url, init) => {
+  const path = new URL(url).pathname;
+  requests.push({path, headers: init.headers, body: init.body});
+  if (path === '/oauth2/token') {
+   assert.equal(init.body.get('grant_type'), 'refresh_token');
+   assert.equal(init.body.get('refresh_token'), 'fake-refresh');
+   return Response.json({access_token:'renewed',expires_in:3600});
+  }
+  if (requests.length === 1) return Response.json({error:{'.tag':'expired_access_token'}}, {status:401});
+  return Response.json(cases.download_header);
+ }, async (a, events) => {
+  await a.files.write('/Songbooks/Book/Private/song.cho', '{t: Prøve}\r\n', 'expected-rev');
+  assert.equal(a.account().id, 'fixture');
+  assert.deepEqual(requests.map(call => call.path), ['/2/files/upload','/oauth2/token','/2/files/upload']);
+  assert.deepEqual(events.map(event => event.status), [401,200,200]);
+  const [original,,retried] = requests;
+  assert.equal(retried.headers.Authorization, 'Bearer renewed');
+  assert.equal(original.headers['Dropbox-API-Arg'], retried.headers['Dropbox-API-Arg']);
+  assert.deepEqual(JSON.parse(retried.headers['Dropbox-API-Arg']).mode, {'.tag':'update',update:'expected-rev'});
+  assert.deepEqual(original.body, retried.body);
+ });
+});
+
+test('AK37-01: concurrent rejected requests for one token join one forced refresh', async () => {
+ let rejected = 0, refreshes = 0, verified = 0, release;
+ const bothOriginals = new Promise(resolve => {release = resolve;});
+ await adapterTest(async (url, init) => {
+  if (url.endsWith('/oauth2/token')) {
+   refreshes++;
+   return Response.json({access_token:'renewed',expires_in:3600});
+  }
+  if (new Headers(init.headers).get('Authorization') === 'Bearer fake') {
+   if (++rejected === 2) release();
+   await bothOriginals;
+   return Response.json({error_summary:'expired_access_token/'}, {status:401});
+  }
+  verified++;
+  return Response.json({...cases.download_header,'.tag':'file'});
+ }, async a => {
+  await Promise.all([a.files.metadata('/Songbooks/Book/Private/song.cho'), a.files.metadata('/Songbooks/Book/Private/song.cho')]);
+  assert.deepEqual([rejected,refreshes,verified], [2,1,2]);
+ });
+});
+
+for (const tokenError of ['invalid_grant','invalid_client']) test(`AK37-01: refresh ${tokenError} distinguishes lost access from a token endpoint error`, async () => {
+ const lost = tokenError === 'invalid_grant';
+ await adapterTest(async url => url.endsWith('/oauth2/token')
+  ? Response.json({error:tokenError}, {status:lost?400:401})
+  : Response.json({error_summary:'expired_access_token/'}, {status:401}), async (a, events) => {
+  await assert.rejects(a.files.metadata('/fixture'), error => error.info.code==='SYNC-004' && error.info.status===(lost?400:401)
+   && error.info.action===(lost?'reconnect':undefined));
+  assert.equal(a.account()?.id, lost?undefined:'fixture');
+  assert.deepEqual(events.map(event => event.status), [401,lost?400:401]);
+ });
+});
+
+test('AK37-01: an expired response after renewal completes the request without an extra refresh or disconnect', async () => {
+ let refreshes = 0;
+ await adapterTest(async url => {
+  if (url.endsWith('/oauth2/token')) {
+   refreshes++;
+   return Response.json({access_token:'renewed',expires_in:3600});
+  }
+  return Response.json({error_summary:'expired_access_token/'}, {status:401});
+ }, async (a, events) => {
+  await assert.rejects(a.files.metadata('/fixture'), error => error.info.code==='SYNC-004' && !error.info.action);
+  assert.equal(refreshes, 1);
+  assert.equal(a.account().id, 'fixture');
+  assert.deepEqual(events.map(event => event.status), [401,200,401]);
+ });
+});
+
+test('AK37-01: a late rejection of a superseded bearer preserves the renewed account', async () => {
+ let respond, received;
+ const started = new Promise(resolve => {received = resolve;});
+ const reply = new Promise(resolve => {respond = resolve;});
+ await adapterTest(async () => {received(); return reply;}, async (a, _events, values) => {
+  const initial = a.files.metadata('/fixture');
+  await started;
+  const key = 'contract-audit:dropbox-auth-v1', saved = JSON.parse(values.get(key));
+  values.set(key, JSON.stringify({...saved,accessToken:'newer'}));
+  respond(Response.json({error:{'.tag':'invalid_access_token'}}, {status:401}));
+  await assert.rejects(initial, error => error.reason==='changed');
+  assert.equal(JSON.parse(values.get(key)).accessToken, 'newer');
+ });
+});
 test('OAuth429: queued token refreshes share Retry-After across runs',async()=>{
  let calls=0;await adapterTest(async()=>{calls++;return Response.json(cases.auth_rate,{status:429,headers:{'Retry-After':'60'}});},async(a,_events,values)=>{
   const results=await Promise.allSettled(Array.from({length:4},()=>a.files.metadata('/fixture')));assert.ok(results.every(r=>r.status==='rejected'&&r.reason.info.code==='SYNC-007'));assert.equal(calls,1);assert.ok(values.has('contract-audit:dropbox-rate-v1'));a.beginRun();await assert.rejects(a.files.metadata('/fixture'),e=>e.info.code==='SYNC-007');assert.equal(calls,1);

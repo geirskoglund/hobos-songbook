@@ -72,7 +72,7 @@ test('successful creation and import follow the chosen book filter; cancelled fl
 
 test('menu, L02 administration, validation, rename identity, D09 icons and safe focus follow the shared controls',async({page})=>{
   await seed(page);const before=await snapshot(page);await openMenu(page);
-  await expect(page.locator('#main-menu > button')).toHaveText(['Sanger','Setlister','Synkronisering','Sangbøker','Filer','Innstillinger']);
+  await expect(page.locator('#main-menu > button:not([hidden])')).toHaveText(['Sanger','Setlister','Synkronisering','Sangbøker','Innstillinger']);
   expect(await page.locator('[data-destination=songbooks] .icon path').first().getAttribute('d')).toContain('M12 6.5');
   await button(page,'Sangbøker').click();await expect(page.locator('#songbook-list .count-choice')).toHaveText(['Band0 sanger','Standard2 sanger','Tom bok0 sanger']);
   await rowMenu(page,'standard','Endre navn');const field=page.getByLabel('Navn',{exact:true}), save=button(dialog(page,'Endre navn på sangbok'),'Lagre');

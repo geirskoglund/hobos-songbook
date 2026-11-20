@@ -33,10 +33,26 @@ export class SyncFailure extends Error {
 }
 /** A terminal server job failed; a new plan may be computed after refresh. */
 export class BatchJobFailed extends SyncFailure {}
+/** The status endpoint could not report the outcome of an accepted batch. */
+export class BatchStatusUnconfirmed extends SyncFailure {}
+/** Dropbox rejected the launch with HTTP 429. Revalidate before submitting again. */
+export class BatchRateRejected extends SyncFailure {}
+/** A batch request failed before its destination endpoint was called. */
+export class UnsentBatch extends SyncFailure {
+  constructor(error: SyncFailure) {super(error.info,error.message,error);}
+}
+/** The namespace plan met a delay or definitive rejection before acceptance. */
+export class NamespacePlanNeedsRefresh extends UnsentBatch {
+  constructor() {super(new SyncFailure({code: failureCodes.changed, stage: 'sync.namespace'}, 'Batchplanen må kontrolleres på nytt etter venting.'));}
+}
 /** Normal interruption; never reported or logged as a sync failure. */
 export class DeferredSync extends Error {
   readonly reason: 'session' | 'changed' | 'recovery' | 'connection' | 'remote';
   constructor(reason: DeferredSync['reason'], message: string) {super(message); this.name = 'DeferredSync'; this.reason = reason;}
+}
+/** Dropbox is still processing a publication that already has a job ID. */
+export class PublicationInProgress extends DeferredSync {
+  constructor() {super('remote', 'Dropbox-jobben er ikke ferdig.');}
 }
 /** A post-response guard interrupted an already sent batch with an uncertain
  * response. Unlike preflight/definitive 4xx, this cannot authorize replay. */

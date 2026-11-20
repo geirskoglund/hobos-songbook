@@ -85,17 +85,15 @@ test('independent review: retry of a copy choice preserves newer copy edits and 
   assert.equal(f.data.songs.length,3);assert.equal(f.data.songs.find(s=>s.id===copy.id).original,newer);manifest=JSON.parse(f.entries.get('/.app/library.json').text);assert.equal(Object.keys(manifest.songs).length,3);
 });
 
-for(const phase of ['first join','known binding','held in Shared'])test(`independent review: missing published personal data is never replaced by defaults during ${phase}`,async()=>{
+for(const phase of ['first join','known binding','linked in Shared'])test(`independent review: missing published personal data is never replaced by defaults during ${phase}`,async()=>{
   const cloud=fixture();await cloud.run();
   const local=fixture();local.change(d=>{d.songs[0].id='local';d.personal[0].songId='local';});
   const run=()=>syncEngine(local.storage,cloud.files,'account',{valid:()=>true,changed(){}}).run(true);
   if(phase!=='first join')await run();
   const link=cloud.data.state.manifest.songs.one;
-  if(phase==='held in Shared')await cloud.files.move(link.fileId,'/Songbooks/Standard/Shared/held.cho');
-  cloud.entries.delete('/.app/songs/one.json');const start=cloud.calls.length;await run();
+  if(phase==='linked in Shared')await cloud.files.move(link.fileId,'/Songbooks/Standard/Shared/held.cho');
+  cloud.entries.delete('/.app/songs/one.json');await run();
   assert.equal(cloud.entries.has('/.app/songs/one.json'),false,'no empty replacement sidecar');
   assert.equal(local.data.personal.find(p=>p.songId==='local').capo,2,'preserve complete local personal data');
-  if(phase==='held in Shared'){
-    assert.equal(local.data.state.held.one,true);assert.equal(cloud.calls.slice(start).some(c=>c[0]==='read'&&(c[1]===link.fileId||c[1].includes('/Shared/'))),false,'held content is never read by the seed phase');
-  }else{assert.equal(local.data.state.failure.code,failureCodes.personal);assert.equal(local.data.state.pending,true);}
+  assert.equal(local.data.state.failure.code,failureCodes.personal);assert.equal(local.data.state.pending,true);
 });

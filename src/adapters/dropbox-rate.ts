@@ -1,23 +1,25 @@
-import {DeferredSync,failureCodes,SyncFailure,type RateInfo,type RateLimitReason} from '../sync/failure.ts';
+import {BatchRateRejected,DeferredSync,failureCodes,SyncFailure,type RateInfo,type RateLimitReason} from '../sync/failure.ts';
 import type {ApiEvent,ApiContext} from '../sync/diagnostics.ts';
 
 export class DropboxError extends SyncFailure {
   status:number;summary:string;
   constructor(status:number,summary:string,stage='dropbox.request',rate:RateInfo={}){
-    super({code:status===401?failureCodes.authentication:status===403?failureCodes.permission:status===409?failureCodes.changed:status===429?failureCodes.throttled:failureCodes.request,stage,status,...(status===429?rate:{}),...(status===401?{action:'reconnect'}:{})},'Dropbox avviste forespørselen.');
+    super({code:status===401?failureCodes.authentication:status===403?failureCodes.permission:status===409?failureCodes.changed:status===429?failureCodes.throttled:failureCodes.request,stage,status,...(status===429?rate:{})},'Dropbox avviste forespørselen.');
     this.name='DropboxError';this.status=status;this.summary=summary;
   }
 }
-const mutations=new Set(['files/upload','files/upload_session/finish_batch_v2','files/create_folder_v2','files/create_folder_batch','files/move_v2','files/move_batch_v2','files/delete_v2','files/delete_batch']);
+const mutations=new Set(['files/upload','files/upload_session/finish_batch_v2','files/create_folder_v2','files/create_folder_batch','files/move_v2','files/move_batch_v2','files/delete_v2','files/delete_batch','sharing/create_shared_link_with_settings']);
 const transportBatches=new Set(['files/move_batch_v2','files/move_batch/check_v2','files/delete_batch','files/delete_batch/check','files/create_folder_batch','files/create_folder_batch/check']);
 const reasons=new Set<RateLimitReason>(['too_many_requests','too_many_write_operations','unknown']);
 const maxWait=30000,maxRetries=2;
 interface Cooldown {version:1;accountId:string;until:number;reason:RateLimitReason;status?:200|429;stage?:string}
+type Settlement = 'move-receipt' | 'fence-release';
+type RecoverAuthentication = (response: Response, guard: () => Promise<void>) => Promise<boolean>;
 
 /** Request-scoped recovery, never a scheduled/background synchronization. */
 export function dropboxRate(namespace:string,account:()=>string|null,before:()=>void|Promise<void>,observe:(event:ApiEvent)=>void){
   const key=`${namespace}:dropbox-rate-v1`,wakeSlots=new Set<()=>void>();
-  let lease=0,writeLimit=4,writes=0,waited=0,retries=true,halted:SyncFailure|null=null,memory:Cooldown|null=null;
+  let lease=0,writeLimit=4,writes=0,waited=0,waitCount=0,retries=true,halted:SyncFailure|null=null,memory:Cooldown|null=null;
   let waiting:{promise:Promise<void>;wake():void}|undefined;
   function emit(event:ApiEvent){try{observe(event);}catch{/* Diagnostics do not change requests. */}}
   function cooldown(id:string|null){
@@ -32,26 +34,31 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
   }
   const limitError=(rate:RateInfo,status:200|429=429,stage='dropbox.request')=>status===200?new SyncFailure({code:failureCodes.throttled,stage,status,...rate},'Dropbox begrenser operasjonene.'):new DropboxError(429,'rate-limit',stage,rate);
   function stop(rate:RateInfo,status:200|429=429,stage='dropbox.move-batch'){halted=limitError(rate,status,stage);wake();return halted;}
-  function checkTicket(ticket:number){if(ticket!==lease)throw new DeferredSync('changed','Forespørselen er avbrutt.');if(halted)throw halted;}
-  async function guard(ticket:number,checkBefore=true){checkTicket(ticket);if(checkBefore)await before();checkTicket(ticket);}
+  function checkTicket(ticket:number,settlement?:Settlement){
+    if(ticket!==lease)throw new DeferredSync('changed','Forespørselen er avbrutt.');
+    // Explicit settlement keeps the lease, cooldown and remaining wait budget.
+    if(halted&&settlement!=='fence-release'&&!(settlement==='move-receipt'&&halted.info.stage==='dropbox.move-batch'))throw halted;
+  }
+  async function guard(ticket:number,checkBefore=true,settlement?:Settlement){checkTicket(ticket,settlement);if(checkBefore)await before();checkTicket(ticket,settlement);}
   function wake(){waiting?.wake();for(const resume of [...wakeSlots])resume();}
   function begin(retry=true){lease++;wake();waited=0;writeLimit=4;halted=null;retries=retry;}
   function cancel(){lease++;wake();}
-  async function wait(ticket:number,id:string|null,checkBefore=true){
+  async function wait(ticket:number,id:string|null,checkBefore=true,settlement?:Settlement){
     for(;;){
-      await guard(ticket,checkBefore);const value=cooldown(id),delay=(value?.until??0)-Date.now();if(delay<=0)return;
+      await guard(ticket,checkBefore,settlement);const value=cooldown(id),delay=(value?.until??0)-Date.now();if(delay<=0)return;
       if(!retries||waited+delay>maxWait)throw stop({limitReason:value!.reason,retryAfterMs:Math.ceil(delay)},value!.status===200?200:429,value!.stage);
       if(!waiting){
         const start=Date.now();let done!:()=>void;const promise=new Promise<void>(resolve=>{done=resolve;});
         const timer=setTimeout(done,delay),current={promise,wake(){clearTimeout(timer);done();}};waiting=current;
         void promise.then(()=>{clearTimeout(timer);if(ticket===lease)waited+=Math.max(0,Date.now()-start);if(waiting===current)waiting=undefined;});
       }
+      waitCount++;
       await waiting.promise;
     }
   }
   function releaseWrite(){writes--;for(const resume of [...wakeSlots])resume();}
-  async function slot(ticket:number){
-    for(;;){await guard(ticket);if(writes<writeLimit){writes++;return releaseWrite;}await new Promise<void>(resolve=>{const resume=()=>{wakeSlots.delete(resume);resolve();};wakeSlots.add(resume);});}
+  async function slot(ticket:number,settlement?:Settlement){
+    for(;;){await guard(ticket,true,settlement);if(writes<writeLimit){writes++;return releaseWrite;}waitCount++;await new Promise<void>(resolve=>{const resume=()=>{wakeSlots.delete(resume);resolve();};wakeSlots.add(resume);});}
   }
   async function rateInfo(response:Response,attempt:number):Promise<RateInfo>{
     const body=await response.clone().json().catch(()=>null),value=body?.error??body;
@@ -64,37 +71,46 @@ export function dropboxRate(namespace:string,account:()=>string|null,before:()=>
     const hints=[headerMs,bodyMs].filter(Number.isFinite),minimum=hints.length?Math.max(...hints):1000;
     return{limitReason:reason,retryAfterMs:Math.ceil(Math.max(minimum,1000*2**attempt))};
   }
-  async function send(operation:string,perform:(attempt:number,check:()=>Promise<void>)=>Promise<Response>,context:()=>ApiContext=()=>({})){
+  async function send(operation:string,perform:(attempt:number,check:()=>Promise<void>)=>Promise<Response>,context:()=>ApiContext=()=>({}),{settlement,namespacePlanAttempt,recoverAuthentication}: {settlement?:Settlement;namespacePlanAttempt?:number;recoverAuthentication?:RecoverAuthentication} = {}){
     // Revoke must remain immediate after local disconnect. Every other route,
     // including queued token renewals, shares the same bounded Retry-After gate.
-    const recover=operation!=='auth/token/revoke',checkBefore=operation.startsWith('files/'),ticket=lease,id=recover?account()??'oauth':null;let attempt=0;
+    const recover=operation!=='auth/token/revoke',checkBefore=/^(files|sharing)\//.test(operation),ticket=lease,id=recover?account()??'oauth':null;let attempt=0;
     const batchStage=operation.includes('create_folder_batch')?'dropbox.folders-batch':operation.includes('delete_batch')?'dropbox.delete-batch':operation.includes('move_batch')?'dropbox.move-batch':operation==='oauth2/token'?'dropbox.token':'dropbox.request';
     for(;;){
       // The caller has just checked account/session/generation. Keep healthy
       // requests on that fast path; recheck after every actual queue/wait.
-      if(recover){checkTicket(ticket);if((cooldown(id)?.until??0)>Date.now())await wait(ticket,id,checkBefore);}
+      if(recover){checkTicket(ticket,settlement);if((cooldown(id)?.until??0)>Date.now())await wait(ticket,id,checkBefore,settlement);}
       let release=()=>{};
-      if(recover&&mutations.has(operation)){if(writes>=writeLimit)release=await slot(ticket);else{writes++;release=releaseWrite;}}
+      if(recover&&mutations.has(operation)){if(writes>=writeLimit)release=await slot(ticket,settlement);else{writes++;release=releaseWrite;}}
       let response:Response,rate:RateInfo|undefined;
       try{
-        if(recover){checkTicket(ticket);if((cooldown(id)?.until??0)>Date.now())continue;}
+        if(recover){checkTicket(ticket,settlement);if((cooldown(id)?.until??0)>Date.now())continue;}
         const start=performance.now();
-        try{response=await perform(attempt,()=>wait(ticket,id,checkBefore));}catch(cause){if(cause instanceof DeferredSync||cause instanceof SyncFailure)throw cause;emit({operation,status:0,durationMs:Math.round(performance.now()-start),...context(),transport:cause instanceof Error&&cause.name==='TimeoutError'?'timeout':cause instanceof Error&&cause.name==='AbortError'?'abort':'network'});throw new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'Dropbox-forespørselen kunne ikke fullføres.',cause);}
+        try{response=await perform(attempt,()=>wait(ticket,id,checkBefore,settlement));}catch(cause){if(cause instanceof DeferredSync||cause instanceof SyncFailure)throw cause;emit({operation,status:0,durationMs:Math.round(performance.now()-start),...context(),transport:cause instanceof Error&&cause.name==='TimeoutError'?'timeout':cause instanceof Error&&cause.name==='AbortError'?'abort':'network'});throw new SyncFailure({code:failureCodes.network,stage:'dropbox.request'},'Dropbox-forespørselen kunne ikke fullføres.',cause);}
         const durationMs=Math.round(performance.now()-start);
-        if(response.status===429)rate=await rateInfo(response,attempt);
+        const requestAttempt=namespacePlanAttempt??attempt;
+        if(response.status===429)rate=await rateInfo(response,requestAttempt);
         const deferredAttempt=(response as Response&{entryRateAttempt?:number}).entryRateAttempt;
         const deferred=Number.isInteger(deferredAttempt)&&deferredAttempt!>=0&&deferredAttempt!<=maxRetries;
         if(deferred)rate={...await rateInfo(response,deferredAttempt!),limitReason:'too_many_write_operations'};
         const entryLimit=(response as Response&{entryLimit?:boolean}).entryLimit===true||deferred;
-        emit({operation,status:entryLimit?200:response.status,durationMs,...context(),...(entryLimit?{entryLimit:true}:{}),...(rate?{...rate,retryAttempt:deferred?deferredAttempt:attempt}:{})});
+        emit({operation,status:entryLimit?200:response.status,durationMs,...context(),...(entryLimit?{entryLimit:true}:{}),...(rate?{...rate,retryAttempt:deferred?deferredAttempt:requestAttempt}:{})});
         // Parsing a received body can fail after the server accepted a write.
         // Count its actual HTTP receipt before preserving that unknown result.
         if(Object.hasOwn(response,'transformFailure'))throw(response as Response&{transformFailure:unknown}).transformFailure;
-        if(recover){if(rate){if(!deferred||ticket===lease)remember(id,rate,deferred?200:429,batchStage);if(!deferred||!transportBatches.has(operation))await guard(ticket,checkBefore);if(ticket===lease){writeLimit=1;if(deferred){if(!retries||deferredAttempt!>=maxRetries)stop(rate,200,batchStage);}else if(!retries||attempt>=maxRetries)throw stop(rate,429,batchStage);}}else if(!transportBatches.has(operation))checkTicket(ticket);}
+        if(rate&&response.status===429&&namespacePlanAttempt!==undefined){
+          // Return the definitive rejection before any preflight for the next
+          // attempt. Its first metadata request shares this cooldown and budget.
+          remember(id,rate,429,batchStage);
+          if(ticket===lease){writeLimit=1;if(!retries||namespacePlanAttempt>=maxRetries)throw stop(rate,429,batchStage);}
+          throw new BatchRateRejected({code:failureCodes.throttled,stage:batchStage,status:429,...rate},'Dropbox avviste batchen med en ratebegrensning.');
+        }
+        if(recover){if(rate){if(!deferred||ticket===lease)remember(id,rate,deferred?200:429,batchStage);if(!deferred||!transportBatches.has(operation))await guard(ticket,checkBefore,settlement);if(ticket===lease){writeLimit=1;if(deferred){if(!retries||deferredAttempt!>=maxRetries)stop(rate,200,batchStage);}else if(!retries||attempt>=maxRetries)throw stop(rate,429,batchStage);}}else if(!transportBatches.has(operation))checkTicket(ticket,settlement);}
       }finally{release();}
+      if(retries&&response.status===401&&recoverAuthentication&&await recoverAuthentication(response,()=>guard(ticket,checkBefore,settlement)))continue;
       if(!recover||response.status!==429)return response;
       attempt++;
     }
   }
-  return{send,begin,cancel};
+  return{send,begin,cancel,waitCount:()=>waitCount};
 }
