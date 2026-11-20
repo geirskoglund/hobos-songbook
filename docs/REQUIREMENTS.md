@@ -204,7 +204,7 @@ Notater og gulmarkeringer bruker separate koordinatmodeller uten kopier av origi
 - **F37–F40.** Kopier delingslenke bruker L02/H04 og `status-delt.svg` i Sangbøker. Dropbox gjenbruker eller oppretter en gyldig direkte leselenke til valgt boks Shared-mappe etter uttrykkelig valg av handlingen. Handlingen krever nett og delingstilgang. Kopiering bekreftes etter oppdatert utklippstavle. Ved kopieringsfeil vises lenken for manuell kopiering.
 - **F41–F45.** N01/N02/D09/H03/L01/L05/L02/H04 og vedtatte ikoner følger DESIGN. Skissen beskriver innhold og fire tilstander. Sanger, sangvisning, redigering, personlige tilpasninger, setlister og ordinær synk følger sine eksisterende innganger og regler.
 
-- **Synkaktivitet.** Synkroniser og Utfør viser samme `synkroniser.svg` i bevegelse mens de arbeider. N01 viser et diskret ikon i plassen til miljømerket mens appen synkroniserer på en hvilken som helst side. Redusert bevegelse gir et statisk ikon og direkte bytte.
+- **Synkaktivitet.** Synkroniser og Utfør viser samme `synkroniser.svg` foran knappeteksten også i hvile. Ikonet roterer mens handlingen pågår. Deaktivert Utfør har vanlig musepeker. N01 viser et diskret ikon i plassen til miljømerket mens appen synkroniserer på en hvilken som helst side. Redusert bevegelse gir et statisk ikon og direkte bytte.
 
 ### Backup og manuell rekonstruksjon
 

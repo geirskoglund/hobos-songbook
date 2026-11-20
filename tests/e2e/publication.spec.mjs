@@ -98,10 +98,14 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   const privateTab = page.getByRole('tab', {name: 'Upublisert', exact: true});
   const sharedTab = page.getByRole('tab', {name: 'Publisert', exact: true});
   const selected = root.locator('.publication-actions p');
+  const perform = action(page, 'Utfør'), syncIcon = perform.locator('svg');
   await expect(summary).toHaveText(['21', '19', '2']);
   await expect(privateTab).toHaveAttribute('aria-selected', 'true');
   await expect(root.locator('.song-name')).toHaveText(['Alfa', 'Zulu']);
-  await expect(action(page, 'Utfør')).toBeDisabled();
+  await expect(perform).toBeDisabled();
+  await expect(perform).toHaveCSS('cursor', 'default');
+  await expect(syncIcon).toBeVisible();
+  await expect(syncIcon).toHaveCSS('animation-name', 'none');
   await expect(action(page, 'Velg alle')).toBeEnabled();
   await page.screenshot({path: 'work/publication/upublisert-320.png'});
   await action(page, 'Sangbok: Alle').click();
@@ -128,6 +132,10 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   await root.getByRole('button', {name: 'Avpubliser meg, G, 3/4'}).click();
   await expect(root.locator('.publication-actions p')).toHaveText('2 valgt for publisering · 1 for avpublisering');
   await expect(summary).toHaveText(['21', '19', '2']);
+  await expect(perform).toBeEnabled();
+  await expect(perform).toHaveCSS('cursor', 'pointer');
+  await expect(syncIcon).toBeVisible();
+  await expect(syncIcon).toHaveCSS('animation-name', 'none');
   await page.screenshot({path: 'work/publication/publisert-320.png'});
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({width, height: 560});
@@ -153,29 +161,34 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
     await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
     const last = await root.locator('.metadata-row').last().boundingBox(), bar = await root.locator('.publication-actions').boundingBox();
     expect(last.y + last.height).toBeLessThan(bar.y);
-    await expect(action(page, 'Utfør')).toBeInViewport();
+    await expect(perform).toBeInViewport();
     await page.evaluate(() => scrollTo(0, 0));
   }
   const before = mock.calls.length;
   mock.fault('/move_batch_v2', 429);
   const release = mock.hold('/move_batch_v2');
   try {
-    await action(page, 'Utfør').click();
+    await perform.click();
     await expect(selected).toHaveText('2 filer publiseres · 1 fil avpubliseres');
-    await expect(action(page, 'Utfør')).toBeDisabled();
+    await expect(perform).toBeDisabled();
+    await expect(perform).toHaveCSS('cursor', 'default');
     await expect(action(page, 'Velg alle')).toBeDisabled();
     await expect(root.locator('.metadata-row').first()).toBeDisabled();
-    await expect(action(page, 'Utfør').locator('svg')).toHaveCSS('animation-name', 'sync-rotation');
+    await expect(syncIcon).toBeVisible();
+    await expect(syncIcon).toHaveCSS('animation-name', 'sync-rotation');
     await expect(page.locator('#header-sync')).toHaveCSS('opacity', '0.65');
     await expect(page.locator('.environment')).toHaveCSS('opacity', '0');
     await page.screenshot({path: 'work/publication/under-utfør-1440.png'});
     await page.emulateMedia({reducedMotion: 'reduce'});
-    await expect(action(page, 'Utfør').locator('svg')).toHaveCSS('animation-name', 'none');
+    await expect(syncIcon).toBeVisible();
+    await expect(syncIcon).toHaveCSS('animation-name', 'none');
     await expect(page.locator('#header-sync svg')).toHaveCSS('animation-name', 'none');
     await expect(page.locator('#header-sync')).toHaveCSS('transition-duration', '0s');
     await page.emulateMedia({reducedMotion: 'no-preference'});
   } finally {release();}
   await expect(selected).toHaveText('2 filer ble publisert · 1 fil ble avpublisert');
+  await expect(syncIcon).toBeVisible();
+  await expect(syncIcon).toHaveCSS('animation-name', 'none');
   await expect(page.locator('.environment')).toHaveCSS('opacity', '1');
   await expect(summary).toHaveText(['21', '20', '1']);
   const writes = mock.calls.slice(before).filter(call => call.endpoint.endsWith('/move_batch_v2'));
@@ -192,7 +205,8 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   await next.click();
   await context.setOffline(true);
   await expect(action(page, 'Velg alle')).toBeDisabled();
-  await expect(action(page, 'Utfør')).toBeDisabled();
+  await expect(perform).toBeDisabled();
+  await expect(perform).toHaveCSS('cursor', 'default');
   await expect(root.getByText('Uten nett. Publisering og avpublisering krever forbindelse til Dropbox.')).toBeVisible();
   await go(page, 'Sanger');
   await go(page, 'Publisering');

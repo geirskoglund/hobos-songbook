@@ -325,4 +325,4 @@ main > section {flex:1;min-width:0}
 .publication-actions {position:fixed;z-index:var(--layer-tools);bottom:var(--update-notice-space,0px);left:50%;transform:translateX(-50%);width:min(100%,var(--frame-width));display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) max(var(--content-gutter),var(--safe-right)) calc(var(--space-3) + var(--safe-bottom)) max(var(--content-gutter),var(--safe-left));border-top:1px solid var(--border);background:var(--header);}
 .publication-actions p {margin:0;color:var(--muted);font-size:15px;}
 .publication-actions button {flex:none;}
-.publication-actions button:not([data-syncing]) > .icon {display:none;}
+.publication-actions .primary-action:disabled {cursor:default;}
