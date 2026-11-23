@@ -25,11 +25,12 @@ Sangens felles tekst med akkorder, slik den deles med andre.
 _Unngå_: kildefil, master
 
 **Personlig lag**:
-Brukerens egne tilpasninger til en sang, holdt adskilt fra originalen.
-_Unngå_: overstyring, egendata, persondata (betyr personopplysninger)
+Brukerens personlige tilpasninger til en sang, samlet og holdt adskilt fra originalen. Brukes når tilpasningene omtales som en helhet, for eksempel ved synk og konflikt.
+_Unngå_: overstyring, egendata, persondata (betyr personopplysninger), personlag
 
 **Personlige tilpasninger**:
-Se Personlig lag.
+Det brukeren har lagt til eller endret for seg selv i en sang: notater, gulmarkeringer, capo, stemming og personlig akkordskjema.
+_Unngå_: persondata
 
 **Notat**:
 En personlig merknad knyttet til et bestemt sted i sangen.
@@ -37,9 +38,17 @@ En personlig merknad knyttet til et bestemt sted i sangen.
 **Gulmarkering**:
 En personlig utheving av et tekstparti i sangen.
 
+**Anker**:
+Festepunktet som knytter et notat eller en gulmarkering til et bestemt sted i originalen.
+_Unngå_: personanker
+
 **Faktisk toneart**:
 Tonearten sangen faktisk lyder i.
 _Unngå_: klingende toneart
+
+**Faktiske akkorder**:
+Akkordene slik de faktisk lyder, uavhengig av capo.
+_Unngå_: klingende akkorder
 
 **Grepstoneart**:
 Tonearten slik akkordene gripes med capo.
@@ -104,6 +113,10 @@ _Unngå_: sletting, oppheving av deling
 **Synkronisering**:
 Å samordne det lokale biblioteket med privat Dropbox.
 _Unngå_: oppdatering, refresh
+
+**Sidefil**:
+Filen i privat Dropbox som holder det personlige laget for én sang, ved siden av sangfilen.
+_Unngå_: personsidefil
 
 **Konflikt**:
 Når samme sang eller samme personlige lag er endret på to steder og brukeren må velge hvilken versjon som skal gjelde.
