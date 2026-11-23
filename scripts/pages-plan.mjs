@@ -39,13 +39,18 @@ export function eligiblePull(pull) {
 
 /** All input is data. No branch, issue text or PR code is executed by the planner. */
 export async function planPages({selection = 'keep', eventName, event, masterSha, previous,
-  getPull, isValidated, hasApp}) {
+  getPull, isValidated, hasApp, docsOnlySince = async () => false}) {
   requireThat(validSha(masterSha), 'Ugyldig master-commit.');
   const old = previous === null ? null : parseDeployment(previous);
   requireThat(['workflow_run', 'workflow_dispatch'].includes(eventName), 'Uventet publiseringshendelse.');
   requireThat(selection === 'keep' || selection === 'master' ||
     (/^[1-9][0-9]*$/.test(selection) && validPr(Number(selection))), 'Velg keep, master eller PR-nummer.');
-  let preview = selection === 'keep' && old ? {...old.preview} : {sha: masterSha, pr: null};
+  // Master channels publish the latest code change. When everything after the published production
+  // commit is documentation (scripts/change-scope.mjs), it is kept, so users get no update without a change.
+  const keepProduction = Boolean(old) && old.production.sha !== masterSha &&
+    await docsOnlySince(old.production.sha, masterSha) === true;
+  const masterSource = keepProduction ? old.production.sha : masterSha;
+  let preview = selection === 'keep' && old ? {...old.preview} : {sha: masterSource, pr: null};
   let followPr = false;
   if (/^[1-9][0-9]*$/.test(selection)) {
     const pull = await getPull(Number(selection));
@@ -68,17 +73,21 @@ export async function planPages({selection = 'keep', eventName, event, masterSha
     } else return null;
   }
   requireThat(await isValidated(masterSha, null), 'Eksakt master-commit mangler grønn Validate/push.');
+  if (keepProduction) requireThat(await isValidated(masterSource, null), 'Publisert produksjonscommit mangler grønn Validate/push.');
   requireThat(await isValidated(preview.sha, preview.pr), 'Eksakt testcommit mangler grønn Validate fra riktig kilde.');
-  const production = {sha: masterSha, pr: null, kind: await hasApp(masterSha) ? 'app' : 'placeholder'};
+  const production = keepProduction ? {...old.production}
+    : {sha: masterSha, pr: null, kind: await hasApp(masterSha) ? 'app' : 'placeholder'};
   if (old?.production.kind === 'app') requireThat(production.kind === 'app', 'Produksjonsappen kan ikke bli en plassholder.');
-  preview.kind = preview.sha === masterSha ? production.kind : preview.kind || (await hasApp(preview.sha) ? 'app' : 'placeholder');
+  preview.kind = preview.sha === production.sha ? production.kind : preview.kind || (await hasApp(preview.sha) ? 'app' : 'placeholder');
   const metadata = parseDeployment({version: 1, repository, production, preview});
-  return {metadata, previous: old, followPr};
+  // An automatic run that would publish exactly what is already published, does not deploy.
+  if (eventName === 'workflow_run' && JSON.stringify(metadata) === JSON.stringify(old)) return null;
+  return {metadata, previous: old, followPr, master: masterSha};
 }
 
 /** Recheck immediately before uploading/deploying; queued runs cannot overwrite newer state. */
 export async function assertPlanCurrent(plan, {masterSha, previous, getPull, isValidated}) {
-  requireThat(masterSha === plan.metadata.production.sha, 'Master er endret under bygg. Kjør ny publisering.');
+  requireThat(validSha(plan.master) && masterSha === plan.master, 'Master er endret under bygg. Kjør ny publisering.');
   const current = previous === null ? null : parseDeployment(previous);
   requireThat(JSON.stringify(current) === JSON.stringify(plan.previous), 'Publisert testvalg er endret under bygg.');
   if (plan.followPr) {

@@ -1,4 +1,8 @@
 import {repository, readDeployment, planPages, assertPlanCurrent} from './pages-plan.mjs';
+import {classifyChanges, docsOnlyStep} from './change-scope.mjs';
+
+// GitHub's compare API lists at most 300 files; a longer list is never treated as complete.
+const maxCompareFiles = 300;
 
 // The workflow's identity and source are checked through Actions, never by a check name alone.
 export async function validatedRun(github, repo, sha, pr) {
@@ -33,7 +37,23 @@ export async function validatedRun(github, repo, sha, pr) {
   const latest = matches.sort((a, b) => b.id - a.id)[0];
   if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success') return false;
   const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {...repo, run_id: latest.id, filter: 'latest', per_page: 100});
-  return jobs.some(job => job.name === 'validate' && job.conclusion === 'success' && job.status === 'completed') ? latest : null;
+  const job = jobs.find(item => item.name === 'validate' && item.conclusion === 'success' && item.status === 'completed');
+  if (!job) return null;
+  // A documentation-only PR run is green without install, tests or build. It never counts as validated source.
+  if (job.steps?.some(step => (step.name === docsOnlyStep && step.conclusion === 'success') ||
+      (step.name === 'Run npm run check' && step.conclusion !== 'success'))) {
+    throw new Error(`Commit ${sha}${pr === null ? '' : ` i PR #${pr}`} er ikke validert: Validate gjaldt bare dokumentasjon og hoppet over tester og bygg. Den kan ikke publiseres.`);
+  }
+  return latest;
+}
+
+/** True only when GitHub confirms base is an ancestor of head and every change between them is documentation. */
+export async function docsOnlyBetween(github, repo, base, head) {
+  let data;
+  try { ({data} = await github.rest.repos.compareCommitsWithBasehead({...repo, basehead: `${base}...${head}`})); }
+  catch (error) { if ([404, 422].includes(error.status)) return false; throw error; }
+  if (data?.status !== 'ahead' || !Array.isArray(data.files)) return false;
+  return classifyChanges(data.files, data.files.length < maxCompareFiles).docsOnly;
 }
 
 export async function isValidated(github, repo, sha, pr) {return Boolean(await validatedRun(github, repo, sha, pr));}
@@ -60,6 +80,7 @@ export async function services(github, context, fetchImpl = fetch) {
     return validations.get(key);
   };
   return {masterSha: master.commit.sha, previous, getPull, getValidatedRun,
+    docsOnlySince: (base, head) => docsOnlyBetween(github, repo, base, head),
     isValidated: async (sha, pr) => Boolean(await getValidatedRun(sha, pr)),
     hasApp: async ref => {
       let content;
@@ -86,7 +107,10 @@ export async function createPlan({github, context, core, selection}) {
   }
   const plan = await planPages({...api, selection, eventName: context.eventName, event: context.payload});
   core.setOutput('deploy', Boolean(plan));
-  if (!plan) return;
+  if (!plan) {
+    await core.summary.addRaw('Ingen ny publisering: publiserte utgaver er allerede oppdatert.\n').write();
+    return;
+  }
   core.setOutput('plan', JSON.stringify(plan));
   core.setOutput('infra', api.masterSha);
   const include = [];
@@ -101,6 +125,9 @@ export async function createPlan({github, context, core, selection}) {
     include.push({target,channel,...source,artifactId,runId,reuse:JSON.stringify(plan.previous?.[target]) === JSON.stringify(source)});
   }
   core.setOutput('matrix', JSON.stringify({include}));
+  if (plan.metadata.production.sha !== plan.master) {
+    core.summary.addRaw(`Produksjon beholder ${plan.metadata.production.sha}: bare dokumentasjon er endret frem til master ${plan.master}.\n`);
+  }
   await core.summary.addCodeBlock(JSON.stringify(plan.metadata, null, 2), 'json').write();
 }
 

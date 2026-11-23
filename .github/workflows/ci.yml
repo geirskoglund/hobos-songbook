@@ -5,6 +5,7 @@ on:
     branches: [master]
 permissions:
   contents: read
+  pull-requests: read
 concurrency:
   group: validate-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -24,25 +25,45 @@ jobs:
           ref: ${{ github.workflow_sha }}
           path: .ci-infra
           persist-credentials: false
+      # The required check always reports. A PR that changes documentation only skips the heavy steps;
+      # push to master always runs in full. The file list comes from GitHub, see scripts/change-scope.mjs.
+      - name: Decide scope from GitHub's file list
+        id: scope
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const {decideScope} = await import(`${process.env.GITHUB_WORKSPACE}/.ci-infra/scripts/validate-scope.mjs`);
+            await decideScope({github, context, core});
+      # Publishing rejects runs where this step ran. Keep the name in sync with docsOnlyStep in change-scope.mjs.
+      - name: 'Bare dokumentasjon: tunge steg hoppet over'
+        if: steps.scope.outputs.docs-only == 'true'
+        run: echo "Bare dokumentasjon er endret. Se sammendraget for filene som avgjorde det."
       - uses: actions/setup-node@v5
+        if: steps.scope.outputs.docs-only != 'true'
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+        if: steps.scope.outputs.docs-only != 'true'
       - uses: actions/cache@v4
+        if: steps.scope.outputs.docs-only != 'true'
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install pinned Playwright Chromium
+        if: steps.scope.outputs.docs-only != 'true'
         timeout-minutes: 5
         run: npx playwright install chromium
       - run: npm run check
+        if: steps.scope.outputs.docs-only != 'true'
       - name: Build validated source once per required channel
+        if: steps.scope.outputs.docs-only != 'true'
         env:
           APP_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           APP_PR: ${{ github.event.pull_request.number || '' }}
         run: node .ci-infra/scripts/build-validated.mjs
       - uses: actions/upload-artifact@v4
+        if: steps.scope.outputs.docs-only != 'true'
         with:
           name: validated-test
           overwrite: true
@@ -50,7 +71,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - uses: actions/upload-artifact@v4
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && steps.scope.outputs.docs-only != 'true'
         with:
           name: validated-production
           overwrite: true

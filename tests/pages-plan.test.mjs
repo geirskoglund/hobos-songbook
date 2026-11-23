@@ -83,6 +83,38 @@ test('metadata HTTP errors distinguish first-ever deployment from missing/corrup
   await assert.rejects(readDeployment({fetch: async () => response(200, {})}), /metadata/);
   assert.deepEqual(await readDeployment({fetch: async () => response(200, metadata()), hasPublished: async () => {throw Error('should not run');}}), metadata());
 });
+test('documentation-only merge keeps the published production and deploys nothing', async () => {
+  const seen = [];
+  const docsOnlySince = async (...args) => {seen.push(args); return true;};
+  const push = {workflow_run: run({event: 'push', head_sha: c, head_branch: 'master'})};
+  assert.equal(await planPages(options({masterSha: c, eventName: 'workflow_run', event: push, docsOnlySince})), null);
+  assert.deepEqual(seen, [[a, c]]);
+  // The same applies after several documentation merges, and to an explicit master test selection.
+  const plan = await planPages(options({masterSha: c, selection: 'master', docsOnlySince}));
+  assert.deepEqual(plan.metadata.production, source(a, null));
+  assert.deepEqual(plan.metadata.preview, source(a, null));
+  assert.equal(plan.master, c);
+});
+test('any code since the published production publishes latest master', async () => {
+  const push = {workflow_run: run({event: 'push', head_sha: c, head_branch: 'master'})};
+  for (const docsOnlySince of [async () => false, undefined]) {
+    const plan = await planPages(options({masterSha: c, eventName: 'workflow_run', event: push, docsOnlySince}));
+    assert.deepEqual(plan.metadata.production, source(c, null));
+  }
+  let called = false;
+  await planPages(options({docsOnlySince: async () => {called = true; return true;}}));
+  assert.equal(called, false, 'no comparison when master is already published');
+});
+test('kept production must still be validated', async () => {
+  await assert.rejects(planPages(options({masterSha: c, docsOnlySince: async () => true,
+    isValidated: async sha => sha !== a})), /produksjonscommit/);
+});
+test('green PR run without build is ignored unless test follows that PR', async () => {
+  for (const preview of [source(a, null), source(b, 8)]) {
+    assert.equal(await planPages(options({eventName: 'workflow_run', event: {workflow_run: run()},
+      previous: {...metadata(), preview}, isValidated: async () => {throw Error('should not validate');}})), null);
+  }
+});
 test('stale plans fail if master, test selection, PR head/state or validation changed during build', async () => {
   const plan = await planPages(options({selection: '7'}));
   await assertPlanCurrent(plan, options());
