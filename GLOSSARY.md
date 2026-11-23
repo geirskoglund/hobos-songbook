@@ -47,7 +47,7 @@ Tonearten sangen faktisk lyder i.
 _Unngå_: klingende toneart
 
 **Faktiske akkorder**:
-Akkordene slik de faktisk lyder, uavhengig av capo. Motsatt begrep er grep.
+Akkordene slik de faktisk lyder, uavhengig av capo.
 _Unngå_: klingende akkorder
 
 **Grepstoneart**:
