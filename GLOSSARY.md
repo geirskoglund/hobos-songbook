@@ -25,11 +25,12 @@ Sangens felles tekst med akkorder, slik den deles med andre.
 _Unngå_: kildefil, master
 
 **Personlig lag**:
-Brukerens egne tilpasninger til en sang, holdt adskilt fra originalen.
-_Unngå_: overstyring, egendata, persondata (betyr personopplysninger)
+Datastrukturen som holder brukerens tilpasninger til en sang adskilt fra originalen; brukes om lagring, synk og konfliktvalg. Lagres lokalt i IndexedDB-lageret `personal` og i Dropbox som `.app/songs/<ID>.json`.
+_Unngå_: overstyring, egendata, persondata (betyr personopplysninger), personlag
 
 **Personlige tilpasninger**:
-Se Personlig lag.
+Det brukeren har lagt til eller endret for seg selv i en sang: notater, gulmarkeringer, capo, stemming og personlig akkordskjema.
+_Unngå_: persondata
 
 **Notat**:
 En personlig merknad knyttet til et bestemt sted i sangen.
@@ -37,9 +38,17 @@ En personlig merknad knyttet til et bestemt sted i sangen.
 **Gulmarkering**:
 En personlig utheving av et tekstparti i sangen.
 
+**Anker**:
+Festepunktet som knytter et notat eller en gulmarkering til et bestemt sted i originalen.
+_Unngå_: personanker
+
 **Faktisk toneart**:
 Tonearten sangen faktisk lyder i.
 _Unngå_: klingende toneart
+
+**Faktiske akkorder**:
+Akkordene slik de faktisk lyder, uavhengig av capo; slik lagres akkordene i originalen. Motsatt begrep er grep.
+_Unngå_: klingende akkorder
 
 **Grepstoneart**:
 Tonearten slik akkordene gripes med capo.
