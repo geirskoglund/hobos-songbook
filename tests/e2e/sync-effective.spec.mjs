@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {appendFile, mkdir} from 'node:fs/promises';
 import {dropboxMock} from './dropbox-mock.mjs';
 import {openMenu, importAndOpenSong, goSongs, savedSongs, tool, fillValue, setCapo} from './song-helpers.mjs';
@@ -565,7 +565,7 @@ test('first explicit OAuth coordination counts as a successful manual synchroniz
   );
   await context.route('https://geirskoglund.github.io/hobos-songbook/**', async route => {
     const source = new URL(route.request().url());
-    const response = await request.get('http://127.0.0.1:4173' + source.pathname);
+    const response = await request.get(source.pathname);
     await route.fulfill({response});
   });
   await page.goto('https://geirskoglund.github.io/hobos-songbook/test/?code=accepted&state=accepted-first-connect');

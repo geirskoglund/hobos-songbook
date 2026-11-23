@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {importAndOpenSong, savedSongs, openMenu, openSettings, closeSettings, setCapo} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 test.beforeEach(async ({request}) => {

@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {openMenu, openSettings, closeSettings, importAndOpenSong, savedSongs, goSongs} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 test.beforeEach(async ({request}) => {
@@ -114,7 +114,7 @@ test('create, cancel, rename and confirmed deletion preserve IDs, order and unre
   expect(after.songbooks).toEqual(baseline.songbooks);
   await context.setOffline(false);
   const prod = await context.newPage();
-  await prod.goto('http://127.0.0.1:4173/hobos-songbook/app/');
+  await prod.goto('/hobos-songbook/app/');
   await goSetlists(prod);
   await expect(prod.locator('#setlist-list .count-choice')).toHaveCount(0);
   await prod.close();

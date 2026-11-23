@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {importAndOpenSong, savedSongs, original, openSettings, closeSettings, setDisplay} from './song-helpers.mjs';
 
 const base = '/hobos-songbook/';
@@ -200,7 +200,7 @@ test('both real workers reopen offline; PR changes and updates preserve both dat
 test('failed worker registration gives a truthful status and leaves the shell readable', async ({browser}) => {
   const context = await browser.newContext({serviceWorkers: 'block'}),
     page = await context.newPage();
-  await page.goto(`http://127.0.0.1:4173${base}test/`);
+  await page.goto(base + 'test/');
   await expect(page.locator('#library-title')).toBeVisible();
   await expect(page.locator('#offline-status')).toContainText('kunne ikke fullføres');
   await expect(page.locator('#offline-status')).not.toHaveAttribute('data-ready', 'true');

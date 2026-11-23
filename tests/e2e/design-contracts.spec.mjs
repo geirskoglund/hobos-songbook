@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {openMenu, goSongs, beginCreate} from './song-helpers.mjs';
 
 // Expectations come from DESIGN's source-linked table and the original SVGs.

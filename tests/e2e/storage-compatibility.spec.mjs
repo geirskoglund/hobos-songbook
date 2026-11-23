@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {openMenu, importAndOpenSong, goSongs, tool, fillValue} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const song = {

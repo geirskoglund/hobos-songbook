@@ -1,6 +1,6 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {importAndOpenSong, savedSongs, tool, rawEditor} from './song-helpers.mjs';
-const url = 'http://127.0.0.1:4173/hobos-songbook/test/';
+const url = '/hobos-songbook/test/';
 test.beforeEach(async ({request}) => {
   await request.post('/__test__/reset');
 });

@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {importAndOpenSong, savedSongs, openSettings, closeSettings, setDisplay} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const ready = page => expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
