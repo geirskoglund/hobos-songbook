@@ -225,7 +225,7 @@ Historiske Dropbox-forsøk er bevart i [issue #1, del 3](https://github.com/geir
 
 **[B] Dokumentasjonsvedlikehold:** Både klargjørings- og implementeringsarbeid skal kontrollere gjeldende krav mot beslutninger, design og relevante godkjente issues/PR-er. Endrede produktbeslutninger innarbeides på riktig sted i eksisterende dokumentasjon; utdaterte/motstridende formuleringer erstattes eller fjernes. Nye beslutninger legges ikke ukritisk i presiseringsseksjoner på slutten. Bevar stabile ID-er og uendrede produktvalg. Dokumentene beskriver gjeldende tilstand og beslutninger med tydelig skille mellom vedtatt, planlagt, implementert og faktisk verifisert; historikk ligger i Git, issues og PR-er. Klargjøreren synliggjør dokumentasjonsbehov i issuen innenfor sin rolle; implementereren oppdaterer alle berørte dokumenter i leveransen og kontrollerer dem samlet for motstrid og unødvendig duplisering. Reelle produktspørsmål uten vedtatt løsning løftes til produktansvarlig.
 
-Se [AGENTS](../AGENTS.md) og [TESTING](TESTING.md) for full rolle- og publiseringsflyt. Grønn CI er ikke produktgodkjenning.
+Se [CLAUDE.md](../CLAUDE.md) og [TESTING](TESTING.md) for full rolle- og publiseringsflyt. Grønn CI er ikke produktgodkjenning.
 
 ## 10. Gjenstående før funksjonell v1
 

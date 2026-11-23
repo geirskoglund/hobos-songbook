@@ -40,7 +40,7 @@ Råtekst åpner hele ChordPro-kilden i fullskjerm med egen scroll og Avbryt/Lagr
 
 [Eksempelfil med akkordskjema og dynamikk](examples/akkordskjema-og-dynamikk.cho) kan leses inn fra filvelgeren. Uendrede kildeområder, BOM, taggvarianter og linjeskift bevares. Notater beholdes ved faste logiske posisjoner, også ved tom tekst. Sikre gulmarkeringer justeres; usikre kan falle bort uten å markere feil ord. Annoteringer lagrer ingen originalkopi. Eksport, eksterne kilder, konvertering og setlisteinnhold er fortsatt senere arbeid. Lokal lagring er ikke en sikkerhetskopi.
 
-- [Agentinstruksjoner](AGENTS.md)
+- [Agentinstruksjoner](CLAUDE.md)
 - [Gjeldende produktkrav](docs/REQUIREMENTS.md)
 - [Beslutninger og begrunnelser](docs/DECISIONS.md)
 - [Arkitektur og miljøgrenser](docs/ARCHITECTURE.md)
