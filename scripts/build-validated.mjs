@@ -1,20 +1,16 @@
 import {cp, mkdir, rm} from 'node:fs/promises';
-import {spawnSync} from 'node:child_process';
 import {resolve, join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {buildInfo} from './build-channel.mjs';
 import {sealChannel} from './channel-files.mjs';
+import {runCommand} from './run-command.mjs';
 
 /** Called after the single successful CI check, with dependencies already installed. */
 export async function buildValidated(
   source,
   destination,
   env = process.env,
-  run = (command, args, options) => {
-    const result = spawnSync(command, args, {...options, stdio: 'inherit'});
-    if (result.error) throw result.error;
-    if (result.status !== 0) throw Error('Bygg av validert kilde feilet.');
-  },
+  run = (command, args, options) => runCommand(command, args, options, () => Error('Bygg av validert kilde feilet.')),
 ) {
   const channels = env.APP_PR ? ['test'] : ['production', 'test'];
   for (const channel of channels) {

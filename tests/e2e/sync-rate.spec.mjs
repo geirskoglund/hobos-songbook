@@ -1,6 +1,7 @@
 import {test, expect} from '@playwright/test';
 import {dropboxMock} from './dropbox-mock.mjs';
 import {openMenu, importAndOpenSong, goSongs, savedSongs} from './song-helpers.mjs';
+import {stubClipboard, copiedText} from './clipboard-stub.mjs';
 test.use({serviceWorkers: 'block'});
 const url = '/hobos-songbook/test/';
 async function syncPage(page) {
@@ -116,6 +117,7 @@ test('persistent 429 produces a bounded error with safe rate details; elapsed co
   page,
   context,
 }) => {
+  await stubClipboard(page);
   const mock = await setup(page, context);
   const sync = page.locator('#dropbox-sync'),
     status = page.locator('#sync-status');
@@ -141,10 +143,9 @@ test('persistent 429 produces a bounded error with safe rate details; elapsed co
   expect(log.failure.limitReason).toBe('too_many_write_operations');
   expect(log.failure.retryAfterMs).toBeGreaterThanOrEqual(1000);
   expect(log.operations.filter(event => event.status === 429).map(event => event.retryAttempt)).toEqual([0, 1, 2]);
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   const copy = page.getByRole('button', {name: 'Kopier feillogg', exact: true});
   await copy.click();
-  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  const copied = await copiedText(page);
   expect(JSON.parse(copied.split('\n\n')[1]).failure.limitReason).toBe('too_many_write_operations');
   for (const forbidden of ['fixture-access', 'fixture-refresh', 'dbid:fixture', '@eksempel.no', 'error_summary'])
     expect(copied).not.toContain(forbidden);

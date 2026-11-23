@@ -1,6 +1,7 @@
 import {test, expect} from '@playwright/test';
 import {dropboxMock} from './dropbox-mock.mjs';
 import {openMenu, importAndOpenSong, goSongs} from './song-helpers.mjs';
+import {stubClipboard, copiedText} from './clipboard-stub.mjs';
 const url = '/hobos-songbook/test/';
 async function syncPage(page) {
   await openMenu(page);
@@ -46,7 +47,7 @@ test('only the copy icon acts on an error; exact message and private-data-free t
   page,
   context,
 }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await stubClipboard(page);
   const mock = await dropboxMock(context);
   await page.goto(url);
   await expect.poll(() => Boolean(mock.find('/.app/library.json'))).toBe(true);
@@ -73,7 +74,7 @@ test('only the copy icon acts on an error; exact message and private-data-free t
   await expect(copy).toBeFocused();
   await copy.press('Enter');
   await expect(copy).toBeEnabled();
-  const text = await page.evaluate(() => navigator.clipboard.readText()),
+  const text = await copiedText(page),
     [message, json] = text.split('\n\n'),
     entry = JSON.parse(json);
   expect(message).toBe('Synkronisering feilet (Feilkode SYNC-003)');
@@ -103,7 +104,7 @@ test('only the copy icon acts on an error; exact message and private-data-free t
   await expect(page.locator('#sync-status [role=button]')).toHaveCount(0);
 });
 test('a local error can be copied after an offline restart without Dropbox', async ({page, context}) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await stubClipboard(page);
   const mock = await dropboxMock(context);
   await page.goto(url);
   await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
@@ -118,7 +119,7 @@ test('a local error can be copied after an offline restart without Dropbox', asy
   await syncPage(page);
   await expect(page.locator('#sync-status')).toHaveText('Synkronisering feilet (Feilkode SYNC-003)');
   await page.getByRole('button', {name: 'Kopier feillogg', exact: true}).click();
-  const text = await page.evaluate(() => navigator.clipboard.readText());
+  const text = await copiedText(page);
   expect(JSON.parse(text.split('\n\n')[1]).id).toBe(before);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 });
@@ -154,7 +155,7 @@ test('failed clipboard access preserves the log and does not add status text', a
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 });
 test('an authentication failure remains locally copyable after Dropbox access is removed', async ({page, context}) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await stubClipboard(page);
   const mock = await dropboxMock(context);
   await page.goto(url);
   await expect.poll(() => Boolean(mock.find('/.app/library.json'))).toBe(true);
@@ -173,7 +174,7 @@ test('an authentication failure remains locally copyable after Dropbox access is
     await page.screenshot({path: `work/sync-diagnostics/auth-error-${width}.png`});
   }
   await page.getByRole('button', {name: 'Kopier feillogg', exact: true}).click();
-  const text = await page.evaluate(() => navigator.clipboard.readText());
+  const text = await copiedText(page);
   expect(JSON.parse(text.split('\n\n')[1]).failure.code).toBe('SYNC-004');
   expect(mock.find('/.app/sync-errors.json')).toBeUndefined();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
