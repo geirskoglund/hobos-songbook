@@ -19,7 +19,7 @@ npm run build
 
 Playwright bruker pinnet Chromium når installert. `CHROMIUM_PATH=/usr/bin/chromium npm run check` kan bruke en tilgjengelig systemnettleser; ellers velges installert Chromium/Google Chrome på kjente systemstier. CI installerer pinnet Playwright-nettleser. Bare den historiske reserveflyten kan kjøre en ekstra isolert sjekk med hosted-runnerens system-Chrome. Rapporter nettleserversjonen ved konkret verifikasjon. Browserbinær og npm-pakker må være installert/cachet før full offline-kontroll; selve appen har ingen kjøretidsnettavhengighet.
 
-`Validate / validate` kjører automatisk på PR og master. Ved PR sjekkes PR-hodets SHA ut, ikke en midlertidig mergecommit. Bare den eksakte validerte kilden kan publiseres. Første bootstrap-deploy er et eget infrastrukturbevis, ikke fysisk PWA-verifikasjon.
+`Validate / validate` kjører automatisk på PR og master. Ved PR sjekkes PR-hodets SHA ut, ikke en midlertidig mergecommit. Bare den eksakte validerte kilden kan publiseres. En PR som etter GitHubs filliste bare endrer dokumentasjon (`scripts/change-scope.mjs`: `docs/**` og `*.md` utenfor kodemappene), får grønn `validate` uten installasjon, tester og bygg. En slik kjøring regnes aldri som validert kilde og kan ikke publiseres til test. Validate på master kjører alltid fullt. Første bootstrap-deploy er et eget infrastrukturbevis, ikke fysisk PWA-verifikasjon.
 
 ## GitHub-oppsett
 
@@ -49,14 +49,14 @@ gh workflow run pages.yml --repo geirskoglund/hobos-songbook --ref master -f pre
 Alternativ: Actions → Deploy GitHub Pages → Run workflow → branch `master` → `preview=PR_NUMMER`. Bare en åpen samme-repo-PR mot master med gyldig appkontrakt kan velges. Nye grønne commits i valgt PR følger automatisk. Andre PR-er, forker, gamle valideringskjøringer og feilende utgaver overtar ikke test.
 
 - `preview=keep` beholder sist publiserte **eksakte** test-SHA og PR-identitet. Master-merge og slettet PR-branch endrer ikke valget.
-- `preview=master` velger dagens validerte master også til test. Valget følger ikke nye mastercommits automatisk; produksjon følger master, mens test fortsatt er pinnet.
+- `preview=master` velger samme commit som produksjon også til test. Valget følger ikke nye mastercommits automatisk; produksjon følger master, mens test fortsatt er pinnet.
 - `preview=PR_NUMMER` velger eller gjenpubliserer gjeldende validerte PR-hode.
 
 Kontroller Actions-resultat, rootens `deployment.json` og begge `build-info.json` før en testutgave oppgis som klar. Test vises på samme adresse gjennom hele implementeringsløpet. Hoved-PR-en holdes åpen for brukerens test og uttrykkelige mergegodkjenning.
 
 ## Betrodd kilde og tokanelbygg
 
-Planlegging og deploy kjører bare script fra eksakt validert master. Produksjon får alltid master-SHA; PR-SHA kan bare bli test. Actions-bevis krever riktig `ci.yml`-workflow-ID/-sti, repo, kilderepo, hendelsestype, SHA, PR/base der relevant, og vellykket `validate`-jobb i nyeste aktuelle kjøring. Når GitHub fjerner Actions-kjøringens PR-kobling etter lukking, bevises en bevart kilde gjennom GitHubs commit/PR-assosiasjon for den lukkede samme-repo-PR-en. Nytt valg krever fortsatt åpen PR. En kontroll med et passende navn alene gir ingen tillatelse. Ved push til master venter Pages på vellykket Validate; det finnes ingen konkurrerende direkte push-deploy.
+Planlegging og deploy kjører bare script fra eksakt validert master. Produksjon får master-SHA-en, unntatt når alt mellom publisert produksjonscommit og master er dokumentasjon etter samme regel som Validate. Da beholdes publisert produksjon uendret, og brukerne får ingen oppdatering. Ukjent historikk eller ufullstendig filliste regnes som kode. PR-SHA kan bare bli test. Actions-bevis krever riktig `ci.yml`-workflow-ID/-sti, repo, kilderepo, hendelsestype, SHA, PR/base der relevant, og vellykket `validate`-jobb i nyeste aktuelle kjøring. Når GitHub fjerner Actions-kjøringens PR-kobling etter lukking, bevises en bevart kilde gjennom GitHubs commit/PR-assosiasjon for den lukkede samme-repo-PR-en. Nytt valg krever fortsatt åpen PR. En kontroll med et passende navn alene gir ingen tillatelse. Ved push til master venter Pages på vellykket Validate; det finnes ingen konkurrerende direkte push-deploy.
 
 CI kjører én full validering og bygger deretter test for PR, eller produksjon og test for master. Miljøbyggene heter `validated-test` og `validated-production` og beholdes som Actions-artifacts i 90 dager. Avhengigheter og Playwright-nedlasting bruker cache; utdaterte CI-kjøringer for samme PR avbrytes.
 

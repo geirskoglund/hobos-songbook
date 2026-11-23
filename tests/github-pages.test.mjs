@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {isValidated, createPlan, checkCurrent} from '../scripts/github-pages.mjs';
+import {isValidated, createPlan, checkCurrent, docsOnlyBetween} from '../scripts/github-pages.mjs';
+import {docsOnlyStep} from '../scripts/change-scope.mjs';
 import {repository} from '../scripts/pages-plan.mjs';
 
 const sha = 'a'.repeat(40), previewSha = 'b'.repeat(40);
@@ -109,4 +110,26 @@ test('trusted workflow adapter plans and rechecks first bootstrap without extern
     await assert.rejects(createPlan({github: client({deployments: [{id: 1}], statuses: [{state: 'success'}]}), context, core, selection: 'keep'}), /tidligere/);
     await assert.rejects(createPlan({github: client({getContent: async () => {throw Object.assign(Error('denied'), {status: 403});}}), context, core, selection: 'master'}), /denied/);
   } finally {globalThis.fetch = previousFetch;}
+});
+test('documentation-only PR run is never validated source and gives a clear error', async () => {
+  const prRun = run({event: 'pull_request', head_branch: 'feature', pull_requests: [{number: 7, head: {sha}, base: {ref: 'master'}}]});
+  const job = steps => [{name: 'validate', conclusion: 'success', status: 'completed', steps}];
+  await assert.rejects(isValidated(client({runs: [prRun], jobs: job([{name: docsOnlyStep, conclusion: 'success'}, {name: 'Run npm run check', conclusion: 'skipped'}])}), repo, sha, 7), /bare dokumentasjon/);
+  await assert.rejects(isValidated(client({runs: [prRun], jobs: job([{name: 'Run npm run check', conclusion: 'skipped'}])}), repo, sha, 7), /ikke validert/);
+  assert.equal(await isValidated(client({runs: [prRun], jobs: job([{name: docsOnlyStep, conclusion: 'skipped'}, {name: 'Run npm run check', conclusion: 'success'}])}), repo, sha, 7), true);
+});
+test('comparison with published commit is documentation only when GitHub confirms ancestry and a complete file list', async () => {
+  const compare = response => ({rest: {repos: {compareCommitsWithBasehead: async args => {
+    assert.equal(args.basehead, `${previewSha}...${sha}`);
+    if (response instanceof Error) throw response;
+    return {data: response};
+  }}}});
+  const docs = [{filename: 'docs/a.md'}, {filename: 'README.md'}];
+  assert.equal(await docsOnlyBetween(compare({status: 'ahead', files: docs}), repo, previewSha, sha), true);
+  for (const response of [{status: 'ahead', files: [...docs, {filename: 'src/a.ts'}]}, {status: 'diverged', files: docs},
+    {status: 'behind', files: docs}, {status: 'ahead'}, {status: 'ahead', files: Array(300).fill({filename: 'docs/a.md'})},
+    Object.assign(Error('missing'), {status: 404})]) {
+    assert.equal(await docsOnlyBetween(compare(response), repo, previewSha, sha), false);
+  }
+  await assert.rejects(docsOnlyBetween(compare(Object.assign(Error('down'), {status: 500})), repo, previewSha, sha), /down/);
 });
