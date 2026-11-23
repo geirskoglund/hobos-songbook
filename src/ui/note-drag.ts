@@ -1,10 +1,16 @@
-import { changeNote } from '../domain/annotations.ts';
-import type { SongPersonal } from '../domain/song.ts';
-import { edgeScroll } from './highlight-editor.ts';
-import { noteAnchor, noteTargets, canPlaceNote } from './note-position.ts';
+import {changeNote} from '../domain/annotations.ts';
+import type {SongPersonal} from '../domain/song.ts';
+import {edgeScroll} from './highlight-editor.ts';
+import {noteAnchor, noteTargets, canPlaceNote} from './note-position.ts';
 
 /** Hold a note to move its anchor. Touch movement before the hold remains scrolling. */
-export function attachNoteDrag(root: HTMLElement, update: (fn: (current: SongPersonal) => SongPersonal) => void, targetAt: (y: number) => HTMLElement | undefined, activate: (line: HTMLElement) => void, select: (note: HTMLElement) => void) {
+export function attachNoteDrag(
+  root: HTMLElement,
+  update: (fn: (current: SongPersonal) => SongPersonal) => void,
+  targetAt: (y: number) => HTMLElement | undefined,
+  activate: (line: HTMLElement) => void,
+  select: (note: HTMLElement) => void,
+) {
   type Hold = {
     pointer: number;
     note: HTMLElement;
@@ -40,12 +46,14 @@ export function attachNoteDrag(root: HTMLElement, update: (fn: (current: SongPer
     hold.target = occupied ? undefined : row;
     hold.ghost.dataset.invalid = String(Boolean(occupied));
     hold.ghost.style.top = `${(row ? noteAnchor(row).y : hold.y) - hold.ghost.offsetHeight / 2}px`;
-    root.dispatchEvent(new CustomEvent('annotation-drag', {
-      detail: {
-        ghost: hold.ghost,
-        target: row
-      }
-    }));
+    root.dispatchEvent(
+      new CustomEvent('annotation-drag', {
+        detail: {
+          ghost: hold.ghost,
+          target: row,
+        },
+      }),
+    );
   }
   function begin() {
     if (!hold || hold.cancelled || !hold.note.isConnected) return;
@@ -76,15 +84,18 @@ export function attachNoteDrag(root: HTMLElement, update: (fn: (current: SongPer
   }
   function transfer(from: HTMLElement, to: HTMLElement) {
     const note = from.querySelector<HTMLElement>('.personal-note');
-    if (from === to || !note || !canPlaceNote(root, note, to) || !Number.isSafeInteger(Number(to.dataset.noteLine))) return;
+    if (from === to || !note || !canPlaceNote(root, note, to) || !Number.isSafeInteger(Number(to.dataset.noteLine)))
+      return;
     const id = from.querySelector<HTMLElement>('[data-note-id]')?.dataset.noteId;
     if (!id) return;
     update(current => {
       const note = current.notes?.[id];
-      return note ? changeNote(current, id, {
-        ...note,
-        line: Number(to.dataset.noteLine)
-      }) : current;
+      return note
+        ? changeNote(current, id, {
+            ...note,
+            line: Number(to.dataset.noteLine),
+          })
+        : current;
     });
     announce.textContent = 'Notatet er flyttet.';
   }
@@ -110,7 +121,7 @@ export function attachNoteDrag(root: HTMLElement, update: (fn: (current: SongPer
       touch: event.pointerType === 'touch',
       cancelled: false,
       armed: false,
-      timer: setTimeout(begin, 450)
+      timer: setTimeout(begin, 450),
     };
   }
   function move(event: PointerEvent) {
@@ -135,7 +146,7 @@ export function attachNoteDrag(root: HTMLElement, update: (fn: (current: SongPer
     hold.lastY = hold.y;
   }
   function finish(event?: PointerEvent, cancel = false) {
-    if (!hold || event && event.pointerId !== hold.pointer) return;
+    if (!hold || (event && event.pointerId !== hold.pointer)) return;
     const current = hold;
     hold = undefined;
     clearTimeout(current.timer);
@@ -148,10 +159,18 @@ export function attachNoteDrag(root: HTMLElement, update: (fn: (current: SongPer
     if (current.ghost) {
       root.dispatchEvent(new CustomEvent('annotation-drag'));
       suppressClick = true;
-      if (!cancel && current.target) transfer(current.line, current.target);else announce.textContent = 'Flytting avbrutt.';
+      if (!cancel && current.target) transfer(current.line, current.target);
+      else announce.textContent = 'Flytting avbrutt.';
     }
     if (root.hasPointerCapture(current.pointer)) root.releasePointerCapture(current.pointer);
-    if (!cancel && !current.armed && !current.ghost && !current.cancelled && current.touch && current.note.isConnected) {
+    if (
+      !cancel &&
+      !current.armed &&
+      !current.ghost &&
+      !current.cancelled &&
+      current.touch &&
+      current.note.isConnected
+    ) {
       suppressClick = true;
       activate(current.note);
     }
@@ -188,18 +207,18 @@ export function attachNoteDrag(root: HTMLElement, update: (fn: (current: SongPer
       if (!canPlaceNote(root, note, to)) continue;
       transfer(from, to);
       to.querySelector<HTMLElement>('.personal-note')?.focus({
-        preventScroll: true
+        preventScroll: true,
       });
       break;
     }
   }
   root.addEventListener('touchstart', touchStart, {
-    passive: false
+    passive: false,
   });
   root.addEventListener('contextmenu', context);
   root.addEventListener('pointerdown', down, true);
   document.addEventListener('pointermove', move, {
-    passive: false
+    passive: false,
   });
   document.addEventListener('pointerup', up);
   document.addEventListener('pointercancel', cancel);

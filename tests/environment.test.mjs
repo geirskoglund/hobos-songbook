@@ -14,14 +14,30 @@ test('stable environment identities do not follow PR numbers or build SHA', () =
   assert.equal(c.namespace, b.namespace);
   assert.equal(c.base, b.base);
   assert.equal(b.name, "Hobo's Songbook Test");
-  for (const args of [['unknown', a.sha], ['test', 'master'], ['production', a.sha, '7'], ['test', a.sha, '0'], ['test', a.sha, '9007199254740992']]) assert.throws(() => environment(...args));
+  for (const args of [
+    ['unknown', a.sha],
+    ['test', 'master'],
+    ['production', a.sha, '7'],
+    ['test', a.sha, '0'],
+    ['test', a.sha, '9007199254740992'],
+  ])
+    assert.throws(() => environment(...args));
 });
 test('local preference boundary cannot read or remove its sibling settings', () => {
   const values = new Map();
-  const storage = {getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key)};
-  const a = localSettings('hobos-songbook-production', storage), b = localSettings('hobos-songbook-test', storage);
-  a.set('probe', 'production'); b.set('probe', 'test');
-  assert.equal(a.get('probe'), 'production'); assert.equal(b.get('probe'), 'test');
-  b.remove('probe'); assert.equal(a.get('probe'), 'production'); assert.equal(b.get('probe'), null);
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  };
+  const a = localSettings('hobos-songbook-production', storage),
+    b = localSettings('hobos-songbook-test', storage);
+  a.set('probe', 'production');
+  b.set('probe', 'test');
+  assert.equal(a.get('probe'), 'production');
+  assert.equal(b.get('probe'), 'test');
+  b.remove('probe');
+  assert.equal(a.get('probe'), 'production');
+  assert.equal(b.get('probe'), null);
   assert.throws(() => localSettings('temporary-pr-8', storage));
 });

@@ -1,36 +1,166 @@
-import {test,expect} from '@playwright/test';
-import {selectElement,importAndOpenSong,savedSongs,savedPersonal,tool,fillValue,editSong,rawEditor} from './song-helpers.mjs';
-const url='/hobos-songbook/test/';
-test.beforeEach(async({page,request})=>{await request.post('/__test__/reset');await page.goto(url);});
-test('chorus selection wraps whole logical lines, keyboard handles resize it and Remove keeps lyrics',async({page})=>{
- const source='{t: Refreng}\nEn\nTo\nTre\nFire';await importAndOpenSong(page,'ref.txt',source);await tool(page,'Refreng');const rows=page.locator('.song-line');await rows.nth(0).focus();await page.keyboard.press('Enter');await rows.nth(2).focus();await page.keyboard.press('Enter');await expect.poll(async()=>(await savedSongs(page))[0].original).toContain('{soc}\nEn\nTo\nTre\n{eoc}');
- await tool(page,'Refreng');await page.locator('.chorus .song-line').first().click();await expect(page.locator('.chorus-handle')).toHaveCount(2);await page.getByRole('button',{name:'Flytt slutten av refrenget',exact:true}).press('ArrowUp');await expect.poll(async()=>(await savedSongs(page))[0].original).toContain('To\n{eoc}\nTre');
- await selectElement(page,page.locator('.chorus > h2').first());await page.getByRole('button',{name:'Fjern',exact:true}).click();await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source);
+import {test, expect} from '@playwright/test';
+import {
+  selectElement,
+  importAndOpenSong,
+  savedSongs,
+  savedPersonal,
+  tool,
+  fillValue,
+  editSong,
+  rawEditor,
+} from './song-helpers.mjs';
+const url = '/hobos-songbook/test/';
+test.beforeEach(async ({page, request}) => {
+  await request.post('/__test__/reset');
+  await page.goto(url);
 });
-test('reference and dynamics tools insert, edit and remove their own source without touching unknown tags',async({page})=>{
- const source='{t: Elementer}\nEn\n{soc}\nKor\n{eoc}\nEtter\n{x_future: behold}';await importAndOpenSong(page,'elementer.txt',source);await tool(page,'Gjenta refreng');await page.locator('.song-line').first().click();await expect.poll(async()=>(await savedSongs(page))[0].original).toContain('{chorus}\nEn');await expect(page.locator('.editor-error')).toHaveCount(0);await page.getByRole('button',{name:'Angre',exact:true}).click();await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source);
- await tool(page,'Gjenta refreng');await page.locator('.song-line').filter({hasText:'Etter'}).click();await expect.poll(async()=>(await savedSongs(page))[0].original).toContain('{chorus}\nEtter');
- await tool(page,'Dynamikk');await page.locator('.song-line').filter({hasText:'Etter'}).click();await page.getByRole('spinbutton',{name:'Dynamikk',exact:true}).press('End');await page.keyboard.press('Escape');await expect.poll(async()=>(await savedSongs(page))[0].original).toContain('{x_dyn: 5}\nEtter');await expect(page.locator('.dynamic-marker')).toHaveText('5');
- await selectElement(page,page.locator('.dynamic-marker').first());await page.getByRole('button',{name:'Fjern',exact:true}).click();await expect.poll(async()=>(await savedSongs(page))[0].original).not.toContain('x_dyn');await selectElement(page,page.locator('.reference > h2').first());await page.getByRole('button',{name:'Fjern',exact:true}).click();await expect.poll(async()=>(await savedSongs(page))[0].original).toBe(source);
+test('chorus selection wraps whole logical lines, keyboard handles resize it and Remove keeps lyrics', async ({
+  page,
+}) => {
+  const source = '{t: Refreng}\nEn\nTo\nTre\nFire';
+  await importAndOpenSong(page, 'ref.txt', source);
+  await tool(page, 'Refreng');
+  const rows = page.locator('.song-line');
+  await rows.nth(0).focus();
+  await page.keyboard.press('Enter');
+  await rows.nth(2).focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await savedSongs(page))[0].original).toContain('{soc}\nEn\nTo\nTre\n{eoc}');
+  await tool(page, 'Refreng');
+  await page.locator('.chorus .song-line').first().click();
+  await expect(page.locator('.chorus-handle')).toHaveCount(2);
+  await page.getByRole('button', {name: 'Flytt slutten av refrenget', exact: true}).press('ArrowUp');
+  await expect.poll(async () => (await savedSongs(page))[0].original).toContain('To\n{eoc}\nTre');
+  await selectElement(page, page.locator('.chorus > h2').first());
+  await page.getByRole('button', {name: 'Fjern', exact: true}).click();
+  await expect.poll(async () => (await savedSongs(page))[0].original).toBe(source);
 });
-test('anvisning editing uses imported aliases and Remove deletes only the instruction',async({page})=>{
- await importAndOpenSong(page,'anvisning.cho','{t: Instruksjon}\n{c: Intro}\nOrd\n{x_unknown: behold}');await tool(page,'Anvisninger');await page.locator('.comment').click();await fillValue(page,'Anvisning','Fele alene');await expect.poll(async()=>(await savedSongs(page))[0].original).toContain('{c: Fele alene}');await selectElement(page,page.locator('.comment').first());await page.getByRole('button',{name:'Fjern',exact:true}).click();await expect.poll(async()=>(await savedSongs(page))[0].original).toBe('{t: Instruksjon}\nOrd\n{x_unknown: behold}');
+test('reference and dynamics tools insert, edit and remove their own source without touching unknown tags', async ({
+  page,
+}) => {
+  const source = '{t: Elementer}\nEn\n{soc}\nKor\n{eoc}\nEtter\n{x_future: behold}';
+  await importAndOpenSong(page, 'elementer.txt', source);
+  await tool(page, 'Gjenta refreng');
+  await page.locator('.song-line').first().click();
+  await expect.poll(async () => (await savedSongs(page))[0].original).toContain('{chorus}\nEn');
+  await expect(page.locator('.editor-error')).toHaveCount(0);
+  await page.getByRole('button', {name: 'Angre', exact: true}).click();
+  await expect.poll(async () => (await savedSongs(page))[0].original).toBe(source);
+  await tool(page, 'Gjenta refreng');
+  await page.locator('.song-line').filter({hasText: 'Etter'}).click();
+  await expect.poll(async () => (await savedSongs(page))[0].original).toContain('{chorus}\nEtter');
+  await tool(page, 'Dynamikk');
+  await page.locator('.song-line').filter({hasText: 'Etter'}).click();
+  await page.getByRole('spinbutton', {name: 'Dynamikk', exact: true}).press('End');
+  await page.keyboard.press('Escape');
+  await expect.poll(async () => (await savedSongs(page))[0].original).toContain('{x_dyn: 5}\nEtter');
+  await expect(page.locator('.dynamic-marker')).toHaveText('5');
+  await selectElement(page, page.locator('.dynamic-marker').first());
+  await page.getByRole('button', {name: 'Fjern', exact: true}).click();
+  await expect.poll(async () => (await savedSongs(page))[0].original).not.toContain('x_dyn');
+  await selectElement(page, page.locator('.reference > h2').first());
+  await page.getByRole('button', {name: 'Fjern', exact: true}).click();
+  await expect.poll(async () => (await savedSongs(page))[0].original).toBe(source);
 });
-test('long hold and keyboard move notes with stable IDs; Escape cancels a held move',async({page})=>{
- await importAndOpenSong(page,'flytt.txt','{t: Flytt}\nEn linje\nTo linjer\nTre linjer');await tool(page,'Notater',true);await page.locator('.song-line').first().click();await fillValue(page,'Notat','Flytt meg');await expect.poll(async()=>Object.keys((await savedPersonal(page))[0].notes??{}).length).toBe(1);const before=(await savedPersonal(page))[0],id=Object.keys(before.notes)[0];
- const note=page.locator('.personal-note'),a=await note.boundingBox(),target=await page.locator('.song-line').nth(2).boundingBox();await page.mouse.move(a.x+a.width/2,a.y+a.height/2);await page.mouse.down();await page.waitForTimeout(500);await page.mouse.move(target.x+10,target.y+target.height/2,{steps:8});await expect(page.locator('.note-drag-ghost')).toBeVisible();await page.mouse.up();await expect.poll(async()=>(await savedPersonal(page))[0].notes[id].line).toBe(2);expect((await savedPersonal(page))[0].notes[id].text).toBe('Flytt meg');
- await note.focus();await note.press('Alt+ArrowUp');await expect.poll(async()=>(await savedPersonal(page))[0].notes[id].line).toBe(1);
- const held=page.locator(`[data-note-id="${id}"]`),again=await held.boundingBox();await page.mouse.move(again.x+again.width/2,again.y+again.height/2);await page.mouse.down();await page.waitForTimeout(500);await page.mouse.move(target.x+10,target.y+target.height/2,{steps:6});await expect(page.locator('.note-drag-ghost')).toBeVisible();await page.keyboard.press('Escape');await page.mouse.up();await expect(page.locator('.note-drag-ghost')).toHaveCount(0);expect((await savedPersonal(page))[0].notes[id].line).toBe(1);
+test('anvisning editing uses imported aliases and Remove deletes only the instruction', async ({page}) => {
+  await importAndOpenSong(page, 'anvisning.cho', '{t: Instruksjon}\n{c: Intro}\nOrd\n{x_unknown: behold}');
+  await tool(page, 'Anvisninger');
+  await page.locator('.comment').click();
+  await fillValue(page, 'Anvisning', 'Fele alene');
+  await expect.poll(async () => (await savedSongs(page))[0].original).toContain('{c: Fele alene}');
+  await selectElement(page, page.locator('.comment').first());
+  await page.getByRole('button', {name: 'Fjern', exact: true}).click();
+  await expect
+    .poll(async () => (await savedSongs(page))[0].original)
+    .toBe('{t: Instruksjon}\nOrd\n{x_unknown: behold}');
 });
-test('chart cells keep content width, explicit empty beats, shape and labels after personal editing',async({page})=>{
- const source='{sog: shape="4x4"}\nVers |: Am | F | C | G :|\n{eog}\nTekst';await importAndOpenSong(page,'grid.cho',source);const bars=page.locator('.grid-row').first().locator('.grid-measure');await expect(bars).toHaveCount(4);const widths=await bars.evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().width));expect(Math.max(...widths)).toBeLessThan(80);expect(widths[1]).toBeLessThan(widths[0]);
- await tool(page,'Akkordskjema',true);await page.getByRole('textbox',{name:'Skjematekst',exact:true}).fill('| . . Am F | Am . . . . . G |');await page.getByRole('button',{name:'OK',exact:true}).click();await expect(page.locator('.grid-cell[aria-label="Tom akkordcelle"]')).toHaveCount(7);await expect.poll(async()=>(await savedPersonal(page))[0].chordGrid).toContain('. . . . .');expect((await savedSongs(page))[0].original).toBe(source);
+test('long hold and keyboard move notes with stable IDs; Escape cancels a held move', async ({page}) => {
+  await importAndOpenSong(page, 'flytt.txt', '{t: Flytt}\nEn linje\nTo linjer\nTre linjer');
+  await tool(page, 'Notater', true);
+  await page.locator('.song-line').first().click();
+  await fillValue(page, 'Notat', 'Flytt meg');
+  await expect.poll(async () => Object.keys((await savedPersonal(page))[0].notes ?? {}).length).toBe(1);
+  const before = (await savedPersonal(page))[0],
+    id = Object.keys(before.notes)[0];
+  const note = page.locator('.personal-note'),
+    a = await note.boundingBox(),
+    target = await page.locator('.song-line').nth(2).boundingBox();
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(500);
+  await page.mouse.move(target.x + 10, target.y + target.height / 2, {steps: 8});
+  await expect(page.locator('.note-drag-ghost')).toBeVisible();
+  await page.mouse.up();
+  await expect.poll(async () => (await savedPersonal(page))[0].notes[id].line).toBe(2);
+  expect((await savedPersonal(page))[0].notes[id].text).toBe('Flytt meg');
+  await note.focus();
+  await note.press('Alt+ArrowUp');
+  await expect.poll(async () => (await savedPersonal(page))[0].notes[id].line).toBe(1);
+  const held = page.locator(`[data-note-id="${id}"]`),
+    again = await held.boundingBox();
+  await page.mouse.move(again.x + again.width / 2, again.y + again.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(500);
+  await page.mouse.move(target.x + 10, target.y + target.height / 2, {steps: 6});
+  await expect(page.locator('.note-drag-ghost')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await expect(page.locator('.note-drag-ghost')).toHaveCount(0);
+  expect((await savedPersonal(page))[0].notes[id].line).toBe(1);
 });
-test('dots add one space each while ordinary chord spacing stays unchanged',async({page})=>{
- const text=[0,1,2,5].map(n=>'| '+'. '.repeat(n)+'G D | G '+'. '.repeat(n)+'D | G D '+'. '.repeat(n)+'|').join('\n');await importAndOpenSong(page,'punktum.cho','{sog}\n'+text+'\n{eog}\nTekst');
- for(const width of [1000,320]){await page.setViewportSize({width,height:900});const rows=await page.locator('.grid-row').evaluateAll(rows=>rows.map(row=>[...row.querySelectorAll('.grid-measure')].map(bar=>{const cells=bar.querySelector('.grid-cells'),box=cells.getBoundingClientRect(),chords=[...cells.querySelectorAll('.grid-chord')].map(n=>n.getBoundingClientRect());return{width:box.width,start:chords[0].left-box.left,gap:chords[1].left-chords[0].right,space:bar.querySelector('[aria-label="Tom akkordcelle"]')?.getBoundingClientRect().width};})));
- for(let i=1;i<rows.length;i++){const count=[1,2,5][i-1];for(let p=0;p<3;p++)expect(Math.abs(rows[i][p].width-rows[0][p].width-count*rows[i][p].space)).toBeLessThan(1);expect(Math.abs(rows[i][0].gap-rows[0][0].gap)).toBeLessThan(1);}expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);}
+test('chart cells keep content width, explicit empty beats, shape and labels after personal editing', async ({
+  page,
+}) => {
+  const source = '{sog: shape="4x4"}\nVers |: Am | F | C | G :|\n{eog}\nTekst';
+  await importAndOpenSong(page, 'grid.cho', source);
+  const bars = page.locator('.grid-row').first().locator('.grid-measure');
+  await expect(bars).toHaveCount(4);
+  const widths = await bars.evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().width));
+  expect(Math.max(...widths)).toBeLessThan(80);
+  expect(widths[1]).toBeLessThan(widths[0]);
+  await tool(page, 'Akkordskjema', true);
+  await page.getByRole('textbox', {name: 'Skjematekst', exact: true}).fill('| . . Am F | Am . . . . . G |');
+  await page.getByRole('button', {name: 'OK', exact: true}).click();
+  await expect(page.locator('.grid-cell[aria-label="Tom akkordcelle"]')).toHaveCount(7);
+  await expect.poll(async () => (await savedPersonal(page))[0].chordGrid).toContain('. . . . .');
+  expect((await savedSongs(page))[0].original).toBe(source);
 });
-test('an imported orphan reference stays readable and can be removed as its own element',async({page})=>{
- await importAndOpenSong(page,'orphan.cho','{t: Foreldreløs}\n{chorus}\nBehold ordene');await expect(page.locator('.reference > h2')).toHaveText('Refreng');await expect(page.locator('#song-body')).not.toContainText('ingen tidligere refrengtekst');await selectElement(page,page.locator('.reference > h2').first());await page.getByRole('button',{name:'Fjern',exact:true}).click();await expect.poll(async()=>(await savedSongs(page))[0].original).toBe('{t: Foreldreløs}\nBehold ordene');
+test('dots add one space each while ordinary chord spacing stays unchanged', async ({page}) => {
+  const text = [0, 1, 2, 5]
+    .map(n => '| ' + '. '.repeat(n) + 'G D | G ' + '. '.repeat(n) + 'D | G D ' + '. '.repeat(n) + '|')
+    .join('\n');
+  await importAndOpenSong(page, 'punktum.cho', '{sog}\n' + text + '\n{eog}\nTekst');
+  for (const width of [1000, 320]) {
+    await page.setViewportSize({width, height: 900});
+    const rows = await page.locator('.grid-row').evaluateAll(rows =>
+      rows.map(row =>
+        [...row.querySelectorAll('.grid-measure')].map(bar => {
+          const cells = bar.querySelector('.grid-cells'),
+            box = cells.getBoundingClientRect(),
+            chords = [...cells.querySelectorAll('.grid-chord')].map(n => n.getBoundingClientRect());
+          return {
+            width: box.width,
+            start: chords[0].left - box.left,
+            gap: chords[1].left - chords[0].right,
+            space: bar.querySelector('[aria-label="Tom akkordcelle"]')?.getBoundingClientRect().width,
+          };
+        }),
+      ),
+    );
+    for (let i = 1; i < rows.length; i++) {
+      const count = [1, 2, 5][i - 1];
+      for (let p = 0; p < 3; p++)
+        expect(Math.abs(rows[i][p].width - rows[0][p].width - count * rows[i][p].space)).toBeLessThan(1);
+      expect(Math.abs(rows[i][0].gap - rows[0][0].gap)).toBeLessThan(1);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  }
+});
+test('an imported orphan reference stays readable and can be removed as its own element', async ({page}) => {
+  await importAndOpenSong(page, 'orphan.cho', '{t: Foreldreløs}\n{chorus}\nBehold ordene');
+  await expect(page.locator('.reference > h2')).toHaveText('Refreng');
+  await expect(page.locator('#song-body')).not.toContainText('ingen tidligere refrengtekst');
+  await selectElement(page, page.locator('.reference > h2').first());
+  await page.getByRole('button', {name: 'Fjern', exact: true}).click();
+  await expect.poll(async () => (await savedSongs(page))[0].original).toBe('{t: Foreldreløs}\nBehold ordene');
 });

@@ -1,0 +1,5 @@
+# Rene formateringscommits. git blame og GitHub hopper over dem.
+# Lokalt: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Prettier på hele kodebasen (#47)
+ee693b0b9ca83375b1d42a44ec8af7cbdbc73fa7

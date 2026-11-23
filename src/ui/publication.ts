@@ -11,17 +11,22 @@ const tabs: {id: Tab; label: string; icon: string}[] = [
   {id: 'published', label: 'Publisert', icon: 'status-delt'},
 ];
 
-export function publicationPage(controller: ReturnType<typeof syncController>, bookFilter: {
-  books(): Songbook[];
-  selected(): string | null;
-  choose(id: string | null, book?: Songbook): void;
-  refreshed(books: Songbook[]): void;
-}) {
+export function publicationPage(
+  controller: ReturnType<typeof syncController>,
+  bookFilter: {
+    books(): Songbook[];
+    selected(): string | null;
+    choose(id: string | null, book?: Songbook): void;
+    refreshed(books: Songbook[]): void;
+  },
+) {
   const root = document.getElementById('publication')!;
   const summary = document.createElement('dl');
   summary.className = 'publication-summary';
   const totals = ['Totalt', 'Publisert', 'Upublisert'].map(label => {
-    const group = document.createElement('div'), term = document.createElement('dt'), value = document.createElement('dd');
+    const group = document.createElement('div'),
+      term = document.createElement('dt'),
+      value = document.createElement('dd');
     term.textContent = label;
     group.append(term, value);
     summary.append(group);
@@ -36,19 +41,36 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
   bar.setAttribute('aria-label', 'Valgte handlinger');
   const counts = document.createElement('p');
   counts.setAttribute('role', 'status');
-  const perform = primaryButton('Utfør', () => {void execute();}, 'synkroniser');
+  const perform = primaryButton(
+    'Utfør',
+    () => {
+      void execute();
+    },
+    'synkroniser',
+  );
   bar.append(counts, perform);
 
   const chosen = new Map<string, boolean>();
   let view: PublicationView = {songs: [], books: []};
-  let active: Tab = 'unpublished', account: string | undefined, available = false, checking = false, executing = false, ticket = 0;
-  let visit = 0, visible = false, resultText = '';
+  let active: Tab = 'unpublished',
+    account: string | undefined,
+    available = false,
+    checking = false,
+    executing = false,
+    ticket = 0;
+  let visit = 0,
+    visible = false,
+    resultText = '';
   const books = () => [...new Map([...bookFilter.books(), ...view.books].map(book => [book.id, book])).values()];
-  const filter = songbookFilter('publication-songbook-filter', 'publication', books, bookFilter.selected,
-    id => bookFilter.choose(id, id ? books().find(book => book.id === id) : undefined));
+  const filter = songbookFilter('publication-songbook-filter', 'publication', books, bookFilter.selected, id =>
+    bookFilter.choose(id, id ? books().find(book => book.id === id) : undefined),
+  );
   filter.button.hidden = true;
   document.getElementById('header-actions')!.append(filter.button);
-  const switcher = tabSwitcher('Publiseringsstatus', 'publication', tabs, active, id => {active = id; render();});
+  const switcher = tabSwitcher('Publiseringsstatus', 'publication', tabs, active, id => {
+    active = id;
+    render();
+  });
   const panels = tabs.map(({id}) => {
     const panel = document.createElement('div');
     panel.id = `publication-panel-${id}`;
@@ -64,8 +86,10 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
   });
   function visibleSongs() {
     const selectedBook = bookFilter.selected();
-    return view.songs.filter(song => song.published === (active === 'published')
-      && (selectedBook === null || song.songbookId === selectedBook));
+    return view.songs.filter(
+      song =>
+        song.published === (active === 'published') && (selectedBook === null || song.songbookId === selectedBook),
+    );
   }
   const allSelected = (songs: PublicationView['songs']) => songs.length > 0 && songs.every(song => chosen.has(song.id));
   const enabled = () => navigator.onLine && available && !checking && !executing;
@@ -85,18 +109,26 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
   tabRow.className = 'publication-tab-row';
   tabRow.append(switcher.element, selectAll);
   root.append(summary, status, tabRow, ...panels.map(({panel}) => panel), bar);
-  new ResizeObserver(() => root.style.setProperty('--publication-action-height', `${bar.getBoundingClientRect().height}px`)).observe(bar);
+  new ResizeObserver(() =>
+    root.style.setProperty('--publication-action-height', `${bar.getBoundingClientRect().height}px`),
+  ).observe(bar);
 
   function actionText(published: number, withdrawn: number, pending = false) {
     const files = (count: number) => `${count} ${count === 1 ? 'fil' : 'filer'}`;
-    return [published ? `${files(published)} ${pending ? 'publiseres' : 'ble publisert'}` : '',
-      withdrawn ? `${files(withdrawn)} ${pending ? 'avpubliseres' : 'ble avpublisert'}` : ''].filter(Boolean).join(' · ');
+    return [
+      published ? `${files(published)} ${pending ? 'publiseres' : 'ble publisert'}` : '',
+      withdrawn ? `${files(withdrawn)} ${pending ? 'avpubliseres' : 'ble avpublisert'}` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
   }
 
   function renderActions(songs = visibleSongs()) {
     const published = [...chosen.values()].filter(Boolean).length;
     const withdrawn = chosen.size - published;
-    const text = executing ? actionText(published, withdrawn, true) : resultText || `${published} valgt for publisering · ${withdrawn} for avpublisering`;
+    const text = executing
+      ? actionText(published, withdrawn, true)
+      : resultText || `${published} valgt for publisering · ${withdrawn} for avpublisering`;
     if (text !== counts.textContent) counts.textContent = text;
     perform.toggleAttribute('data-syncing', executing);
     perform.disabled = !enabled() || !chosen.size;
@@ -106,28 +138,41 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
   function render() {
     filter.render();
     const published = view.songs.filter(song => song.published).length;
-    [view.songs.length, published, view.songs.length - published].forEach((value, index) => totals[index].textContent = String(value));
+    [view.songs.length, published, view.songs.length - published].forEach(
+      (value, index) => (totals[index].textContent = String(value)),
+    );
     const visible = visibleSongs().sort((a, b) => a.title.localeCompare(b.title, 'nb'));
     for (const {id, panel, empty, list} of panels) {
       panel.hidden = id !== active;
-      if (panel.hidden) {list.replaceChildren(); continue;}
-      const focus = list.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.songId : undefined;
+      if (panel.hidden) {
+        list.replaceChildren();
+        continue;
+      }
+      const focus = list.contains(document.activeElement)
+        ? (document.activeElement as HTMLElement).dataset.songId
+        : undefined;
       const rows = visible.map(song => {
-        const {row, button} = metadataRow(song.title, [song.key, song.time].filter((value): value is string => Boolean(value)), () => {
-          if (!enabled()) return;
-          resultText = '';
-          if (chosen.has(song.id)) chosen.delete(song.id);
-          else chosen.set(song.id, !song.published);
-          setRowSelected(button, chosen.has(song.id), 'aria-pressed');
-          renderActions();
-        });
+        const {row, button} = metadataRow(
+          song.title,
+          [song.key, song.time].filter((value): value is string => Boolean(value)),
+          () => {
+            if (!enabled()) return;
+            resultText = '';
+            if (chosen.has(song.id)) chosen.delete(song.id);
+            else chosen.set(song.id, !song.published);
+            setRowSelected(button, chosen.has(song.id), 'aria-pressed');
+            renderActions();
+          },
+        );
         button.dataset.songId = song.id;
         button.disabled = !enabled();
         setRowSelected(button, chosen.has(song.id), 'aria-pressed');
         return {row, button};
       });
       list.replaceChildren(...rows.map(({row}) => row));
-      rows.find(({button}) => focus && button.dataset.songId === focus && !button.disabled)?.button.focus({preventScroll: true});
+      rows
+        .find(({button}) => focus && button.dataset.songId === focus && !button.disabled)
+        ?.button.focus({preventScroll: true});
       empty.hidden = visible.length > 0 || checking;
     }
     status.hidden = !status.textContent;
@@ -152,16 +197,21 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
       view = result.view;
       available = !result.message && navigator.onLine;
       if (available) bookFilter.refreshed(view.books);
-      status.textContent = navigator.onLine ? result.message ?? '' : offline;
+      status.textContent = navigator.onLine ? (result.message ?? '') : offline;
     } catch {
-      if (now === ticket) status.textContent = 'Kunne ikke lese publiseringsoversikten. Åpne Publisering igjen for å prøve på nytt.';
+      if (now === ticket)
+        status.textContent = 'Kunne ikke lese publiseringsoversikten. Åpne Publisering igjen for å prøve på nytt.';
     } finally {
-      if (now === ticket) {checking = false; render();}
+      if (now === ticket) {
+        checking = false;
+        render();
+      }
     }
   }
   async function execute() {
     if (!enabled() || !chosen.size) return;
-    const now = ticket, startedOnVisit = visit;
+    const now = ticket,
+      startedOnVisit = visit;
     const choices = Array.from(chosen, ([id, published]) => ({id, published}));
     executing = true;
     resultText = '';
@@ -178,12 +228,18 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
         resultText = actionText(published, moved.size - published);
       }
       const remaining = choices.length - result.completed.length;
-      status.textContent = remaining ? `${remaining} gjenstår.${result.message ? ` ${result.message}` : ''}` : result.message ?? '';
+      status.textContent = remaining
+        ? `${remaining} gjenstår.${result.message ? ` ${result.message}` : ''}`
+        : (result.message ?? '');
       available = !result.unavailable && navigator.onLine;
     } catch {
-      if (now === ticket) status.textContent = 'Kunne ikke kontrollere Dropbox-resultatet. De valgte handlingene er beholdt.';
+      if (now === ticket)
+        status.textContent = 'Kunne ikke kontrollere Dropbox-resultatet. De valgte handlingene er beholdt.';
     } finally {
-      if (now === ticket) {executing = false; render();}
+      if (now === ticket) {
+        executing = false;
+        render();
+      }
     }
   }
   document.addEventListener('app-layout', () => {
@@ -194,18 +250,28 @@ export function publicationPage(controller: ReturnType<typeof syncController>, b
     resultText = '';
     if (visible) render();
   });
-  window.addEventListener('online', () => {if (currentPage() === 'publication') void open();});
-  window.addEventListener('offline', () => {available = false; status.textContent = offline; render();});
-  return {open, render, accountChanged(id?: string) {
-    if (id === account) return;
-    account = id;
-    ticket++;
-    chosen.clear();
-    view = {songs: [], books: []};
-    resultText = '';
-    available = checking = executing = false;
-    status.textContent = '';
-    switcher.select('unpublished');
-    if (id && currentPage() === 'publication') void open();
-  }};
+  window.addEventListener('online', () => {
+    if (currentPage() === 'publication') void open();
+  });
+  window.addEventListener('offline', () => {
+    available = false;
+    status.textContent = offline;
+    render();
+  });
+  return {
+    open,
+    render,
+    accountChanged(id?: string) {
+      if (id === account) return;
+      account = id;
+      ticket++;
+      chosen.clear();
+      view = {songs: [], books: []};
+      resultText = '';
+      available = checking = executing = false;
+      status.textContent = '';
+      switcher.select('unpublished');
+      if (id && currentPage() === 'publication') void open();
+    },
+  };
 }

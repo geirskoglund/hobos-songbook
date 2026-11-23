@@ -1,6 +1,6 @@
-import type { Song, SongPersonal } from './song.ts';
-import { personalChanges } from './personal.ts';
-import { reconcilePersonal } from './annotations.ts';
+import type {Song, SongPersonal} from './song.ts';
+import {personalChanges} from './personal.ts';
+import {reconcilePersonal} from './annotations.ts';
 export interface DraftSnapshot {
   song: Song;
   personal: SongPersonal;
@@ -21,15 +21,24 @@ export function createEditSession(initial: Song, personal: SongPersonal, saved: 
     groupRedo: typeof redo = [];
   const snapshot = (): DraftSnapshot => ({
     song: structuredClone(song),
-    personal: structuredClone(state)
+    personal: structuredClone(state),
   });
-  const equal = (a: DraftSnapshot, b: DraftSnapshot) => a.song.original === b.song.original && !personalChanges({
-    ...a.personal,
-    chorus: b.personal.chorus
-  }, b.personal) && !personalChanges({
-    ...b.personal,
-    chorus: a.personal.chorus
-  }, a.personal);
+  const equal = (a: DraftSnapshot, b: DraftSnapshot) =>
+    a.song.original === b.song.original &&
+    !personalChanges(
+      {
+        ...a.personal,
+        chorus: b.personal.chorus,
+      },
+      b.personal,
+    ) &&
+    !personalChanges(
+      {
+        ...b.personal,
+        chorus: a.personal.chorus,
+      },
+      a.personal,
+    );
   function record(before: DraftSnapshot) {
     const after = snapshot();
     if (equal(before, after)) return;
@@ -38,27 +47,29 @@ export function createEditSession(initial: Song, personal: SongPersonal, saved: 
       if (!groupEntry) {
         groupEntry = {
           before: group,
-          after
+          after,
         };
         undo.push(groupEntry);
       } else groupEntry.after = after;
-    } else undo.push({
-      before,
-      after
-    });
+    } else
+      undo.push({
+        before,
+        after,
+      });
   }
   function restore(target: DraftSnapshot) {
     const chorus = reconcilePersonal(song, target.song, {
       ...state,
-      annotations: undefined
+      annotations: undefined,
     }).chorus;
     song = structuredClone(target.song);
     state = {
       ...structuredClone(target.personal),
-      chorus
+      chorus,
     };
   }
-  const pendingChange = () => personalChanges(baselineSong ? reconcilePersonal(baselineSong, song, baselinePersonal) : baselinePersonal, state);
+  const pendingChange = () =>
+    personalChanges(baselineSong ? reconcilePersonal(baselineSong, song, baselinePersonal) : baselinePersonal, state);
   return {
     get song() {
       return song;
@@ -83,14 +94,16 @@ export function createEditSession(initial: Song, personal: SongPersonal, saved: 
     updateView(chorus: SongPersonal['chorus']) {
       state = {
         ...state,
-        chorus
+        chorus,
       };
       baselinePersonal = {
         ...baselinePersonal,
-        chorus: baselineSong ? reconcilePersonal(song, baselineSong, {
-          ...state,
-          annotations: undefined
-        }).chorus : chorus
+        chorus: baselineSong
+          ? reconcilePersonal(song, baselineSong, {
+              ...state,
+              annotations: undefined,
+            }).chorus
+          : chorus,
       };
     },
     replaceOriginal(next: Song, change?: (current: SongPersonal) => SongPersonal) {
@@ -144,7 +157,7 @@ export function createEditSession(initial: Song, personal: SongPersonal, saved: 
     markSaved(snapshot: DraftSnapshot) {
       baselineSong = snapshot.song;
       baselinePersonal = snapshot.personal;
-    }
+    },
   };
 }
 export type EditSession = ReturnType<typeof createEditSession>;

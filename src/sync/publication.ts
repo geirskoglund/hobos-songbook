@@ -30,10 +30,12 @@ export function publicationCatalog(snapshot: SyncSnapshot) {
     if (!ownSong(link) || !link.fileId || manifest.deletedSongs?.[link.id]) continue;
     const local = records.get(link.id);
     if (localIds.has(link.id) && !local) continue;
-    const physical = find(link.fileId), root = roots.get(link.songbookId);
+    const physical = find(link.fileId),
+      root = roots.get(link.songbookId);
     const location = physical && !physical.folder && songLocation(physical.path);
     const entry = root && location && pathKey(location.bookPath) === pathKey(root.path) ? physical : undefined;
-    if (entry || local?.songbookId === link.songbookId) records.set(link.id, {...local, id: link.id, songbookId: link.songbookId, link, entry});
+    if (entry || local?.songbookId === link.songbookId)
+      records.set(link.id, {...local, id: link.id, songbookId: link.songbookId, link, entry});
   }
   return {manifest, records, roots, books, find};
 }
@@ -48,11 +50,20 @@ export function publicationView(source: SyncSnapshot, identities = syncIdentitie
     const base = snapshot.state.bases[id];
     const localEdit = local && (!base || local.original !== base.original);
     const filename = link?.origin.filename || entry?.path.split('/').at(-1) || '';
-    const metadata = stored && stored.rev === entry?.rev && !localEdit ? stored
-      : local ? parseChordPro(local.original, local.title)
-      : {title: filename.replace(/\.cho$/i, ''), key: null, time: null};
-    return {id: songId(id), songbookId: bookId(songbookId), title: metadata.title, key: metadata.key, time: metadata.time,
-      published: songLocation(entry?.path ?? (snapshot.state.remote ? '' : link?.path ?? ''))?.area === 'Shared'};
+    const metadata =
+      stored && stored.rev === entry?.rev && !localEdit
+        ? stored
+        : local
+          ? parseChordPro(local.original, local.title)
+          : {title: filename.replace(/\.cho$/i, ''), key: null, time: null};
+    return {
+      id: songId(id),
+      songbookId: bookId(songbookId),
+      title: metadata.title,
+      key: metadata.key,
+      time: metadata.time,
+      published: songLocation(entry?.path ?? (snapshot.state.remote ? '' : (link?.path ?? '')))?.area === 'Shared',
+    };
   });
   const books = Array.from(catalog.books.values(), book => ({id: bookId(book.id), name: book.name}));
   return {songs, books};
@@ -62,9 +73,13 @@ export function publicationError(error: unknown): string {
   const {code, action} = failureInfo(error, 'publication');
   if (code === failureCodes.throttled) return 'Dropbox ber om en pause. Prøv igjen om litt.';
   if (action === 'reconnect') return 'Koble til Dropbox på nytt i Synkronisering.';
-  if (code === failureCodes.permission) return 'Dropbox ga ikke nødvendig tilgang. Kontroller tilkoblingen i Synkronisering.';
-  if (action === 'check-move' || error instanceof PublicationInProgress) return 'Dropbox har ennå ikke bekreftet alle flyttingene. Prøv igjen for å kontrollere status.';
-  if (code === failureCodes.network || error instanceof DeferredSync && error.reason === 'connection') return 'Dropbox er utilgjengelig akkurat nå. Åpne Publisering på nytt når forbindelsen er tilbake.';
-  if (error instanceof DeferredSync && error.reason === 'remote') return 'Dropbox har en uferdig overføring. Prøv igjen når den er ferdig.';
+  if (code === failureCodes.permission)
+    return 'Dropbox ga ikke nødvendig tilgang. Kontroller tilkoblingen i Synkronisering.';
+  if (action === 'check-move' || error instanceof PublicationInProgress)
+    return 'Dropbox har ennå ikke bekreftet alle flyttingene. Prøv igjen for å kontrollere status.';
+  if (code === failureCodes.network || (error instanceof DeferredSync && error.reason === 'connection'))
+    return 'Dropbox er utilgjengelig akkurat nå. Åpne Publisering på nytt når forbindelsen er tilbake.';
+  if (error instanceof DeferredSync && error.reason === 'remote')
+    return 'Dropbox har en uferdig overføring. Prøv igjen når den er ferdig.';
   return 'Kunne ikke fullføre Dropbox-handlingen. Prøv igjen.';
 }

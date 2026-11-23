@@ -1,6 +1,6 @@
-import { logicalLines, notePlacements } from '../domain/annotations.ts';
-import type { Song, SongPersonal } from '../domain/song.ts';
-import { noteAnchor } from './note-position.ts';
+import {logicalLines, notePlacements} from '../domain/annotations.ts';
+import type {Song, SongPersonal} from '../domain/song.ts';
+import {noteAnchor} from './note-position.ts';
 
 /** Rendering never decides whether a saved note is still valid. Every note gets a visible placement. */
 export function paintAnnotations(root: HTMLElement, song: Song, personal: SongPersonal) {
@@ -34,8 +34,12 @@ export function paintAnnotations(root: HTMLElement, song: Song, personal: SongPe
   const overflow = document.createElement('div');
   overflow.className = 'note-overflow';
   let extra = lines.length;
-  for (const placement of notePlacements(personal, meaningful ? available.map(row => Number(row.dataset.noteLine)) : [])) {
-    let row = placement.line === undefined ? undefined : available.find(row => Number(row.dataset.noteLine) === placement.line);
+  for (const placement of notePlacements(
+    personal,
+    meaningful ? available.map(row => Number(row.dataset.noteLine)) : [],
+  )) {
+    let row =
+      placement.line === undefined ? undefined : available.find(row => Number(row.dataset.noteLine) === placement.line);
     if (!row) {
       row = document.createElement('div');
       row.className = 'note-overflow-row';
@@ -67,10 +71,12 @@ export function attachAnnotationGeometry(root: HTMLElement) {
   root.append(svg);
   let frame = 0,
     disposed = false,
-    drag: {
-      ghost: HTMLElement;
-      target?: HTMLElement;
-    } | undefined;
+    drag:
+      | {
+          ghost: HTMLElement;
+          target?: HTMLElement;
+        }
+      | undefined;
   const draw = () => {
     frame = 0;
     if (disposed) return;
@@ -83,7 +89,14 @@ export function attachAnnotationGeometry(root: HTMLElement) {
       note.style.top = `${top - bounds.top}px`;
       previousBottom = top + note.offsetHeight + 8;
     }
-    const contentBottom = Math.max(origin.top, ...[...root.querySelectorAll<HTMLElement>('.song-line,.comment,.unknown,.chorus > h2,.song-end,.note-overflow-row')].filter(row => !row.closest('[hidden]')).map(row => row.getBoundingClientRect().bottom));
+    const contentBottom = Math.max(
+      origin.top,
+      ...[
+        ...root.querySelectorAll<HTMLElement>('.song-line,.comment,.unknown,.chorus > h2,.song-end,.note-overflow-row'),
+      ]
+        .filter(row => !row.closest('[hidden]'))
+        .map(row => row.getBoundingClientRect().bottom),
+    );
     root.style.setProperty('--note-extra', `${Math.max(0, previousBottom - contentBottom)}px`);
     svg.setAttribute('height', String(Math.max(root.clientHeight, previousBottom - origin.top)));
     svg.replaceChildren();
@@ -97,7 +110,7 @@ export function attachAnnotationGeometry(root: HTMLElement) {
         y1 = anchor.y;
       const endpoint = x <= bounds.left ? bounds.left : bounds.right;
       const y = bounds.top + bounds.height / 2 - origin.top,
-        line = document.createElementNS(ns, Math.abs(y - (y1 - origin.top)) < .5 ? 'line' : 'path');
+        line = document.createElementNS(ns, Math.abs(y - (y1 - origin.top)) < 0.5 ? 'line' : 'path');
       line.dataset.noteConnection = note.dataset.noteId;
       if (moving) line.dataset.dragging = 'true';
       if (line.tagName === 'line') {
@@ -127,7 +140,7 @@ export function attachAnnotationGeometry(root: HTMLElement) {
   });
   mutations.observe(root, {
     childList: true,
-    subtree: true
+    subtree: true,
   });
   document.fonts.ready.then(schedule);
   document.fonts.addEventListener('loadingdone', schedule);

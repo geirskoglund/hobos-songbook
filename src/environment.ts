@@ -16,8 +16,14 @@ export function environment(channel: string, sha: string, pr: string = ''): AppE
   if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('Bygget krever en full kilde-SHA.');
   if (pr && (!/^[1-9][0-9]*$/.test(pr) || !Number.isSafeInteger(Number(pr)))) throw new Error('Ugyldig PR-nummer.');
   if (channel === 'production' && pr) throw new Error('Produksjon kan bare bygges fra master.');
-  return {version: 1, kind: 'app', channel, sha, pr: pr ? Number(pr) : null,
+  return {
+    version: 1,
+    kind: 'app',
+    channel,
+    sha,
+    pr: pr ? Number(pr) : null,
     name: channel === 'production' ? "Hobo's Songbook" : "Hobo's Songbook Test",
     base: `/hobos-songbook/${channel === 'production' ? 'app' : 'test'}/`,
-    namespace: `hobos-songbook-${channel === 'production' ? 'production' : 'test'}`};
+    namespace: `hobos-songbook-${channel === 'production' ? 'production' : 'test'}`,
+  };
 }

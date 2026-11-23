@@ -1,6 +1,6 @@
-import { actionButton, icon, textInput } from './controls.ts';
-import { dialogFrame, openDialog } from './dialog.ts';
-import { placeOverlay } from './layout.ts';
+import {actionButton, icon, textInput} from './controls.ts';
+import {dialogFrame, openDialog} from './dialog.ts';
+import {placeOverlay} from './layout.ts';
 export function valueControl(options: {
   name: string;
   icon: string;
@@ -41,10 +41,7 @@ export function valueControl(options: {
   let focus: HTMLElement,
     finish = () => true;
   if (options.numeric) {
-    const {
-      min,
-      max
-    } = options.numeric;
+    const {min, max} = options.numeric;
     let value = Number(options.value);
     const row = document.createElement('div');
     row.className = 'numeric-value';
@@ -68,7 +65,16 @@ export function valueControl(options: {
     less.setAttribute('aria-label', `Reduser ${options.name.toLowerCase()}`);
     more.setAttribute('aria-label', `Øk ${options.name.toLowerCase()}`);
     row.addEventListener('keydown', event => {
-      const n = event.key === 'Home' ? min : event.key === 'End' ? max : ['ArrowUp', 'ArrowRight'].includes(event.key) ? value + 1 : ['ArrowDown', 'ArrowLeft'].includes(event.key) ? value - 1 : undefined;
+      const n =
+        event.key === 'Home'
+          ? min
+          : event.key === 'End'
+            ? max
+            : ['ArrowUp', 'ArrowRight'].includes(event.key)
+              ? value + 1
+              : ['ArrowDown', 'ArrowLeft'].includes(event.key)
+                ? value - 1
+                : undefined;
       if (n !== undefined) {
         event.preventDefault();
         set(n);
@@ -124,21 +130,29 @@ export function valueControl(options: {
   const lifecycle = openDialog(box, {
     opener: options.anchor,
     focus,
-    place: () => placeOverlay(box, undefined, {
-      width: options.numeric ? 230 : 320,
-      point: options.point ?? {x: rect.left, y: Math.max(rect.bottom, options.anchor.closest('.edit-toolbar')?.getBoundingClientRect().bottom ?? rect.bottom) + 12}
-    }),
+    place: () =>
+      placeOverlay(box, undefined, {
+        width: options.numeric ? 230 : 320,
+        point: options.point ?? {
+          x: rect.left,
+          y:
+            Math.max(
+              rect.bottom,
+              options.anchor.closest('.edit-toolbar')?.getBoundingClientRect().bottom ?? rect.bottom,
+            ) + 12,
+        },
+      }),
     outside: true,
     cancel: close,
     closed: () => {
       closing = true;
       clearTimeout(timer);
       options.closed();
-    }
+    },
   });
   return {
     close,
     discard: () => lifecycle.close(),
-    dirty: () => invalid || pending()
+    dirty: () => invalid || pending(),
   };
 }
