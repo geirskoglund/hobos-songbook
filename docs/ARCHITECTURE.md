@@ -91,7 +91,7 @@ Begge Dropbox-appene er App Folder med `account_info.read`, `files.metadata.read
 ```text
 /Songbooks/<sangbok>/Private/<sang>.cho   egne sanger
 /Songbooks/<sangbok>/Shared/<sang>.cho    publiserte sanger
-/Songbooks/<sangbok>/Import/              opprettes med boken, reservert for utvidet import
+/Songbooks/<sangbok>/Import/              opprettes med boken; appen bruker den ikke ennå
 /Songbooks/<sangbok>/Originals/<fil>      uendret kopi av importert fil med annen endelse
 /Deleted/<sangbok> YYYY-MM-DD HHmm/       arkiv av slettet bokmappe
 /.app/library.json                        manifest: bøker, sanger, fil- og mappekoblinger, slettemarkører
