@@ -36,3 +36,17 @@ På Windows feiler 6 tester som består i CI (npm uten shell, symlenker, utklipp
 ## Dokumentasjon
 
 Produktsannheten står i `docs/REQUIREMENTS.md`, `docs/DECISIONS.md`, `docs/DESIGN.md` og `docs/ARCHITECTURE.md`. Les målrettet; dokumentene er store og skal ryddes. Oppdater dem bare når en produktregel endres, og bare ett sted. Historikk hører hjemme i git og issues, ikke i dokumentene.
+
+## Agent skills
+
+### Issue tracker
+
+Issues spores i GitHub Issues (geirskoglund/hobos-songbook) via `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Standard vocabulary: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context; beslutninger i `docs/DECISIONS.md`, ikke `docs/adr/`. See `docs/agents/domain.md`.
