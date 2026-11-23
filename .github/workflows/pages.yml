@@ -8,7 +8,8 @@ on:
         default: keep
         type: string
   workflow_run:
-    workflows: [Validate]
+    # Validate publishes test. E2E on master completes the evidence production needs (scripts/pages-plan.mjs).
+    workflows: [Validate, E2E]
     types: [completed]
 permissions:
   contents: read

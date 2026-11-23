@@ -31,6 +31,7 @@ const options = (patch = {}) => ({
   previous: metadata(),
   getPull: async () => pull(),
   isValidated: async () => true,
+  isTested: async () => true,
   hasApp: async () => true,
   ...patch,
 });
@@ -219,4 +220,98 @@ test('stale plans fail if master, test selection, PR head/state or validation ch
     {isValidated: async () => false},
   ])
     await assert.rejects(assertPlanCurrent(plan, options(change)));
+});
+test('test follows a validated PR head without waiting for E2E', async () => {
+  const plan = await planPages(
+    options({
+      eventName: 'workflow_run',
+      event: {workflow_run: run()},
+      isTested: async () => {
+        throw Error('PR test must not wait for E2E');
+      },
+    }),
+  );
+  assert.deepEqual(plan.metadata.preview, source(c));
+  assert.equal(plan.held, null);
+});
+test('new master waits for green E2E before production; test can still move meanwhile', async () => {
+  const tested = new Set();
+  const isTested = async sha => tested.has(sha);
+  const push = trigger => ({
+    masterSha: c,
+    eventName: 'workflow_run',
+    trigger,
+    event: {workflow_run: run({event: 'push', head_sha: c, head_branch: 'master'})},
+    isTested,
+  });
+  // Validate finishes first: nothing to publish yet.
+  assert.equal(await planPages(options(push('validate'))), null);
+  // A PR selected meanwhile reaches test, production keeps the published commit.
+  const pr = await planPages(
+    options({
+      masterSha: c,
+      selection: '7',
+      isTested,
+      getPull: async () => pull({head: {sha: b, repo: {full_name: repository}}}),
+    }),
+  );
+  assert.deepEqual(pr.metadata.production, source(a, null));
+  assert.deepEqual(pr.metadata.preview, source(b));
+  assert.equal(pr.held, 'e2e');
+  // Master selected for test while E2E is pending shows the published production commit.
+  assert.deepEqual(
+    (await planPages(options({masterSha: c, selection: 'master', isTested}))).metadata.preview,
+    source(a, null),
+  );
+  // E2E finishes green: production follows master.
+  tested.add(c);
+  const plan = await planPages(options(push('e2e')));
+  assert.deepEqual(plan.metadata.production, source(c, null));
+  assert.equal(plan.held, null);
+});
+test('E2E completion on a PR never deploys or validates', async () => {
+  const fail = async () => {
+    throw Error('should not run');
+  };
+  assert.equal(
+    await planPages(
+      options({
+        eventName: 'workflow_run',
+        trigger: 'e2e',
+        event: {workflow_run: run()},
+        isValidated: fail,
+        isTested: fail,
+        docsOnlySince: fail,
+      }),
+    ),
+    null,
+  );
+});
+test('documentation-only master needs no E2E to keep production', async () => {
+  const plan = await planPages(
+    options({
+      masterSha: c,
+      selection: 'master',
+      docsOnlySince: async () => true,
+      isTested: async () => {
+        throw Error('should not run');
+      },
+    }),
+  );
+  assert.equal(plan.held, 'docs');
+  assert.deepEqual(plan.metadata.production, source(a, null));
+});
+test('first production requires E2E on exact master', async () => {
+  await assert.rejects(
+    planPages(options({previous: null, hasApp: async () => false, isTested: async () => false})),
+    /E2E/,
+  );
+});
+test('recheck before deploy requires E2E for new production only', async () => {
+  const kept = await planPages(options({selection: '7'}));
+  await assertPlanCurrent(kept, options({isTested: async () => false}));
+  const moved = await planPages(options({masterSha: c}));
+  assert.equal(moved.metadata.production.sha, c);
+  await assertPlanCurrent(moved, options({masterSha: c}));
+  await assert.rejects(assertPlanCurrent(moved, options({masterSha: c, isTested: async () => false})), /E2E/);
 });

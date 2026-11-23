@@ -63,8 +63,10 @@ export async function planPages({
   previous,
   getPull,
   isValidated,
+  isTested,
   hasApp,
   docsOnlySince = async () => false,
+  trigger = 'validate',
 }) {
   requireThat(validSha(masterSha), 'Ugyldig master-commit.');
   const old = previous === null ? null : parseDeployment(previous);
@@ -73,10 +75,17 @@ export async function planPages({
     selection === 'keep' || selection === 'master' || (/^[1-9][0-9]*$/.test(selection) && validPr(Number(selection))),
     'Velg keep, master eller PR-nummer.',
   );
-  // Master channels publish the latest code change. When everything after the published production
-  // commit is documentation (scripts/change-scope.mjs), it is kept, so users get no update without a change.
-  const keepProduction =
-    Boolean(old) && old.production.sha !== masterSha && (await docsOnlySince(old.production.sha, masterSha)) === true;
+  // Test needs only Validate. E2E on a PR gates merge, not publishing, so its completion changes nothing here.
+  if (eventName === 'workflow_run' && trigger !== 'validate' && event.workflow_run?.event !== 'push') return null;
+  // Master channels publish the latest code change once Validate and E2E are green for it. Until E2E is green,
+  // and when everything after the published production commit is documentation (scripts/change-scope.mjs),
+  // the published production is kept, so users get no untested or unchanged update.
+  let held = null;
+  if (old && old.production.sha !== masterSha) {
+    if ((await docsOnlySince(old.production.sha, masterSha)) === true) held = 'docs';
+    else if (!(await isTested(masterSha))) held = 'e2e';
+  }
+  const keepProduction = held !== null;
   const masterSource = keepProduction ? old.production.sha : masterSha;
   let preview = selection === 'keep' && old ? {...old.preview} : {sha: masterSource, pr: null};
   let followPr = false;
@@ -110,6 +119,7 @@ export async function planPages({
     } else return null;
   }
   requireThat(await isValidated(masterSha, null), 'Eksakt master-commit mangler grønn Validate/push.');
+  if (!old) requireThat(await isTested(masterSha), 'Eksakt master-commit mangler grønn E2E/push.');
   if (keepProduction)
     requireThat(await isValidated(masterSource, null), 'Publisert produksjonscommit mangler grønn Validate/push.');
   requireThat(await isValidated(preview.sha, preview.pr), 'Eksakt testcommit mangler grønn Validate fra riktig kilde.');
@@ -125,11 +135,11 @@ export async function planPages({
   const metadata = parseDeployment({version: 1, repository, production, preview});
   // An automatic run that would publish exactly what is already published, does not deploy.
   if (eventName === 'workflow_run' && JSON.stringify(metadata) === JSON.stringify(old)) return null;
-  return {metadata, previous: old, followPr, master: masterSha};
+  return {metadata, previous: old, followPr, master: masterSha, held};
 }
 
 /** Recheck immediately before uploading/deploying; queued runs cannot overwrite newer state. */
-export async function assertPlanCurrent(plan, {masterSha, previous, getPull, isValidated}) {
+export async function assertPlanCurrent(plan, {masterSha, previous, getPull, isValidated, isTested}) {
   requireThat(validSha(plan.master) && masterSha === plan.master, 'Master er endret under bygg. Kjør ny publisering.');
   const current = previous === null ? null : parseDeployment(previous);
   requireThat(JSON.stringify(current) === JSON.stringify(plan.previous), 'Publisert testvalg er endret under bygg.');
@@ -143,4 +153,7 @@ export async function assertPlanCurrent(plan, {masterSha, previous, getPull, isV
   for (const source of [plan.metadata.production, plan.metadata.preview]) {
     requireThat(await isValidated(source.sha, source.pr), 'Kildevalidering er ikke lenger grønn.');
   }
+  const {production} = plan.metadata;
+  if (production.sha !== plan.previous?.production.sha)
+    requireThat(await isTested(production.sha), 'Ny produksjonscommit mangler grønn E2E.');
 }

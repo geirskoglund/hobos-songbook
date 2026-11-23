@@ -49,10 +49,15 @@ test('renames count both names, and empty or truncated lists are code', () => {
   assert.equal(classifyChanges([{filename: 'docs/a.md'}], false).docsOnly, false);
 });
 
-test('ci.yml marks skipped runs with the step name publishing rejects', async () => {
-  const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
-  assert.ok(workflow.includes(`- name: '${docsOnlyStep}'`));
-  assert.match(workflow, /- run: npm run check\r?\n\s+if: steps\.scope\.outputs\.docs-only != 'true'/);
+test('ci.yml and e2e.yml mark skipped runs with the step name publishing rejects', async () => {
+  for (const [file, step] of [
+    ['ci.yml', /- run: npm run check:quick\r?\n\s+if: steps\.scope\.outputs\.docs-only != 'true'/],
+    ['e2e.yml', /- run: npm run test:e2e\r?\n\s+if: steps\.scope\.outputs\.docs-only != 'true'/],
+  ]) {
+    const workflow = await readFile(new URL(`../.github/workflows/${file}`, import.meta.url), 'utf8');
+    assert.ok(workflow.includes(`- name: '${docsOnlyStep}'`), file);
+    assert.match(workflow, step);
+  }
 });
 
 const sha = 'a'.repeat(40);

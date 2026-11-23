@@ -1,0 +1,62 @@
+name: E2E
+on:
+  pull_request:
+  push:
+    branches: [master]
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  # Runs alongside Validate. Required for merge and, on master, for production; test does not wait for it.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Test the same immutable source SHA that Validate checks and Pages builds.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .ci-infra
+          persist-credentials: false
+      # Same documentation-only rule as Validate; push to master always runs in full.
+      - name: Decide scope from GitHub's file list
+        id: scope
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const {decideScope} = await import(`${process.env.GITHUB_WORKSPACE}/.ci-infra/scripts/validate-scope.mjs`);
+            await decideScope({github, context, core});
+      # Publishing rejects runs where this step ran. Keep the name in sync with docsOnlyStep in change-scope.mjs.
+      - name: 'Bare dokumentasjon: tunge steg hoppet over'
+        if: steps.scope.outputs.docs-only == 'true'
+        run: echo "Bare dokumentasjon er endret. Se sammendraget for filene som avgjorde det."
+      - uses: actions/setup-node@v5
+        if: steps.scope.outputs.docs-only != 'true'
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+        if: steps.scope.outputs.docs-only != 'true'
+      - uses: actions/cache@v4
+        if: steps.scope.outputs.docs-only != 'true'
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install pinned Playwright Chromium
+        if: steps.scope.outputs.docs-only != 'true'
+        timeout-minutes: 5
+        run: npx playwright install chromium
+      - run: npm run test:e2e
+        if: steps.scope.outputs.docs-only != 'true'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results/
