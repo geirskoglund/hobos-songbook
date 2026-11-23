@@ -219,7 +219,7 @@ Historiske Dropbox-forsøk er bevart i [issue #1, del 3](https://github.com/geir
 
 ## 9. Repo, miljøer og arbeidsmåte
 
-**[B]** Public repo `geirskoglund/hobos-songbook`, standardbranch `master`. Produksjon er `https://geirskoglund.github.io/hobos-songbook/app/`, test `https://geirskoglund.github.io/hobos-songbook/test/`. To separate PWA-identiteter/scopes/cacher/lagringsnavn; én valgt implementerings-PR om gangen, ingen permanent testbranch. Dropbox-appidentiteter bevares i [ARCHITECTURE](ARCHITECTURE.md#privat-dropbox-og-senere-kildesynk).
+**[B]** Public repo `geirskoglund/hobos-songbook`, standardbranch `master`. Produksjon er `https://geirskoglund.github.io/hobos-songbook/app/`, test `https://geirskoglund.github.io/hobos-songbook/test/`. To separate PWA-identiteter/scopes/cacher/lagringsnavn; én valgt implementerings-PR om gangen, ingen permanent testbranch. Dropbox-appidentiteter bevares i [ARCHITECTURE](ARCHITECTURE.md#kanaler).
 
 **[B]** Selvstendige issues og korte agentinstruksjoner. Klargjøring supplerer bare aktuell issue, uten repoendringer. Implementerer lager branch, PR, testutgave og itererer på brukerens tilbakemelding. Koding krever uttrykkelig bestilling; merge krever uttrykkelig godkjenning etter relevant test. Relevant dokumentasjon oppdateres i samme bestilte PR. Ved UI-arbeid gjelder kildeansvar og målregler i [DESIGN](DESIGN.md#bruk-av-designsystemet). Skjermbildeskisser i nåværende og fremtidige issues er skisser: ved avvik brukes eksisterende avklart design, med mindre en uttrykkelig produktbeslutning endrer det. Hver UI-leveranse har nummerert, sporbar egensjekk etter TESTING; gjenbrukte komponenter og arvede avvik omfattes også.
 
