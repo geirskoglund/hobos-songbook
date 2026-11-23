@@ -19,8 +19,6 @@ Produksjon: https://geirskoglund.github.io/hobos-songbook/app/ · Test: https://
 - `npx playwright test tests/e2e/<fil>.spec.mjs`: én e2e-fil. Hele suiten (`npm run test:e2e`) tar ca. 8 min; kjør den bare ved brede endringer, CI kjører den uansett.
 - `npm run check`: full validering, som i CI
 
-På Windows feiler 6 tester som består i CI (npm uten shell, symlenker, utklippstavle). De er kjente og skyldes ikke endringen din.
-
 ## Design og UI
 
 - Designsystemet er bindende: komponentene i `docs/design/README.md` (ID, navn, SVG) og fargene i `src/theme.css`. Gjenbruk eksisterende kontroller; nye kontrolltyper krever produktavklaring.

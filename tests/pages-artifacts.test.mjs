@@ -147,7 +147,16 @@ test('bad identity, source, manifest, icon, worker and symlink block all output 
     async dir => writeFile(join(dir, 'icon-192.png'), png(180)),
     async dir => writeFile(join(dir, 'icon-512.png'), 'not a PNG'),
     async dir => rm(join(dir, 'sw.js')),
-    async dir => symlink('/etc/passwd', join(dir, 'leak.txt')),
+    async dir => {
+      try {
+        await symlink('/etc/passwd', join(dir, 'leak.txt'));
+      } catch (error) {
+        // Windows requires administrator rights or developer mode to create symlinks.
+        if (error.code !== 'EPERM') throw error;
+        t.diagnostic('Hoppet over symlenketilfellet: symlenker kan ikke lages her (EPERM).');
+        return false;
+      }
+    },
     async dir => writeFile(join(dir, '.hidden'), 'bad'),
     async dir => writeFile(join(dir, 'index.html'), '<title>Test</title>'),
   ];
@@ -158,7 +167,7 @@ test('bad identity, source, manifest, icon, worker and symlink block all output 
       expected = metadata();
     await app(join(builds, 'production'), expected.production, 'production');
     await app(join(builds, 'preview'), expected.preview, 'test');
-    await mutate(join(builds, 'preview'));
+    if ((await mutate(join(builds, 'preview'))) === false) continue;
     await assert.rejects(assemblePages(builds, site, expected));
     await assert.rejects(access(site));
   }

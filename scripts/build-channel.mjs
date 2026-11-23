@@ -1,8 +1,8 @@
 import {readFile, mkdir, writeFile, cp, rm} from 'node:fs/promises';
 import {resolve, join} from 'node:path';
-import {spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {validSha} from './pages-plan.mjs';
+import {runCommand} from './run-command.mjs';
 
 export function buildInfo(env) {
   const pr = env.APP_PR ? Number(env.APP_PR) : null;
@@ -31,11 +31,8 @@ export async function buildChannel(
   source,
   destination,
   env = process.env,
-  run = (command, args, options) => {
-    const result = spawnSync(command, args, {...options, stdio: 'inherit'});
-    if (result.error) throw result.error;
-    if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} feilet (${result.status}).`);
-  },
+  run = (command, args, options) =>
+    runCommand(command, args, options, status => new Error(`${command} ${args.join(' ')} feilet (${status}).`)),
 ) {
   const info = buildInfo(env);
   await rm(destination, {recursive: true, force: true});
