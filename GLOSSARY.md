@@ -114,6 +114,10 @@ _Unngå_: sletting, oppheving av deling
 Å samordne det lokale biblioteket med privat Dropbox.
 _Unngå_: oppdatering, refresh
 
+**Sidefil**:
+JSON-filen `.app/songs/<ID>.json` i privat Dropbox som holder en sangs personlige lag, med referanse til originalversjonen; én per sang, ved siden av sangfilen.
+_Unngå_: personsidefil
+
 **Konflikt**:
 Når samme sang eller samme personlige lag er endret på to steder og brukeren må velge hvilken versjon som skal gjelde.
 
