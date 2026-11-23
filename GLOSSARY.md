@@ -25,7 +25,7 @@ Sangens felles tekst med akkorder, slik den deles med andre.
 _Unngå_: kildefil, master
 
 **Personlig lag**:
-Datastrukturen som holder brukerens tilpasninger til en sang adskilt fra originalen; brukes om lagring, synk og konfliktvalg. Lagres lokalt i IndexedDB-lageret `personal` og i Dropbox som `.app/songs/<ID>.json`.
+Brukerens personlige tilpasninger til en sang, samlet og holdt adskilt fra originalen. Brukes når tilpasningene omtales som en helhet, for eksempel ved synk og konflikt.
 _Unngå_: overstyring, egendata, persondata (betyr personopplysninger), personlag
 
 **Personlige tilpasninger**:
@@ -47,7 +47,7 @@ Tonearten sangen faktisk lyder i.
 _Unngå_: klingende toneart
 
 **Faktiske akkorder**:
-Akkordene slik de faktisk lyder, uavhengig av capo; slik lagres akkordene i originalen. Motsatt begrep er grep.
+Akkordene slik de faktisk lyder, uavhengig av capo. Motsatt begrep er grep.
 _Unngå_: klingende akkorder
 
 **Grepstoneart**:
@@ -115,7 +115,7 @@ _Unngå_: sletting, oppheving av deling
 _Unngå_: oppdatering, refresh
 
 **Sidefil**:
-JSON-filen `.app/songs/<ID>.json` i privat Dropbox som holder en sangs personlige lag, med referanse til originalversjonen; én per sang, ved siden av sangfilen.
+Filen i privat Dropbox som holder det personlige laget for én sang, ved siden av sangfilen.
 _Unngå_: personsidefil
 
 **Konflikt**:
