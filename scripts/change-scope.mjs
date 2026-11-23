@@ -13,7 +13,9 @@ export function isDocumentation(path) {
  * complete: false when GitHub may have truncated the list; then the change counts as code.
  */
 export function classifyChanges(files, complete = true) {
-  const paths = Array.isArray(files) ? files.flatMap(file => [file?.filename, ...(file?.previous_filename ? [file.previous_filename] : [])]) : [];
+  const paths = Array.isArray(files)
+    ? files.flatMap(file => [file?.filename, ...(file?.previous_filename ? [file.previous_filename] : [])])
+    : [];
   const code = paths.filter(path => !isDocumentation(path));
   const docsOnly = complete && paths.length > 0 && code.length === 0;
   return {docsOnly, paths, code};

@@ -1,27 +1,180 @@
-import {test,expect} from '@playwright/test';
-import {beginImport,importAndOpenSong,savedSongs,savedPersonal,tool,fillValue,rawEditor} from './song-helpers.mjs';
-const url='/hobos-songbook/test/';
-const state=savedPersonal;
-async function note(page,index,text){await tool(page,'Notater',true);await page.locator(`[data-note-line="${index}"]`).first().click();await fillValue(page,'Notat',text);}
-async function raw(page,text){await rawEditor(page);await page.locator('#original-text').fill(text);await page.getByRole('button',{name:'Lagre',exact:true}).click();await expect(page.locator('.raw-editor')).toHaveCount(0);}
-test.beforeEach(async({page,request})=>{await request.post('/__test__/reset');await page.goto(url);});
-test('positional notes survive shortened and empty source and remain editable without source copies',async({page})=>{
- await importAndOpenSong(page,'posisjoner.txt','{t: Posisjoner}\nEn\nTo\nTre');for(let i=0;i<3;i++)await note(page,i,`Notat ${i}`);await expect.poll(async()=>Object.keys((await state(page))[0].notes??{}).length).toBe(3);
- await raw(page,'{t: Posisjoner}\nBare en linje');await expect(page.locator('.personal-note')).toHaveCount(3);await expect(page.locator('.note-overflow .personal-note')).toHaveCount(2);
- await raw(page,'{t: Posisjoner}\n');await expect(page.locator('.note-overflow .personal-note')).toHaveCount(3);const data=(await state(page))[0];expect(Object.values(data.notes).map(n=>n.line).sort()).toEqual([0,1,2]);expect(Object.values(data.notes).every(n=>Object.keys(n).sort().join(',')==='line,text')).toBe(true);
- await tool(page,'Notater',true);await page.locator('.personal-note').first().click();await fillValue(page,'Notat','Endret uten sangtekst');await expect(page.locator('.personal-note').filter({hasText:'Endret uten sangtekst'})).toBeVisible();await page.reload();await page.locator('.song-choice').click();await expect(page.locator('.personal-note')).toHaveCount(3);
+import {test, expect} from '@playwright/test';
+import {
+  beginImport,
+  importAndOpenSong,
+  savedSongs,
+  savedPersonal,
+  tool,
+  fillValue,
+  rawEditor,
+} from './song-helpers.mjs';
+const url = '/hobos-songbook/test/';
+const state = savedPersonal;
+async function note(page, index, text) {
+  await tool(page, 'Notater', true);
+  await page.locator(`[data-note-line="${index}"]`).first().click();
+  await fillValue(page, 'Notat', text);
+}
+async function raw(page, text) {
+  await rawEditor(page);
+  await page.locator('#original-text').fill(text);
+  await page.getByRole('button', {name: 'Lagre', exact: true}).click();
+  await expect(page.locator('.raw-editor')).toHaveCount(0);
+}
+test.beforeEach(async ({page, request}) => {
+  await request.post('/__test__/reset');
+  await page.goto(url);
 });
-test('raw source changes safely remap highlights, preserve notes and undo restores lost spans',async({page})=>{
- await importAndOpenSong(page,'koordinater.txt','{t: Koordinater}\nEn vanlig linje\nSyng høyt');const before=(await savedSongs(page))[0];
- await page.evaluate(song=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal','readwrite');tx.objectStore('personal').put({songId:song.id,chorus:{},version:3,notes:{note:{line:1,text:'Ved linje to'}},annotations:{'source/line:1':{anchor:{songId:song.id,sourceLine:1,occurrence:'source/line:1'},highlights:[{start:3,end:9}]},'source/line:2':{anchor:{songId:song.id,sourceLine:2,occurrence:'source/line:2'},highlights:[{start:5,end:9}]}}});tx.oncomplete=()=>{db.close();resolve();};};}),before);
- await page.reload();await page.locator('.song-choice').click();await raw(page,'{t: Endret}\nEn helt vanlig linje\nSyng høyt');expect((await page.locator('mark').allTextContents()).join('')).toBe('vanlighøyt');await raw(page,'{t: Endret}\nEn helt annen linje\nSyng høyt');expect((await page.locator('mark').allTextContents()).join('')).toBe('høyt');await page.getByRole('button',{name:'Angre',exact:true}).click();await expect.poll(()=>page.locator('mark').allTextContents().then(t=>t.join(''))).toBe('vanlighøyt');expect((await savedSongs(page))[0].id).toBe(before.id);expect(JSON.stringify((await state(page))[0])).not.toContain('En vanlig linje');
+test('positional notes survive shortened and empty source and remain editable without source copies', async ({
+  page,
+}) => {
+  await importAndOpenSong(page, 'posisjoner.txt', '{t: Posisjoner}\nEn\nTo\nTre');
+  for (let i = 0; i < 3; i++) await note(page, i, `Notat ${i}`);
+  await expect.poll(async () => Object.keys((await state(page))[0].notes ?? {}).length).toBe(3);
+  await raw(page, '{t: Posisjoner}\nBare en linje');
+  await expect(page.locator('.personal-note')).toHaveCount(3);
+  await expect(page.locator('.note-overflow .personal-note')).toHaveCount(2);
+  await raw(page, '{t: Posisjoner}\n');
+  await expect(page.locator('.note-overflow .personal-note')).toHaveCount(3);
+  const data = (await state(page))[0];
+  expect(
+    Object.values(data.notes)
+      .map(n => n.line)
+      .sort(),
+  ).toEqual([0, 1, 2]);
+  expect(Object.values(data.notes).every(n => Object.keys(n).sort().join(',') === 'line,text')).toBe(true);
+  await tool(page, 'Notater', true);
+  await page.locator('.personal-note').first().click();
+  await fillValue(page, 'Notat', 'Endret uten sangtekst');
+  await expect(page.locator('.personal-note').filter({hasText: 'Endret uten sangtekst'})).toBeVisible();
+  await page.reload();
+  await page.locator('.song-choice').click();
+  await expect(page.locator('.personal-note')).toHaveCount(3);
 });
-test('legacy annotations are cleaned while songs, capo, tuning and grids survive',async({page})=>{
- await importAndOpenSong(page,'gammel.txt','{t: Gammel}\nEn gammel linje');const song=(await savedSongs(page))[0];
- await page.evaluate(song=>new Promise(resolve=>{const r=indexedDB.open('hobos-songbook-test');r.onsuccess=()=>{const db=r.result,tx=db.transaction('personal','readwrite');tx.objectStore('personal').put({songId:song.id,version:2,chorus:{},capo:2,tuning:'Drop D',chordGrid:'| D |',annotations:{'source/line:1':{anchor:{songId:song.id,sourceLine:1,occurrence:'source/line:1',original:song.original,text:'En gammel linje'},note:'Gammelt',highlights:[{start:0,end:2}]}}});tx.oncomplete=()=>{db.close();resolve();};};}),song);
- await page.reload();await page.locator('.song-choice').click();await expect(page.locator('#song-title')).toHaveText('Gammel');await expect(page.locator('mark,.personal-note')).toHaveCount(0);const data=(await state(page))[0];expect(data.version).toBe(3);expect(data.annotations).toBeUndefined();expect(data.capo).toBe(2);expect(data.tuning).toBe('Drop D');expect(data.chordGrid).toBe('| D |');expect((await savedSongs(page))[0]).toEqual(song);await note(page,0,'Nytt notat');await expect.poll(async()=>Object.values((await state(page))[0].notes??{})[0]?.text).toBe('Nytt notat');
+test('raw source changes safely remap highlights, preserve notes and undo restores lost spans', async ({page}) => {
+  await importAndOpenSong(page, 'koordinater.txt', '{t: Koordinater}\nEn vanlig linje\nSyng høyt');
+  const before = (await savedSongs(page))[0];
+  await page.evaluate(
+    song =>
+      new Promise(resolve => {
+        const r = indexedDB.open('hobos-songbook-test');
+        r.onsuccess = () => {
+          const db = r.result,
+            tx = db.transaction('personal', 'readwrite');
+          tx.objectStore('personal').put({
+            songId: song.id,
+            chorus: {},
+            version: 3,
+            notes: {note: {line: 1, text: 'Ved linje to'}},
+            annotations: {
+              'source/line:1': {
+                anchor: {songId: song.id, sourceLine: 1, occurrence: 'source/line:1'},
+                highlights: [{start: 3, end: 9}],
+              },
+              'source/line:2': {
+                anchor: {songId: song.id, sourceLine: 2, occurrence: 'source/line:2'},
+                highlights: [{start: 5, end: 9}],
+              },
+            },
+          });
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+        };
+      }),
+    before,
+  );
+  await page.reload();
+  await page.locator('.song-choice').click();
+  await raw(page, '{t: Endret}\nEn helt vanlig linje\nSyng høyt');
+  expect((await page.locator('mark').allTextContents()).join('')).toBe('vanlighøyt');
+  await raw(page, '{t: Endret}\nEn helt annen linje\nSyng høyt');
+  expect((await page.locator('mark').allTextContents()).join('')).toBe('høyt');
+  await page.getByRole('button', {name: 'Angre', exact: true}).click();
+  await expect
+    .poll(() =>
+      page
+        .locator('mark')
+        .allTextContents()
+        .then(t => t.join('')),
+    )
+    .toBe('vanlighøyt');
+  expect((await savedSongs(page))[0].id).toBe(before.id);
+  expect(JSON.stringify((await state(page))[0])).not.toContain('En vanlig linje');
 });
-test('repeated filenames prompt for a copy and preserve original IDs and contents',async({page})=>{
- await importAndOpenSong(page,'samme.cho','{t: Første}\nTekst');const before=(await savedSongs(page))[0];await page.locator('#back').click();const choose=async()=>{await beginImport(page);return page.locator('#song-file').setInputFiles({name:'samme.cho',mimeType:'',buffer:Buffer.from('{t: Annen}\nHelt annet innhold')});};
- await choose();const box=page.getByRole('dialog',{name:'Importer kopi',exact:true});await expect(box).toContainText('Vil du importere en kopi?');await box.getByRole('button',{name:'Avbryt',exact:true}).click();expect(await savedSongs(page)).toEqual([before]);await choose();await box.getByRole('button',{name:'Importer',exact:true}).click();await expect(page.locator('#song-list')).toContainText('Annen');const songs=await savedSongs(page);expect(songs).toHaveLength(2);expect(songs.find(s=>s.id===before.id)).toEqual(before);
+test('legacy annotations are cleaned while songs, capo, tuning and grids survive', async ({page}) => {
+  await importAndOpenSong(page, 'gammel.txt', '{t: Gammel}\nEn gammel linje');
+  const song = (await savedSongs(page))[0];
+  await page.evaluate(
+    song =>
+      new Promise(resolve => {
+        const r = indexedDB.open('hobos-songbook-test');
+        r.onsuccess = () => {
+          const db = r.result,
+            tx = db.transaction('personal', 'readwrite');
+          tx.objectStore('personal').put({
+            songId: song.id,
+            version: 2,
+            chorus: {},
+            capo: 2,
+            tuning: 'Drop D',
+            chordGrid: '| D |',
+            annotations: {
+              'source/line:1': {
+                anchor: {
+                  songId: song.id,
+                  sourceLine: 1,
+                  occurrence: 'source/line:1',
+                  original: song.original,
+                  text: 'En gammel linje',
+                },
+                note: 'Gammelt',
+                highlights: [{start: 0, end: 2}],
+              },
+            },
+          });
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+        };
+      }),
+    song,
+  );
+  await page.reload();
+  await page.locator('.song-choice').click();
+  await expect(page.locator('#song-title')).toHaveText('Gammel');
+  await expect(page.locator('mark,.personal-note')).toHaveCount(0);
+  const data = (await state(page))[0];
+  expect(data.version).toBe(3);
+  expect(data.annotations).toBeUndefined();
+  expect(data.capo).toBe(2);
+  expect(data.tuning).toBe('Drop D');
+  expect(data.chordGrid).toBe('| D |');
+  expect((await savedSongs(page))[0]).toEqual(song);
+  await note(page, 0, 'Nytt notat');
+  await expect.poll(async () => Object.values((await state(page))[0].notes ?? {})[0]?.text).toBe('Nytt notat');
+});
+test('repeated filenames prompt for a copy and preserve original IDs and contents', async ({page}) => {
+  await importAndOpenSong(page, 'samme.cho', '{t: Første}\nTekst');
+  const before = (await savedSongs(page))[0];
+  await page.locator('#back').click();
+  const choose = async () => {
+    await beginImport(page);
+    return page
+      .locator('#song-file')
+      .setInputFiles({name: 'samme.cho', mimeType: '', buffer: Buffer.from('{t: Annen}\nHelt annet innhold')});
+  };
+  await choose();
+  const box = page.getByRole('dialog', {name: 'Importer kopi', exact: true});
+  await expect(box).toContainText('Vil du importere en kopi?');
+  await box.getByRole('button', {name: 'Avbryt', exact: true}).click();
+  expect(await savedSongs(page)).toEqual([before]);
+  await choose();
+  await box.getByRole('button', {name: 'Importer', exact: true}).click();
+  await expect(page.locator('#song-list')).toContainText('Annen');
+  const songs = await savedSongs(page);
+  expect(songs).toHaveLength(2);
+  expect(songs.find(s => s.id === before.id)).toEqual(before);
 });

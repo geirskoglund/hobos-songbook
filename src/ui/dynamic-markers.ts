@@ -1,7 +1,9 @@
-import { actionButton } from './controls.ts';
+import {actionButton} from './controls.ts';
 /** Editing markers share the song's margin, including tags inside chorus blocks. */
 export function attachDynamicMarkers(root: HTMLElement) {
-  const anchors = [...root.querySelectorAll<HTMLElement>('.dynamic-position[data-dynamic-source]')].filter(node => !node.closest('[hidden]'));
+  const anchors = [...root.querySelectorAll<HTMLElement>('.dynamic-position[data-dynamic-source]')].filter(
+    node => !node.closest('[hidden]'),
+  );
   const markers = anchors.map(anchor => {
     const marker = actionButton(anchor.dataset.level ?? '3', undefined);
     marker.className = 'dynamic-marker';

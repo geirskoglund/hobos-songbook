@@ -1,26 +1,124 @@
-import {test,expect} from '@playwright/test';
-import {importAndOpenSong,savedSongs,savedPersonal,tool,fillValue,setCapo,editSong,rawEditor} from './song-helpers.mjs';
-const url='/hobos-songbook/test/';
-const source='{t: Personlig}\n{key: C}\n{sog: label="Vers" shape="2x4"}\n| C F | G C |\n{eog}\n{sog: label="Refreng"}\n| F G | C |\n{eog}\n[C]Hei på deg\nEn linje til';
-test.beforeEach(async({page,request})=>{await request.post('/__test__/reset');await page.goto(url);});
-test('capo endpoints, default pills and one history step for repeated numeric edits',async({page})=>{
- await importAndOpenSong(page,'personlig.cho',source);await expect(page.locator('.song-metadata')).not.toContainText('Uten capo');await tool(page,'Capo',true);await expect(page.getByRole('button',{name:'Reduser capo',exact:true})).toBeDisabled();const number=page.getByRole('spinbutton',{name:'Capo',exact:true});await number.press('End');await expect(number).toHaveText('11');await expect(page.getByRole('button',{name:'Øk capo',exact:true})).toBeDisabled();await number.press('ArrowLeft');await expect(number).toHaveText('10');await page.keyboard.press('Escape');await expect.poll(async()=>(await savedPersonal(page))[0].capo).toBe(10);await page.getByRole('button',{name:'Angre',exact:true}).click();await expect.poll(async()=>(await savedPersonal(page))[0].capo??0).toBe(0);expect((await savedSongs(page))[0].original).toBe(source);
+import {test, expect} from '@playwright/test';
+import {
+  importAndOpenSong,
+  savedSongs,
+  savedPersonal,
+  tool,
+  fillValue,
+  setCapo,
+  editSong,
+  rawEditor,
+} from './song-helpers.mjs';
+const url = '/hobos-songbook/test/';
+const source =
+  '{t: Personlig}\n{key: C}\n{sog: label="Vers" shape="2x4"}\n| C F | G C |\n{eog}\n{sog: label="Refreng"}\n| F G | C |\n{eog}\n[C]Hei på deg\nEn linje til';
+test.beforeEach(async ({page, request}) => {
+  await request.post('/__test__/reset');
+  await page.goto(url);
 });
-test('personal chart preserves multiple wrappers, shape, labels and capo; clearing falls back to shared',async({page})=>{
- await importAndOpenSong(page,'skjema.cho',source);await setCapo(page,2);await tool(page,'Akkordskjema',true);const inputs=page.locator('.popup-grid textarea');await expect(inputs).toHaveCount(2);expect(await inputs.first().inputValue()).not.toContain('{sog');await inputs.first().fill('| C F |');await inputs.last().fill('| G C |');await page.getByRole('button',{name:'OK',exact:true}).click();await expect.poll(async()=>(await savedPersonal(page))[0].chordGrid).toContain('label="Vers" shape="2x4"');await expect(page.locator('#chart-dock')).toHaveAttribute('data-source','personal');
- await tool(page,'Akkordskjema',true);await inputs.first().fill('');await inputs.last().fill('');await page.getByRole('button',{name:'OK',exact:true}).click();await expect(page.locator('#chart-dock')).toHaveAttribute('data-source','shared');await expect(page.locator('#chart-dock .chord-grid')).toHaveCount(2);expect((await savedSongs(page))[0].original).toBe(source);
+test('capo endpoints, default pills and one history step for repeated numeric edits', async ({page}) => {
+  await importAndOpenSong(page, 'personlig.cho', source);
+  await expect(page.locator('.song-metadata')).not.toContainText('Uten capo');
+  await tool(page, 'Capo', true);
+  await expect(page.getByRole('button', {name: 'Reduser capo', exact: true})).toBeDisabled();
+  const number = page.getByRole('spinbutton', {name: 'Capo', exact: true});
+  await number.press('End');
+  await expect(number).toHaveText('11');
+  await expect(page.getByRole('button', {name: 'Øk capo', exact: true})).toBeDisabled();
+  await number.press('ArrowLeft');
+  await expect(number).toHaveText('10');
+  await page.keyboard.press('Escape');
+  await expect.poll(async () => (await savedPersonal(page))[0].capo).toBe(10);
+  await page.getByRole('button', {name: 'Angre', exact: true}).click();
+  await expect.poll(async () => (await savedPersonal(page))[0].capo ?? 0).toBe(0);
+  expect((await savedSongs(page))[0].original).toBe(source);
 });
-test('invalid and cancelled grids preserve stored content',async({page})=>{
- await importAndOpenSong(page,'skjema.cho',source);await tool(page,'Akkordskjema',true);await page.locator('.popup-grid textarea').first().fill('Dette mangler takter');await page.getByRole('button',{name:'OK',exact:true}).click();await expect(page.locator('.popup-grid .field-error')).toContainText('taktstreker');expect((await savedPersonal(page))[0]?.chordGrid).toBeUndefined();await page.getByRole('button',{name:'Avbryt',exact:true}).click();expect((await savedSongs(page))[0].original).toBe(source);
+test('personal chart preserves multiple wrappers, shape, labels and capo; clearing falls back to shared', async ({
+  page,
+}) => {
+  await importAndOpenSong(page, 'skjema.cho', source);
+  await setCapo(page, 2);
+  await tool(page, 'Akkordskjema', true);
+  const inputs = page.locator('.popup-grid textarea');
+  await expect(inputs).toHaveCount(2);
+  expect(await inputs.first().inputValue()).not.toContain('{sog');
+  await inputs.first().fill('| C F |');
+  await inputs.last().fill('| G C |');
+  await page.getByRole('button', {name: 'OK', exact: true}).click();
+  await expect.poll(async () => (await savedPersonal(page))[0].chordGrid).toContain('label="Vers" shape="2x4"');
+  await expect(page.locator('#chart-dock')).toHaveAttribute('data-source', 'personal');
+  await tool(page, 'Akkordskjema', true);
+  await inputs.first().fill('');
+  await inputs.last().fill('');
+  await page.getByRole('button', {name: 'OK', exact: true}).click();
+  await expect(page.locator('#chart-dock')).toHaveAttribute('data-source', 'shared');
+  await expect(page.locator('#chart-dock .chord-grid')).toHaveCount(2);
+  expect((await savedSongs(page))[0].original).toBe(source);
 });
-test('two tabs preserve independent fields and same titles retain independent song identities',async({page,context})=>{
- await importAndOpenSong(page,'første.cho',source);const id=(await savedSongs(page))[0].id;const other=await context.newPage();await other.goto(url);await other.locator('.song-choice').click();await tool(page,'Stemming',true);await fillValue(page,'Stemming','DADGAD');await setCapo(other,3);await expect.poll(async()=>(await savedPersonal(page))[0].capo).toBe(3);expect((await savedPersonal(page))[0].tuning).toBe('DADGAD');expect((await savedSongs(page))[0].id).toBe(id);await other.close();
- await page.locator('#back').click();await importAndOpenSong(page,'andre.cho',source);const data=await savedSongs(page);expect(data).toHaveLength(2);expect(new Set(data.map(s=>s.id)).size).toBe(2);
+test('invalid and cancelled grids preserve stored content', async ({page}) => {
+  await importAndOpenSong(page, 'skjema.cho', source);
+  await tool(page, 'Akkordskjema', true);
+  await page.locator('.popup-grid textarea').first().fill('Dette mangler takter');
+  await page.getByRole('button', {name: 'OK', exact: true}).click();
+  await expect(page.locator('.popup-grid .field-error')).toContainText('taktstreker');
+  expect((await savedPersonal(page))[0]?.chordGrid).toBeUndefined();
+  await page.getByRole('button', {name: 'Avbryt', exact: true}).click();
+  expect((await savedSongs(page))[0].original).toBe(source);
 });
-test('mode transitions preserve reading anchor, expanded references and prior pin state',async({page})=>{
- const text=source+'\n{soc}\nSyng med\n{eoc}\n{chorus}\n'+Array.from({length:100},(_,i)=>`Lang linje ${i}`).join('\n');await importAndOpenSong(page,'lang.cho',text);await page.locator('#chart-close').click();await page.getByRole('button',{name:'Refreng',exact:true}).click();const target=page.locator('.song-line').filter({hasText:'Lang linje 35'});await target.scrollIntoViewIfNeeded();const before=await target.boundingBox();await editSong(page);await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','false');await expect(page.locator('.reference button')).toHaveCount(0);await expect(page.locator('.reference .chorus-text')).toBeHidden();await page.getByRole('button',{name:'Visning',exact:true}).click();await expect(page.locator('.reference button[aria-expanded=true]')).toHaveCount(1);await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky','false');expect(Math.abs((await target.boundingBox()).y-before.y)).toBeLessThan(4);
+test('two tabs preserve independent fields and same titles retain independent song identities', async ({
+  page,
+  context,
+}) => {
+  await importAndOpenSong(page, 'første.cho', source);
+  const id = (await savedSongs(page))[0].id;
+  const other = await context.newPage();
+  await other.goto(url);
+  await other.locator('.song-choice').click();
+  await tool(page, 'Stemming', true);
+  await fillValue(page, 'Stemming', 'DADGAD');
+  await setCapo(other, 3);
+  await expect.poll(async () => (await savedPersonal(page))[0].capo).toBe(3);
+  expect((await savedPersonal(page))[0].tuning).toBe('DADGAD');
+  expect((await savedSongs(page))[0].id).toBe(id);
+  await other.close();
+  await page.locator('#back').click();
+  await importAndOpenSong(page, 'andre.cho', source);
+  const data = await savedSongs(page);
+  expect(data).toHaveLength(2);
+  expect(new Set(data.map(s => s.id)).size).toBe(2);
 });
-test('opening a capo-aware shared grid without changes preserves exact aliases and mixed line endings',async({page})=>{
- const source='\uFEFF{t: Bevar}\r\n{key: D}\r{start_of_grid: label="En"}\r\n| D A/C# |\r\n{end_of_grid}\r{sog: label="To"}\n| G D |\n{eog}\r\nOrd';await importAndOpenSong(page,'mixed.cho',source);await setCapo(page,2);await tool(page,'Akkordskjema');await expect(page.locator('.popup-grid textarea')).toHaveCount(2);await page.getByRole('button',{name:'OK',exact:true}).click();expect((await savedSongs(page))[0].original).toBe(source);
- await tool(page,'Akkordskjema');await page.locator('.popup-grid textarea').first().fill('| C F |');await page.getByRole('button',{name:'OK',exact:true}).click();await expect.poll(async()=>(await savedSongs(page))[0].original).toContain('| D G |');expect((await savedSongs(page))[0].original).toContain('{sog: label="To"}\n| G D |\n{eog}\r\n');
+test('mode transitions preserve reading anchor, expanded references and prior pin state', async ({page}) => {
+  const text =
+    source + '\n{soc}\nSyng med\n{eoc}\n{chorus}\n' + Array.from({length: 100}, (_, i) => `Lang linje ${i}`).join('\n');
+  await importAndOpenSong(page, 'lang.cho', text);
+  await page.locator('#chart-close').click();
+  await page.getByRole('button', {name: 'Refreng', exact: true}).click();
+  const target = page.locator('.song-line').filter({hasText: 'Lang linje 35'});
+  await target.scrollIntoViewIfNeeded();
+  const before = await target.boundingBox();
+  await editSong(page);
+  await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky', 'false');
+  await expect(page.locator('.reference button')).toHaveCount(0);
+  await expect(page.locator('.reference .chorus-text')).toBeHidden();
+  await page.getByRole('button', {name: 'Visning', exact: true}).click();
+  await expect(page.locator('.reference button[aria-expanded=true]')).toHaveCount(1);
+  await expect(page.locator('#chart-dock')).toHaveAttribute('data-sticky', 'false');
+  expect(Math.abs((await target.boundingBox()).y - before.y)).toBeLessThan(4);
+});
+test('opening a capo-aware shared grid without changes preserves exact aliases and mixed line endings', async ({
+  page,
+}) => {
+  const source =
+    '\uFEFF{t: Bevar}\r\n{key: D}\r{start_of_grid: label="En"}\r\n| D A/C# |\r\n{end_of_grid}\r{sog: label="To"}\n| G D |\n{eog}\r\nOrd';
+  await importAndOpenSong(page, 'mixed.cho', source);
+  await setCapo(page, 2);
+  await tool(page, 'Akkordskjema');
+  await expect(page.locator('.popup-grid textarea')).toHaveCount(2);
+  await page.getByRole('button', {name: 'OK', exact: true}).click();
+  expect((await savedSongs(page))[0].original).toBe(source);
+  await tool(page, 'Akkordskjema');
+  await page.locator('.popup-grid textarea').first().fill('| C F |');
+  await page.getByRole('button', {name: 'OK', exact: true}).click();
+  await expect.poll(async () => (await savedSongs(page))[0].original).toContain('| D G |');
+  expect((await savedSongs(page))[0].original).toContain('{sog: label="To"}\n| G D |\n{eog}\r\n');
 });

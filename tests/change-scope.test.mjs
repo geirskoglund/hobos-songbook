@@ -5,12 +5,37 @@ import {isDocumentation, classifyChanges, docsOnlyStep} from '../scripts/change-
 import {decideScope} from '../scripts/validate-scope.mjs';
 
 test('documentation is a narrow explicit list; everything else is code', () => {
-  for (const path of ['README.md', 'CLAUDE.md', 'GLOSSARY.md', 'docs/DECISIONS.md', 'docs/design/icon.svg', 'docs/agents/domain.md']) {
+  for (const path of [
+    'README.md',
+    'CLAUDE.md',
+    'GLOSSARY.md',
+    'docs/DECISIONS.md',
+    'docs/design/icon.svg',
+    'docs/agents/domain.md',
+  ]) {
     assert.equal(isDocumentation(path), true, path);
   }
-  for (const path of ['src/main.ts', 'src/notes.md', 'public/help.md', '.github/workflows/ci.yml', '.github/PULL_REQUEST_TEMPLATE.md',
-    'scripts/README.md', 'tests/fixtures/song.md', 'package.json', 'package-lock.json', 'vite.config.mjs', 'tsconfig.json',
-    'index.html', 'docs.md.ts', 'mydocs/x.ts', '', '/docs/x.md', 'docs/../src/main.ts', undefined, null]) {
+  for (const path of [
+    'src/main.ts',
+    'src/notes.md',
+    'public/help.md',
+    '.github/workflows/ci.yml',
+    '.github/PULL_REQUEST_TEMPLATE.md',
+    'scripts/README.md',
+    'tests/fixtures/song.md',
+    'package.json',
+    'package-lock.json',
+    'vite.config.mjs',
+    'tsconfig.json',
+    'index.html',
+    'docs.md.ts',
+    'mydocs/x.ts',
+    '',
+    '/docs/x.md',
+    'docs/../src/main.ts',
+    undefined,
+    null,
+  ]) {
     assert.equal(isDocumentation(path), false, String(path));
   }
 });
@@ -31,15 +56,57 @@ test('ci.yml marks skipped runs with the step name publishing rejects', async ()
 });
 
 const sha = 'a'.repeat(40);
-function scope({eventName = 'pull_request', files = [{filename: 'docs/a.md'}], changed = files.length, head = sha} = {}) {
-  const summary = {text: '', addHeading(text) {this.text += `${text}\n`; return this;}, addRaw(text) {this.text += text; return this;},
-    addList(items) {this.text += items.join('\n'); return this;}, async write() {}};
+function scope({
+  eventName = 'pull_request',
+  files = [{filename: 'docs/a.md'}],
+  changed = files.length,
+  head = sha,
+} = {}) {
+  const summary = {
+    text: '',
+    addHeading(text) {
+      this.text += `${text}\n`;
+      return this;
+    },
+    addRaw(text) {
+      this.text += text;
+      return this;
+    },
+    addList(items) {
+      this.text += items.join('\n');
+      return this;
+    },
+    async write() {},
+  };
   const outputs = {};
   const listFiles = () => {};
-  const github = {rest: {pulls: {get: async () => ({data: {head: {sha: head}, changed_files: changed}}), listFiles}},
-    paginate: async method => {assert.equal(method, listFiles); return files;}};
-  const context = {eventName, repo: {owner: 'o', repo: 'r'}, payload: eventName === 'pull_request' ? {pull_request: {number: 7, head: {sha}}} : {}};
-  return {run: () => decideScope({github, context, core: {setOutput: (key, value) => {outputs[key] = value;}, summary}}), outputs, summary};
+  const github = {
+    rest: {pulls: {get: async () => ({data: {head: {sha: head}, changed_files: changed}}), listFiles}},
+    paginate: async method => {
+      assert.equal(method, listFiles);
+      return files;
+    },
+  };
+  const context = {
+    eventName,
+    repo: {owner: 'o', repo: 'r'},
+    payload: eventName === 'pull_request' ? {pull_request: {number: 7, head: {sha}}} : {},
+  };
+  return {
+    run: () =>
+      decideScope({
+        github,
+        context,
+        core: {
+          setOutput: (key, value) => {
+            outputs[key] = value;
+          },
+          summary,
+        },
+      }),
+    outputs,
+    summary,
+  };
 }
 
 test('Validate skips heavy steps only for a PR whose complete GitHub file list is documentation', async () => {
@@ -48,8 +115,11 @@ test('Validate skips heavy steps only for a PR whose complete GitHub file list i
   assert.equal(docs.outputs['docs-only'], 'true');
   assert.match(docs.summary.text, /Bare dokumentasjon[\s\S]*docs\/a\.md/);
   for (const patch of [
-    {eventName: 'push'}, {files: [{filename: 'docs/a.md'}, {filename: 'src/a.ts'}]},
-    {changed: 2}, {head: 'b'.repeat(40)}, {files: []},
+    {eventName: 'push'},
+    {files: [{filename: 'docs/a.md'}, {filename: 'src/a.ts'}]},
+    {changed: 2},
+    {head: 'b'.repeat(40)},
+    {files: []},
   ]) {
     const result = scope(patch);
     assert.equal((await result.run()).docsOnly, false, JSON.stringify(patch));

@@ -1,29 +1,34 @@
-import { edgeScroll } from './highlight-editor.ts';
+import {edgeScroll} from './highlight-editor.ts';
 export interface ElementDrag {
   move: (x: number, y: number) => void;
   finish: (cancel: boolean) => void;
 }
 /** A hold selects. Only movement after the hold starts a drag. */
-export function attachHeldElements(root: HTMLElement, options: {
-  resolve: (target: Element) => HTMLElement | undefined;
-  select: (target: HTMLElement) => void;
-  startDrag: (target: HTMLElement, x: number, y: number, pointerType:string) => ElementDrag | undefined;
-}) {
-  let held: {
-      node: HTMLElement;
-      pointer: number;
-      type: string;
-      armed: boolean;
-      cancelled: boolean;
-      x: number;
-      y: number;
-      startX: number;
-      startY: number;
-      lastY: number;
-      timer: ReturnType<typeof setTimeout>;
-      drag?: ElementDrag;
-      stop?: () => void;
-    } | undefined,
+export function attachHeldElements(
+  root: HTMLElement,
+  options: {
+    resolve: (target: Element) => HTMLElement | undefined;
+    select: (target: HTMLElement) => void;
+    startDrag: (target: HTMLElement, x: number, y: number, pointerType: string) => ElementDrag | undefined;
+  },
+) {
+  let held:
+      | {
+          node: HTMLElement;
+          pointer: number;
+          type: string;
+          armed: boolean;
+          cancelled: boolean;
+          x: number;
+          y: number;
+          startX: number;
+          startY: number;
+          lastY: number;
+          timer: ReturnType<typeof setTimeout>;
+          drag?: ElementDrag;
+          stop?: () => void;
+        }
+      | undefined,
     suppress = false;
   function down(event: PointerEvent) {
     suppress = false;
@@ -48,7 +53,7 @@ export function attachHeldElements(root: HTMLElement, options: {
         options.select(held.node);
         getSelection()?.removeAllRanges();
         root.setPointerCapture(held.pointer);
-      }, 450)
+      }, 450),
     };
     if (node.matches('.chord')) {
       event.preventDefault();
@@ -62,10 +67,14 @@ export function attachHeldElements(root: HTMLElement, options: {
     if (held.armed) {
       event.preventDefault();
       if (!held.drag && Math.hypot(held.x - held.startX, held.y - held.startY) > 4) {
-        held.drag = options.startDrag(held.node, held.startX, held.startY,held.type);
-        if (held.drag) held.stop = edgeScroll(() => held?.y ?? innerHeight / 2, () => {
-          if (held) held.drag?.move(held.x, held.y);
-        });
+        held.drag = options.startDrag(held.node, held.startX, held.startY, held.type);
+        if (held.drag)
+          held.stop = edgeScroll(
+            () => held?.y ?? innerHeight / 2,
+            () => {
+              if (held) held.drag?.move(held.x, held.y);
+            },
+          );
       }
       held.drag?.move(held.x, held.y);
     } else if (Math.hypot(held.x - held.startX, held.y - held.startY) > 8) {
@@ -79,7 +88,7 @@ export function attachHeldElements(root: HTMLElement, options: {
     held.lastY = held.y;
   }
   function finish(event?: PointerEvent, cancel = false) {
-    if (!held || event && held.pointer !== event.pointerId) return;
+    if (!held || (event && held.pointer !== event.pointerId)) return;
     const current = held;
     held = undefined;
     clearTimeout(current.timer);
@@ -88,11 +97,13 @@ export function attachHeldElements(root: HTMLElement, options: {
     if (root.hasPointerCapture(current.pointer)) root.releasePointerCapture(current.pointer);
     suppress = current.armed || current.cancelled || cancel;
     if (!suppress && current.type === 'touch' && current.node.matches('.chord')) {
-      current.node.dispatchEvent(new MouseEvent('click', {
-        bubbles: true,
-        clientX: current.x,
-        clientY: current.y
-      }));
+      current.node.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          clientX: current.x,
+          clientY: current.y,
+        }),
+      );
       suppress = true;
     }
   }
@@ -110,7 +121,7 @@ export function attachHeldElements(root: HTMLElement, options: {
     cancel = (event: PointerEvent) => finish(event, true);
   root.addEventListener('pointerdown', down, true);
   document.addEventListener('pointermove', move, {
-    passive: false
+    passive: false,
   });
   document.addEventListener('pointerup', up);
   document.addEventListener('pointercancel', cancel);

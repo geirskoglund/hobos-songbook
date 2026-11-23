@@ -13,11 +13,18 @@ export async function decideScope({github, context, core}) {
     if (pull.head?.sha !== headSha) {
       result.reason = 'PR-en er endret siden kjøringen startet: full validering.';
     } else {
-      const files = await github.paginate(github.rest.pulls.listFiles, {...context.repo, pull_number: number, per_page: 100});
+      const files = await github.paginate(github.rest.pulls.listFiles, {
+        ...context.repo,
+        pull_number: number,
+        per_page: 100,
+      });
       const complete = files.length === pull.changed_files && files.length < maxPullFiles;
       result = {...classifyChanges(files, complete)};
-      result.reason = result.docsOnly ? 'Bare dokumentasjon er endret: installasjon, tester og bygg hoppes over.'
-        : complete ? 'PR-en endrer kode: full validering.' : 'Fillisten er ufullstendig: full validering.';
+      result.reason = result.docsOnly
+        ? 'Bare dokumentasjon er endret: installasjon, tester og bygg hoppes over.'
+        : complete
+          ? 'PR-en endrer kode: full validering.'
+          : 'Fillisten er ufullstendig: full validering.';
     }
   }
   core.setOutput('docs-only', String(result.docsOnly));

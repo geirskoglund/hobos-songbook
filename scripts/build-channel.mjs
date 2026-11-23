@@ -6,10 +6,14 @@ import {validSha} from './pages-plan.mjs';
 
 export function buildInfo(env) {
   const pr = env.APP_PR ? Number(env.APP_PR) : null;
-  if (!['production', 'test'].includes(env.APP_CHANNEL) || !validSha(env.APP_SHA) ||
-      !['app', 'placeholder'].includes(env.APP_KIND) ||
-      (pr !== null && (!Number.isSafeInteger(pr) || pr < 1)) ||
-      (env.APP_CHANNEL === 'production' && pr !== null) || (env.APP_KIND === 'placeholder' && pr !== null)) {
+  if (
+    !['production', 'test'].includes(env.APP_CHANNEL) ||
+    !validSha(env.APP_SHA) ||
+    !['app', 'placeholder'].includes(env.APP_KIND) ||
+    (pr !== null && (!Number.isSafeInteger(pr) || pr < 1)) ||
+    (env.APP_CHANNEL === 'production' && pr !== null) ||
+    (env.APP_KIND === 'placeholder' && pr !== null)
+  ) {
     throw new Error('Ugyldig byggmiljø.');
   }
   return {version: 1, channel: env.APP_CHANNEL, sha: env.APP_SHA, pr, kind: env.APP_KIND};
@@ -23,11 +27,16 @@ export function placeholder(info) {
 <p>Grunnlag: master <code>${info.sha}</code></p></main></html>\n`;
 }
 
-export async function buildChannel(source, destination, env = process.env, run = (command, args, options) => {
-  const result = spawnSync(command, args, {...options, stdio: 'inherit'});
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} feilet (${result.status}).`);
-}) {
+export async function buildChannel(
+  source,
+  destination,
+  env = process.env,
+  run = (command, args, options) => {
+    const result = spawnSync(command, args, {...options, stdio: 'inherit'});
+    if (result.error) throw result.error;
+    if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} feilet (${result.status}).`);
+  },
+) {
   const info = buildInfo(env);
   await rm(destination, {recursive: true, force: true});
   await mkdir(destination, {recursive: true});

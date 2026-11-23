@@ -1,68 +1,156 @@
 /** Shared viewport and app geometry. Consumers never copy header/toolbar heights. */
-export const pages = ['library', 'reader', 'settings', 'setlists', 'setlist', 'songbooks', 'sync', 'publication'] as const;
-export type Page = typeof pages[number];
-export const pageNames: Record<Page, string> = {library:'Sanger', reader:'', settings:'Innstillinger', setlists:'Setlister', setlist:'Setliste', songbooks:'Sangbøker', sync:'Synkronisering', publication:'Publisering'};
-let layoutFrame=0;
-export function flushLayout(){cancelAnimationFrame(layoutFrame);layoutFrame=0;document.dispatchEvent(new Event('app-layout'));}
-export function requestLayout(){if(!layoutFrame)layoutFrame=requestAnimationFrame(flushLayout);}
-export function currentPage(): Page {return (document.documentElement.dataset.page as Page) || 'library';}
+export const pages = [
+  'library',
+  'reader',
+  'settings',
+  'setlists',
+  'setlist',
+  'songbooks',
+  'sync',
+  'publication',
+] as const;
+export type Page = (typeof pages)[number];
+export const pageNames: Record<Page, string> = {
+  library: 'Sanger',
+  reader: '',
+  settings: 'Innstillinger',
+  setlists: 'Setlister',
+  setlist: 'Setliste',
+  songbooks: 'Sangbøker',
+  sync: 'Synkronisering',
+  publication: 'Publisering',
+};
+let layoutFrame = 0;
+export function flushLayout() {
+  cancelAnimationFrame(layoutFrame);
+  layoutFrame = 0;
+  document.dispatchEvent(new Event('app-layout'));
+}
+export function requestLayout() {
+  if (!layoutFrame) layoutFrame = requestAnimationFrame(flushLayout);
+}
+export function currentPage(): Page {
+  return (document.documentElement.dataset.page as Page) || 'library';
+}
 export function showPage(page: Page, canGoBack = page === 'reader' || page === 'setlist') {
   document.documentElement.dataset.page = page;
-  document.querySelector('.topbar')!.classList.toggle('has-center-action', page === 'library' || page === 'reader' || page === 'publication');
+  document
+    .querySelector('.topbar')!
+    .classList.toggle('has-center-action', page === 'library' || page === 'reader' || page === 'publication');
   document.getElementById('back')!.hidden = !canGoBack;
-  document.getElementById('back')!.setAttribute('aria-label',page==='setlist'?'Tilbake til Setlister':page==='settings'?'Tilbake':'← Mine sanger');
+  document
+    .getElementById('back')!
+    .setAttribute(
+      'aria-label',
+      page === 'setlist' ? 'Tilbake til Setlister' : page === 'settings' ? 'Tilbake' : '← Mine sanger',
+    );
   for (const id of pages) document.getElementById(id)!.hidden = id !== page;
   document.getElementById('page-title')!.textContent = pageNames[page];
   document.body.classList.toggle('reader-active', page === 'reader');
-  document.querySelectorAll<HTMLElement>('[data-page-action]').forEach(node => {node.hidden = node.dataset.pageAction !== page;});
+  document.querySelectorAll<HTMLElement>('[data-page-action]').forEach(node => {
+    node.hidden = node.dataset.pageAction !== page;
+  });
   document.querySelectorAll<HTMLElement>('[data-destination]').forEach(node => {
     const selected = node.dataset.destination === mainDestination(page);
-    if (selected) node.setAttribute('aria-current', 'page'); else node.removeAttribute('aria-current');
+    if (selected) node.setAttribute('aria-current', 'page');
+    else node.removeAttribute('aria-current');
   });
   flushLayout();
 }
-export function mainDestination(page: Page) {return page === 'reader' ? 'library' : page === 'setlist' ? 'setlists' : page;}
-export function overlayWidth(kind:'grid'|'value'|'note'){return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(kind==='grid'?'--content-width':kind==='value'?'--popup-value-width':'--popup-note-width'));}
+export function mainDestination(page: Page) {
+  return page === 'reader' ? 'library' : page === 'setlist' ? 'setlists' : page;
+}
+export function overlayWidth(kind: 'grid' | 'value' | 'note') {
+  return parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue(
+      kind === 'grid' ? '--content-width' : kind === 'value' ? '--popup-value-width' : '--popup-note-width',
+    ),
+  );
+}
 export function viewport() {
   const v = visualViewport;
-  return {x:v?.offsetLeft ?? 0, y:v?.offsetTop ?? 0, width:v?.width ?? innerWidth, height:v?.height ?? innerHeight};
+  return {x: v?.offsetLeft ?? 0, y: v?.offsetTop ?? 0, width: v?.width ?? innerWidth, height: v?.height ?? innerHeight};
 }
-export function placeOverlay(box: HTMLElement, anchor?: HTMLElement, options: {width?:number; align?:'start'|'end'|'center'; side?:'above'|'below'; height?:number; fullscreen?:boolean; point?:{x:number;y:number}} = {}) {
-  const v=viewport(), styles=getComputedStyle(document.documentElement);
-  const unit=(name:string,fallback=0)=>parseFloat(styles.getPropertyValue(name))||fallback;
-  const gap=unit('--space-3',12),leftGap=Math.max(gap,unit('--safe-left')),rightGap=Math.max(gap,unit('--safe-right')),topGap=Math.max(gap,unit('--safe-top')),bottomGap=Math.max(gap,unit('--safe-bottom'));
-  if(options.fullscreen){Object.assign(box.style,{left:`${v.x}px`,top:`${v.y}px`,width:`${v.width}px`,height:`${v.height}px`});return;}
-  box.style.maxWidth=`${v.width-leftGap-rightGap}px`;box.style.maxHeight=`${Math.max(80,v.height-topGap-bottomGap)}px`;
-  if(options.width)box.style.width=`${Math.min(options.width,v.width-leftGap-rightGap)}px`;
-  if(options.height)box.style.maxHeight=`${Math.max(80,Math.min(v.height-topGap-bottomGap,v.height*options.height))}px`;
-  const rect=anchor?.getBoundingClientRect();
-  const left=options.point?.x ?? (options.align==='center'||!rect?v.x+(v.width-box.offsetWidth)/2:options.align==='end'?rect.right-box.offsetWidth:rect.left);
-  box.style.left=`${Math.max(v.x+leftGap,Math.min(left,v.x+v.width-box.offsetWidth-rightGap))}px`;
-  const top=rect ? options.side==='above' ? rect.top-gap-box.offsetHeight : rect.bottom+8 : v.y+(v.height-box.offsetHeight)/2;
-  box.style.top=`${Math.max(v.y+topGap,Math.min(options.point?.y ?? top,v.y+v.height-box.offsetHeight-bottomGap))}px`;
+export function placeOverlay(
+  box: HTMLElement,
+  anchor?: HTMLElement,
+  options: {
+    width?: number;
+    align?: 'start' | 'end' | 'center';
+    side?: 'above' | 'below';
+    height?: number;
+    fullscreen?: boolean;
+    point?: {x: number; y: number};
+  } = {},
+) {
+  const v = viewport(),
+    styles = getComputedStyle(document.documentElement);
+  const unit = (name: string, fallback = 0) => parseFloat(styles.getPropertyValue(name)) || fallback;
+  const gap = unit('--space-3', 12),
+    leftGap = Math.max(gap, unit('--safe-left')),
+    rightGap = Math.max(gap, unit('--safe-right')),
+    topGap = Math.max(gap, unit('--safe-top')),
+    bottomGap = Math.max(gap, unit('--safe-bottom'));
+  if (options.fullscreen) {
+    Object.assign(box.style, {left: `${v.x}px`, top: `${v.y}px`, width: `${v.width}px`, height: `${v.height}px`});
+    return;
+  }
+  box.style.maxWidth = `${v.width - leftGap - rightGap}px`;
+  box.style.maxHeight = `${Math.max(80, v.height - topGap - bottomGap)}px`;
+  if (options.width) box.style.width = `${Math.min(options.width, v.width - leftGap - rightGap)}px`;
+  if (options.height)
+    box.style.maxHeight = `${Math.max(80, Math.min(v.height - topGap - bottomGap, v.height * options.height))}px`;
+  const rect = anchor?.getBoundingClientRect();
+  const left =
+    options.point?.x ??
+    (options.align === 'center' || !rect
+      ? v.x + (v.width - box.offsetWidth) / 2
+      : options.align === 'end'
+        ? rect.right - box.offsetWidth
+        : rect.left);
+  box.style.left = `${Math.max(v.x + leftGap, Math.min(left, v.x + v.width - box.offsetWidth - rightGap))}px`;
+  const top = rect
+    ? options.side === 'above'
+      ? rect.top - gap - box.offsetHeight
+      : rect.bottom + 8
+    : v.y + (v.height - box.offsetHeight) / 2;
+  box.style.top = `${Math.max(v.y + topGap, Math.min(options.point?.y ?? top, v.y + v.height - box.offsetHeight - bottomGap))}px`;
 }
 export function readingTop() {
-  let top=document.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 0;
-  for(const selector of ['.edit-toolbar','#chart-dock[data-sticky="true"]']) {
-    const rect=document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
-    if(rect?.height && rect.top<=top+1)top=Math.max(top,rect.bottom);
+  let top = document.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 0;
+  for (const selector of ['.edit-toolbar', '#chart-dock[data-sticky="true"]']) {
+    const rect = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+    if (rect?.height && rect.top <= top + 1) top = Math.max(top, rect.bottom);
   }
   return top;
 }
 export function startLayout() {
-  const root=document.documentElement, header=document.querySelector<HTMLElement>('.topbar')!, notice=document.getElementById('update-notice')!;
-  let toolbar:HTMLElement|null=null;
-  const measure=()=>{
-    root.style.setProperty('--header-height',`${header.getBoundingClientRect().height}px`);
-    root.style.setProperty('--toolbar-height',`${toolbar?.getBoundingClientRect().height ?? 0}px`);
-    root.style.setProperty('--update-notice-space',`${notice.hidden ? 0 : innerHeight-notice.getBoundingClientRect().top+16}px`);
+  const root = document.documentElement,
+    header = document.querySelector<HTMLElement>('.topbar')!,
+    notice = document.getElementById('update-notice')!;
+  let toolbar: HTMLElement | null = null;
+  const measure = () => {
+    root.style.setProperty('--header-height', `${header.getBoundingClientRect().height}px`);
+    root.style.setProperty('--toolbar-height', `${toolbar?.getBoundingClientRect().height ?? 0}px`);
+    root.style.setProperty(
+      '--update-notice-space',
+      `${notice.hidden ? 0 : innerHeight - notice.getBoundingClientRect().top + 16}px`,
+    );
   };
-  const sizes=new ResizeObserver(measure);sizes.observe(header);sizes.observe(notice);
-  const sync=()=>{
-    const next=document.querySelector<HTMLElement>('.edit-toolbar');
-    if(next!==toolbar){if(toolbar)sizes.unobserve(toolbar);toolbar=next;if(toolbar)sizes.observe(toolbar);}
+  const sizes = new ResizeObserver(measure);
+  sizes.observe(header);
+  sizes.observe(notice);
+  const sync = () => {
+    const next = document.querySelector<HTMLElement>('.edit-toolbar');
+    if (next !== toolbar) {
+      if (toolbar) sizes.unobserve(toolbar);
+      toolbar = next;
+      if (toolbar) sizes.observe(toolbar);
+    }
     measure();
   };
-  new MutationObserver(sync).observe(document.getElementById('app')!,{childList:true,subtree:true});
-  window.addEventListener('resize',measure);document.fonts.addEventListener('loadingdone',requestLayout);sync();
+  new MutationObserver(sync).observe(document.getElementById('app')!, {childList: true, subtree: true});
+  window.addEventListener('resize', measure);
+  document.fonts.addEventListener('loadingdone', requestLayout);
+  sync();
 }

@@ -11,7 +11,9 @@ document.documentElement.dataset.channel = __APP_ENV__.channel;
 const app = startSongbook();
 startAppUpdates(app.beforeUpdateReload);
 const connection = document.querySelector<HTMLElement>('#connection')!;
-const showConnection = () => {connection.textContent = navigator.onLine ? 'Nettverk tilgjengelig' : 'Uten nett';};
+const showConnection = () => {
+  connection.textContent = navigator.onLine ? 'Nettverk tilgjengelig' : 'Uten nett';
+};
 showConnection();
 window.addEventListener('online', showConnection);
 window.addEventListener('offline', showConnection);

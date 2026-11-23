@@ -1,11 +1,16 @@
-import { actionButton, textArea } from './controls.ts';
-import { dialogFrame, dialogFooter, openDialog } from './dialog.ts';
-import { placeOverlay } from './layout.ts';
-import { withOriginal } from '../domain/original.ts';
-import type { EditSession } from '../domain/edit-session.ts';
-import { textHistory } from './text-edit.ts';
-import { mergeRawSource } from '../domain/source-edit.ts';
-export function openRawEditor(session: EditSession, save: () => Promise<boolean>, abort: () => void, opener: HTMLElement) {
+import {actionButton, textArea} from './controls.ts';
+import {dialogFrame, dialogFooter, openDialog} from './dialog.ts';
+import {placeOverlay} from './layout.ts';
+import {withOriginal} from '../domain/original.ts';
+import type {EditSession} from '../domain/edit-session.ts';
+import {textHistory} from './text-edit.ts';
+import {mergeRawSource} from '../domain/source-edit.ts';
+export function openRawEditor(
+  session: EditSession,
+  save: () => Promise<boolean>,
+  abort: () => void,
+  opener: HTMLElement,
+) {
   const initial = session.song.original,
     box = dialogFrame('Råtekst', 'original-editor raw-editor');
   const heading = document.createElement('h2');
@@ -33,20 +38,23 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
     at = field.selectionDirection === 'backward' ? field.selectionStart : field.selectionEnd;
     scroll = field.scrollTop;
   };
-  for (const event of ['select', 'keyup', 'pointerup', 'input', 'focus', 'scroll', 'text-history-change']) field.addEventListener(event, remember);
-  let gesture: {
-    x: number;
-    y: number;
-    scroll: number;
-    cancelled: boolean;
-  } | undefined;
+  for (const event of ['select', 'keyup', 'pointerup', 'input', 'focus', 'scroll', 'text-history-change'])
+    field.addEventListener(event, remember);
+  let gesture:
+    | {
+        x: number;
+        y: number;
+        scroll: number;
+        cancelled: boolean;
+      }
+    | undefined;
   toolbar.addEventListener('pointerdown', event => {
     if (document.activeElement === field) remember();
     gesture = {
       x: event.clientX,
       y: event.clientY,
       scroll: toolbar.scrollTop,
-      cancelled: false
+      cancelled: false,
     };
   });
   toolbar.addEventListener('pointermove', event => {
@@ -55,7 +63,19 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
   toolbar.addEventListener('pointercancel', () => {
     if (gesture) gesture.cancelled = true;
   });
-  for (const tag of ['[]', '{title: }', '{key: }', '{time: }', '{soc}', '{eoc}', '{chorus}', '{comment: }', '{x_dyn: }', '{sog}', '{eog}']) {
+  for (const tag of [
+    '[]',
+    '{title: }',
+    '{key: }',
+    '{time: }',
+    '{soc}',
+    '{eoc}',
+    '{chorus}',
+    '{comment: }',
+    '{x_dyn: }',
+    '{sog}',
+    '{eog}',
+  ]) {
     const button = actionButton(tag, () => {
       if (busy) return;
       if (gesture && (gesture.cancelled || gesture.scroll !== toolbar.scrollTop)) {
@@ -65,7 +85,7 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
       gesture = undefined;
       const position = at;
       field.focus({
-        preventScroll: true
+        preventScroll: true,
       });
       history.insert(tag, position, tag === '[]' ? 1 : tag.includes(':') ? tag.length - 1 : tag.length);
       field.scrollTop = scroll;
@@ -82,20 +102,23 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
     lifecycle.close();
     abort();
   };
-  const actions = dialogFooter([{
-    id: 'cancel',
-    label: 'Avbryt',
-    icon: 'avbryt',
-    run: cancel
-  }, {
-    id: 'save',
-    label: 'Lagre',
-    icon: 'lagre',
-    primary: true,
-    run: () => {
-      void commit();
-    }
-  }]);
+  const actions = dialogFooter([
+    {
+      id: 'cancel',
+      label: 'Avbryt',
+      icon: 'avbryt',
+      run: cancel,
+    },
+    {
+      id: 'save',
+      label: 'Lagre',
+      icon: 'lagre',
+      primary: true,
+      run: () => {
+        void commit();
+      },
+    },
+  ]);
   async function commit() {
     if (busy) return;
     const next = withOriginal(session.song, mergeRawSource(initial, field.value));
@@ -105,8 +128,8 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
     }
     busy = true;
     box.setAttribute('aria-busy', 'true');
-    actions.querySelectorAll('button').forEach(b => b.disabled = true);
-    toolbar.querySelectorAll('button').forEach(b => b.disabled = true);
+    actions.querySelectorAll('button').forEach(b => (b.disabled = true));
+    toolbar.querySelectorAll('button').forEach(b => (b.disabled = true));
     field.readOnly = true;
     try {
       if (!submitted) {
@@ -126,8 +149,8 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
     } finally {
       busy = false;
       box.removeAttribute('aria-busy');
-      actions.querySelectorAll('button').forEach(b => b.disabled = false);
-      toolbar.querySelectorAll('button').forEach(b => b.disabled = false);
+      actions.querySelectorAll('button').forEach(b => (b.disabled = false));
+      toolbar.querySelectorAll('button').forEach(b => (b.disabled = false));
       field.readOnly = false;
     }
   }
@@ -143,20 +166,24 @@ export function openRawEditor(session: EditSession, save: () => Promise<boolean>
   const lifecycle = openDialog(box, {
     opener,
     focus: initial === '{t: }\n' ? field : heading,
-    place: () => placeOverlay(box, undefined, {
-      fullscreen: true
-    }),
+    place: () =>
+      placeOverlay(box, undefined, {
+        fullscreen: true,
+      }),
     cancel,
     closed: () => {
       closed = true;
       history.dispose();
       document.body.classList.remove('original-open');
-    }
+    },
   });
-  if (initial === '{t: }\n') {field.setSelectionRange(4, 4); remember();}
+  if (initial === '{t: }\n') {
+    field.setSelectionRange(4, 4);
+    remember();
+  }
   return {
     dispose: cancel,
     dirty: () => !closed && (field.value !== displayInitial || submitted),
-    isOpen: () => !closed
+    isOpen: () => !closed,
   };
 }

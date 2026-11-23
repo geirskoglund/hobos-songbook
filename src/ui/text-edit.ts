@@ -8,7 +8,7 @@ export function textHistory(field: HTMLTextAreaElement) {
   const read = (): State => ({
     value: field.value,
     start: field.selectionStart,
-    end: field.selectionEnd
+    end: field.selectionEnd,
   });
   let states = [read()],
     index = 0,
@@ -21,15 +21,19 @@ export function textHistory(field: HTMLTextAreaElement) {
     const s = states[index];
     field.value = s.value;
     field.setSelectionRange(s.start, s.end);
-    field.dispatchEvent(new Event('text-history-change', {
-      bubbles: true
-    }));
+    field.dispatchEvent(
+      new Event('text-history-change', {
+        bubbles: true,
+      }),
+    );
   };
   const record = (type: string) => {
     const next = read();
     if (next.value === states[index].value) return;
     const now = performance.now();
-    if (!inserting && type === 'insertText' && lastType === type && now - lastInput < 600 && index > 0) states[index] = next;else {
+    if (!inserting && type === 'insertText' && lastType === type && now - lastInput < 600 && index > 0)
+      states[index] = next;
+    else {
       states = states.slice(0, index + 1);
       states.push(next);
       index++;
@@ -63,22 +67,24 @@ export function textHistory(field: HTMLTextAreaElement) {
       states[index] = {
         ...states[index],
         start: field.selectionStart,
-        end: field.selectionEnd
+        end: field.selectionEnd,
       };
       inserting = true;
       field.setRangeText(text, at, at, 'end');
       field.setSelectionRange(at + caret, at + caret);
-      field.dispatchEvent(new InputEvent('input', {
-        bubbles: true,
-        inputType: 'insertText',
-        data: text
-      }));
+      field.dispatchEvent(
+        new InputEvent('input', {
+          bubbles: true,
+          inputType: 'insertText',
+          data: text,
+        }),
+      );
       inserting = false;
     },
     dispose() {
       field.removeEventListener('input', input);
       field.removeEventListener('keydown', key);
       field.removeEventListener('beforeinput', before);
-    }
+    },
   };
 }
