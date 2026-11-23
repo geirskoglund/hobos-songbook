@@ -6,7 +6,7 @@ Produksjon: https://geirskoglund.github.io/hobos-songbook/app/ · Test: https://
 ## Arbeidsform
 
 - Svar på bokmål.
-- Aktuell GitHub-issue er oppgavegrunnlaget. Bevar brukerkrav og stabile ID-er (krav, beslutninger D01–D16, komponent-ID-er som L05 og D10).
+- Aktuell GitHub-issue er oppgavegrunnlaget. Bevar brukerkrav og stabile ID-er (krav, beslutninger D01–D24, komponent-ID-er som L05 og D10).
 - Arbeid på egen gren og lever PR mot `master` med `Closes #N`. Merge bare etter produktansvarligs uttrykkelige godkjenning; grønn CI er ikke produktgodkjenning.
 - Lukk ferdigløste issues etter merge hvis automatisk lukking uteblir. Delvis løste issues holdes åpne.
 
