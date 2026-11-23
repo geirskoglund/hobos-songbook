@@ -1,4 +1,4 @@
-import {test, expect, devices} from '@playwright/test';
+import {test, expect, devices} from './fixtures.mjs';
 import {importAndOpenSong, savedSongs, openMenu, closeMenu} from './song-helpers.mjs';
 
 test('mobile root prevents pull-to-refresh while touch scrolling and reader controls still work', async ({
@@ -6,7 +6,7 @@ test('mobile root prevents pull-to-refresh while touch scrolling and reader cont
   request,
 }) => {
   await request.post('/__test__/reset');
-  const context = await browser.newContext({...devices['Pixel 7'], baseURL: 'http://127.0.0.1:4173'});
+  const context = await browser.newContext({...devices['Pixel 7']});
   try {
     const page = await context.newPage(),
       input = await context.newCDPSession(page);

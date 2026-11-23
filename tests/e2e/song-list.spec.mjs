@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {importAndOpenSong, savedSongs, openMenu, goSongs, setCapo} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const legacy = {
@@ -149,7 +149,7 @@ test('an old open connection reports blocked upgrade and allows a safe retry', a
       }),
   );
   const app = await context.newPage();
-  await app.goto('http://127.0.0.1:4173' + url);
+  await app.goto(url);
   await expect(app.locator('#library-status')).toContainText('blokkert');
   await page.evaluate(() => window.blocker.close());
   await app.locator('#retry-storage').click();
@@ -184,7 +184,7 @@ test('book choices filter real songs, preserve membership and persist separately
   await chooseBook(page, 'Alle');
   await expect(page.locator('.song-choice')).toHaveCount(2);
   const prod = await context.newPage();
-  await prod.goto('http://127.0.0.1:4173/hobos-songbook/app/');
+  await prod.goto('/hobos-songbook/app/');
   await expect(prod.locator('#songbook-filter')).toHaveText('Alle');
   await expect(prod.locator('.song-choice')).toHaveCount(0);
   await prod.close();
@@ -291,7 +291,7 @@ test('touch controls wait for release and cancelled outside gestures keep the pi
   const context = await browser.newContext({viewport: {width: 390, height: 800}, hasTouch: true, isMobile: true}),
     page = await context.newPage();
   try {
-    await page.goto('http://127.0.0.1:4173' + url);
+    await page.goto(url);
     await expect(page.locator('#add-song')).toBeEnabled();
     const fab = await page.locator('#add-song').boundingBox(),
       cdp = await context.newCDPSession(page);

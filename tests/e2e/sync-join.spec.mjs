@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {createHash} from 'node:crypto';
 import {mkdir, appendFile} from 'node:fs/promises';
 import {dropboxMock} from './dropbox-mock.mjs';

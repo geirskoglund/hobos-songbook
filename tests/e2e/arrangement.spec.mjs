@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {readFile} from 'node:fs/promises';
 import {importAndOpenSong, savedSongs, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
 const base = '/hobos-songbook/test/';
@@ -131,7 +131,7 @@ test('touch pin changes on release, remains usable when off and survives an edit
   const context = await browser.newContext({viewport: {width: 390, height: 800}, isMobile: true, hasTouch: true}),
     page = await context.newPage();
   try {
-    await page.goto('http://127.0.0.1:4173' + base);
+    await page.goto(base);
     await importAndOpenSong(page, 'pin.cho', '{t: Berøringspinne}\n{sog}\n| D . | A . |\n{eog}\nTekst');
     const before = await savedSongs(page),
       pin = page.locator('#chart-close'),

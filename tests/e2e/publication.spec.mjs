@@ -1,5 +1,5 @@
 import {mkdir, writeFile} from 'node:fs/promises';
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
 import {goSongs, importAndOpenSong, openMenu, savedSongs} from './song-helpers.mjs';
 
@@ -484,7 +484,7 @@ test('AK39-05/F61: a rejected sharing grant returns to the songbook action with 
   }, preview);
   await context.route('https://geirskoglund.github.io/hobos-songbook/**', async route => {
     const requested = new URL(route.request().url());
-    const response = await request.get('http://127.0.0.1:4173' + requested.pathname);
+    const response = await request.get(requested.pathname);
     await route.fulfill({response});
   });
   await context.route('https://api.dropboxapi.com/oauth2/token', route =>

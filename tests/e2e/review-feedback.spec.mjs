@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {importAndOpenSong, savedSongs, savedPersonal, tool, fillValue, editSong, setCapo} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 test.beforeEach(async ({page, request}) => {
@@ -288,7 +288,7 @@ test('touch chord hold supports selection, cancelled drag and committed movement
     page = await context.newPage();
   try {
     const source = '{t: Touch}\n[C]abcdef\nNeste linje';
-    await page.goto('http://127.0.0.1:4173' + url);
+    await page.goto(url);
     await importAndOpenSong(page, 'touch.cho', source);
     await tool(page, 'Akkorder');
     const chord = page.locator('.chord[data-chord-start]').first();

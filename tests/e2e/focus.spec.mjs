@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {openMenu} from './song-helpers.mjs';
 
 const url = '/hobos-songbook/test/';
@@ -82,7 +82,7 @@ test('tablet touch leaves no active frame after menus, dialogs or an attached ke
   const context = await browser.newContext({viewport: {width: 800, height: 1100}, isMobile: true, hasTouch: true}),
     page = await context.newPage();
   try {
-    await page.goto('http://127.0.0.1:4173' + url);
+    await page.goto(url);
     await expect(page.locator('#add-song')).toBeEnabled();
     await button(page, 'Meny').tap();
     await button(page, 'Sangbøker').tap();

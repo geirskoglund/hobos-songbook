@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {
   beginImport,
   importAndOpenSong,
@@ -184,6 +184,7 @@ test('missing chorus is understandable and malformed blocks never swallow follow
 test('closing the browser and reopening the same persistent profile offline preserves real songs and choices', async ({
   playwright,
   browserName,
+  baseURL,
 }, testInfo) => {
   const {mkdtemp, rm, mkdir} = await import('node:fs/promises');
   await mkdir('work/profiles', {recursive: true});
@@ -192,6 +193,7 @@ test('closing the browser and reopening the same persistent profile offline pres
     playwright[browserName].launchPersistentContext(profile, {
       executablePath: testInfo.project.use.launchOptions.executablePath,
       args: ['--no-sandbox'],
+      baseURL,
       headless: true,
       colorScheme: 'light',
     });
@@ -199,7 +201,7 @@ test('closing the browser and reopening the same persistent profile offline pres
   try {
     context = await launch();
     let page = context.pages()[0];
-    await page.goto('http://127.0.0.1:4173/hobos-songbook/test/');
+    await page.goto('/hobos-songbook/test/');
     await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await importAndOpenSong(page);
@@ -215,7 +217,7 @@ test('closing the browser and reopening the same persistent profile offline pres
     context = await launch();
     await context.setOffline(true);
     page = context.pages()[0];
-    await page.goto('http://127.0.0.1:4173/hobos-songbook/test/');
+    await page.goto('/hobos-songbook/test/');
     await expect(page.locator('#connection')).toHaveText('Uten nett');
     await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
     await page.getByRole('button', {name: /Samme tittel/}).click();

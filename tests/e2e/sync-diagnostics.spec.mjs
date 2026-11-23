@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
 import {openMenu, importAndOpenSong, goSongs} from './song-helpers.mjs';
 import {stubClipboard, copiedText} from './clipboard-stub.mjs';

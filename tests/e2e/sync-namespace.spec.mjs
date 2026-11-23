@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
 import {openMenu} from './song-helpers.mjs';
 test.use({serviceWorkers: 'block'});
@@ -317,7 +317,7 @@ test('two independent IndexedDB installations cannot overtake a delayed ID trans
   const mock = await setup(page, context);
   await mutate(page, 'seed', 2);
   await synchronize(page);
-  const otherContext = await browser.newContext({serviceWorkers: 'block', baseURL: test.info().project.use.baseURL});
+  const otherContext = await browser.newContext({serviceWorkers: 'block'});
   try {
     const second = await dropboxMock(otherContext, {backend: mock}),
       other = await otherContext.newPage();
@@ -381,7 +381,7 @@ for (const offline of [false, true])
     await synchronize(page);
     const old = manifest(mock).books.standard;
     const source = mock.put('/Songbooks/Standard/Originals/unknown.pdf', 'preserved source'),
-      otherContext = await browser.newContext({serviceWorkers: 'block', baseURL: test.info().project.use.baseURL});
+      otherContext = await browser.newContext({serviceWorkers: 'block'});
     try {
       const second = await dropboxMock(otherContext, {backend: mock}),
         other = await otherContext.newPage();

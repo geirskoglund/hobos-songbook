@@ -1,5 +1,6 @@
 import {defineConfig, chromium} from '@playwright/test';
 import {existsSync} from 'node:fs';
+import {e2eOrigin} from './scripts/e2e-ports.mjs';
 
 const executablePath =
   process.env.CHROMIUM_PATH ||
@@ -10,11 +11,12 @@ if (!executablePath)
   throw new Error('Chromium mangler. Kjør npx playwright install chromium, eller sett CHROMIUM_PATH.');
 export default defineConfig({
   testDir: './tests/e2e',
-  workers: 1,
+  // Files run in parallel, each worker against its own server port (tests/e2e/fixtures.mjs sets baseURL).
+  // Tests within a file still run in order.
+  workers: 4,
   fullyParallel: false,
   timeout: 60000,
   use: {
-    baseURL: 'http://127.0.0.1:4173',
     browserName: 'chromium',
     launchOptions: {executablePath, args: ['--no-sandbox']},
     screenshot: 'only-on-failure',
@@ -22,7 +24,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'node scripts/e2e-server.mjs',
-    url: 'http://127.0.0.1:4173/__test__/ready',
+    url: `${e2eOrigin(0)}/__test__/ready`,
     reuseExistingServer: false,
   },
 });

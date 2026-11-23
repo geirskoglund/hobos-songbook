@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect} from './fixtures.mjs';
 import {importAndOpenSong, savedSongs, savedPersonal, tool, fillValue, editSong} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 test.beforeEach(async ({page, request}) => {
@@ -156,7 +156,7 @@ test('touch chord preview is enlarged above the finger and shows the exact lyric
     page = await context.newPage();
   try {
     const source = '{t: Akkord}\n[C]abcdef\nNeste';
-    await page.goto('http://127.0.0.1:4173' + url);
+    await page.goto(url);
     await importAndOpenSong(page, 'zoom.cho', source);
     await editSong(page);
     const chord = page.locator('.chord[data-chord-start]').first(),
