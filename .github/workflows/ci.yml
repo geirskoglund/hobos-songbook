@@ -45,16 +45,8 @@ jobs:
           cache: npm
       - run: npm ci
         if: steps.scope.outputs.docs-only != 'true'
-      - uses: actions/cache@v4
-        if: steps.scope.outputs.docs-only != 'true'
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: Install pinned Playwright Chromium
-        if: steps.scope.outputs.docs-only != 'true'
-        timeout-minutes: 5
-        run: npx playwright install chromium
-      - run: npm run check
+      # Quick check only. E2E runs at the same time in e2e.yml; test publishes after this job, production after both.
+      - run: npm run check:quick
         if: steps.scope.outputs.docs-only != 'true'
       - name: Build validated source once per required channel
         if: steps.scope.outputs.docs-only != 'true'
@@ -78,8 +70,3 @@ jobs:
           path: release/production/
           if-no-files-found: error
           retention-days: 90
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-results
-          path: test-results/

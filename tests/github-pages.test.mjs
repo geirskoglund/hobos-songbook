@@ -1,12 +1,13 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {isValidated, createPlan, checkCurrent, docsOnlyBetween} from '../scripts/github-pages.mjs';
+import {isValidated, isTested, createPlan, checkCurrent, docsOnlyBetween} from '../scripts/github-pages.mjs';
 import {docsOnlyStep} from '../scripts/change-scope.mjs';
 import {repository} from '../scripts/pages-plan.mjs';
 
 const sha = 'a'.repeat(40),
   previewSha = 'b'.repeat(40);
 const workflow = {id: 42, path: '.github/workflows/ci.yml', state: 'active'};
+const e2eWorkflow = {id: 43, path: '.github/workflows/e2e.yml', state: 'active'};
 const repo = {owner: 'geirskoglund', repo: 'hobos-songbook'};
 const run = (patch = {}) => ({
   id: 100,
@@ -23,8 +24,11 @@ const run = (patch = {}) => ({
   ...patch,
 });
 function client({
-  runs = [run()],
-  jobs = [{name: 'validate', conclusion: 'success', status: 'completed'}],
+  runs = [run(), run({id: 300, workflow_id: 43, path: e2eWorkflow.path})],
+  jobs = [
+    {name: 'validate', conclusion: 'success', status: 'completed'},
+    {name: 'e2e', conclusion: 'success', status: 'completed'},
+  ],
   deployments = [],
   statuses = [],
   workflowPatch = {},
@@ -34,7 +38,9 @@ function client({
   artifacts = [],
 } = {}) {
   const actions = {
-    getWorkflow: async () => ({data: {...workflow, ...workflowPatch}}),
+    getWorkflow: async ({workflow_id}) => ({
+      data: {...(workflow_id === 'e2e.yml' ? e2eWorkflow : workflow), ...workflowPatch},
+    }),
     listWorkflowRuns: () => {},
     listJobsForWorkflowRun: () => {},
     listWorkflowRunArtifacts: () => {},
@@ -68,7 +74,7 @@ function client({
     },
     paginate: async (method, args) => {
       if (method === actions.listWorkflowRuns) {
-        assert.equal(args.workflow_id, 42);
+        assert.ok([42, 43].includes(args.workflow_id));
         return runs;
       }
       if (method === actions.listJobsForWorkflowRun) {
@@ -405,4 +411,88 @@ test('comparison with published commit is documentation only when GitHub confirm
     docsOnlyBetween(compare(Object.assign(Error('down'), {status: 500})), repo, previewSha, sha),
     /down/,
   );
+});
+test('production E2E proof requires e2e.yml, its e2e job and a push to master', async () => {
+  const e2eRun = (patch = {}) => run({id: 300, workflow_id: 43, path: '.github/workflows/e2e.yml', ...patch});
+  assert.equal(await isTested(client({runs: [e2eRun()]}), repo, sha), true);
+  // A green Validate is not E2E evidence.
+  assert.equal(await isTested(client({runs: [run()]}), repo, sha), false);
+  for (const patch of [
+    {path: '.github/workflows/ci.yml'},
+    {conclusion: 'failure'},
+    {status: 'in_progress'},
+    {event: 'pull_request'},
+    {head_branch: 'feature'},
+  ])
+    assert.equal(await isTested(client({runs: [e2eRun(patch)]}), repo, sha), false);
+  assert.equal(
+    await isTested(
+      client({runs: [e2eRun()], jobs: [{name: 'validate', conclusion: 'success', status: 'completed'}]}),
+      repo,
+      sha,
+    ),
+    false,
+  );
+  await assert.rejects(
+    isTested(
+      client({
+        runs: [e2eRun()],
+        jobs: [
+          {
+            name: 'e2e',
+            conclusion: 'success',
+            status: 'completed',
+            steps: [{name: 'Run npm run test:e2e', conclusion: 'skipped'}],
+          },
+        ],
+      }),
+      repo,
+      sha,
+    ),
+    /ikke validert/,
+  );
+});
+test('Pages accepts workflow_run from Validate and E2E only', async () => {
+  const outputs = {};
+  const core = {
+    setOutput: (key, value) => (outputs[key] = value),
+    summary: {
+      addRaw() {
+        return this;
+      },
+      addCodeBlock() {
+        return this;
+      },
+      async write() {},
+    },
+  };
+  const previous = {
+    version: 1,
+    repository,
+    production: {sha, pr: null, kind: 'placeholder'},
+    preview: {sha, pr: null, kind: 'placeholder'},
+  };
+  const before = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(previous));
+  try {
+    for (const workflow_id of [42, 43]) {
+      const context = {
+        repo,
+        ref: 'refs/heads/master',
+        sha,
+        eventName: 'workflow_run',
+        payload: {
+          workflow_run: {
+            ...run({workflow_id, event: 'pull_request', head_sha: previewSha}),
+            pull_requests: [{number: 7}],
+          },
+        },
+      };
+      outputs.deploy = null;
+      await createPlan({github: client(), context, core, selection: 'keep'});
+      assert.equal(outputs.deploy, false);
+    }
+  } finally {
+    globalThis.fetch = before;
+  }
 });

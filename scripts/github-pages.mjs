@@ -4,10 +4,18 @@ import {classifyChanges, docsOnlyStep} from './change-scope.mjs';
 // GitHub's compare API lists at most 300 files; a longer list is never treated as complete.
 const maxCompareFiles = 300;
 
+// Validate (quick check and builds) is enough for test. Production also needs E2E on the exact master commit.
+export const checks = {
+  validate: {file: 'ci.yml', job: 'validate'},
+  e2e: {file: 'e2e.yml', job: 'e2e'},
+};
+// A required step that did not succeed means the job validated nothing. Older Validate runs used 'Run npm run check'.
+const requiredSteps = ['Run npm run check', 'Run npm run check:quick', 'Run npm run test:e2e'];
+
 // The workflow's identity and source are checked through Actions, never by a check name alone.
-export async function validatedRun(github, repo, sha, pr) {
-  const {data: workflow} = await github.rest.actions.getWorkflow({...repo, workflow_id: 'ci.yml'});
-  if (workflow.path !== '.github/workflows/ci.yml' || workflow.state !== 'active') return false;
+export async function validatedRun(github, repo, sha, pr, check = checks.validate) {
+  const {data: workflow} = await github.rest.actions.getWorkflow({...repo, workflow_id: check.file});
+  if (workflow.path !== `.github/workflows/${check.file}` || workflow.state !== 'active') return false;
   const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
     ...repo,
     workflow_id: workflow.id,
@@ -65,7 +73,7 @@ export async function validatedRun(github, repo, sha, pr) {
     per_page: 100,
   });
   const job = jobs.find(
-    item => item.name === 'validate' && item.conclusion === 'success' && item.status === 'completed',
+    item => item.name === check.job && item.conclusion === 'success' && item.status === 'completed',
   );
   if (!job) return null;
   // A documentation-only PR run is green without install, tests or build. It never counts as validated source.
@@ -73,11 +81,11 @@ export async function validatedRun(github, repo, sha, pr) {
     job.steps?.some(
       step =>
         (step.name === docsOnlyStep && step.conclusion === 'success') ||
-        (step.name === 'Run npm run check' && step.conclusion !== 'success'),
+        (requiredSteps.includes(step.name) && step.conclusion !== 'success'),
     )
   ) {
     throw new Error(
-      `Commit ${sha}${pr === null ? '' : ` i PR #${pr}`} er ikke validert: Validate gjaldt bare dokumentasjon og hoppet over tester og bygg. Den kan ikke publiseres.`,
+      `Commit ${sha}${pr === null ? '' : ` i PR #${pr}`} er ikke validert: ${check.file} gjaldt bare dokumentasjon og hoppet over tester og bygg. Den kan ikke publiseres.`,
     );
   }
   return latest;
@@ -98,6 +106,11 @@ export async function docsOnlyBetween(github, repo, base, head) {
 
 export async function isValidated(github, repo, sha, pr) {
   return Boolean(await validatedRun(github, repo, sha, pr));
+}
+
+/** Production only: green E2E from a push to master for the exact commit. */
+export async function isTested(github, repo, sha) {
+  return Boolean(await validatedRun(github, repo, sha, null, checks.e2e));
 }
 
 export async function services(github, context, fetchImpl = fetch) {
@@ -139,6 +152,7 @@ export async function services(github, context, fetchImpl = fetch) {
     getValidatedRun,
     docsOnlySince: (base, head) => docsOnlyBetween(github, repo, base, head),
     isValidated: async (sha, pr) => Boolean(await getValidatedRun(sha, pr)),
+    isTested: sha => isTested(github, repo, sha),
     hasApp: async ref => {
       let content;
       try {
@@ -166,16 +180,26 @@ export async function createPlan({github, context, core, selection}) {
     core.setOutput('deploy', 'false');
     return;
   }
+  let trigger = null;
   if (context.eventName === 'workflow_run') {
-    const {data: workflow} = await github.rest.actions.getWorkflow({...context.repo, workflow_id: 'ci.yml'});
-    if (context.payload.workflow_run?.workflow_id !== workflow.id || workflow.path !== '.github/workflows/ci.yml') {
-      throw new Error('Publiseringshendelsen kommer ikke fra ci.yml.');
+    for (const [name, check] of Object.entries(checks)) {
+      const {data: workflow} = await github.rest.actions.getWorkflow({...context.repo, workflow_id: check.file});
+      if (
+        context.payload.workflow_run?.workflow_id === workflow.id &&
+        workflow.path === `.github/workflows/${check.file}`
+      )
+        trigger = name;
     }
+    if (!trigger) throw new Error('Publiseringshendelsen kommer ikke fra ci.yml eller e2e.yml.');
   }
-  const plan = await planPages({...api, selection, eventName: context.eventName, event: context.payload});
+  const plan = await planPages({...api, selection, eventName: context.eventName, event: context.payload, trigger});
   core.setOutput('deploy', Boolean(plan));
   if (!plan) {
-    await core.summary.addRaw('Ingen ny publisering: publiserte utgaver er allerede oppdatert.\n').write();
+    await core.summary
+      .addRaw(
+        'Ingen ny publisering: publiserte utgaver er allerede oppdatert. Ny master når produksjon først når både Validate og E2E er grønne.\n',
+      )
+      .write();
     return;
   }
   core.setOutput('plan', JSON.stringify(plan));
@@ -211,9 +235,13 @@ export async function createPlan({github, context, core, selection}) {
     });
   }
   core.setOutput('matrix', JSON.stringify({include}));
-  if (plan.metadata.production.sha !== plan.master) {
+  if (plan.held === 'docs') {
     core.summary.addRaw(
       `Produksjon beholder ${plan.metadata.production.sha}: bare dokumentasjon er endret frem til master ${plan.master}.\n`,
+    );
+  } else if (plan.held === 'e2e') {
+    core.summary.addRaw(
+      `Produksjon beholder ${plan.metadata.production.sha}: master ${plan.master} mangler grønn E2E ennå. Produksjon oppdateres når E2E er grønn.\n`,
     );
   }
   await core.summary.addCodeBlock(JSON.stringify(plan.metadata, null, 2), 'json').write();

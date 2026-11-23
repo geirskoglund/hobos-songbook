@@ -106,6 +106,7 @@ test('complete bootstrap plan, separate placeholder builds, assembly and HTTPS c
     previous: null,
     hasApp: async () => false,
     isValidated: async () => true,
+    isTested: async () => true,
   });
   for (const [target, channel] of [
     ['production', 'production'],
