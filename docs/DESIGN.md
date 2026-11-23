@@ -37,7 +37,7 @@ Alle mål er CSS-piksler. SVG-koordinater må leses relativt til selve komponent
 
 Disse reglene presiserer implementerte komponenter; øvrige typer innføres først ved behov. Komponentvariantenes konkrete radier gjelder foran den generelle panel-/feltradien. En komponert D10 bruker dialogrammens 24 px når den har E03-footer, feltets 16 px og listens 17 px. En selvstendig D09 beholder picker-rammen. Alle brukssteder bruker de samme reglene; sidevise CSS-unntak skal ikke reparere en feil i felleskomponenten.
 
-Gjenbruk er ikke et samsvarsbevis. Hver UI-leveranse har nummerert egensjekk med komponent-ID, normativ referanse, faktisk måling/visuell kontroll og resultat, etter [TESTING](TESTING.md#designsystem-og-appskall-23). Arvede avvik og gjenværende plattformkontroller oppgis. Grønne tester og et skjermbilde av dagens app erstatter ikke kontroll mot vedtatt design.
+Gjenbruk er ikke et samsvarsbevis. Hver UI-leveranse har nummerert egensjekk med komponent-ID, normativ referanse, faktisk måling/visuell kontroll og resultat. Arvede avvik og gjenværende plattformkontroller oppgis. Grønne tester og et skjermbilde av dagens app erstatter ikke kontroll mot vedtatt design.
 
 ## Implementert sangflyt
 
