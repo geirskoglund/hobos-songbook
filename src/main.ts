@@ -1,4 +1,4 @@
-// Midlertidig måling av publiseringstid (#54), merges ikke.
+// Midlertidig måling av publiseringstid (#54), merges ikke. Commit 2.
 import './fonts.css';
 import './style.css';
 import {startLayout} from './ui/layout.ts';
