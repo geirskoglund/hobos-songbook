@@ -13,6 +13,7 @@ Produksjon: https://geirskoglund.github.io/hobos-songbook/app/ · Test: https://
 ## Kommandoer
 
 - `npm run dev`: utviklingsserver
+- `npm run format`: formater koden med Prettier. CI feiler på uformatert kode; Claude Code-hooken formaterer filer du endrer.
 - `npm run typecheck`: typesjekk
 - `npm test`: enhetstester (raske)
 - `npx playwright test tests/e2e/<fil>.spec.mjs`: én e2e-fil. Hele suiten (`npm run test:e2e`) tar ca. 8 min; kjør den bare ved brede endringer, CI kjører den uansett.
