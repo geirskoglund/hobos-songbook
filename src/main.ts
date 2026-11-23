@@ -1,3 +1,4 @@
+// Midlertidig måling av publiseringstid (#54), merges ikke.
 import './fonts.css';
 import './style.css';
 import {startLayout} from './ui/layout.ts';
