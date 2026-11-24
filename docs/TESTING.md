@@ -1,5 +1,9 @@
 # Test og publisering
 
+> **Her står:** kommandoer, CI, publisering, valg av testutgave og manuell kontroll på fysiske enheter.
+>
+> **Ikke her:** beskrivelser av enkelttester eller testfiler, eller produktregler.
+
 ## Kommandoer
 
 Bruk Node.js 24 LTS.

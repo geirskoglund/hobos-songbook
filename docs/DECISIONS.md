@@ -1,5 +1,9 @@
 # Gjeldende beslutninger og begrunnelser
 
+> **Her står:** prinsippvalg der et rimelig alternativ er forkastet, med begrunnelsen. ID-ene er stabile og gjenbrukes ikke.
+>
+> **Ikke her:** detaljert oppførsel, UI-detaljer eller begrunnelser som ikke er gitt av produktansvarlig.
+
 Dette er gjeldende beslutninger, ikke en kronologisk arbeidslogg. Produktgrunnlaget er [REQUIREMENTS](REQUIREMENTS.md) og den daterte kilden i #1. PWA/CI/CD, lokal sangflyt, kompakt sangvisning, samlet sangredigering og lokal sangbokadministrasjon er implementert. Gjenstående funksjoner og design er avgrenset i REQUIREMENTS §10; faktisk verifikasjon rapporteres i leveranse-PR-ene og [TESTING](TESTING.md).
 
 ## Produkt og databevaring

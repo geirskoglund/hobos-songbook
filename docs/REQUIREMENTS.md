@@ -1,5 +1,11 @@
 # Gjeldende krav
 
+> **Her står:** produktregler som ikke går fram av koden og testene, og vedtatte regler for funksjoner som ikke er bygget.
+>
+> **Ikke her:** vanlig oppførsel som kode og tester viser (tekster, knapper og flyt), eller begrunnelser for prinsippvalg.
+>
+> Eldre innhold følger ikke dette ennå. Det ryddes seksjon for seksjon når funksjonen det gjelder, endres. Ikke påpek eller rydd det i andre oppgaver.
+
 Dette er produktkrav, ikke en liste over ferdige funksjoner. **Implementert:** PWA/offline, miljøidentitet, oppdatering og CI/CD; lokal UTF-8 ChordPro/TXT-innlesing, sanglagring, sangboktilhørighet og alfabetisk sangliste med husket filter; kompakt sangvisning med individuelle refrengvalg, felles/personlig akkordskjema og femnivå-dynamikk; samlet sangredigering med Filinnhold/Egentilpasning, musikalske verktøy, felles historikk og lokal autosparing fra #30; fullskjerms Råtekst og ny sang med Avbryt/Lagre; lokal sangbokadministrasjon og obligatorisk bokvalg ved Opprett/Importer fra #35; setlisteoversikt/navneadministrasjon med tom detaljside; Dropbox-tilkobling og sang-/personsynk fra #37 samt publisering, avpublisering og sangbøkenes leselenker fra #39.
 
 Grunnlaget er godkjente og mergede [PR #5](https://github.com/geirskoglund/hobos-songbook/pull/5) (issue #4), [PR #7](https://github.com/geirskoglund/hobos-songbook/pull/7) (issue #6), [PR #9](https://github.com/geirskoglund/hobos-songbook/pull/9) (issue #8 med produktansvarligs presiseringer) og [PR #10](https://github.com/geirskoglund/hobos-songbook/pull/10) (publisering). **Gjenstående vedtatt v1-funksjonalitet:** administrasjon av eksterne kilder, originaleditorens konvertering, setlisteinnhold, ekstern kildesynk, eksport/backup og skjermvåkenhet. Se §10. Automatisert verifikasjon og publiseringskontroller er rapportert i PR-ene; fysisk iPad/Safari, Android/Chrome og installert PWA er ikke verifisert av Codex. Gjenværende plattformkontroller står i [TESTING](TESTING.md).

@@ -2,6 +2,10 @@
 
 Felles språk for sangboken: hva begrepene betyr, slik de brukes i issues, kode, tester og samtaler. Regler og oppførsel står i `docs/REQUIREMENTS.md` og `docs/DECISIONS.md`.
 
+> **Her står:** domenebegreper med definisjon i domenespråk, godkjente synonymer og ord som skal unngås.
+>
+> **Ikke her:** lagringsnavn, stier, implementasjon, produktregler eller oppførsel. Vedtatte definisjoner endres bare etter produktavklaring.
+
 Godkjente synonymer har egen oppføring som viser til hovedbegrepet («Se X»). Ord under _Unngå_ skal ikke brukes om begrepet.
 
 ## Bibliotek
