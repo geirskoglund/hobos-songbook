@@ -1,5 +1,9 @@
 # Hobo's Songbook
 
+> **Her står:** hva appen er, adressene, hvordan den startes, og hvor dokumentasjonen ligger.
+>
+> **Ikke her:** produktregler, arbeidsform eller testdetaljer.
+
 Offline-first sangbok som PWA for nettbrett, mobil og PC/Mac. Appen leser ChordPro- og tekstfiler, viser sanger med akkorder, refreng, akkordskjema og dynamikk, og lar deg redigere sangene og legge på egne tilpasninger som capo, notater og markeringer. Sangene ligger lokalt og kan synkroniseres med din egen Dropbox. Appen virker uten konto og uten nett.
 
 - Produksjon: https://geirskoglund.github.io/hobos-songbook/app/

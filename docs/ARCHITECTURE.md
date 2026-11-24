@@ -1,6 +1,8 @@
 # Arkitektur
 
-Dette dokumentet beskriver det koden ikke sier selv: lagdelingen, kanalene, offline, Dropbox-strukturen og reglene synk-motoren må holde. Modulenes oppførsel står i koden og testene.
+> **Her står:** det koden ikke sier selv, det vil si lagdeling og grenser, kanaler, offline, Dropbox-strukturen og regler for synk og lagring der et brudd kan koste brukerdata.
+>
+> **Ikke her:** hva modulene gjør, oppførsel i brukergrensesnittet eller begreper.
 
 ## Lag og avhengigheter
 

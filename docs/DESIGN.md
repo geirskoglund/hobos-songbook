@@ -1,5 +1,9 @@
 # Designprinsipper
 
+> **Her står:** bindende designregler og mål som ikke står i CSS-en. Komponent-ID-er, SVG-er og ikoner står i `design/README.md`.
+>
+> **Ikke her:** produktoppførsel, funksjonsbeslutninger eller kontrollrapporter.
+
 ## Bruk av designsystemet
 
 Bruk [navneindeksen](design/README.md) for komponentnavn, ID-er og SVG-er. Entydige navn er tilstrekkelig. Bevar navn og ID-er.
