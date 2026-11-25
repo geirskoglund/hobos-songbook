@@ -16,6 +16,7 @@ Bruk [navneindeksen](design/README.md) for komponentnavn, ID-er og SVG-er. Entyd
 - Overordnet layout vedlikeholdes ett sted. Se [arkitekturen](ARCHITECTURE.md#felles-ui-og-layout).
 - Ingen separat generell statusindikator.
 - Ingen særskilt Takt-kontroll: samme generelle tekstlige verdikontroll som toneart.
+- Komponentene N01, N02, L01–L06, D01–D06, E01 og F01–F06 er rekonstruert fra oppgitte godkjente SVG-er og må ikke tolkes som nye produktbeslutninger.
 
 Oppgaven bestemmer funksjon og innhold; designets eksempeltekst utvider ikke bestillingen. Avklar bare manglende eller tvetydig design.
 
@@ -25,7 +26,7 @@ Gule eller gylne «aktiv»-rammer, fokusrammer og hoverrammer rundt kontroller s
 
 Tastaturnavigasjon har en diskret, 1 px fokusmarkering i den eksisterende Sekundærtekst-rollen, trukket 2 px inn for å unngå klipping og ekstra rammer utenfor kontrollen. Tab, piltaster, Home/End og Page Up/Down aktiverer markeringen; neste pekertrykk fjerner den. Samme regel brukes av alle felleskontroller, også felt som nettleseren ellers ville ha markert etter berøring. Ingen lokal gul/gyllen fokusvariant innføres. Fargerollen som heter Handling/fokus i det opprinnelige grunnlaget er ikke en tillatelse til slike rammer; denne uttrykkelige produktavklaringen styrer kontrollfokus.
 
-Vedtatte tilstander som valgt sangbok med flate/sjekkmerke, primærknappens fyll og sangredigeringens faktiske innholdsutvalg beholder sin betydning. De skal ikke brukes til å dekorere en kontroll som bare har fått fokus. Egensjekk prøver både direkte trykk, lukking med fokusretur og bytte mellom tastatur og berøring.
+Vedtatte tilstander som valgt sangbok med flate/sjekkmerke, primærknappens fyll og sangredigeringens faktiske innholdsutvalg beholder sin betydning. De skal ikke brukes til å dekorere en kontroll som bare har fått fokus. D04: Valgt radiopunkt følger aksentrollen; kontrollfokus følger den felles, dempede tastaturmarkeringen. Ingen gul/gyllen aktiv- eller fokusramme rundt kontrollen. Egensjekk prøver både direkte trykk, lukking med fokusretur og bytte mellom tastatur og berøring.
 
 ### Målregler for komponenter i bruk
 
