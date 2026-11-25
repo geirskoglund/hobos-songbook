@@ -1,12 +1,12 @@
 # Designprinsipper
 
-> **Her står:** bindende designregler og mål som ikke står i CSS-en. Komponent-ID-er, SVG-er og ikoner står i `design/README.md`.
+> **Her står:** bindende designregler og mål som ikke står i CSS-en, navneindeksen med komponent-ID-er og SVG-er, og ikonregisteret.
 >
 > **Ikke her:** produktoppførsel, funksjonsbeslutninger eller kontrollrapporter.
 
 ## Bruk av designsystemet
 
-Bruk [navneindeksen](design/README.md) for komponentnavn, ID-er og SVG-er. Entydige navn er tilstrekkelig. Bevar navn og ID-er.
+Bruk [navneindeksen](#navneindeks) for komponentnavn, ID-er og SVG-er. Entydige navn er tilstrekkelig. Bevar navn og ID-er.
 
 - Godkjent designgrunnlag, komponentkart og ikonbibliotek er bindende ved alt UI-arbeid. Nye eller avvikende kontrolltyper krever uttrykkelig produktavklaring. Seneste uttrykkelige produktavklaring styrer og innarbeides i gjeldende dokumentasjon. Designgrunnlaget styrer farge- og fontroller; riktig enkelt-SVG og komponentvariant styrer geometri og komponentens tekststørrelser. Ikonregisteret styrer ikonform og betydning. Reell motstrid som disse reglene ikke løser, avklares før en lokal utforming innføres.
 - Skjermbildeskisser ved nåværende og fremtidige issues beskriver ønsket funksjon, innhold og flyt. Dersom skissen avviker fra eksisterende avklart design, legges det avklarte designet til grunn. Avvikende farger, former, marger eller menyknapper i en skisse er ikke en designendring; det krever en uttrykkelig produktbeslutning.
@@ -44,6 +44,163 @@ Alle mål er CSS-piksler. SVG-koordinater må leses relativt til selve komponent
 
 Disse reglene presiserer implementerte komponenter; øvrige typer innføres først ved behov. Komponentvariantenes konkrete radier gjelder foran den generelle panel-/feltradien. En komponert D10 bruker dialogrammens 24 px når den har E03-footer, feltets 16 px og listens 17 px. En selvstendig D09 beholder picker-rammen. Alle brukssteder bruker de samme reglene; sidevise CSS-unntak skal ikke reparere en feil i felleskomponenten.
 
+## Designreferanser
+
+Godkjent designgrunnlag, komponentkart med 32 enkeltkomponenter og ikonregister v3 er bindende for alt UI-arbeid. Grunnlaget er levert med issue #23; nye eller avvikende kontrolltyper krever uttrykkelig produktavklaring. `design/grunnlag/` beskriver farger og typografi, `design/komponenter/` inneholder kart og enkelt-SVG-er, og `design/ikoner/` inneholder originalfiler. Repoet bevarer de redigerbare SVG-ene; PNG-forhåndsvisninger og det redundante ZIP-arkivet finnes i issuevedleggene. Individuelle SVG-er er geometrisk referanse; eksempelinnhold bestiller ikke nye funksjoner. Issueskisser endrer ikke vedtatt design; ved avvik brukes eksisterende avklart design. En nummerert egensjekk og sentrale designkontrakter følger UI-leveranser etter [TESTING](TESTING.md#designsystem-og-appskall-23).
+
+Gjeldende avklaringer: kontroller får ingen gule/gylne aktiv-, fokus- eller hoverrammer; felles, dempet tastaturmarkering og stille fokusretur følger [DESIGN](#fokus-og-tilstand-på-kontroller). F06s kryss er historisk referanse; sangredigeringen bruker long press/outline og Fjern på ett valgt element. F05 følger notatet under flytting. Små verdikontroller er alltid énlinjet. Øvrige avklaringer: bare mørkt tema i v1; hovedmenyen bruker hamburger; Råtekst har Avbryt/Lagre; dialogfootere med 1/2/3 handlinger gjenbrukes, og sangens små verdiredigerere bruker D07/D08 uten OK/Avbryt. Innstillinger vedlikeholdes i appen.
+
+De fem godkjente statusikonene fra #37 er bevart uendret i ikonbiblioteket, inkludert status-slettet v18; de vises ikke på sangradene i denne leveransen. Dropbox-glyphen er levert/godkjent av produktansvarlig, har transparent bakgrunn og beholder sin blåfarge. Synkronisering komponerer eksisterende paneler og E03/E04.
+
+Runtimeikonene i `assets/ui-icons/` følger de bevarte referanseformene og brukes gjennom appens felles ikonregister. Fontfiler og lisenser ligger i `assets/fonts/` (Fontsource Inter, Gentium Book Plus og Cousine, latin med norske tegn). Referansearkene er ikke runtime-ressurser.
+
+Sangbøker gjenbruker Setlisters L02, H01/H04 og felles D02/E03-navnedialog. D09 og D10 deler verdifelt og L05-rader; D10 har separat Ny sangbok-handling. D10 er selve popupen med kontekstuell overskrift og integrert E03-footer: Opprett i sangbok / Importer i sangbok med Avbryt/Fortsett før Råtekst/filvalg, eller Slett sangbok med konsekvensbeskrivelse og Avbryt/Slett. Feltet og den utvidbare listen ligger i samme popup, uten en ekstra Sangbok-header eller verdikopi. Sangbokikonet brukes i hovedmenyen, filterutløseren og én gang i hver popupheader. Menyrekkefølgen er Sanger, Setlister, Synkronisering, Sangbøker, Filer, bunnforankret Innstillinger.
+
+### Navneindeks
+
+Navn og stabile ID-er følger komponentbiblioteket.
+
+| Navn i komponentbiblioteket | Stabil ID | Visuell referanse |
+| --- | --- | --- |
+| Toppfelt | `N01_Toppfelt` | [SVG](design/komponenter/Komponenter/N01_Toppfelt.svg) |
+| Navigasjonspanel | `N02_Navigasjonspanel` | [SVG](design/komponenter/Komponenter/N02_Navigasjonspanel.svg) |
+| Flytende handling | `H01_Flytende_handling` | [SVG](design/komponenter/Komponenter/01_Flytende_plussknapp.svg) |
+| Verktøyknapp | `H02_Verktoyknapp` | [SVG](design/komponenter/Komponenter/04_Verktoyknapp.svg) |
+| Fanevelger | `H03_Fanevelger` | [SVG](design/komponenter/Komponenter/05_Fanevelger.svg) |
+| Kontekstmeny | `H04_Kontekstmeny` | [SVG](design/komponenter/Komponenter/06_Kontekstmeny.svg) |
+| Listerad – tittel og metadata | `L01_Listerad_tittel_metadata` | [SVG](design/komponenter/Komponenter/L01_Listerad_tittel_metadata.svg) |
+| Listerad – tittel og antall | `L02_Listerad_tittel_antall` | [SVG](design/komponenter/Komponenter/L02_Listerad_tittel_antall.svg) |
+| Listerad – nummerert | `L03_Listerad_nummerert` | [SVG](design/komponenter/Komponenter/L03_Listerad_nummerert.svg) |
+| Listerad – spesialelement | `L04_Listerad_spesial` | [SVG](design/komponenter/Komponenter/L04_Listerad_spesial.svg) |
+| Listerad – valgbar | `L05_Listerad_valgbar` | [SVG](design/komponenter/Komponenter/L05_Listerad_valgbar.svg) |
+| Listerad – separat handling | `L06_Listerad_separat_handling` | [SVG](design/komponenter/Komponenter/L06_Listerad_separat_handling.svg) |
+| Visningspille | `D01_Visningspille` | [SVG](design/komponenter/Komponenter/D01_Visningspille.svg) |
+| Liten verdikontroll – numerisk | `D07_Liten_verdikontroll_numerisk` | [SVG](design/komponenter/Komponenter/03_Liten_verdikontroll_Capo.svg) |
+| Liten verdikontroll – tekstlig | `D08_Liten_verdikontroll_tekstlig` | [SVG](design/komponenter/Komponenter/03_Liten_verdikontroll_Toneart.svg) |
+| Tekstfelt – enlinjet | `D02_Tekstfelt_enlinjet` | [SVG](design/komponenter/Komponenter/D02_Tekstfelt_enlinjet.svg) |
+| Tekstfelt – flerlinjet | `D03_Tekstfelt_flerlinjet` | [SVG](design/komponenter/Komponenter/D03_Tekstfelt_flerlinjet.svg) |
+| Valgkontroll – ett valg | `D04_Valgkontroll_radio` | [SVG](design/komponenter/Komponenter/D04_Valgkontroll_radio.svg) |
+| Valgkontroll – av/på | `D05_Valgkontroll_bryter` | [SVG](design/komponenter/Komponenter/D05_Valgkontroll_bryter.svg) |
+| Valgkontroll – skyver | `D06_Valgkontroll_skyver` | [SVG](design/komponenter/Komponenter/D06_Valgkontroll_skyver.svg) |
+| Sangbokvelger – kun valg | `D09_Sangbokvelger_kun_valg` | [SVG](design/komponenter/Komponenter/07_Sangbokvelger_kun_valg.svg) |
+| Sangbokvelger – med handling | `D10_Sangbokvelger_med_handling` | [SVG](design/komponenter/Komponenter/07_Sangbokvelger.svg) |
+| Dialog – én handling | `E02_Dialog_en_handling` | [SVG](design/komponenter/Komponenter/02_Dialog_footer_1_handling.svg) |
+| Dialog – to handlinger | `E03_Dialog_to_handlinger` | [SVG](design/komponenter/Komponenter/02_Dialog_footer_2_handlinger.svg) |
+| Dialog – tre handlinger | `E04_Dialog_tre_handlinger` | [SVG](design/komponenter/Komponenter/02_Dialog_footer_3_handlinger.svg) |
+| Dialog – fullskjerm | `E01_Dialog_fullskjerm` | [SVG](design/komponenter/Komponenter/E01_Dialog_fullskjerm.svg) |
+| Akkordskjema | `F01_Akkordskjema` | [SVG](design/komponenter/Komponenter/F01_Akkordskjema.svg) |
+| Refrengstruktur | `F02_Refreng` | [SVG](design/komponenter/Komponenter/F02_Refreng.svg) |
+| Akkord og anvisning | `F03_Akkord_og_anvisning` | [SVG](design/komponenter/Komponenter/F03_Akkord_og_anvisning.svg) |
+| Dynamikk | `F04_Dynamikk` | [SVG](design/komponenter/Komponenter/F04_Dynamikk.svg) |
+| Personlig annotering | `F05_Annotering` | [SVG](design/komponenter/Komponenter/F05_Annotering.svg) |
+| Fjerningskontroll | `F06_Fjerningskontroll` | [SVG](design/komponenter/Komponenter/F06_Fjerningskontroll.svg) |
+
+Farge- og typografiregler: [designgrunnlag](design/grunnlag/01_Designgrunnlag_oppdatert.svg).
+
+## Ikonregister
+
+Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende designgrunnlag, med oppdateringer etter produktansvarligs avklaringer.
+
+### Prinsipper og beslutninger
+
+- Ett ikon per funksjonelt konsept, gjenbrukt uansett skjerm. Ikke et krav om at ethvert konsept har en egen permanent knapp.
+- Felles/originalt innhold er sangdata fra originalfilen (eventuelt endret i privat arbeidskopi), ikke en påstand om at data er publisert eller endret i Dropbox.
+- Samme akkordskjemaikon brukes for personlig og originalt skjema; konkret kontekst/tekst viser hvilket som redigeres.
+- Personlig notat = post-it. Kommentar i original = samme rene, sirkulære informasjonssymbol som appinformasjon.
+- Langtrykk og dra for å flytte setlisteelementer. Ingen permanent flytteknapp.
+- Lagre = diskett. Synkroniser = sirkelpil. Publiser = systemdeling. Eksporter = fil med nedoverpil.
+- Flytende pluss er en komponent med transparent glassflate og subtil kant; selve ikonformen er et vanlig pluss.
+- Sticky bruker pin-on for aktiv og pin-off for frigjort tilstand. Knappen er synlig og betjenbar i begge tilstander og veksler sticky av/på. Den dempede pinnen betyr ikke at knappen er deaktivert.
+- Privat og Delt viser delingsstatus i Publisering med de godkjente statusikonene. Begge fanene har også tekst.
+
+### Status
+
+- Dette er det **godkjente ikonbiblioteket**, bevart i repositoryet og gjenbrukt gjennom appens felles ikonregister. Biblioteket er designgrunnlag; funksjonsimplementering bestilles fortsatt særskilt.
+- «Akkord» bruker den avtalte enkle, åpne noten (i stedet for teknisk `[C]`).
+- «Kommentar» og «Informasjon» bruker nøyaktig samme `info.svg`-symbol.
+- «Toneart» viser ren G-nøkkel uten ekstra fortegn; «Stemming» viser stemmegaffel med lange armer og skaft.
+- «Påminnelse» er kun «NB!» uten ramme. «Gulmarkering» viser bare merkepennen, uten strek/underlag.
+- «Legg i setliste» holder pluss og setliste adskilt. «Dupliser» viser to ark og en pil opp mot høyre.
+- «Festet» og «Frigjort» deler én symmetrisk, skråstilt pin-form. Frigjort er tydelig dempet.
+- «Taktart» har den vedtatte metronomen med ledeteksten «Taktart». Ikonets musikalske tvetydighet er kjent, men vi endrer ikke dette uten ny avklaring.
+
+### Ikoner
+
+#### MUSIKALSKE BEGREPER OG TAGGER
+
+| Fil | Visningstekst | Betydning |
+|---|---|---|
+| `fil-sang.svg` | Sang | G-nøkkel i dokument |
+| `akkord.svg` | Akkord | Åpen note |
+| `akkordskjema.svg` | Akkordskjema | Felles eller personlig |
+| `key.svg` | Toneart | G-nøkkel uten fortegn |
+| `time.svg` | Taktart | Metronom |
+| `capo.svg` | Capo | Klemme i profil |
+| `stemming.svg` | Stemming | Stemmegaffel |
+| `vers.svg` | Vers | Tekstlinjer |
+| `refreng.svg` | Refreng | Markert tekstblokk |
+| `gjenta-refreng.svg` | Gjenta refreng | Løkkepil |
+| `dynamikk.svg` | Dynamikk | Kurve |
+| `info.svg` | Kommentar | Samme infoikon som systeminformasjon |
+| `notat.svg` | Personlig notat | Post-it med brettet hjørne |
+| `gulmarkering.svg` | Gulmarkering | Bare merkepennens tupp |
+| `pause.svg` | Pause | Halvliter i setliste |
+| `paaminnelse.svg` | Påminnelse | NB! uten ramme |
+| `ratekst.svg` | Råtekst | ChordPro-kilde |
+| `personlig.svg` | Personlig | Personlig datalag |
+| `felles.svg` | Originalinnhold | ChordPro / arbeidskopi |
+
+#### HANDLINGER OG REDIGERING
+
+| Fil | Visningstekst | Betydning |
+|---|---|---|
+| `tilbake.svg` | Tilbake | Navigasjon |
+| `meny.svg` | Flere handlinger | Når meny faktisk finnes |
+| `ny.svg` | Legg til her | Pluss i glassknapp |
+| `legg-til.svg` | Legg i setliste | Fra sangbibliotek |
+| `rediger.svg` | Rediger | Direkte redigering |
+| `lagre.svg` | Lagre | Diskett |
+| `angre.svg` | Angre | Felles historikk |
+| `gjenta.svg` | Gjør om | Felles historikk |
+| `viskelaer.svg` | Viskelær | Fjern formatering |
+| `fjern.svg` | Fjern fra liste | Fjerner bare referansen |
+| `slett.svg` | Slett | Faktisk sletting |
+| `dupliser.svg` | Dupliser | To ark med pil ↗ |
+| [kopier.svg](../assets/ui-icons/kopier.svg) | Kopier | To overlappende, avlange rektangler uten dokumentbrett eller pil. Godkjent av produktansvarlig 16. november 2026; Kopier feillogg bruker samme SVG i runtime. |
+| `filter.svg` | Filter | Bibliotek / kilde |
+| `innstillinger.svg` | Innstillinger | Appvalg |
+| `kryss.svg` | Lukk | Lukk panel |
+| `avbryt.svg` | Avbryt | Kryss i sirkel fra E03-footeren |
+| `pin-on.svg` | Festet | Sticky på |
+| `pin-off.svg` | Frigjort | Samme pin, tydelig dempet |
+
+#### FILER, STATUS OG NAVIGASJON
+
+| Fil | Visningstekst | Betydning |
+|---|---|---|
+| `synkroniser.svg` | Synkroniser | Sirkelpil |
+| `importer.svg` | Importer | Fil inn |
+| `eksporter.svg` | Eksporter | Fil ut |
+| `publiser.svg` | Publisering | Systemdelingssymbolet i hovedmenyen for Publisering. |
+| `kilde.svg` | Kilde | Ekstern eller lokal |
+| `kilde-mangler.svg` | Kilde mangler | Behold reserve |
+| `offline.svg` | Offline | Ingen nett |
+| `ok.svg` | Fullført | Bekreftet handling |
+| `konflikt.svg` | Konflikt | Brukervalg kreves |
+| `info.svg` | Informasjon | Systeminformasjon |
+| `varsel.svg` | Advarsel | Ved behov |
+| `songlist.svg` | Sangbibliotek | Liste over sanger |
+| [sangbok.svg](../assets/ui-icons/sangbok.svg) | Sangbøker / Sangbok | Åpen bok; hovedmenyens Sangbøker, sangbokfilter og Sangbok-headeren i D09 og den kontekstuelle headeren i D10 (Opprett i sangbok, Importer i sangbok, Slett sangbok). Godkjent SVG-kilde fra #35; runtime bruker samme kilde. |
+| `setliste.svg` | Setlister | Ordnet sangliste |
+| `visning.svg` | Visning | Sang kan spilles |
+| `personlig.svg` | Personlig data | Privat datalag |
+| [status-privat.svg](../assets/ui-icons/status-privat.svg) | Privat | Privat sang. I Publisering står symbolet foran Upublisert. |
+| [status-delt.svg](../assets/ui-icons/status-delt.svg) | Delt | Delt sang. Symbolet står foran Publisert og Kopier delingslenke. |
+| [status-importert.svg](../assets/ui-icons/status-importert.svg) | Importert | Importert sang; godkjent i #37, vises ikke på sangrader nå. |
+| [status-slettet.svg](../assets/ui-icons/status-slettet.svg) | Slettet | Godkjent versjon 18; tilgjengelig for senere leveranse. |
+| [status-slettet-hos-kilden.svg](../assets/ui-icons/status-slettet-hos-kilden.svg) | Slettet hos kilden | Slettet kildefil; tilgjengelig for senere leveranse. |
+| [dropbox-glyph-blue.svg](../assets/dropbox-glyph-blue.svg) | Koble til Dropbox | Transparent Dropbox-glyph, blå #0061FE. Fil levert og godkjent av produktansvarlig 16. november 2026; bevares uendret og brukes som bilde uten omfarging. Skissesymbolet brukes ikke. |
+
 ## Implementert sangflyt
 
 Startsiden Sanger viser én alfabetisk sangliste med L01-rader. Toneart, takt, capo/grep og stemming står under tittelen; capo og stemming vises bare ved avvik. Metadata brytes etter tilgjengelig bredde. Radtrykk åpner valgt sang; radmenyen er fjernet. Alle hovedsider bruker samme toppfelt uten branding, med sidetittel/handling, miljømerking og hamburger. Sangbokfilteret står midtstilt i sanglistens header med sangbokikon og Alle eller boknavnet. D09 åpnes med L05-rader, Alle øverst og bøker alfabetisk, uten opprettelseshandling eller footer. H01 nederst til høyre åpner H04 med Opprett og Importer; Rediger ligger i sangvisningens header. Felles safe-area, fokus/lukking og min. 44 px treffområder gjelder. Hovedmenyen er et høyre sidepanel under headeren til skjermbunnen, med Sanger, Setlister, Synkronisering, Sangbøker, Publisering ved konfigurert Dropbox-tilkobling og bunnforankret Innstillinger. Headerens hamburger åpner/lukker panelet; underlaget er beskyttet, Escape og fokusretur støttes. Setlisteoversikten bruker felles L02 med navn/antall og separat radmeny, H01 åpner navnedialog og H04 tilbyr Endre info/Slett. Navnedialogens E03 har Avbryt/Lagre. Vellykket opprettelse åpner den nye setlisten direkte; navneendring blir i oversikten; sletting bekreftes med trygg Avbryt-fokus. Detaljsiden har Setliste, tilbakepil, hamburger og tom body. Oppbygningen er implementert fra #28; skjermutformingen vedlikeholdes i appen, uten kopier av issueskissene. Sangbøker gjenbruker samme toppfelt, alfabetiske L02-rader med navn/antall og separat H04 med Endre navn og Slett. Med Dropbox tilkoblet tilbyr menyen også Kopier delingslenke med `status-delt.svg` foran teksten. H01 åpner Ny sangbok. Setlister og Sangbøker bruker én felles D02/E03-navnedialog med Avbryt/Lagre og appstyrte feltfeil. Bokrad åpner Sanger med bok-ID som filter. Slettebekreftelsen viser navn, sangantall og konsekvens, inkludert at egne sanger blir private i målboken ved Dropbox-tilkobling. Avbryt har startfokus, og siste bok er beskyttet. En bok med sanger krever et annet mål valgt med D10, inkludert Ny sangbok; en tom bok krever ikke mål.
@@ -76,7 +233,7 @@ Det finnes én kompakt skjemavisning: personlig innhold først, ellers felles gr
 
 Dynamikk vises i en fast 30 px venstremarg ved sangteksten, nedenfor tittel og akkordskjema. Én sammenhengende SVG-søyle har rett, fast venstrekant og en høyrekant som varierer inn mot teksten. Nivå 1–5 er 5/10/15/20/25 px brede; nivå 5 gir 5 px luft til teksten. Breddene påvirkes ikke av tekststørrelsen. Myke lokale overganger følger eksplisitte nivåskifter, uten speiling, animasjon, gradient eller automatisk crescendo. Profilfargen bruker Organisk-rollen Dynamikk (`#9B8573`). Normalnivå er 3 frem til første gyldige tagg. Uten gyldige tagger tegnes ingen profil og reserveres ingen marg; det samme gjelder ved global av eller skjermbredde under 320 px. Høyden beregnes på nytt ved ombrekking, skriftendring og refrengfolding. Dynamikkendringer har også tekst for skjermleser.
 
-Appen bruker fast mørkt Organisk-tema i v1. Inter brukes til UI, Gentium Book Plus til sangtekst og Cousine til akkorder/skjema. Farger, avstander og komponentreferanser finnes i [designgrunnlaget](design/README.md). Fonter og ikoner leveres lokalt/offline. Skriftstørrelse og av/på for skjema/profil huskes per miljø. Alle flater har synlig fokus, tydelige kontrollnavn og lesbarhet ved 320 px, nettbrett og desktop. En ekte appoppdatering varsles uavhengig av åpen meny; aktivering krever brukerens trykk.
+Appen bruker fast mørkt Organisk-tema i v1. Inter brukes til UI, Gentium Book Plus til sangtekst og Cousine til akkorder/skjema. Farger, avstander og komponentreferanser finnes i [designgrunnlaget](#designreferanser). Fonter og ikoner leveres lokalt/offline. Skriftstørrelse og av/på for skjema/profil huskes per miljø. Alle flater har synlig fokus, tydelige kontrollnavn og lesbarhet ved 320 px, nettbrett og desktop. En ekte appoppdatering varsles uavhengig av åpen meny; aktivering krever brukerens trykk.
 
 Dialoger bruker én gjenbrukbar ramme/livssyklus og integrert footer med 1, 2 eller 3 handlinger. Primærhandling og trygg standardfokus angis eksplisitt. Små sangverdier bruker D07/D08 uten footer. Råtekst bruker fullskjerm med Avbryt/Lagre uten hovedmeny.
 
