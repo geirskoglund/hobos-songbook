@@ -29,7 +29,7 @@ npm run check   # full validering, som i CI
 - [Produktkrav](docs/REQUIREMENTS.md)
 - [Beslutninger](docs/DECISIONS.md)
 - [Arkitektur](docs/ARCHITECTURE.md)
-- [Design](docs/DESIGN.md) og [designsystemet](docs/design/README.md)
+- [Design](docs/DESIGN.md)
 - [Test og publisering](docs/TESTING.md)
 - [Ordliste](GLOSSARY.md)
 - [Arbeidsform for Claude Code](CLAUDE.md)

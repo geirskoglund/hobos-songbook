@@ -25,7 +25,7 @@ Produksjon: https://geirskoglund.github.io/hobos-songbook/app/ · Test: https://
 
 ## Design og UI
 
-- Designsystemet er bindende: komponentene i `docs/design/README.md` (ID, navn, SVG) og fargene i `src/theme.css`. Gjenbruk eksisterende kontroller; nye kontrolltyper krever produktavklaring.
+- Designsystemet er bindende: komponentene i `docs/DESIGN.md` (ID, navn, SVG) og fargene i `src/theme.css`. Gjenbruk eksisterende kontroller; nye kontrolltyper krever produktavklaring.
 - Les `docs/DESIGN.md` før UI-arbeid.
 - Skisser i issues er illustrasjoner og endrer ikke vedtatt design.
 
