@@ -70,9 +70,9 @@ async function keyboardFocus(page, node) {
   await expect(page.locator('html')).toHaveAttribute('data-keyboard-focus', 'true');
 }
 
-async function shot(page, name, mask = []) {
+async function shot(page, name) {
   await page.evaluate(() => document.fonts.ready);
-  await expect(page).toHaveScreenshot(`${name}.png`, {animations: 'disabled', caret: 'hide', mask});
+  await expect(page).toHaveScreenshot(`${name}.png`, {animations: 'disabled', caret: 'hide'});
 }
 
 test.beforeEach(async ({request}) => {
@@ -144,15 +144,15 @@ for (const width of [320, 768, 1440]) {
     test('Innstillinger: D05 and D06', async ({page}) => {
       await openSettings(page);
       await expect(page.locator('#show-grids')).toBeVisible();
-      // App and offline status depend on the service worker and are not part of the design.
-      const mask = [page.locator('#offline-status'), page.locator('#update-status'), page.locator('#connection')];
-      await shot(page, `innstillinger-hvile-${width}`, mask);
+      // Wait for the service worker, so the offline status shows its final text.
+      await expect(page.locator('#offline-status')).toHaveText('Klart for bruk uten nett', {timeout: 30000});
+      await shot(page, `innstillinger-hvile-${width}`);
       await page.locator('#show-dynamics').setChecked(false);
       await expect(page.locator('#show-dynamics')).not.toBeChecked();
       await keyboardFocus(page, page.locator('#show-dynamics'));
-      await shot(page, `innstillinger-bryter-av-fokus-${width}`, mask);
+      await shot(page, `innstillinger-bryter-av-fokus-${width}`);
       await keyboardFocus(page, page.locator('#font-size'));
-      await shot(page, `innstillinger-skyver-fokus-${width}`, mask);
+      await shot(page, `innstillinger-skyver-fokus-${width}`);
     });
 
     test('Sangvisning: N01, D07 and D08', async ({page}) => {
