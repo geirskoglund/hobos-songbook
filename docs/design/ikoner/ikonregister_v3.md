@@ -67,7 +67,7 @@ Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende design
 | `fjern.svg` | Fjern fra liste | Fjerner bare referansen |
 | `slett.svg` | Slett | Faktisk sletting |
 | `dupliser.svg` | Dupliser | To ark med pil ↗ |
-| [kopier.svg](ikoner/kopier.svg) | Kopier | To overlappende, avlange rektangler uten dokumentbrett eller pil. Godkjent av produktansvarlig 16. november 2026; Kopier feillogg bruker samme SVG i runtime. |
+| [kopier.svg](../../../assets/ui-icons/kopier.svg) | Kopier | To overlappende, avlange rektangler uten dokumentbrett eller pil. Godkjent av produktansvarlig 16. november 2026; Kopier feillogg bruker samme SVG i runtime. |
 | `filter.svg` | Filter | Bibliotek / kilde |
 | `innstillinger.svg` | Innstillinger | Appvalg |
 | `kryss.svg` | Lukk | Lukk panel |
@@ -91,14 +91,14 @@ Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende design
 | `info.svg` | Informasjon | Systeminformasjon |
 | `varsel.svg` | Advarsel | Ved behov |
 | `songlist.svg` | Sangbibliotek | Liste over sanger |
-| [sangbok.svg](ikoner/sangbok.svg) | Sangbøker / Sangbok | Åpen bok; hovedmenyens Sangbøker, sangbokfilter og Sangbok-headeren i D09 og den kontekstuelle headeren i D10 (Opprett i sangbok, Importer i sangbok, Slett sangbok). Godkjent SVG-kilde fra #35; runtime bruker samme kilde. |
+| [sangbok.svg](../../../assets/ui-icons/sangbok.svg) | Sangbøker / Sangbok | Åpen bok; hovedmenyens Sangbøker, sangbokfilter og Sangbok-headeren i D09 og den kontekstuelle headeren i D10 (Opprett i sangbok, Importer i sangbok, Slett sangbok). Godkjent SVG-kilde fra #35; runtime bruker samme kilde. |
 | `setliste.svg` | Setlister | Ordnet sangliste |
 | `visning.svg` | Visning | Sang kan spilles |
 | `personlig.svg` | Personlig data | Privat datalag |
 
-| [status-privat.svg](ikoner/status-privat.svg) | Privat | Privat sang. I Publisering står symbolet foran Upublisert. |
-| [status-delt.svg](ikoner/status-delt.svg) | Delt | Delt sang. Symbolet står foran Publisert og Kopier delingslenke. |
-| [status-importert.svg](ikoner/status-importert.svg) | Importert | Importert sang; godkjent i #37, vises ikke på sangrader nå. |
-| [status-slettet.svg](ikoner/status-slettet.svg) | Slettet | Godkjent versjon 18; tilgjengelig for senere leveranse. |
-| [status-slettet-hos-kilden.svg](ikoner/status-slettet-hos-kilden.svg) | Slettet hos kilden | Slettet kildefil; tilgjengelig for senere leveranse. |
-| [dropbox-glyph-blue.svg](dropbox-glyph-blue.svg) | Koble til Dropbox | Transparent Dropbox-glyph, blå #0061FE. Fil levert og godkjent av produktansvarlig 16. november 2026; bevares uendret og brukes som bilde uten omfarging. Skissesymbolet brukes ikke. |
+| [status-privat.svg](../../../assets/ui-icons/status-privat.svg) | Privat | Privat sang. I Publisering står symbolet foran Upublisert. |
+| [status-delt.svg](../../../assets/ui-icons/status-delt.svg) | Delt | Delt sang. Symbolet står foran Publisert og Kopier delingslenke. |
+| [status-importert.svg](../../../assets/ui-icons/status-importert.svg) | Importert | Importert sang; godkjent i #37, vises ikke på sangrader nå. |
+| [status-slettet.svg](../../../assets/ui-icons/status-slettet.svg) | Slettet | Godkjent versjon 18; tilgjengelig for senere leveranse. |
+| [status-slettet-hos-kilden.svg](../../../assets/ui-icons/status-slettet-hos-kilden.svg) | Slettet hos kilden | Slettet kildefil; tilgjengelig for senere leveranse. |
+| [dropbox-glyph-blue.svg](../../../assets/dropbox-glyph-blue.svg) | Koble til Dropbox | Transparent Dropbox-glyph, blå #0061FE. Fil levert og godkjent av produktansvarlig 16. november 2026; bevares uendret og brukes som bilde uten omfarging. Skissesymbolet brukes ikke. |
