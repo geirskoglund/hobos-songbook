@@ -37,7 +37,7 @@ To valideringer kjører samtidig på hver PR og hver push til `master`:
 
 ### Referansebilder
 
-Skjermbildetestene (`tests/e2e/visual.spec.mjs`) sammenligner med referansebilder i `tests/e2e/visual.spec.mjs-snapshots/`. Bildene lages og sammenlignes bare på Linux, som i CI; på andre plattformer hoppes testene over. Feiler E2E, laster jobben opp artefakten `referansebilder` med nye bilder for endrede og manglende skjermbilder. Er endringen tilsiktet, legges bildene inn i PR-en:
+Skjermbildetestene (`tests/e2e/visual.spec.mjs`) sammenligner med referansebilder i `tests/e2e/visual.spec.mjs-snapshots/`. Bildene lages og sammenlignes bare på Linux, som i CI. Feiler E2E, laster jobben opp artefakten `referansebilder` med nye bilder for endrede og manglende skjermbilder. Er endringen tilsiktet, legges bildene inn i PR-en:
 
 ```sh
 gh run download <run-id> -n referansebilder -D tests/e2e/visual.spec.mjs-snapshots
