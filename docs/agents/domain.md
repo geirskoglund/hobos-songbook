@@ -9,7 +9,7 @@ Read targeted sections, not whole files; the documents are large.
 - **`GLOSSARY.md`** at the repo root, if it exists.
 - **`docs/REQUIREMENTS.md`**: product requirements (stable requirement IDs).
 - **`docs/DECISIONS.md`**: current decisions with stable IDs (D01, D02, …). This is the decision log; read the decisions that touch the area you're about to work in.
-- **`docs/DESIGN.md`** and **`docs/design/README.md`**: binding design system and component IDs (e.g. L05, D10).
+- **`docs/DESIGN.md`**: binding design system and component IDs (e.g. L05, D10).
 - **`docs/ARCHITECTURE.md`**: technical structure.
 
 If `GLOSSARY.md` doesn't exist, **proceed silently**. Don't flag its absence; the `/domain-modeling` skill creates it lazily when terms actually get resolved.
