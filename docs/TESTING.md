@@ -35,6 +35,16 @@ To valideringer kjører samtidig på hver PR og hver push til `master`:
 - **Sikkerhet:** Bare `pages.yml` publiserer. Den kjører bare skript fra validert master, og jobben med deployrettigheter kjører aldri PR-kode eller npm fra appkilden. Den henter ferdige bygg og setter sammen `app/` og `test/` til ett Pages-nettsted.
 - Publisering sletter eller migrerer aldri lokal lagring.
 
+### Referansebilder
+
+Skjermbildetestene (`tests/e2e/visual.spec.mjs`) sammenligner med referansebilder i `tests/e2e/visual.spec.mjs-snapshots/`. Bildene lages og sammenlignes bare på Linux, som i CI; på andre plattformer hoppes testene over. Feiler E2E, laster jobben opp artefakten `referansebilder` med nye bilder for endrede og manglende skjermbilder. Er endringen tilsiktet, legges bildene inn i PR-en:
+
+```sh
+gh run download <run-id> -n referansebilder -D tests/e2e/visual.spec.mjs-snapshots
+```
+
+Endrede referansebilder vises i PR-diffen.
+
 ## Velge testutgave
 
 `/test/` viser én valgt PR eller en fast master-commit. Nye grønne commits i valgt PR følger automatisk.

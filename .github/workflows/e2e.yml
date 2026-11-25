@@ -60,3 +60,14 @@ jobs:
         with:
           name: playwright-results
           path: test-results/
+      # Reference images are made in this environment only. After a failure, rewrite the changed and missing
+      # images so an intended change can be downloaded and committed; see TESTING.
+      - name: Lag referansebilder
+        if: failure() && steps.scope.outputs.docs-only != 'true'
+        run: npx playwright test tests/e2e/visual.spec.mjs --update-snapshots=changed --reporter=line || true
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.scope.outputs.docs-only != 'true'
+        with:
+          name: referansebilder
+          path: tests/e2e/visual.spec.mjs-snapshots/
+          if-no-files-found: ignore
