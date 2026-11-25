@@ -196,7 +196,6 @@ Vedtatt ikonbibliotek for Organisk. Registeret og SVG-kildene er bindende design
 | `setliste.svg` | Setlister | Ordnet sangliste |
 | `visning.svg` | Visning | Sang kan spilles |
 | `personlig.svg` | Personlig data | Privat datalag |
-
 | [status-privat.svg](../assets/ui-icons/status-privat.svg) | Privat | Privat sang. I Publisering står symbolet foran Upublisert. |
 | [status-delt.svg](../assets/ui-icons/status-delt.svg) | Delt | Delt sang. Symbolet står foran Publisert og Kopier delingslenke. |
 | [status-importert.svg](../assets/ui-icons/status-importert.svg) | Importert | Importert sang; godkjent i #37, vises ikke på sangrader nå. |
