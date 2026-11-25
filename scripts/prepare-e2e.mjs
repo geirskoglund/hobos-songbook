@@ -1,4 +1,4 @@
-import {mkdir, rm, cp, appendFile} from 'node:fs/promises';
+import {mkdir, rm, cp, appendFile, writeFile} from 'node:fs/promises';
 import {resolve, join} from 'node:path';
 import {build} from 'vite';
 import {assemblePages} from './assemble-pages.mjs';
@@ -8,13 +8,21 @@ import {repository} from './pages-plan.mjs';
 const root = resolve('work/e2e');
 await rm(root, {recursive: true, force: true});
 await mkdir(root, {recursive: true});
-// Test the real shared controls with app CSS, including unused footer variants.
+// Test the real shared controls with app CSS, including unused footer variants, opened and placed by the real dialog.
 // This fixture is served only by e2e-server and never enters a product build.
+const fixtureEntry = join(root, 'design-fixture-entry.ts');
+await writeFile(
+  fixtureEntry,
+  [
+    `export * from ${JSON.stringify(resolve('src/ui/controls.ts'))};`,
+    `export {openDialog} from ${JSON.stringify(resolve('src/ui/dialog.ts'))};`,
+  ].join('\n'),
+);
 await build({
   configFile: false,
   logLevel: 'warn',
   build: {
-    lib: {entry: resolve('src/ui/controls.ts'), formats: ['es'], fileName: () => 'controls.js'},
+    lib: {entry: fixtureEntry, formats: ['es'], fileName: () => 'controls.js'},
     outDir: join(root, 'design-fixture'),
     emptyOutDir: true,
   },
