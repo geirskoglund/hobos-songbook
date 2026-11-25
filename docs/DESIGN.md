@@ -14,6 +14,8 @@ Bruk [navneindeksen](design/README.md) for komponentnavn, ID-er og SVG-er. Entyd
 - Sjekk først om komponenten finnes. Hvis ikke, implementer den én gang som en felles, gjenbrukbar komponent.
 - Alle brukssteder bruker samme implementasjon med parametere og varianter. Ikke lag lokale kopier.
 - Overordnet layout vedlikeholdes ett sted. Se [arkitekturen](ARCHITECTURE.md#felles-ui-og-layout).
+- Ingen separat generell statusindikator.
+- Ingen særskilt Takt-kontroll: samme generelle tekstlige verdikontroll som toneart.
 
 Oppgaven bestemmer funksjon og innhold; designets eksempeltekst utvider ikke bestillingen. Avklar bare manglende eller tvetydig design.
 
