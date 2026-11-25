@@ -10,6 +10,9 @@ Godkjente synonymer har egen oppføring som viser til hovedbegrepet («Se X»). 
 
 ## Bibliotek
 
+**Bibliotek**:
+Alle sangene brukeren har i appen, på tvers av sangbøker.
+
 **Sang**:
 En selvstendig sang i brukerens bibliotek, med egen identitet uavhengig av tittel og fil.
 _Unngå_: låt, fil
@@ -27,6 +30,9 @@ _Unngå_: spilleliste
 **Original**:
 Sangens felles tekst med akkorder, slik den deles med andre.
 _Unngå_: kildefil, master
+
+**Råtekst**:
+Originalen slik den står skrevet, med alle tagger og akkorder.
 
 **Personlig lag**:
 Brukerens personlige tilpasninger til en sang, samlet og holdt adskilt fra originalen. Brukes når tilpasningene omtales som en helhet, for eksempel ved synk og konflikt.
@@ -66,6 +72,9 @@ Brukerens personlige capoposisjon for en sang.
 
 **Stemming**:
 Gitarens stemming for en sang når den avviker fra standard.
+
+**Inline-akkord**:
+En akkord i originalen som er plassert på det stedet i sangteksten der akkorden skifter.
 
 **Akkordskjema**:
 Oversikten over grepene for sangens akkorder; felles i originalen eller personlig.
@@ -114,6 +123,9 @@ _Unngå_: opplasting, synk, deling
 Å gjøre en publisert sang privat igjen.
 _Unngå_: sletting, oppheving av deling
 
+**Delingslenke**:
+En lenke som gir lesetilgang til de publiserte sangene i en sangbok.
+
 **Synkronisering**:
 Å samordne det lokale biblioteket med privat Dropbox.
 _Unngå_: oppdatering, refresh
@@ -130,3 +142,6 @@ Når samme sang eller samme personlige lag er endret på to steder og brukeren m
 **Miljø**:
 Én av de to selvstendige utgavene av appen, produksjon eller test, hver med egne data.
 _Unngå_: versjon, bygg
+
+**Kanal**:
+Se Miljø.
