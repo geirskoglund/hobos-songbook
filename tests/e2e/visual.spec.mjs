@@ -204,29 +204,32 @@ for (const width of [320, 768, 1440]) {
       await shot(page, `d10-fokus-${width}`);
     });
 
+    // Built like the sync conflict dialog and opened with the real openDialog, which places it.
     test('E04: dialog with three actions', async ({page}) => {
       await page.evaluate(async () => {
-        const {dialogFrame, dialogFooter, controlHeading} = await import('/__test__/controls.js');
-        const box = dialogFrame('Tre handlinger', 'name-dialog'),
+        const {dialogFrame, dialogFooter, controlHeading, openDialog} = await import('/__test__/controls.js');
+        const box = dialogFrame('Synkroniseringskonflikt', 'name-dialog sync-dialog'),
           text = document.createElement('p');
-        text.textContent = 'Sangen er endret både her og i Dropbox.';
-        const close = () => box.close();
+        text.textContent = 'Sangen "Blåbærturen" er endret både i Dropbox og her lokalt. Hvilken versjon skal gjelde?';
+        const close = () => lifecycle.close();
         box.append(
-          controlHeading('Tre handlinger', 'synkroniser'),
+          controlHeading('Synkroniseringskonflikt', 'synkroniser'),
           text,
           dialogFooter([
-            {id: 'cancel', label: 'Avbryt', icon: 'kryss', run: close},
-            {id: 'other', label: 'Behold begge', run: close},
-            {id: 'save', label: 'Bruk denne', icon: 'lagre', primary: true, run: close},
+            {id: 'local', label: 'Lokal versjon', run: close},
+            {id: 'dropbox', label: 'Dropbox', run: close},
+            {id: 'copy', label: 'Opprett ny fil', primary: true, run: close},
           ]),
         );
-        document.body.append(box);
-        box.showModal();
+        const lifecycle = openDialog(box, {outside: true});
       });
-      const box = dialog(page, 'Tre handlinger');
+      const box = dialog(page, 'Synkroniseringskonflikt');
       await expect(box).toBeVisible();
+      const bounds = await box.boundingBox();
+      expect(bounds.x + bounds.width / 2).toBeCloseTo(width / 2, 0);
+      expect(bounds.y).toBeGreaterThan(0);
       await shot(page, `e04-hvile-${width}`);
-      await keyboardFocus(page, button(box, 'Behold begge'));
+      await keyboardFocus(page, button(box, 'Dropbox'));
       await shot(page, `e04-fokus-${width}`);
     });
   });
