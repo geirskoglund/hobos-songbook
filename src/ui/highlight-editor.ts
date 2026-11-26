@@ -1,7 +1,7 @@
 import {readingTop} from './layout.ts';
 import {anchorFor, changeAnnotation, type Highlight, type LineAnchor} from '../domain/personal.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
-export interface TextSpan {
+interface TextSpan {
   line: HTMLElement;
   start: number;
   end: number;
@@ -58,7 +58,7 @@ export function lyricPositionAt(line: HTMLElement, x: number, y: number) {
 export const lyricOffsetAt = (line: HTMLElement, x: number, y: number) => lyricPositionAt(line, x, y).offset;
 const visible = (node: HTMLElement) => !node.closest('[hidden]') && node.getClientRects().length > 0;
 /** Clip the actual selection to each lyric node, including across logical lines. */
-export function nativeLyricSpans(root: HTMLElement): TextSpan[] {
+function nativeLyricSpans(root: HTMLElement): TextSpan[] {
   const selection = getSelection();
   if (!selection?.rangeCount || selection.isCollapsed) return [];
   const range = selection.getRangeAt(0),
@@ -351,7 +351,7 @@ export function createHighlightEditor(
     remove.style.top = `${first.top - origin.top - 24}px`;
   }
   function reference(part: TextSpan): LineAnchor {
-    return anchorFor(song, Number(part.line.dataset.sourceLine), part.line.dataset.occurrence!, lyricText(part.line));
+    return anchorFor(song, Number(part.line.dataset.sourceLine), part.line.dataset.occurrence!);
   }
   function replace(previous: Selection | undefined, next: TextSpan[], id = previous?.id ?? crypto.randomUUID()) {
     next = wholeWords(next);

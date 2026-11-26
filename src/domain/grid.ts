@@ -1,4 +1,4 @@
-export interface GridMeasure {
+interface GridMeasure {
   opening: string;
   closing: string;
   cells: string[];

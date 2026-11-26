@@ -16,7 +16,7 @@ export interface SyncSnapshot {
   journal: LocalJournal;
   state: SyncState;
 }
-export const journalId = 'private-local-v1';
+const journalId = 'private-local-v1';
 /** Called inside every local data-write transaction: the outbox cannot miss a committed write. */
 export function trackLocal(tx: IDBTransaction, change?: (journal: LocalJournal) => void) {
   const store = tx.objectStore('sync'),

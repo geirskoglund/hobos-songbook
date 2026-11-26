@@ -1,4 +1,4 @@
-export type Channel = 'production' | 'test';
+type Channel = 'production' | 'test';
 export interface AppEnvironment {
   version: 1;
   kind: 'app';

@@ -2,7 +2,7 @@ import {isChord} from './chordpro.ts';
 import {withOriginal} from './original.ts';
 import {shiftChord, shiftGridText} from './personal.ts';
 import type {Song} from './song.ts';
-export interface SourceLine {
+interface SourceLine {
   index: number;
   start: number;
   end: number;
@@ -15,7 +15,7 @@ export interface SourceLine {
     end: number;
   };
 }
-export interface SourceEdit {
+interface SourceEdit {
   start: number;
   end: number;
   text: string;
@@ -224,7 +224,7 @@ export function insertDirective(song: Song, lineIndex: number, text: string, spa
     },
   ]);
 }
-export function setDirective(song: Song, lineIndex: number, name: string, value: string): Song {
+export function setDirective(song: Song, lineIndex: number, value: string): Song {
   const row = sourceLines(song.original)[lineIndex];
   if (!row?.directive) throw Error('Elementet finnes ikke lenger. Velg det på nytt.');
   return patchSong(song, [
@@ -235,7 +235,7 @@ export function setDirective(song: Song, lineIndex: number, name: string, value:
     },
   ]);
 }
-export interface SourceBlock {
+interface SourceBlock {
   start: SourceLine;
   end?: SourceLine;
 }
@@ -322,7 +322,7 @@ export function removeSourceBlock(song: Song, block: SourceBlock): Song {
       : []),
   ]);
 }
-export function keyInterval(from: string, to: string): number {
+function keyInterval(from: string, to: string): number {
   const pitch = (key: string) => {
     const m = key.match(/^([A-GH])([#b♯♭]?)(?:m|min|maj)?$/);
     if (!m) throw Error('Skriv en toneart, for eksempel D, Bb eller Am.');

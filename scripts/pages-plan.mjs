@@ -44,7 +44,7 @@ export async function readDeployment({fetch, hasPublished}) {
   return parseDeployment(await response.json());
 }
 
-export function eligiblePull(pull) {
+function eligiblePull(pull) {
   return (
     pull?.state === 'open' &&
     pull.head?.repo?.full_name === repository &&

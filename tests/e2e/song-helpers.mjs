@@ -1,7 +1,7 @@
 import {expect} from '@playwright/test';
 export const original =
   '\uFEFF{title: Samme tittel}\r\n{key: D}\r\n{comment: Rolig <b>tekst</b>}\r\n[D]Hei på [A/C#]deg\r\n[Solo] beholdes\r\n{soc}\r\n[G]Syng med\r\n{eoc}\r\n{chorus}\r\n{chorus}\r\n{x_future: behold}\r\n<img src=x onerror="window.injected=true">\r\n';
-export async function importSong(page, name = 'sang.CHO', content = original, book) {
+async function importSong(page, name = 'sang.CHO', content = original, book) {
   const previous = new Set((await savedSongs(page)).map(song => song.id));
   await beginImport(page, book);
   await page.locator('#song-file').setInputFiles({name, mimeType: '', buffer: Buffer.from(content)});
@@ -69,7 +69,7 @@ export async function setCapo(page, value) {
     .poll(async () => (await savedPersonal(page)).find(personal => personal.songId === songId)?.capo ?? 0)
     .toBe(value);
 }
-export async function setDisplay(page, {theme, fontSize, showGrids, showDynamics}) {
+export async function setDisplay(page, {fontSize, showGrids, showDynamics}) {
   await openSettings(page);
   if (fontSize !== undefined) {
     await page.locator('#font-size').fill(String(fontSize));

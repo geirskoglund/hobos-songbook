@@ -1,6 +1,6 @@
 import {test, expect} from './fixtures.mjs';
 import {readFile} from 'node:fs/promises';
-import {importAndOpenSong, savedSongs, openMenu, closeMenu, setDisplay} from './song-helpers.mjs';
+import {importAndOpenSong, savedSongs, openMenu, setDisplay} from './song-helpers.mjs';
 const base = '/hobos-songbook/test/';
 test.beforeEach(async ({request}) => {
   await request.post('/__test__/reset');

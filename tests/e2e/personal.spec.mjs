@@ -1,14 +1,5 @@
 import {test, expect} from './fixtures.mjs';
-import {
-  importAndOpenSong,
-  savedSongs,
-  savedPersonal,
-  tool,
-  fillValue,
-  setCapo,
-  editSong,
-  rawEditor,
-} from './song-helpers.mjs';
+import {importAndOpenSong, savedSongs, savedPersonal, tool, fillValue, setCapo, editSong} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const source =
   '{t: Personlig}\n{key: C}\n{sog: label="Vers" shape="2x4"}\n| C F | G C |\n{eog}\n{sog: label="Refreng"}\n| F G | C |\n{eog}\n[C]Hei på deg\nEn linje til';

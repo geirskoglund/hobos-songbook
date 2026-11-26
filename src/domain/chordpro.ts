@@ -1,15 +1,15 @@
 import {parseGridRow, gridOptions, type GridRow, type GridOptions} from './grid.ts';
-export interface Segment {
+interface Segment {
   chord?: string;
   text: string;
 }
 export type DynamicLevel = 1 | 2 | 3 | 4 | 5;
-export interface DynamicDirective {
+interface DynamicDirective {
   kind: 'dynamic';
   level: DynamicLevel;
   sourceLine?: number;
 }
-export type GridContent = GridRow | DynamicDirective | {kind: 'comment' | 'unknown'; text: string; sourceLine?: number};
+type GridContent = GridRow | DynamicDirective | {kind: 'comment' | 'unknown'; text: string; sourceLine?: number};
 export interface GridBlock {
   kind: 'grid';
   options: GridOptions;

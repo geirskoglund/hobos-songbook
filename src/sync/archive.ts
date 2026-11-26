@@ -6,7 +6,7 @@ const sourcePath = (path: string) => /^\/Songbooks\/[^/]+$/i.test(path);
 export function needsArchive(book: BookLink, find: (path: string) => RemoteEntry | undefined) {
   return Boolean(book.deleted && book.folderId && !book.archive?.done && sourcePath(find(book.folderId)?.path ?? ''));
 }
-export function archiveBase(name: string, date: Date) {
+function archiveBase(name: string, date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `/Deleted/${name} ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}${pad(date.getMinutes())}`;
 }

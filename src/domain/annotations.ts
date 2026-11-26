@@ -19,7 +19,7 @@ export interface PersonalNote {
   line: number;
   text: string;
 }
-export interface LogicalLine {
+interface LogicalLine {
   occurrence: string;
   sourceLine: number;
   text: string;
@@ -45,7 +45,7 @@ export function logicalLines(song: Pick<Song, 'original' | 'title'>): LogicalLin
   }
   return result;
 }
-export function anchorFor(song: Pick<Song, 'id'>, sourceLine: number, occurrence: string, _text?: string): LineAnchor {
+export function anchorFor(song: Pick<Song, 'id'>, sourceLine: number, occurrence: string): LineAnchor {
   return {songId: song.id, sourceLine, occurrence};
 }
 export function noteAt(personal: SongPersonal, line: number): [string, PersonalNote] | undefined {

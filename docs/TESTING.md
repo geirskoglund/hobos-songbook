@@ -12,7 +12,8 @@ Bruk Node.js 24 LTS.
 npm ci
 npx playwright install chromium
 npm run check        # alt, som i CI
-npm run check:quick  # formatering, typesjekk, syntaks og enhetstester
+npm run check:quick  # formatering, lint, typesjekk, syntaks og enhetstester
+npm run lint         # ESLint (eslint.config.mjs)
 npm test             # bare enhetstestene (tests/*.test.mjs)
 npm run test:e2e     # bygger begge kanaler og kjører Playwright (tests/e2e/)
 npx playwright test tests/e2e/<fil>.spec.mjs

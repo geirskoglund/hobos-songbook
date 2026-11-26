@@ -18,7 +18,8 @@ Produksjon: https://geirskoglund.github.io/hobos-songbook/app/ · Test: https://
 
 - `npm run dev`: utviklingsserver
 - `npm run format`: formater koden med Prettier. CI feiler på uformatert kode; Claude Code-hooken formaterer filer du endrer.
-- `npm run typecheck`: typesjekk
+- `npm run lint`: ESLint, bare regler som fanger feil. Nye regler slås på i en PR som retter alle bruddene; ingen `eslint-disable` på fil- eller mappenivå.
+- `npm run typecheck`: typesjekk med TypeScript 7. Pakken `typescript` er 6.0 fordi typescript-eslint trenger den.
 - `npm test`: enhetstester (raske)
 - `npx playwright test tests/e2e/<fil>.spec.mjs`: én e2e-fil. Hele suiten (`npm run test:e2e`) tar ca. 8 min; kjør den bare ved brede endringer, CI kjører den uansett.
 - `npm run check`: full validering, som i CI

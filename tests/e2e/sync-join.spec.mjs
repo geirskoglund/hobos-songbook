@@ -2,7 +2,7 @@ import {test, expect} from './fixtures.mjs';
 import {createHash} from 'node:crypto';
 import {mkdir, appendFile} from 'node:fs/promises';
 import {dropboxMock} from './dropbox-mock.mjs';
-import {openMenu, goSongs, savedSongs} from './song-helpers.mjs';
+import {openMenu, savedSongs} from './song-helpers.mjs';
 test.use({serviceWorkers: 'block'});
 const url = '/hobos-songbook/test/',
   original = '{t: Samme sang}\n[C]Tekst';
@@ -126,7 +126,7 @@ async function prepare(page, context, {text = original, capo = 2} = {}) {
   await page.goto(url);
   await expect(page.locator('#add-song')).toBeEnabled();
   await page.evaluate(
-    ({text, capo, personal}) =>
+    ({text, personal}) =>
       new Promise((resolve, reject) => {
         const r = indexedDB.open('hobos-songbook-test');
         r.onsuccess = () => {

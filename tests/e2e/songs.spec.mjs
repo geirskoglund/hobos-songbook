@@ -1,13 +1,5 @@
 import {test, expect} from './fixtures.mjs';
-import {
-  beginImport,
-  importAndOpenSong,
-  savedSongs,
-  original,
-  openMenu,
-  closeMenu,
-  setDisplay,
-} from './song-helpers.mjs';
+import {beginImport, importAndOpenSong, savedSongs, original, setDisplay} from './song-helpers.mjs';
 test.beforeEach(async ({request}) => {
   await request.post('/__test__/reset');
 });

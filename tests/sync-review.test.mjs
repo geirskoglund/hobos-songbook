@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture, song} from './sync-fixture.mjs';
 import {syncEngine} from '../src/sync/engine.ts';
-import {DeferredSync, RetrySync, SyncFailure, failureCodes} from '../src/sync/failure.ts';
+import {DeferredSync, RetrySync, failureCodes} from '../src/sync/failure.ts';
 
 async function retry(storage, files, manual = true, resolution) {
   for (let attempt = 0; attempt < 3; attempt++)

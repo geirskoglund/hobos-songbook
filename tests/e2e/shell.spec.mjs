@@ -1,5 +1,5 @@
 import {test, expect} from './fixtures.mjs';
-import {importAndOpenSong, savedSongs, original, openSettings, closeSettings, setDisplay} from './song-helpers.mjs';
+import {importAndOpenSong, savedSongs, original, openSettings, setDisplay} from './song-helpers.mjs';
 
 const base = '/hobos-songbook/';
 const ready = page => expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');

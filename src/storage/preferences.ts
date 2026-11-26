@@ -1,6 +1,6 @@
 import {requestLayout} from '../ui/layout.ts';
 import {localSettings} from './local-settings.ts';
-export interface Preferences {
+interface Preferences {
   theme: 'dark';
   fontSize: number;
   showDynamics: boolean;

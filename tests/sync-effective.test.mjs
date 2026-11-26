@@ -180,7 +180,7 @@ test('rate limiting stops queued transfers, retains local work and can resume wi
   });
   const write = f.files.write;
   let attempts = 0;
-  f.files.write = async (...args) => {
+  f.files.write = async () => {
     attempts++;
     throw new SyncFailure({code: failureCodes.throttled, stage: 'dropbox.request', status: 429}, 'Rate limited');
   };

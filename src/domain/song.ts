@@ -1,6 +1,6 @@
 import type {Annotation, PersonalNote} from './annotations.ts';
 import {parseChordPro} from './chordpro.ts';
-export interface SongOrigin {
+interface SongOrigin {
   kind: 'local' | 'external';
   filename: string;
   importedAt: string;
@@ -28,7 +28,7 @@ export interface SongPersonal {
   notes?: Record<string, PersonalNote>;
   annotations?: Record<string, Annotation>;
 }
-export const acceptedExtensions = '.cho,.chordpro,.chopro,.crd,.pro,.chord,.txt';
+const acceptedExtensions = '.cho,.chordpro,.chopro,.crd,.pro,.chord,.txt';
 export function decodeSong(bytes: Uint8Array): string {
   let original: string;
   try {
