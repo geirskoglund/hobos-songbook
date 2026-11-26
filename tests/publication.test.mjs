@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {syncEngine} from '../src/sync/engine.ts';
-import {BatchStatusUnconfirmed, SyncFailure, failureCodes} from '../src/sync/failure.ts';
+import {BatchStatusUnconfirmed, SyncFailure, failureCodes} from '../src/core/failure.ts';
 import {fixture, song} from './sync-fixture.mjs';
 
 const engine = f => syncEngine(f.storage, f.files, 'account', {valid: () => true, changed() {}});

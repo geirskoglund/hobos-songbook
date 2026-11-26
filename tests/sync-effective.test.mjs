@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture, song} from './sync-fixture.mjs';
-import {SyncFailure, failureCodes} from '../src/sync/failure.ts';
+import {SyncFailure, failureCodes} from '../src/core/failure.ts';
 
 test('F60: 100 unchanged songs need one metadata operation; one personal edit transfers only its sidecar', async () => {
   const f = fixture();

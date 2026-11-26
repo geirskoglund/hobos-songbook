@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture, song} from './sync-fixture.mjs';
-import {RetrySync, BatchJobFailed} from '../src/sync/failure.ts';
+import {RetrySync, BatchJobFailed} from '../src/core/failure.ts';
 async function run(f, manual = true) {
   for (let n = 0; n < 4; n++)
     try {

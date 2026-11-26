@@ -6,7 +6,7 @@ import {choiceControl, contextMenu, countRow, floatingAction} from './list-contr
 import {nameDialog} from './name-dialog.ts';
 import {currentPage} from './layout.ts';
 import {copyText} from './clipboard.ts';
-import {SyncFailure} from '../sync/failure.ts';
+import {SyncFailure} from '../core/failure.ts';
 
 export function startSongbooks(
   storage: ReturnType<typeof songStorage>,

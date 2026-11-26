@@ -1,4 +1,4 @@
-import type {Song, SongPersonal} from './song.ts';
+import type {Song, SongPersonal} from '../core/song.ts';
 import {personalChanges} from './personal.ts';
 import {reconcilePersonal} from './annotations.ts';
 interface DraftSnapshot {

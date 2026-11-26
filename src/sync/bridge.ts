@@ -1,29 +1,7 @@
-import {RetrySync, SyncFailure, failureCodes} from './failure.ts';
-import {
-  same,
-  type BookLink,
-  type SongLink,
-  type Manifest,
-  type RemoteFiles,
-  type SyncState,
-  type UploadJob,
-} from './model.ts';
+import {RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
+import {same} from './model.ts';
+import type {Manifest, RemoteFiles, SyncState, UploadClaim, UploadIndex, UploadJob} from '../core/sync-model.ts';
 
-export interface UploadClaim {
-  operationId: string;
-  role: 'content' | 'original';
-  song: SongLink;
-  book: BookLink;
-  stagePath: string;
-  target: string;
-  fileId: string;
-  rev: string;
-}
-export interface UploadIndex {
-  version: 1;
-  entries: Record<string, UploadClaim>;
-  libraryRev?: string | null;
-}
 export const uploadIndexPath = '/.app/upload-index.json';
 export function parseUploadIndex(text: string): UploadIndex {
   try {

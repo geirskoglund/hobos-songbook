@@ -8,7 +8,8 @@ import {nearestNoteTarget} from './note-position.ts';
 import {attachHeldElements, type ElementDrag} from './held-elements.ts';
 import {attachDynamicMarkers} from './dynamic-markers.ts';
 import {paintAnnotations} from './annotations.ts';
-import {changeNote, noteAt, logicalLines, changeAnnotation, type Highlight} from '../domain/annotations.ts';
+import {changeNote, noteAt, logicalLines, changeAnnotation} from '../domain/annotations.ts';
+import type {Highlight, Song, SongPersonal} from '../core/song.ts';
 import {shiftChord, shiftGridText, sharedGridText, validGrid} from '../domain/personal.ts';
 import {
   sourceLines,
@@ -26,7 +27,6 @@ import {
   lineEnding,
   mergeRawSource,
 } from '../domain/source-edit.ts';
-import type {Song, SongPersonal} from '../domain/song.ts';
 import type {EditSession} from '../domain/edit-session.ts';
 export function createSongEditor(session: EditSession, change: (source?: boolean) => void, raw: () => void) {
   type ElementChoice =

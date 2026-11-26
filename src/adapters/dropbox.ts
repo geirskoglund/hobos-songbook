@@ -1,6 +1,15 @@
 import type {AppEnvironment} from '../environment.ts';
-import type {FileValue, RemoteFiles, RemoteEntry, UploadResult, MoveReply} from '../sync/model.ts';
-import {checkSize, textBytes, maxFileBytes, maxBatchAppendBytes, SkippedFile} from '../sync/limits.ts';
+import {
+  type FileValue,
+  type RemoteFiles,
+  type RemoteEntry,
+  type UploadResult,
+  type MoveReply,
+  mutationPath,
+  type ApiEvent,
+  type ApiContext,
+} from '../core/sync-model.ts';
+import {checkSize, textBytes, maxFileBytes, maxBatchAppendBytes, SkippedFile} from '../core/limits.ts';
 import {
   DeferredSync,
   SubmittedBatchInterruption,
@@ -10,9 +19,7 @@ import {
   UnsentBatch,
   NamespacePlanNeedsRefresh,
   BatchStatusUnconfirmed,
-} from '../sync/failure.ts';
-import {mutationPath} from '../sync/mutation.ts';
-import type {ApiEvent, ApiContext} from '../sync/diagnostics.ts';
+} from '../core/failure.ts';
 import {DropboxError, dropboxRate} from './dropbox-rate.ts';
 export {DropboxError} from './dropbox-rate.ts';
 export const requiredScopes = ['account_info.read', 'files.metadata.read', 'files.content.read', 'files.content.write'];

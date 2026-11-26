@@ -1,7 +1,8 @@
 import {dropboxAdapter, type SharingConsent} from '../adapters/dropbox.ts';
 import type {songStorage} from '../storage/songs.ts';
 import {syncEngine, PausedSync} from './engine.ts';
-import type {Conflict, PublicationChoice, PublicationResult, SyncState} from './model.ts';
+import type {Conflict, SyncState, ApiEvent} from '../core/sync-model.ts';
+import type {PublicationChoice, PublicationResult} from './model.ts';
 import {publicationError, publicationView} from './publication.ts';
 import {
   DeferredSync,
@@ -12,8 +13,8 @@ import {
   SyncFailure,
   RetrySync,
   type FailureInfo,
-} from './failure.ts';
-import {syncDiagnostics, type ApiEvent, type SyncLog} from './diagnostics.ts';
+} from '../core/failure.ts';
+import {syncDiagnostics, type SyncLog} from './diagnostics.ts';
 export function syncController(
   storage: ReturnType<typeof songStorage>,
   hooks: {

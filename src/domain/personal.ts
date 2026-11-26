@@ -1,8 +1,7 @@
 import {isChord, parseChordPro, type GridBlock} from './chordpro.ts';
-import type {SongPersonal} from './song.ts';
-import {changeAnnotation, changeNote, type LineAnchor, type Annotation, type PersonalNote} from './annotations.ts';
+import type {SongPersonal, LineAnchor, Annotation, PersonalNote} from '../core/song.ts';
+import {changeAnnotation, changeNote} from './annotations.ts';
 export {anchorFor, changeAnnotation} from './annotations.ts';
-export type {LineAnchor, Highlight} from './annotations.ts';
 
 /** Compare editable values, treating absent defaults and empty annotations alike. */
 export function personalChanges(

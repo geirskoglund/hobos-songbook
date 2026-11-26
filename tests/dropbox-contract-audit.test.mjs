@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {dropboxAdapter, dropboxConfig, requiredScopes} from '../src/adapters/dropbox.ts';
-import {BatchJobFailed} from '../src/sync/failure.ts';
+import {BatchJobFailed} from '../src/core/failure.ts';
 import {syncDiagnostics} from '../src/sync/diagnostics.ts';
 
 // Raw payloads serialized by the official Dropbox SDK, independent of our mock.

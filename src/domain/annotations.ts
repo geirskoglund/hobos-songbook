@@ -1,24 +1,5 @@
 import {parseChordPro, type Content} from './chordpro.ts';
-import type {Song, SongPersonal} from './song.ts';
-
-export interface LineAnchor {
-  songId: string;
-  occurrence: string;
-  sourceLine: number;
-}
-export interface Highlight {
-  start: number;
-  end: number;
-  groupId?: string;
-}
-export interface Annotation {
-  anchor: LineAnchor;
-  highlights: Highlight[];
-}
-export interface PersonalNote {
-  line: number;
-  text: string;
-}
+import type {Highlight, LineAnchor, PersonalNote, Song, SongPersonal} from '../core/song.ts';
 interface LogicalLine {
   occurrence: string;
   sourceLine: number;

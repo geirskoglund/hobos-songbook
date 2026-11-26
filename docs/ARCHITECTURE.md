@@ -10,12 +10,15 @@ Statisk HTML, CSS og TypeScript bygget med Vite. Ingen backend, skydatabase, Dro
 
 | Mappe | Ansvar | Grense |
 | --- | --- | --- |
-| `src/domain/` | Sangmodell, ChordPro-tolkning, personlig lag, sangbok, setliste | Ingen DOM, lagring eller Dropbox |
+| `src/core/` | Typer, feil og små felles konstanter og fabrikker: sangdata, synkmodell, Dropbox-kontrakt, feilkoder, filgrenser | Importerer ingen andre lag |
+| `src/domain/` | Regler for sang, ChordPro-tolkning, personlig lag, sangbok, setliste | Ingen DOM, lagring eller Dropbox |
 | `src/storage/` | IndexedDB og localStorage per kanal | Ingen nettkall |
 | `src/adapters/` | Dropbox: OAuth/PKCE, HTTP, ratebegrensning | Ingen domenelogikk |
 | `src/sync/` | Synk-motor, journal, Dropbox-plan, diagnostikk | Ingen DOM |
 | `src/ui/` | Ren DOM uten rammeverk | Eier visning, ikke lagringsbetydning |
 | `scripts/`, `.github/workflows/` | Bygg og publisering | Se [TESTING](TESTING.md) |
+
+Tabellen lister lagene i `src/` med laveste lag først. Et lag importerer bare fra seg selv og lavere lag, og alle lag unntatt `core` kan bruke `src/environment.ts`. ESLint håndhever regelen (`eslint.config.mjs`).
 
 Domenet importerer aldri Dropbox. Originalteksten er autoritativ; parserens struktur og DOM-en er avledet og skrives aldri tilbake som original. Kildehandlinger endrer avgrensede tekstområder og bevarer BOM, linjeskift, ukjente direktiver og uberørt whitespace.
 
@@ -163,7 +166,7 @@ Kontrakten er Dropbox' egen dokumentasjon: [Performance](https://docs.dropboxapi
 
 ### Diagnostikk
 
-- Feilkodene `SYNC-001` til `SYNC-024` er konstanter i [failure.ts](../src/sync/failure.ts).
+- Feilkodene `SYNC-001` til `SYNC-024` er konstanter i [failure.ts](../src/core/failure.ts).
 - En rapport inneholder tilfeldig hendelses-ID, tid, byggidentitet, feilkode, steg, siste 30 API-operasjoner uten argumenter, Dropbox-request-ID-er og filtrerte plattformopplysninger.
 - Rapporten inneholder aldri tokens, konto-ID, e-post, sang- eller boknavn, private stier, rå feiltekst eller API-svar.
 - Opplasting til `/.app/sync-errors.json` går bare til kontoen som laget rapporten, og påvirker ikke synkresultatet.

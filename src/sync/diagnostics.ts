@@ -1,6 +1,13 @@
 import type {AppEnvironment} from '../environment.ts';
-import type {RemoteFiles} from './model.ts';
-import {failureCodes, failureInfo, userActions, type FailureCode, type FailureInfo, type RateInfo} from './failure.ts';
+import type {ApiEvent, RemoteFiles} from '../core/sync-model.ts';
+import {
+  failureCodes,
+  failureInfo,
+  userActions,
+  type FailureCode,
+  type FailureInfo,
+  type RateInfo,
+} from '../core/failure.ts';
 
 const operations = [
   'oauth2/token',
@@ -27,19 +34,6 @@ const operations = [
   'sharing/list_shared_links',
   'sharing/create_shared_link_with_settings',
 ] as const;
-export interface ApiContext {
-  batchSize?: number;
-  resource?: 'personal' | 'staging' | 'folder' | 'content' | 'control' | 'mixed' | 'other';
-  requestId?: string;
-}
-export interface ApiEvent extends RateInfo, ApiContext {
-  operation: string;
-  status: number;
-  durationMs: number;
-  retryAttempt?: number;
-  entryLimit?: boolean;
-  transport?: 'network' | 'abort' | 'timeout';
-}
 const entryLimited = (event: ApiEvent) =>
   event.status === 200 &&
   event.entryLimit === true &&

@@ -10,7 +10,7 @@ import {
   NamespacePlanNeedsRefresh,
   BatchStatusUnconfirmed,
   PublicationInProgress,
-} from './failure.ts';
+} from '../core/failure.ts';
 import {metadataView, pathKey} from './remote.ts';
 import {ownSong, songLocation} from './model.ts';
 import type {
@@ -23,7 +23,7 @@ import type {
   RemoteEntry,
   RemoteFiles,
   SyncState,
-} from './model.ts';
+} from '../core/sync-model.ts';
 
 type Hooks = {
   check(): Promise<void>;

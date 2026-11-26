@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {dropboxAdapter, DropboxError, dropboxConfig} from '../src/adapters/dropbox.ts';
-import {DeferredSync, SyncFailure, failureCodes, failureText} from '../src/sync/failure.ts';
+import {DeferredSync, SyncFailure, failureCodes, failureText} from '../src/core/failure.ts';
 import {syncDiagnostics} from '../src/sync/diagnostics.ts';
 import {environment} from '../src/environment.ts';
 const env = environment('test', 'a'.repeat(40), '38');

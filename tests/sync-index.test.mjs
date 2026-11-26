@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {indexedFiles} from '../src/sync/remote.ts';
-import {newSyncState} from '../src/sync/model.ts';
+import {newSyncState} from '../src/core/sync-model.ts';
 
 test('Dropbox recursive FileMetadata may arrive without its parents; required book identity is fetched once', async () => {
   const state = newSyncState('account'),

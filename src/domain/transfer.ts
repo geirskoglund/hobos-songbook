@@ -1,4 +1,4 @@
-import type {Song} from './song.ts';
+import type {Song} from '../core/song.ts';
 import {sameImportFilename} from './import.ts';
 
 interface TransferMatch {

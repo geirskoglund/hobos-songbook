@@ -1,5 +1,5 @@
 import {parseChordPro} from './chordpro.ts';
-import type {Song} from './song.ts';
+import type {Song} from '../core/song.ts';
 export function withOriginal(song: Song, original: string): Song {
   const parsed = parseChordPro(original, song.title);
   return {...song, original, title: parsed.title, key: parsed.key};

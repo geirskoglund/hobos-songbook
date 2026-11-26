@@ -1,14 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  direction,
-  mergeManifest,
-  emptyManifest,
-  newSyncState,
-  emptyJournal,
-  hash,
-  parsePersonal,
-} from '../src/sync/model.ts';
+import {direction, mergeManifest, hash, parsePersonal} from '../src/sync/model.ts';
+import {emptyManifest, newSyncState, emptyJournal} from '../src/core/sync-model.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 import {pkceChallenge, dropboxConfig} from '../src/adapters/dropbox.ts';
 import {fixture, song} from './sync-fixture.mjs';

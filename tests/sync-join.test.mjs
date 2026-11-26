@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture, song} from './sync-fixture.mjs';
-import {emptyJournal, newSyncState} from '../src/sync/model.ts';
+import {emptyJournal, newSyncState} from '../src/core/sync-model.ts';
 
 const original = '{t: Samme tittel}\n[C]Tekst';
 const imported = (id, book, filename = 'sang.cho', text = original) => ({

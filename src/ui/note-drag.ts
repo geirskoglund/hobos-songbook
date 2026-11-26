@@ -1,5 +1,5 @@
 import {changeNote} from '../domain/annotations.ts';
-import type {SongPersonal} from '../domain/song.ts';
+import type {SongPersonal} from '../core/song.ts';
 import {edgeScroll} from './highlight-editor.ts';
 import {noteAnchor, noteTargets, canPlaceNote} from './note-position.ts';
 

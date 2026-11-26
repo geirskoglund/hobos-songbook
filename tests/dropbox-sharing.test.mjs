@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dropboxAdapter, dropboxConfig, requiredScopes, sharingScopes} from '../src/adapters/dropbox.ts';
-import {failureCodes, SyncFailure} from '../src/sync/failure.ts';
+import {failureCodes, SyncFailure} from '../src/core/failure.ts';
 
 const namespace = 'sharing-test';
 const authKey = `${namespace}:dropbox-auth-v1`;
