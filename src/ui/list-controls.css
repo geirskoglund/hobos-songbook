@@ -97,8 +97,7 @@
   max-width: calc(100vw - 24px);
 }
 .name-dialog::backdrop {
-  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
-  background: #0009;
+  background: var(--shade-9);
 }
 .dialog-frame.name-dialog > h2 {
   padding: 0 0 12px;
@@ -184,8 +183,7 @@ body:has(#update-notice:not([hidden])) .floating-action {
   margin: 0;
   padding: 12px;
   border-radius: 17px;
-  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
-  box-shadow: 0 8px 32px #0005;
+  box-shadow: 0 8px 32px var(--shade-5);
 }
 .dialog-frame.context-menu {
   width: 265px;
@@ -196,8 +194,7 @@ body:has(#update-notice:not([hidden])) .floating-action {
 }
 .context-menu::backdrop,
 .choice-picker::backdrop {
-  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
-  background: #0002;
+  background: var(--shade-2);
 }
 .context-menu [role='menu'] {
   display: flex;
