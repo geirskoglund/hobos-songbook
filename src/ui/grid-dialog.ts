@@ -109,8 +109,8 @@ export function openGridDialog(
         write.original(
           patchSong(session.song, [
             {
-              start: session.song.original.startsWith('﻿') ? 1 : 0,
-              end: session.song.original.startsWith('﻿') ? 1 : 0,
+              start: session.song.original.startsWith('\uFEFF') ? 1 : 0,
+              end: session.song.original.startsWith('\uFEFF') ? 1 : 0,
               text: stored + ending,
             },
           ]),
