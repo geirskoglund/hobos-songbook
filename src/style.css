@@ -350,6 +350,7 @@ code {
   border: 1px solid var(--accent);
   border-radius: 12px;
   background: var(--panel);
+  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
   box-shadow: 0 4px 24px #0003;
 }
 .update-notice p {
@@ -740,6 +741,7 @@ body:has(#update-notice:not([hidden])) {
   min-width: 90px;
   max-width: calc(100vw - 16px);
   padding: 10px 14px;
+  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
   box-shadow: 0 4px 18px #0006;
 }
 .chord-drag-context {
@@ -911,11 +913,13 @@ button.song-key {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--panel);
+  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
   box-shadow: 0 8px 32px #0006;
   font: 14px/1.4 var(--font-ui);
   color: var(--text);
 }
 .edit-popup::backdrop {
+  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
   background: #0002;
 }
 .edit-popup h2 {
@@ -1068,6 +1072,7 @@ button.song-key {
   margin: 0;
 }
 .leave-editor::backdrop {
+  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
   background: #0007;
 }
 
@@ -1121,6 +1126,7 @@ button.song-key {
   align-items: center;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
   box-shadow: 0 5px 18px #0006;
 }
 .note-drag-ghost[data-invalid='true'] {
@@ -1268,6 +1274,7 @@ body.original-open {
   background: var(--panel);
   color: var(--text);
   font: 12px/1.4 var(--font-ui);
+  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
   box-shadow: 0 3px 12px #0004;
 }
 .editing-active #song-body[data-note-moving] [data-note-target] {
@@ -1284,6 +1291,7 @@ body.original-open {
   border-radius: 8px;
   background: var(--panel);
   color: var(--text);
+  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
   box-shadow: 0 4px 20px #0005;
   max-width: calc(100vw - 16px);
   overflow: auto;
@@ -1342,6 +1350,7 @@ body.original-open {
   position: fixed;
   inset: var(--header-height) 0 0;
   z-index: var(--layer-backdrop);
+  /* stylelint-disable-next-line color-no-hex -- Ingen variabel i theme.css har denne verdien ennå (#84). */
   background: #0008;
 }
 #main-menu {

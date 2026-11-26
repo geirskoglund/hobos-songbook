@@ -1,4 +1,7 @@
 {
+  "permissions": {
+    "ask": ["Edit(/src/theme.css)"]
+  },
   "hooks": {
     "PostToolUse": [
       {
