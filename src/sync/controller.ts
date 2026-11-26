@@ -71,6 +71,7 @@ export function syncController(
     immediate = false,
     localPending = false;
   let changedDuringRun = false,
+    changedDuringPopup = false,
     recoveryRequired = false,
     workingWithDropbox = false,
     syncingPublication = false;
@@ -202,6 +203,7 @@ export function syncController(
     requestedManual = false;
     running = true;
     changedDuringRun = false;
+    changedDuringPopup = false;
     error = null;
     events.length = 0;
     for (const operation of Object.keys(operationTotals)) delete operationTotals[operation];
@@ -321,6 +323,10 @@ export function syncController(
     } finally {
       popup = false;
       notify();
+      if (changedDuringPopup && !paused && !hooks.busy()) {
+        changedDuringPopup = false;
+        void execute();
+      }
     }
   }
   async function manual() {
@@ -427,7 +433,9 @@ export function syncController(
     if (running || workingWithDropbox) changedDuringRun = true;
     localPending = true;
     notify();
-    if (!popup) void execute();
+    // A change during the conflict check or dialog is synchronized when it closes.
+    if (popup) changedDuringPopup = true;
+    else void execute();
   }
   function online() {
     void execute();

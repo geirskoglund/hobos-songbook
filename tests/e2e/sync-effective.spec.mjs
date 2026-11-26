@@ -58,6 +58,17 @@ async function synchronize(page) {
   await page.locator('#dropbox-sync').click();
   await expect(page.locator('#dropbox-sync')).toBeEnabled();
 }
+/** Waits until automatic sync has taken up every local change; an enabled button alone can precede the run. */
+async function synced(page) {
+  await expect
+    .poll(async () => {
+      const data = await state(page),
+        journal = data.sync.find(s => s.id === 'private-local-v1');
+      return account(data)?.localGeneration === journal?.generation && !account(data).pending;
+    })
+    .toBe(true);
+  await expect(page.locator('#dropbox-sync')).toBeEnabled();
+}
 async function mutate(page, changes, notify = true) {
   await page.evaluate(
     ({personal, originals, seed, notify}) =>
@@ -166,7 +177,7 @@ test('F60: actual adapter with 100 songs, delayed responses and bounded parallel
   start = mock.calls.length;
   time = Date.now();
   await mutate(page, {personal: {'bulk-37': 4}});
-  await expect(page.locator('#dropbox-sync')).toBeEnabled();
+  await synced(page);
   calls = mock.calls.slice(start);
   expect(
     calls.filter(c => !['/.app/mutation.json', '/.app/library.json'].includes(c.args?.path)).map(c => c.endpoint),
@@ -184,7 +195,7 @@ test('F60: actual adapter with 100 songs, delayed responses and bounded parallel
   start = mock.calls.length;
   time = Date.now();
   await mutate(page, {originals: Array.from({length: 20}, (_, i) => 'bulk-' + i)});
-  await expect(page.locator('#dropbox-sync')).toBeEnabled();
+  await synced(page);
   calls = mock.calls.slice(start);
   expect(
     calls.filter(
@@ -212,6 +223,54 @@ test('F60: actual adapter with 100 songs, delayed responses and bounded parallel
   await mkdir('work/effective-sync', {recursive: true});
   await appendFile('work/effective-sync/performance.jsonl', JSON.stringify(measured) + '\n');
   console.log(JSON.stringify(measured));
+});
+test('F60: a local change right after a manual sync is synchronized automatically', async ({page, context}) => {
+  const mock = await setup(page, context),
+    song = (await savedSongs(page))[0];
+  await synchronize(page);
+  const start = mock.calls.length;
+  // Change the library in the same moment the button returns, while the controller checks for conflicts.
+  await page.evaluate(
+    songId =>
+      new Promise((resolve, reject) => {
+        const button = document.getElementById('dropbox-sync');
+        const observer = new MutationObserver(() => {
+          if (button.disabled) return;
+          observer.disconnect();
+          const r = indexedDB.open('hobos-songbook-test');
+          r.onsuccess = () => {
+            const db = r.result,
+              tx = db.transaction(['personal', 'sync'], 'readwrite');
+            tx.objectStore('sync').get('private-local-v1').onsuccess = event => {
+              const journal = event.target.result ?? {
+                id: 'private-local-v1',
+                version: 1,
+                generation: 0,
+                deletedBooks: {},
+                sessions: {},
+              };
+              journal.generation++;
+              tx.objectStore('sync').put(journal);
+            };
+            tx.objectStore('personal').get(songId).onsuccess = event =>
+              tx.objectStore('personal').put({songId, version: 3, chorus: {}, ...event.target.result, capo: 7});
+            tx.oncomplete = () => {
+              db.close();
+              document.dispatchEvent(new Event('library-local-change'));
+              resolve();
+            };
+            tx.onabort = () => reject(tx.error);
+          };
+        });
+        observer.observe(button, {attributes: true, attributeFilter: ['disabled']});
+        button.click();
+      }),
+    song.id,
+  );
+  await expect
+    .poll(() => mock.calls.slice(start).some(c => c.endpoint.endsWith('/upload') && c.args.path.includes(song.id)))
+    .toBe(true);
+  await expect.poll(async () => account(await state(page)).pending).toBe(false);
 });
 test('F21/F31: an automatic conflict choice never imports another changed song or updates manual time', async ({
   page,
