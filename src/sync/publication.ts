@@ -6,6 +6,7 @@ import {syncIdentities} from './identities.ts';
 import {ownSong, songLocation, type PublicationView} from './model.ts';
 import type {RemoteEntry, SongLink} from '../core/sync-model.ts';
 import {metadataView, pathKey} from './remote.ts';
+import {isBookPath} from '../core/paths.ts';
 
 export function publicationCatalog(snapshot: SyncSnapshot) {
   const {state} = snapshot;
@@ -16,7 +17,7 @@ export function publicationCatalog(snapshot: SyncSnapshot) {
   for (const book of Object.values(manifest.books)) {
     if (book.deleted || snapshot.journal.deletedBooks[book.id] || !book.folderId) continue;
     const root = find(book.folderId);
-    if (!root?.folder || !/^\/Songbooks\/[^/]+$/i.test(root.path)) continue;
+    if (!root?.folder || !isBookPath(root.path)) continue;
     roots.set(book.id, root);
     if (!books.has(book.id)) books.set(book.id, {id: book.id, name: book.name});
   }

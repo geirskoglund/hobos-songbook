@@ -1,5 +1,6 @@
 import type {AppEnvironment} from '../environment.ts';
 import type {ApiEvent, RemoteFiles} from '../core/sync-model.ts';
+import {appFolder, syncErrorsPath} from '../core/paths.ts';
 import {
   failureCodes,
   failureInfo,
@@ -520,8 +521,8 @@ export function syncDiagnostics(env: AppEnvironment, notify: () => void = () => 
       );
     if (!pending.length) return;
     try {
-      await files.folder('/.app');
-      const previous = await files.read('/.app/sync-errors.json');
+      await files.folder(appFolder);
+      const previous = await files.read(syncErrorsPath);
       let old: SyncLog[] = [];
       if (previous) {
         const value = JSON.parse(previous.text);
@@ -531,7 +532,7 @@ export function syncDiagnostics(env: AppEnvironment, notify: () => void = () => 
       }
       const combined = new Map([...old, ...pending].map(e => [e.id, e]));
       await files.write(
-        '/.app/sync-errors.json',
+        syncErrorsPath,
         JSON.stringify(
           {
             version: 1,

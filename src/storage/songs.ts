@@ -6,6 +6,7 @@ import {syncStorage, trackLocal} from './sync.ts';
 import {failureCodes, SyncFailure} from '../core/failure.ts';
 import {transferPlan, type TransferPlan} from '../domain/transfer.ts';
 import type {SyncState} from '../core/sync-model.ts';
+import {syncStateKey} from '../core/paths.ts';
 const schemaVersion = 4;
 export interface LibrarySnapshot {
   songs: Song[];
@@ -318,7 +319,7 @@ export function songStorage(namespace: string) {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(['songs', 'sync']),
         songs = tx.objectStore('songs').getAll(),
-        state = accountId ? tx.objectStore('sync').get(`private-account-v1:${accountId}`) : undefined;
+        state = accountId ? tx.objectStore('sync').get(syncStateKey(accountId)) : undefined;
       tx.oncomplete = () => {
         db.close();
         resolve(transferPlan(songs.result, sourceId, targetId, transferNames(songs.result, state?.result)));
@@ -343,9 +344,7 @@ export function songStorage(namespace: string) {
           songs = tx.objectStore('songs');
         const readBooks = books.getAll(),
           readSongs = songs.getAll(),
-          readState = approval?.accountId
-            ? tx.objectStore('sync').get(`private-account-v1:${approval.accountId}`)
-            : undefined;
+          readState = approval?.accountId ? tx.objectStore('sync').get(syncStateKey(approval.accountId)) : undefined;
         let reads = 0;
         const ready = () => {
           if (++reads !== (readState ? 3 : 2)) return;

@@ -1,5 +1,6 @@
 import type {Song, SongPersonal} from './song.ts';
 import type {FailureInfo, RateInfo} from './failure.ts';
+import {journalKey, syncStateKey} from './paths.ts';
 
 /** Wire formats deliberately exclude credentials and local operation/session state. */
 interface BookArchive {
@@ -246,7 +247,7 @@ export interface SyncState {
   bindings?: {books: Record<string, string>; songs: Record<string, string>};
 }
 export interface LocalJournal {
-  id: 'private-local-v1';
+  id: typeof journalKey;
   version: 1;
   generation: number;
   recoveryRequired?: boolean;
@@ -255,14 +256,14 @@ export interface LocalJournal {
 }
 export const emptyManifest = (): Manifest => ({version: 1, books: {}, songs: {}});
 export const emptyJournal = (): LocalJournal => ({
-  id: 'private-local-v1',
+  id: journalKey,
   version: 1,
   generation: 0,
   deletedBooks: {},
   sessions: {},
 });
 export const newSyncState = (accountId: string): SyncState => ({
-  id: `private-account-v1:${accountId}`,
+  id: syncStateKey(accountId),
   version: 1,
   accountId,
   manifest: emptyManifest(),
@@ -301,4 +302,3 @@ export interface ApiEvent extends RateInfo, ApiContext {
   entryLimit?: boolean;
   transport?: 'network' | 'abort' | 'timeout';
 }
-export const mutationPath = '/.app/mutation.json';

@@ -52,6 +52,21 @@ import {namespaceQueue} from './namespace.ts';
 import {mutationFence} from './mutation.ts';
 import {archiveBooks, needsArchive} from './archive.ts';
 import {publicationCatalog, publicationError, publicationView} from './publication.ts';
+import {
+  appFolder,
+  bookAreas,
+  bookPath,
+  deletedFolder,
+  isBookPath,
+  libraryPath,
+  mutationPath,
+  personalFolder,
+  personalPath,
+  renameStagingPath,
+  songbooksFolder,
+  stagingFolder,
+  syncErrorsPath,
+} from '../core/paths.ts';
 export class PausedSync extends DeferredSync {
   constructor() {
     super('session', 'Synkronisering er pauset mens en sang er åpen.');
@@ -206,7 +221,7 @@ export function syncEngine(
             path,
             fileId: entry.id,
             rev,
-            category: path.startsWith('/.app/uploads/') ? 'staging' : 'personal',
+            category: path.startsWith(stagingFolder + '/') ? 'staging' : 'personal',
           },
         ]);
       },
@@ -248,7 +263,7 @@ export function syncEngine(
     // this retired path and missing parents, never move an existing identity.
     const text = JSON.stringify(remote);
     parseManifest(text);
-    if (!same(remote, state.library?.value)) await write('/.app/library.json', text, state.library?.rev ?? null);
+    if (!same(remote, state.library?.value)) await write(libraryPath, text, state.library?.rev ?? null);
     await save();
   }
   function remoteBookName(value: string, books: BookLink[], ownId?: string) {
@@ -376,7 +391,7 @@ export function syncEngine(
       }
       if (!book.folderId || book.deleted) continue;
       const current = await step(() => files.locateFolder(book.folderId!));
-      if (!current || !/^\/Songbooks\/[^/]+$/i.test(current.path)) {
+      if (!current || !isBookPath(current.path)) {
         remote.books[book.id] = {...book, deleted: true};
         state.folders[book.id] = {...remote.books[book.id]};
       } else {
@@ -468,19 +483,19 @@ export function syncEngine(
         );
       const intent = state.renames?.[book.id];
       if (intent) {
-        if ([intent.from, intent.to, `/Songbooks/.rename-${book.id}`].includes(current.path)) continue;
+        if ([intent.from, intent.to, renameStagingPath(book.id)].includes(current.path)) continue;
         throw new SyncFailure(
           {code: failureCodes.bookChanges, stage: 'sync.book-state'},
           'Sangbokmappen er endret under en uferdig navneendring.',
         );
       }
-      if (!/^\/Songbooks\/[^/]+$/i.test(current.path))
+      if (!isBookPath(current.path))
         throw new SyncFailure(
           {code: failureCodes.bookChanges, stage: 'sync.book-state'},
           'En kjent sangbokmappe ligger utenfor Songbooks.',
         );
       if (book.path === current.path && book.name === current.path.split('/').at(-1)!) continue;
-      const previousPath = book.path ?? `/Songbooks/${book.name}`;
+      const previousPath = book.path ?? bookPath(book.name);
       book.name = remoteBookName(
         current.path.split('/').at(-1)!,
         Object.values(remote.books).filter(other => !other.deleted),
@@ -495,11 +510,11 @@ export function syncEngine(
     }
   }
   async function ensureBooks(merged: Manifest) {
-    await namespace.folders(['/.app', '/.app/songs', '/Songbooks'].map(path => ({key: path, path})));
+    await namespace.folders([appFolder, personalFolder, songbooksFolder].map(path => ({key: path, path})));
     const active = Object.values(merged.books).filter(book => !book.deleted),
       blocked = new Set<string>();
     for (const book of active) {
-      const target = `/Songbooks/${book.name}`,
+      const target = bookPath(book.name),
         prior = Object.values(merged.books).find(
           other => other.id !== book.id && pathKey(other.path ?? '') === pathKey(target),
         ),
@@ -519,7 +534,7 @@ export function syncEngine(
       cases: MoveEntry[] = [],
       creates: FolderEntry[] = [];
     for (const book of active) {
-      const target = `/Songbooks/${book.name}`,
+      const target = bookPath(book.name),
         known = state.folders[book.id] ?? state.manifest.books[book.id] ?? book;
       if (known.folderId) {
         const actual = await step(() => files.locateFolder(known.folderId!));
@@ -540,7 +555,7 @@ export function syncEngine(
               book: {...book},
             };
             if (pathKey(actual.path) === pathKey(target))
-              cases.push({...plan, key: plan.key + ':case', to: `/Songbooks/.rename-${book.id}`, book: undefined});
+              cases.push({...plan, key: plan.key + ':case', to: renameStagingPath(book.id), book: undefined});
             renames.push(plan);
           }
         }
@@ -551,7 +566,7 @@ export function syncEngine(
       } else {
         let path = target;
         if (blocked.has(book.id)) {
-          const base = `/Songbooks/.rename-${book.id}`;
+          const base = renameStagingPath(book.id);
           path = state.renames?.[book.id]?.from ?? base;
           let n = 1;
           while (
@@ -574,15 +589,14 @@ export function syncEngine(
     await namespace.folders(creates);
     const children: FolderEntry[] = [];
     for (const book of active) {
-      const target = blocked.has(book.id) ? state.folders[book.id].path! : `/Songbooks/${book.name}`,
+      const target = blocked.has(book.id) ? state.folders[book.id].path! : bookPath(book.name),
         known = state.folders[book.id] ?? book,
         binding = await folder(target, known.folderId);
       book.folderId = binding.id;
       book.path = binding.path;
       state.folders[book.id] = {...book};
       if (!blocked.has(book.id)) delete state.renames?.[book.id];
-      for (const kind of ['Private', 'Shared', 'Import', 'Originals'])
-        children.push({key: book.id + ':' + kind, path: binding.path + '/' + kind});
+      for (const kind of bookAreas) children.push({key: book.id + ':' + kind, path: binding.path + '/' + kind});
     }
     await save();
     await namespace.folders(children);
@@ -603,7 +617,7 @@ export function syncEngine(
         continue;
       }
       if (book.deleted) continue;
-      const target = `/Songbooks/${local.name}`,
+      const target = bookPath(local.name),
         current = book.folderId ? index.find(book.folderId) : undefined,
         occupying = index.find(target);
       if (!current || !current.id) throw new RetrySync();
@@ -658,7 +672,7 @@ export function syncEngine(
   }
   async function discover(remote: Manifest, publishedIds: Set<string>) {
     // Discover unregistered songs in Private/. Known Shared files follow their existing links.
-    for (const entry of await step(() => files.list('/Songbooks'))) {
+    for (const entry of await step(() => files.list(songbooksFolder))) {
       if (
         !entry.folder ||
         Object.values(remote.books).some(book =>
@@ -679,14 +693,14 @@ export function syncEngine(
       }
       remote.books[known.id] = {...known};
       await namespace.folders(
-        ['Private', 'Shared', 'Import', 'Originals'].map(kind => ({
+        bookAreas.map(kind => ({
           key: entry.id + ':' + kind,
           path: `${entry.path}/${kind}`,
         })),
       );
     }
     for (const book of Object.values(remote.books).filter(book => !book.deleted)) {
-      for (const file of await step(() => files.list(`${book.path ?? `/Songbooks/${book.name}`}/Private`))) {
+      for (const file of await step(() => files.list(`${book.path ?? bookPath(book.name)}/Private`))) {
         if ((index.find(file.id)?.size ?? 0) > maxFileBytes) continue;
         if (claims.some(claim => claim.role === 'content' && claim.fileId === file.id)) continue;
         if (
@@ -720,7 +734,7 @@ export function syncEngine(
     content: FileValue,
     fresh: boolean,
   ): Promise<{file: PersonalFile; value: FileValue | null; original: string}> {
-    const value = await read(`/.app/songs/${link.id}.json`);
+    const value = await read(personalPath(link.id));
     if (!value) {
       if (!fresh)
         throw new SyncFailure(
@@ -926,7 +940,7 @@ export function syncEngine(
         key: `personal:${link.id}`,
         songId: link.id,
         kind: 'personal',
-        path: `/.app/songs/${link.id}.json`,
+        path: personalPath(link.id),
         text: JSON.stringify(nextPerson),
         rev: person?.value?.rev ?? null,
         ...(person?.value ? {fileId: person.value.id} : {}),
@@ -976,12 +990,12 @@ export function syncEngine(
     return {...plan, content, referenceRev, nextPerson, savedPerson, intents};
   }
   function songDestination(link: SongLink, books: Manifest['books']) {
-    const bookPath = state.folders[link.songbookId]?.path ?? `/Songbooks/${books[link.songbookId].name}`;
+    const parent = state.folders[link.songbookId]?.path ?? bookPath(books[link.songbookId].name);
     const current = songLocation(index.find(link.fileId ?? link.path)?.path ?? link.path);
     // Only confirmed book transfers change Shared to Private. File edits within
     // the same book stay where Dropbox currently has the song.
-    const area = current && pathKey(current.bookPath) === pathKey(bookPath) ? current.area : 'Private';
-    return `${bookPath}/${area}`;
+    const area = current && pathKey(current.bookPath) === pathKey(parent) ? current.area : 'Private';
+    return `${parent}/${area}`;
   }
   async function run(manual: boolean, resolution?: {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'}) {
     manualRecovery = manual;
@@ -1006,7 +1020,7 @@ export function syncEngine(
         !basis ||
         entry?.rev !== basis.contentRev ||
         pathKey(entry?.path ?? '') !== pathKey(link.path) ||
-        !index.unchangedFile(undefined, basis.personalRev, `/.app/songs/${link.id}.json`)
+        !index.unchangedFile(undefined, basis.personalRev, personalPath(link.id))
       );
     };
     // Reading the remote manifest in Publisering also advances the cursor.
@@ -1025,7 +1039,7 @@ export function syncEngine(
       ) ||
       snapshot.songs.some(song => library.deletedSongs?.[song.id]) ||
       Object.values(state.remote?.entries ?? {}).some(entry => {
-        if (entry.folder && /^\/Songbooks\/[^/]+$/i.test(entry.path))
+        if (entry.folder && isBookPath(entry.path))
           return !retiredPath(entry.path) && !Object.values(library.books).some(book => book.folderId === entry.id);
         if (
           !entry.folder &&
@@ -1068,9 +1082,9 @@ export function syncEngine(
             Object.entries(state.remote!.entries)
               .filter(
                 ([path]) =>
-                  path !== '/deleted' &&
-                  !path.startsWith('/deleted/') &&
-                  !['/.app/mutation.json', '/.app/sync-errors.json'].includes(path),
+                  path !== pathKey(deletedFolder) &&
+                  !path.startsWith(pathKey(deletedFolder) + '/') &&
+                  ![mutationPath, syncErrorsPath].includes(path),
               )
               .map(([path, entry]) => [
                 path,
@@ -1099,7 +1113,7 @@ export function syncEngine(
       }
       await fence.acquire();
       await step(() => index.refresh());
-      const manifestFile = await step(() => (files.inspectFile ?? files.read)('/.app/library.json'));
+      const manifestFile = await step(() => (files.inspectFile ?? files.read)(libraryPath));
       if (manifestFile)
         state.library = {id: manifestFile.id, rev: manifestFile.rev, value: parseManifest(manifestFile.text)};
       if (!manifestFile && state.library)
@@ -1137,7 +1151,7 @@ export function syncEngine(
         )
           continue;
         const folder = index.find(claim.book.folderId!);
-        if (folder?.folder && /^\/Songbooks\/[^/]+$/i.test(folder.path))
+        if (folder?.folder && isBookPath(folder.path))
           remote.books[claim.book.id] = {
             ...claim.book,
             path: folder.path,
@@ -1274,7 +1288,7 @@ export function syncEngine(
           return;
         try {
           const content = await read(entry.fileId ?? entry.path);
-          if (!content || (await read(`/.app/songs/${entry.id}.json`))) return;
+          if (!content || (await read(personalPath(entry.id)))) return;
           const personal: PersonalFile = {
             version: 1,
             songId: entry.id,
@@ -1285,7 +1299,7 @@ export function syncEngine(
             key: `seed:${entry.id}`,
             songId: entry.id,
             kind: 'seed',
-            path: `/.app/songs/${entry.id}.json`,
+            path: personalPath(entry.id),
             text: JSON.stringify(personal),
             rev: null,
             base: {original: content.text, personal},
@@ -1318,7 +1332,7 @@ export function syncEngine(
         const remoteSame = Boolean(
           base &&
           index.unchangedFile(entry.fileId, base.contentRev, entry.path) &&
-          index.unchangedFile(undefined, base.personalRev, `/.app/songs/${entry.id}.json`),
+          index.unchangedFile(undefined, base.personalRev, personalPath(entry.id)),
         );
         const unfinished = Object.values(state.uploads ?? {}).some(
           job => job.songId === entry.id && job.status !== 'done',
@@ -1480,7 +1494,7 @@ export function syncEngine(
       parseManifest(finalText);
       // Conditional whole-manifest write preserves independent remote changes or stops for retry.
       if (!manifestFile || !same(parseManifest(manifestFile.text), merged))
-        await write('/.app/library.json', finalText, manifestFile?.rev ?? null);
+        await write(libraryPath, finalText, manifestFile?.rev ?? null);
       // Only acknowledge the local identities actually represented in this manifest.
       for (const [id, book] of Object.entries(local.books))
         if (
@@ -1513,7 +1527,7 @@ export function syncEngine(
           .filter(b => merged.books[b.id]?.deleted || (!local.books[b.id] && !merged.books[b.id]))
           .map(b => b.id);
         const cleanup = Object.keys(merged.deletedSongs ?? {}).flatMap(id => {
-          const sourcePath = `/.app/songs/${id}.json`,
+          const sourcePath = personalPath(id),
             entry = index.find(sourcePath);
           return entry?.id && entry.rev
             ? [
@@ -1540,7 +1554,7 @@ export function syncEngine(
       const publish = async (value: Manifest) => {
         const text = JSON.stringify(value);
         parseManifest(text);
-        await write('/.app/library.json', text, state.library?.rev ?? null);
+        await write(libraryPath, text, state.library?.rev ?? null);
         for (const book of Object.values(value.books))
           if (book.deleted || state.manifest.books[book.id]) state.manifest.books[book.id] = structuredClone(book);
         for (const link of Object.values(value.songs)) {
@@ -1621,9 +1635,7 @@ export function syncEngine(
   }
   async function readPublicationInventory(fenced = false) {
     await step(() => index.refresh());
-    const value = await step(() =>
-      fenced ? files.inspectFile!('/.app/library.json') : files.read('/.app/library.json'),
-    );
+    const value = await step(() => (fenced ? files.inspectFile!(libraryPath) : files.read(libraryPath)));
     if (value) state.library = {id: value.id, rev: value.rev, value: parseManifest(value.text)};
     else if (state.library)
       throw new SyncFailure({code: failureCodes.manifest, stage: 'sync.manifest'}, 'Kjent bibliotekmetadata mangler.');
@@ -1681,7 +1693,7 @@ export function syncEngine(
     if (!same(value, manifest)) {
       const text = JSON.stringify(value);
       parseManifest(text);
-      await write('/.app/library.json', text, state.library?.rev ?? null);
+      await write(libraryPath, text, state.library?.rev ?? null);
     }
     for (const id of acknowledged) {
       if (state.manifest.songs[id]?.fileId === value.songs[id].fileId) state.manifest.songs[id] = value.songs[id];
