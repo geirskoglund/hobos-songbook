@@ -4,12 +4,12 @@ export interface Segment {
   text: string;
 }
 export type DynamicLevel = 1 | 2 | 3 | 4 | 5;
-export interface DynamicDirective {
+interface DynamicDirective {
   kind: 'dynamic';
   level: DynamicLevel;
   sourceLine?: number;
 }
-export type GridContent = GridRow | DynamicDirective | {kind: 'comment' | 'unknown'; text: string; sourceLine?: number};
+type GridContent = GridRow | DynamicDirective | {kind: 'comment' | 'unknown'; text: string; sourceLine?: number};
 export interface GridBlock {
   kind: 'grid';
   options: GridOptions;

@@ -1,15 +1,5 @@
 import {test, expect} from './fixtures.mjs';
-import {
-  importAndOpenSong,
-  savedSongs,
-  savedPersonal,
-  rawEditor,
-  tool,
-  fillValue,
-  setCapo,
-  openSettings,
-  closeSettings,
-} from './song-helpers.mjs';
+import {importAndOpenSong, savedSongs, savedPersonal, rawEditor, tool, setCapo} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 const save = page =>
   page.getByRole('dialog', {name: 'Råtekst', exact: true}).getByRole('button', {name: 'Lagre', exact: true}).click();
@@ -79,12 +69,11 @@ test('autosave drains edits made during an actual held transaction and remains a
     window.heldWrite = false;
     IDBObjectStore.prototype.put = function (...args) {
       if (this.name !== 'personal' || window.releaseWrite) return put.apply(this, args);
-      const store = this;
       window.heldWrite = true;
       const alive = () => {
-        const r = store.get(args[0].songId);
+        const r = this.get(args[0].songId);
         r.onsuccess = () => {
-          if (window.releaseWrite) put.apply(store, args);
+          if (window.releaseWrite) put.apply(this, args);
           else alive();
         };
         return r;

@@ -370,7 +370,7 @@ test('first OAuth account lookup retries with its newly exchanged token before c
         values.delete('contract-audit:dropbox-auth-v1');
         await a.connect();
         const pending = JSON.parse(session.get('contract-audit:dropbox-pkce-v1'));
-        location.href = config.redirect + '?code=synthetic&state=' + pending.state;
+        globalThis.location.href = config.redirect + '?code=synthetic&state=' + pending.state;
         assert.equal(await a.callback(), true);
         assert.equal(accounts, 2);
         assert.equal(a.account().id, cases.current_account.account_id);

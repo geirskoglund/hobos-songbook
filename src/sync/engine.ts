@@ -1,5 +1,5 @@
 import {parseChordPro} from '../domain/chordpro.ts';
-import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
+import {reconcilePersonal} from '../domain/annotations.ts';
 import {songbookName} from '../domain/songbook.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
 import type {syncStorage, SyncSnapshot} from '../storage/sync.ts';
@@ -588,7 +588,7 @@ export function syncEngine(
   async function finishBookNames(merged: Manifest) {
     const moves: import('./model.ts').MoveEntry[] = [];
     let waiting = false;
-    for (const [id, intent] of Object.entries(state.renames ?? {})) {
+    for (const id of Object.keys(state.renames ?? {})) {
       const local = snapshot.songbooks.find(book => book.id === id),
         book = merged.books[id];
       if (!local) {
@@ -758,7 +758,7 @@ export function syncEngine(
       basis = state.bases[link.id];
     // A readable path without a confirmed ID may belong to another importer.
     // Only the durable creation journal can acknowledge a new physical file.
-    let content = !link.fileId && local && !remoteKnown ? null : await read(link.fileId ?? link.path);
+    const content = !link.fileId && local && !remoteKnown ? null : await read(link.fileId ?? link.path);
     if (!content && (remoteKnown || !local)) throw new RetrySync();
     const localPersonal = local && personalOf(snapshot, local.id);
     const remoteSong = content && fromRemote(link, content.text);
@@ -837,7 +837,7 @@ export function syncEngine(
     const waitingRemote = contentChoice === 'remote' || personChoice === 'remote';
     if (waitingRemote) state.awaitingDownload = true;
     const chosenSong = contentChoice === 'download' || !local ? remoteSong! : {...local, songbookId: link.songbookId};
-    let chosenPersonal =
+    const chosenPersonal =
       personChoice === 'download' || !local
         ? project(personalData(person!.file.data), {...remoteSong!, original: person!.original}, chosenSong)
         : project(localPersonal!, local, chosenSong);
@@ -897,7 +897,7 @@ export function syncEngine(
   type SongPlan = Exclude<Awaited<ReturnType<typeof prepareSong>>, false>;
   async function finishContent(plan: SongPlan) {
     const {link, chosenSong, chosenPersonal, basis, contentChoice, personChoice, person, local} = plan;
-    let content = plan.content;
+    const content = plan.content;
     if (!content)
       throw new SyncFailure(
         {code: failureCodes.missingFile, stage: 'sync.file'},
@@ -1942,6 +1942,7 @@ export function syncEngine(
       try {
         await fence.release();
       } catch (error) {
+        // eslint-disable-next-line no-unsafe-finally -- a failed release after a completed publication must reach the caller
         if (completed) throw error;
       }
     }

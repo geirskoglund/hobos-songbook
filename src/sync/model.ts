@@ -3,7 +3,7 @@ import type {Song, SongPersonal} from '../domain/song.ts';
 import {failureCodes, SyncFailure, type FailureInfo} from './failure.ts';
 
 /** Wire formats deliberately exclude credentials and local operation/session state. */
-export interface BookArchive {
+interface BookArchive {
   at: string;
   basePath: string;
   path: string;
@@ -28,14 +28,14 @@ export interface SongLink {
 }
 export const ownSong = ({origin}: Pick<Song, 'origin'>) =>
   origin.kind === 'local' || (origin.provider === 'dropbox' && !origin.sourceId);
-export type SongArea = 'Private' | 'Shared';
+type SongArea = 'Private' | 'Shared';
 export function songLocation(path: string) {
   const match = /^(\/Songbooks\/[^/]+)\/(Private|Shared)\/([^/]+\.cho)$/i.exec(path);
   if (!match) return undefined;
   const area: SongArea = match[2].toLowerCase() === 'shared' ? 'Shared' : 'Private';
   return {bookPath: match[1], area, name: match[3]};
 }
-export interface PublicationSong {
+interface PublicationSong {
   id: string;
   songbookId: string;
   title: string;
@@ -58,7 +58,7 @@ export interface PublicationResult {
   message?: string;
   unavailable?: boolean;
 }
-export interface DeletedSong {
+interface DeletedSong {
   id: string;
   fileId?: string;
   songbookId?: string;
@@ -99,7 +99,7 @@ export interface UploadIntent {
   fileId?: string;
   base: {original: string; personal: PersonalFile; link?: SongLink};
 }
-export interface UploadSession {
+interface UploadSession {
   id: string;
   created: number;
 }
@@ -120,7 +120,7 @@ export interface UploadJob extends UploadIntent {
     book?: BookLink;
   };
 }
-export type BeginUploadResult = {session: UploadSession} | {failure: FailureInfo};
+type BeginUploadResult = {session: UploadSession} | {failure: FailureInfo};
 export type UploadResult = {value: FileValue} | {failure: FailureInfo; resetSession?: boolean};
 export interface MoveEntry {
   key: string;
@@ -156,7 +156,7 @@ export interface FolderEntry {
   book?: BookLink;
   temporary?: boolean;
 }
-export type NamespaceEntry = MoveEntry | DeleteEntry | FolderEntry;
+type NamespaceEntry = MoveEntry | DeleteEntry | FolderEntry;
 export interface NamespaceJob {
   id: string;
   kind: 'move' | 'delete' | 'folders';
@@ -174,13 +174,13 @@ export interface PlacementJob {
   retryAttempt?: number;
   reply?: MoveReply;
 }
-export interface RemoteIndex {
+interface RemoteIndex {
   cursor: string;
   entries: Record<string, RemoteEntry>;
   beforeUpdates?: Record<string, RemoteEntry | null>;
   epoch?: number;
 }
-export interface NamespaceBatchOptions {
+interface NamespaceBatchOptions {
   revalidateAfterWait: boolean;
 }
 export interface RemoteFiles {
@@ -214,7 +214,7 @@ export interface RemoteFiles {
   deleteFiles?(entries: DeleteEntry[]): Promise<void>;
   changes?(cursor?: string): Promise<{entries: RemoteEntry[]; cursor: string; reset: boolean}>;
 }
-export interface SongBase {
+interface SongBase {
   original: string;
   personal: PersonalFile;
   contentRev: string;
@@ -306,7 +306,7 @@ export const newSyncState = (accountId: string): SyncState => ({
   reservations: {},
   folders: {},
 });
-export function canonical(value: unknown): string {
+function canonical(value: unknown): string {
   if (value === undefined) return 'undefined';
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;

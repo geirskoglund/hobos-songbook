@@ -103,13 +103,6 @@ export function textArea(id: string, value: string, label: string, rows = 5) {
   field.setAttribute('aria-label', label);
   return field;
 }
-const editorIcons = {save: 'lagre', highlight: 'gulmarkering', note: 'notat', grid: 'akkordskjema', text: 'felles'};
-export function iconButton(name: string, nameOrAlias: keyof typeof editorIcons, action: () => void) {
-  const node = actionButton('', action, editorIcons[nameOrAlias]);
-  node.setAttribute('aria-label', name);
-  node.dataset.tooltip = name;
-  return node;
-}
 export interface DialogAction {
   id: string;
   label: string;

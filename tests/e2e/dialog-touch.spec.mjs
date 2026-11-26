@@ -1,5 +1,5 @@
 import {test, expect} from './fixtures.mjs';
-import {importAndOpenSong, savedSongs, tool, rawEditor} from './song-helpers.mjs';
+import {importAndOpenSong, tool, rawEditor} from './song-helpers.mjs';
 const url = '/hobos-songbook/test/';
 test.beforeEach(async ({request}) => {
   await request.post('/__test__/reset');

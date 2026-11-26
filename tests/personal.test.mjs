@@ -72,9 +72,7 @@ test('anchors distinguish duplicate lines and chorus references without retainin
   const parsed = parseChordPro(song.original, 'T'),
     first = parsed.blocks[0].content[0];
   assert.equal(first.sourceLine, 1);
-  const anchors = ['source/line:1', 'line:3/line:1', 'line:4/line:1'].map(id =>
-    anchorFor(song, 1, id, 'Ærlig øvelse å synge'),
-  );
+  const anchors = ['source/line:1', 'line:3/line:1', 'line:4/line:1'].map(id => anchorFor(song, 1, id));
   assert.equal(new Set(anchors.map(a => a.occurrence)).size, 3);
   for (const anchor of anchors) {
     assert.deepEqual(Object.keys(anchor).sort(), ['occurrence', 'songId', 'sourceLine']);
@@ -84,7 +82,7 @@ test('anchors distinguish duplicate lines and chorus references without retainin
 
 test('independent annotation edits from stale tabs preserve the other field and all unrelated personal state', () => {
   const song = {id: 'stable-id', original: 'Samme tekst', title: 'T'};
-  const anchor = anchorFor(song, 0, 'source/line:0', 'Samme tekst');
+  const anchor = anchorFor(song, 0, 'source/line:0');
   const initial = {songId: song.id, chorus: {'line:3': true}, capo: 2, tuning: 'Drop D', chordGrid: '| D |'};
   const noteSaved = changeNote(initial, 'note-one', {line: 0, text: 'Ny instruks fra første fane'});
   const highlighted = changeAnnotation(noteSaved, anchor, {highlights: [{start: 0, end: 5}]});
@@ -111,7 +109,7 @@ test('draft differences ignore reverted defaults and preserve unedited fields fr
   const {personalChanges} = await import('../src/domain/personal.ts');
   const initial = {songId: 'id', chorus: {}};
   const song = {id: 'id', original: 'Ord'},
-    anchor = anchorFor(song, 0, 'source/line:0', 'Ord');
+    anchor = anchorFor(song, 0, 'source/line:0');
   assert.equal(
     personalChanges(initial, {
       ...initial,

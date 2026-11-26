@@ -45,7 +45,7 @@ export function logicalLines(song: Pick<Song, 'original' | 'title'>): LogicalLin
   }
   return result;
 }
-export function anchorFor(song: Pick<Song, 'id'>, sourceLine: number, occurrence: string, _text?: string): LineAnchor {
+export function anchorFor(song: Pick<Song, 'id'>, sourceLine: number, occurrence: string): LineAnchor {
   return {songId: song.id, sourceLine, occurrence};
 }
 export function noteAt(personal: SongPersonal, line: number): [string, PersonalNote] | undefined {

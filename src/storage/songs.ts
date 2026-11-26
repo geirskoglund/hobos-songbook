@@ -6,7 +6,7 @@ import {syncStorage, trackLocal} from './sync.ts';
 import {failureCodes, SyncFailure} from '../sync/failure.ts';
 import {transferPlan, type TransferPlan} from '../domain/transfer.ts';
 import type {SyncState} from '../sync/model.ts';
-export const schemaVersion = 4;
+const schemaVersion = 4;
 export interface LibrarySnapshot {
   songs: Song[];
   songbooks: Songbook[];

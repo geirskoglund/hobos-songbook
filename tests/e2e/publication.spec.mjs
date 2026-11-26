@@ -172,7 +172,7 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
   await page.screenshot({path: 'work/publication/publisert-320.png'});
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({width, height: 560});
-    const geometry = await root.evaluate(node => {
+    const geometry = await root.evaluate(() => {
       const style = selector => {
         const item = document.querySelector(selector),
           computed = getComputedStyle(item),

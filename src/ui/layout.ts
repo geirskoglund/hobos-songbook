@@ -10,7 +10,7 @@ export const pages = [
   'publication',
 ] as const;
 export type Page = (typeof pages)[number];
-export const pageNames: Record<Page, string> = {
+const pageNames: Record<Page, string> = {
   library: 'Sanger',
   reader: '',
   settings: 'Innstillinger',
@@ -21,7 +21,7 @@ export const pageNames: Record<Page, string> = {
   publication: 'Publisering',
 };
 let layoutFrame = 0;
-export function flushLayout() {
+function flushLayout() {
   cancelAnimationFrame(layoutFrame);
   layoutFrame = 0;
   document.dispatchEvent(new Event('app-layout'));
@@ -67,7 +67,7 @@ export function overlayWidth(kind: 'grid' | 'value' | 'note') {
     ),
   );
 }
-export function viewport() {
+function viewport() {
   const v = visualViewport;
   return {x: v?.offsetLeft ?? 0, y: v?.offsetTop ?? 0, width: v?.width ?? innerWidth, height: v?.height ?? innerHeight};
 }

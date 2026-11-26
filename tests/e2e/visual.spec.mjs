@@ -17,7 +17,7 @@ const song = (id, title, songbookId, key) => ({
   songbookId,
   title,
   key,
-  original: `﻿{t: ${title}}\r\n{key: ${key}}\r\n{comment: Rolig}\r\n[${key}]Første linje med [A]ord\r\n{soc}\r\n[G]Syng med\r\n{eoc}\r\n`,
+  original: `\uFEFF{t: ${title}}\r\n{key: ${key}}\r\n{comment: Rolig}\r\n[${key}]Første linje med [A]ord\r\n{soc}\r\n[G]Syng med\r\n{eoc}\r\n`,
   origin: {kind: 'external', filename: `${id}.cho`, importedAt: '2026-01-01', provider: 'future', fileId: id},
 });
 

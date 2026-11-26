@@ -7,7 +7,6 @@ import {
   moveChord,
   setMetadata,
   insertDirective,
-  setDirective,
   sourceBlocks,
   setChorus,
   removeSourceBlock,

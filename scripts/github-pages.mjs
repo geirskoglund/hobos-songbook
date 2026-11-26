@@ -5,7 +5,7 @@ import {classifyChanges, docsOnlyStep} from './change-scope.mjs';
 const maxCompareFiles = 300;
 
 // Validate (quick check and builds) is enough for test. Production also needs E2E on the exact master commit.
-export const checks = {
+const checks = {
   validate: {file: 'ci.yml', job: 'validate'},
   e2e: {file: 'e2e.yml', job: 'e2e'},
 };
@@ -13,7 +13,7 @@ export const checks = {
 const requiredSteps = ['Run npm run check', 'Run npm run check:quick', 'Run npm run test:e2e'];
 
 // The workflow's identity and source are checked through Actions, never by a check name alone.
-export async function validatedRun(github, repo, sha, pr, check = checks.validate) {
+async function validatedRun(github, repo, sha, pr, check = checks.validate) {
   const {data: workflow} = await github.rest.actions.getWorkflow({...repo, workflow_id: check.file});
   if (workflow.path !== `.github/workflows/${check.file}` || workflow.state !== 'active') return false;
   const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
@@ -113,7 +113,7 @@ export async function isTested(github, repo, sha) {
   return Boolean(await validatedRun(github, repo, sha, null, checks.e2e));
 }
 
-export async function services(github, context, fetchImpl = fetch) {
+async function services(github, context, fetchImpl = fetch) {
   const repo = context.repo;
   if (`${repo.owner}/${repo.repo}` !== repository || context.ref !== 'refs/heads/master') {
     throw new Error('Publiseringsworkflow må kjøres fra master i riktig repo.');

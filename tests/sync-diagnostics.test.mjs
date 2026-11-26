@@ -120,7 +120,7 @@ test('browsers without AbortSignal.timeout can still perform normal Dropbox call
     const timeout = AbortSignal.timeout,
       timer = globalThis.setTimeout;
     AbortSignal.timeout = undefined;
-    globalThis.setTimeout = (fn, _delay) => timer(fn, 1);
+    globalThis.setTimeout = fn => timer(fn, 1);
     try {
       const adapter = dropboxAdapter(env, async (_url, options) => {
         assert.ok(options.signal instanceof AbortSignal);

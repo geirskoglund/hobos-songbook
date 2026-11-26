@@ -59,7 +59,9 @@ function setup() {
     saved,
     original,
     callback(code = 'code') {
-      globalThis.location = parseLocation(`${redirect}?code=${code}&state=${authorize.searchParams.get('state')}`);
+      globalThis.location = parseLocation(
+        `${redirect}?code=${code}&state=${globalThis.authorize.searchParams.get('state')}`,
+      );
     },
     cleanup() {
       for (const [key, descriptor] of Object.entries(previous)) {
@@ -220,8 +222,8 @@ test('AK39-05: additional scopes require explicit PKCE consent and keep the exis
     );
     assert.equal(adapter.sharingAllowed(), false);
     await adapter.connect('standard');
-    assert.deepEqual(authorize.searchParams.get('scope').split(' '), [...requiredScopes, ...sharingScopes]);
-    assert.equal(authorize.searchParams.get('code_challenge_method'), 'S256');
+    assert.deepEqual(globalThis.authorize.searchParams.get('scope').split(' '), [...requiredScopes, ...sharingScopes]);
+    assert.equal(globalThis.authorize.searchParams.get('code_challenge_method'), 'S256');
     f.callback();
     assert.deepEqual(await adapter.callback(), {bookId: 'standard', authorized: false});
     assert.deepEqual(JSON.parse(f.saved.get(authKey)), f.original);

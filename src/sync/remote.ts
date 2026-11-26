@@ -1,7 +1,6 @@
 import {DeferredSync, failureCodes, SyncFailure} from './failure.ts';
 import {
   parseManifest,
-  type FileValue,
   type RemoteEntry,
   type RemoteFiles,
   type SyncState,

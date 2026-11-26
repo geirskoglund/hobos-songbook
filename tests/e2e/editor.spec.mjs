@@ -9,7 +9,6 @@ import {
   rawEditor,
   fillValue,
   setCapo,
-  goSongs,
   openSettings,
   closeSettings,
 } from './song-helpers.mjs';

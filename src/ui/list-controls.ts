@@ -1,4 +1,4 @@
-import {actionButton, controlHeading, dialogFrame, icon} from './controls.ts';
+import {actionButton, controlHeading, dialogFrame} from './controls.ts';
 import {openDialog} from './dialog.ts';
 import {placeOverlay} from './layout.ts';
 
@@ -24,7 +24,7 @@ export function metadataRow(title: string, metadata: string[], choose: () => voi
 }
 
 /** L05: one selected state and checkmark implementation for every choice row. */
-export function selectableRow(name: string, selected: boolean, choose: () => void) {
+function selectableRow(name: string, selected: boolean, choose: () => void) {
   const button = actionButton(name, choose);
   button.className = 'selectable-row';
   button.setAttribute('role', 'option');
@@ -257,7 +257,7 @@ export function choiceControl(options: {
 }
 
 /** D09: standalone immediate filter choice, without creation or confirmation footer. */
-export function choicePicker(options: {
+function choicePicker(options: {
   opener: HTMLButtonElement;
   name: string;
   value: string;
@@ -330,7 +330,7 @@ export function songbookFilter(
 }
 
 /** The collapsed value uses the same geometry in the picker and in a choice step. */
-export function choiceValue(name: string, choose: () => void) {
+function choiceValue(name: string, choose: () => void) {
   const button = actionButton(name || 'Velg sangbok', choose);
   button.className = 'choice-value';
   const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');

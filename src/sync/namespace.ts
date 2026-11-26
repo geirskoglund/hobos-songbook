@@ -14,7 +14,6 @@ import {
 import {metadataView, pathKey} from './remote.ts';
 import {ownSong, songLocation} from './model.ts';
 import type {
-  BookLink,
   DeleteEntry,
   FolderEntry,
   MoveEntry,
@@ -299,9 +298,9 @@ export function namespaceQueue(files: RemoteFiles, state: SyncState, hooks: Hook
     await hooks.check();
     if (!current) throw new MissingCreatedFolder();
     if (!current.folder) throw bad('folders', 'Opprettingskvitteringen viser ikke en mappe.');
-    let actual: RemoteEntry = current;
+    const actual: RemoteEntry = current;
     if (entry.parentId) {
-      let parent = await inspect(actual.path.slice(0, actual.path.lastIndexOf('/')));
+      const parent = await inspect(actual.path.slice(0, actual.path.lastIndexOf('/')));
       if (parent?.id !== entry.parentId) {
         if (parent?.id) {
           const job = state.namespaceJob!;

@@ -1,4 +1,4 @@
-import {actionButton, icon, tabSwitcher, textArea} from './controls.ts';
+import {actionButton, tabSwitcher, textArea} from './controls.ts';
 import {dialogFrame, dialogFooter, openDialog} from './dialog.ts';
 import {valueControl} from './value-controls.ts';
 import {overlayWidth, placeOverlay, currentPage} from './layout.ts';
@@ -25,7 +25,6 @@ import {
   transposeSong,
   lineEnding,
   mergeRawSource,
-  type SourceBlock,
 } from '../domain/source-edit.ts';
 import type {Song, SongPersonal} from '../domain/song.ts';
 import type {EditSession} from '../domain/edit-session.ts';
@@ -575,7 +574,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
           if (/[\r\n{}]/.test(text)) throw Error('Bruk én linje uten klammer.');
           original(
             existing
-              ? setDirective(session.song, index, 'comment', text)
+              ? setDirective(session.song, index, text)
               : insertDirective(session.song, index, `{comment: ${text}}`, spaceBefore),
           );
         },
@@ -594,7 +593,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
           const next =
             line === undefined
               ? insertDirective(session.song, index, `{x_dyn: ${text}}`, spaceBefore)
-              : setDirective(session.song, line, 'x_dyn', text);
+              : setDirective(session.song, line, text);
           if (line === undefined)
             line = sourceLines(next.original)[index]?.directive?.name === 'x_dyn' ? index : index + 1;
           original(next);
@@ -707,7 +706,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
       }
     if (!selected) return;
     const choice = selected;
-    let nodes: HTMLElement[] = [];
+    let nodes: HTMLElement[];
     if (choice.kind === 'note')
       nodes = [...body.querySelectorAll<HTMLElement>('.personal-note')].filter(
         node => node.dataset.noteId === choice.id,

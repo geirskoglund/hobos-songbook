@@ -9,7 +9,7 @@ const assert = (ok, message) => {
   if (!ok) throw Error(message);
 };
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
-export function safeFile(path) {
+function safeFile(path) {
   return (
     typeof path === 'string' &&
     path.length < 240 &&
