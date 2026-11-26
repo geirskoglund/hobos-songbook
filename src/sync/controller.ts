@@ -429,23 +429,22 @@ export function syncController(
     notify();
     if (!popup) void execute();
   }
-  document.addEventListener('library-local-change', localChanged);
-  window.addEventListener('online', () => {
+  function online() {
     void execute();
-  });
-  window.addEventListener('offline', () => {
+  }
+  function offline() {
     adapter.cancelPending();
     notify();
-  });
-  window.addEventListener('storage', event => {
-    if (event.key === `${env.namespace}:dropbox-auth-v1`) {
+  }
+  function storageChanged(key: string | null) {
+    if (key === `${env.namespace}:dropbox-auth-v1`) {
       epoch++;
       adapter.cancelPending();
       requestedManual = false;
       clearFailure();
       void refresh();
     }
-  });
+  }
   channel.onmessage = event => {
     void refresh();
     if (event.data === 'session-ended' && requestedManual) void execute();
@@ -597,6 +596,11 @@ export function syncController(
     start,
     begin,
     end,
+    /** Hendelsene fra nettleseren, som ui/ kobler til. */
+    localChanged,
+    online,
+    offline,
+    storageChanged,
     resume: () => {
       if (localPending || requestedManual || immediate) void execute();
     },
