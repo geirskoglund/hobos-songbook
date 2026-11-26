@@ -62,8 +62,19 @@ const domTypes =
   '/^(Document|DocumentFragment|Window|Node|NodeList|Element|HTMLCollection|HTML\\w*Element|SVG\\w*Element|ShadowRoot|Text|DOMParser|MutationObserver|ResizeObserver|IntersectionObserver)$/';
 
 export default defineConfig(
-  // .ci-infra/ er CI-ens kopi av master-skriptene.
-  {ignores: ['dist/', 'site/', 'builds/', 'work/', 'test-results/', 'playwright-report/', '.ci-infra/']},
+  // .ci-infra/ er CI-ens kopi av master-skriptene, og .claude/worktrees/ har nestede git-worktrees.
+  {
+    ignores: [
+      'dist/',
+      'site/',
+      'builds/',
+      'work/',
+      'test-results/',
+      'playwright-report/',
+      '.ci-infra/',
+      '.claude/worktrees/',
+    ],
+  },
   js.configs.recommended,
   tseslint.configs.recommended,
   {
