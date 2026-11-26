@@ -2,15 +2,21 @@ import type {Song, SongPersonal} from '../core/song.ts';
 import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
 import {standardSongbook, songbookName, MissingSongbookError, type Songbook} from '../domain/songbook.ts';
 import {setlistName, type Setlist} from '../domain/setlist.ts';
-import {syncStorage, trackLocal} from './sync.ts';
+import {trackLocal} from './journal.ts';
 import {failureCodes, SyncFailure} from '../core/failure.ts';
 import {transferPlan, type TransferPlan} from '../domain/transfer.ts';
-import type {SyncState} from '../core/sync-model.ts';
+import {syncStateKey} from '../core/paths.ts';
 const schemaVersion = 4;
 export interface LibrarySnapshot {
   songs: Song[];
   songbooks: Songbook[];
   personal: Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>[];
+}
+/** Det sanglageret leser fra synktilstanden i lageret `sync`: filnavnet hver sang har i Dropbox. */
+interface SyncedFileNames {
+  bindings?: {songs: Record<string, string>};
+  reservations: Record<string, {path: string}>;
+  manifest: {songs: Record<string, {path: string}>};
 }
 export function songStorage(namespace: string) {
   if (!['hobos-songbook-production', 'hobos-songbook-test'].includes(namespace))
@@ -304,7 +310,7 @@ export function songStorage(namespace: string) {
       }
     });
   }
-  function transferNames(songs: Song[], state?: SyncState) {
+  function transferNames(songs: Song[], state?: SyncedFileNames) {
     const names: Record<string, string> = {};
     for (const song of songs) {
       const wire = state?.bindings?.songs[song.id] ?? song.id,
@@ -318,7 +324,7 @@ export function songStorage(namespace: string) {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(['songs', 'sync']),
         songs = tx.objectStore('songs').getAll(),
-        state = accountId ? tx.objectStore('sync').get(`private-account-v1:${accountId}`) : undefined;
+        state = accountId ? tx.objectStore('sync').get(syncStateKey(accountId)) : undefined;
       tx.oncomplete = () => {
         db.close();
         resolve(transferPlan(songs.result, sourceId, targetId, transferNames(songs.result, state?.result)));
@@ -343,9 +349,7 @@ export function songStorage(namespace: string) {
           songs = tx.objectStore('songs');
         const readBooks = books.getAll(),
           readSongs = songs.getAll(),
-          readState = approval?.accountId
-            ? tx.objectStore('sync').get(`private-account-v1:${approval.accountId}`)
-            : undefined;
+          readState = approval?.accountId ? tx.objectStore('sync').get(syncStateKey(approval.accountId)) : undefined;
         let reads = 0;
         const ready = () => {
           if (++reads !== (readState ? 3 : 2)) return;
@@ -400,7 +404,8 @@ export function songStorage(namespace: string) {
     });
   }
   return {
-    sync: syncStorage(open),
+    /** Åpner sanglageret. Synkens egne lagre i det leses og skrives av sync/store.ts. */
+    database: open,
     createSongbook: (id: string, name: string) => writeSongbook(id, name, true),
     renameSongbook: (id: string, name: string) => writeSongbook(id, name, false),
     deleteSongbook,

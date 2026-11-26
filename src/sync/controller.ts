@@ -1,7 +1,9 @@
 import {dropboxAdapter, type SharingConsent} from '../adapters/dropbox.ts';
 import type {songStorage} from '../storage/songs.ts';
 import {syncEngine, PausedSync} from './engine.ts';
-import type {Conflict, SyncState, ApiEvent} from '../core/sync-model.ts';
+import {syncStorage} from './store.ts';
+import type {ApiEvent} from '../core/sync-model.ts';
+import type {Conflict, SyncState} from './state.ts';
 import type {PublicationChoice, PublicationResult} from './model.ts';
 import {publicationError, publicationView} from './publication.ts';
 import {
@@ -27,7 +29,8 @@ export function syncController(
   },
 ) {
   const env = __APP_ENV__,
-    owner = crypto.randomUUID();
+    owner = crypto.randomUUID(),
+    syncStore = syncStorage(storage.database);
   const events: ApiEvent[] = [],
     operationTotals: Record<string, number> = {},
     diagnostics = syncDiagnostics(env, () => hooks.notify());
@@ -44,7 +47,7 @@ export function syncController(
       if (navigator.onLine === false) throw new DeferredSync('connection', 'Venter på nett.');
       const allowed = () => !paused && !hooks.busy() && requestEpoch === epoch && requestAccount === account()?.id;
       if (!allowed() || !requestAccount) throw new PausedSync();
-      const snapshot = await storage.sync.status();
+      const snapshot = await syncStore.status();
       if (!allowed() || Object.keys(snapshot.journal.sessions).length) throw new PausedSync();
       if (requestGeneration !== null && snapshot.journal.generation !== requestGeneration)
         throw new DeferredSync('changed', 'Nyere lokale endringer venter.');
@@ -162,7 +165,7 @@ export function syncController(
   async function refresh() {
     const user = account();
     if (user) {
-      const snapshot = await storage.sync.status(user.id);
+      const snapshot = await syncStore.status(user.id);
       state = snapshot.state!;
       recoveryRequired = Boolean(snapshot.journal.recoveryRequired);
       localPending =
@@ -216,7 +219,7 @@ export function syncController(
       await navigator.locks.request(`${env.namespace}:dropbox-sync`, async () => {
         if (ticket !== epoch || paused || hooks.busy() || account()?.id !== user.id) throw new PausedSync();
         await recover();
-        const latest = await storage.sync.status();
+        const latest = await syncStore.status();
         recoveryRequired = Boolean(latest.journal.recoveryRequired);
         if (recoveryRequired && !wasManual) return;
         requestEpoch = ticket;
@@ -227,7 +230,7 @@ export function syncController(
         for (let attempt = 0; attempt < 3; attempt++) {
           let idle = false;
           try {
-            state = await syncEngine(storage.sync, adapter.files, user.id, {
+            state = await syncEngine(syncStore, adapter.files, user.id, {
               valid: () => ticket === epoch && !paused && !hooks.busy() && account()?.id === user.id,
               changed: notify,
               failed,
@@ -306,7 +309,7 @@ export function syncController(
     try {
       await refresh();
       const user = account();
-      if (!user || Object.keys((await storage.sync.status()).journal.sessions).length) return;
+      if (!user || Object.keys((await syncStore.status()).journal.sessions).length) return;
       const conflict = state?.conflicts[0];
       if (!conflict) return;
       const choice = await offer(conflict);
@@ -342,7 +345,7 @@ export function syncController(
       return await navigator.locks.request(`${env.namespace}:dropbox-sync`, async () => {
         if (!valid()) throw new PausedSync();
         await recover();
-        const latest = await storage.sync.status();
+        const latest = await syncStore.status();
         requestEpoch = ticket;
         requestAccount = user.id;
         requestManual = true;
@@ -356,7 +359,7 @@ export function syncController(
         try {
           for (let attempt = 0; ; attempt++) {
             try {
-              const engine = syncEngine(storage.sync, adapter.files, user.id, {valid, changed: () => {}});
+              const engine = syncEngine(syncStore, adapter.files, user.id, {valid, changed: () => {}});
               const result = await work(engine, attempt < 2);
               if (!valid()) throw new PausedSync();
               return result;
@@ -385,7 +388,7 @@ export function syncController(
   }
   async function cachedPublication() {
     const user = account();
-    return user ? publicationView(await storage.sync.snapshot(user.id)) : {books: [], songs: []};
+    return user ? publicationView(await syncStore.snapshot(user.id)) : {books: [], songs: []};
   }
   async function readPublication() {
     try {
@@ -449,7 +452,7 @@ export function syncController(
   };
   async function recover(restoredSongId: string | null = null) {
     const locks = await navigator.locks.query();
-    await storage.sync.recoverSessions(
+    await syncStore.recoverSessions(
       (locks.held ?? [])
         .map(lock => lock.name ?? '')
         .filter(name => name.startsWith(`${env.namespace}:song-owner:`))
@@ -515,14 +518,14 @@ export function syncController(
       .catch(() => {})
       .then(async () => {
         await ready;
-        await storage.sync.session(owner, songId, edited);
+        await syncStore.session(owner, songId, edited);
       });
     return opening;
   }
   async function end(edited: boolean) {
     if (!paused) return;
     await opening;
-    if (navigator.locks) await storage.sync.session(owner, null);
+    if (navigator.locks) await syncStore.session(owner, null);
     paused = false;
     epoch++;
     immediate = edited;

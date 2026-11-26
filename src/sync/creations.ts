@@ -1,17 +1,18 @@
 import {DeferredSync, RetrySync, SyncFailure, BatchStatusUnconfirmed, failureCodes} from '../core/failure.ts';
 import {numberedPath} from './filenames.ts';
 import {metadataView, pathKey} from './remote.ts';
+import {stagingFolder, stagingPath} from '../core/paths.ts';
 import type {
   FileValue,
   MoveReply,
   MoveResult,
   RemoteEntry,
   RemoteFiles,
-  SyncState,
   UploadJob,
   UploadResult,
   DeleteEntry,
 } from '../core/sync-model.ts';
+import type {SyncState} from './state.ts';
 
 /** New user-visible files commit first to an app-owned, never-reused path.
  * A readable destination and matching bytes alone cannot prove ownership. */
@@ -75,7 +76,7 @@ export function creationQueue(
         'Ny fil krever idempotent opplastingsøkt.',
       );
     if (!job.creation) {
-      job.creation = {path: `/.app/uploads/${crypto.randomUUID()}.cho`, basePath: job.path, number: 1};
+      job.creation = {path: stagingPath(crypto.randomUUID()), basePath: job.path, number: 1};
       choose(job);
     } else if (job.creation.collision) choose(job, true);
     const source = job.base.link ?? state.reservations[job.songId] ?? state.manifest.songs[job.songId],
@@ -91,7 +92,7 @@ export function creationQueue(
     }
     delete job.creation.failure;
     await hooks.check();
-    await files.folder('/.app/uploads');
+    await files.folder(stagingFolder);
     await hooks.check();
     const parent = job.path.slice(0, job.path.lastIndexOf('/'));
     job.creation.folderId ??= (await files.folder(parent)).id;

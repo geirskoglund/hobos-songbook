@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {emptyJournal, newSyncState} from '../src/core/sync-model.ts';
+import {emptyJournal} from '../src/core/sync-model.ts';
+import {newSyncState} from '../src/sync/state.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 import {SyncFailure, failureCodes} from '../src/core/failure.ts';
 export const song = (id = 'one', book = 'standard', original = '{t: En sang}\n[C]Hei') => ({

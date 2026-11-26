@@ -10,11 +10,11 @@ Statisk HTML, CSS og TypeScript bygget med Vite. Ingen backend, skydatabase, Dro
 
 | Mappe | Ansvar | Grense |
 | --- | --- | --- |
-| `src/core/` | Typer, feil og små felles konstanter og fabrikker: sangdata, synkmodell, Dropbox-kontrakt, feilkoder, filgrenser | Importerer ingen andre lag |
+| `src/core/` | Typer, feil og små felles konstanter og fabrikker: sangdata, lokal journal, Dropbox-kontrakt, faste stier og lagringsnøkler, feilkoder, filgrenser | Importerer ingen andre lag |
 | `src/domain/` | Regler for sang, ChordPro-tolkning, personlig lag, sangbok, setliste | Ingen DOM, lagring eller Dropbox |
-| `src/storage/` | IndexedDB og localStorage per kanal | Ingen nettkall |
+| `src/storage/` | IndexedDB og localStorage per kanal, unntatt synkens egne poster, som `src/sync/` eier | Ingen nettkall |
 | `src/adapters/` | Dropbox: OAuth/PKCE, HTTP, ratebegrensning | Ingen domenelogikk |
-| `src/sync/` | Synk-motor, journal, Dropbox-plan, diagnostikk | Ingen DOM |
+| `src/sync/` | Synk-motor, synktilstand og journalens økter i IndexedDB, Dropbox-plan, diagnostikk | Ingen DOM |
 | `src/ui/` | Ren DOM uten rammeverk | Eier visning, ikke lagringsbetydning |
 | `scripts/`, `.github/workflows/` | Bygg og publisering | Se [TESTING](TESTING.md) |
 

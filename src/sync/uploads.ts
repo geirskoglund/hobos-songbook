@@ -1,16 +1,8 @@
 import {RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
 import {checkSize, maxBatchAppendBytes, textBytes, SkippedFile} from '../core/limits.ts';
 import {same} from './model.ts';
-import {
-  type FileValue,
-  type RemoteFiles,
-  type SyncState,
-  type UploadIntent,
-  type UploadJob,
-  type UploadResult,
-  emptyManifest,
-  type Manifest,
-} from '../core/sync-model.ts';
+import type {FileValue, RemoteFiles, UploadIntent, UploadJob, UploadResult} from '../core/sync-model.ts';
+import {type SyncState, emptyManifest, type Manifest} from './state.ts';
 import {creationQueue} from './creations.ts';
 import {uploadBridge, claimReady} from './bridge.ts';
 

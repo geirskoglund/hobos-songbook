@@ -1,6 +1,6 @@
 import type {Song, SongPersonal} from '../core/song.ts';
-import type {SyncSnapshot, syncStorage} from '../storage/sync.ts';
-import type {Manifest} from '../core/sync-model.ts';
+import type {SyncSnapshot, syncStorage} from './store.ts';
+import type {Manifest} from './state.ts';
 
 const nameKey = (name: string) => name.normalize('NFC').toLocaleLowerCase('nb');
 const filenameKey = (name: string) => name.normalize('NFC');

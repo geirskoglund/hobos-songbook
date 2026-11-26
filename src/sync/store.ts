@@ -1,40 +1,18 @@
 import type {Song, SongPersonal} from '../core/song.ts';
 import type {Songbook} from '../domain/songbook.ts';
-import {
-  emptyJournal,
-  newSyncState,
-  type SyncState,
-  type LocalJournal,
-  type NamespaceJob,
-  type PlacementJob,
-} from '../core/sync-model.ts';
+import {emptyJournal, type LocalJournal} from '../core/sync-model.ts';
+import {newSyncState, type SyncState, type NamespaceJob, type PlacementJob} from './state.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../core/failure.ts';
+import {journalKey, syncStateKey} from '../core/paths.ts';
+// Synkens poster i IndexedDB-lageret `sync`: synktilstanden per konto, journalens
+// generasjon og åpne sangøkter, og kvitteringer for Dropbox-jobber. Sanglageret i
+// storage/ teller bare opp journalen ved lokale endringer (storage/journal.ts).
 export interface SyncSnapshot {
   songs: Song[];
   songbooks: Songbook[];
   personal: SongPersonal[];
   journal: LocalJournal;
   state: SyncState;
-}
-const journalId = 'private-local-v1';
-/** Called inside every local data-write transaction: the outbox cannot miss a committed write. */
-export function trackLocal(tx: IDBTransaction, change?: (journal: LocalJournal) => void) {
-  const store = tx.objectStore('sync'),
-    read = store.get(journalId);
-  read.onsuccess = () => {
-    const journal: LocalJournal = read.result ?? emptyJournal();
-    if (journal.version !== 1) {
-      tx.abort();
-      return;
-    }
-    journal.generation++;
-    for (const session of Object.values(journal.sessions)) session.edited = true;
-    change?.(journal);
-    store.put(journal);
-  };
-  tx.addEventListener('complete', () => {
-    document.dispatchEvent(new Event('library-local-change'));
-  });
 }
 export function syncStorage(open: () => Promise<IDBDatabase>) {
   async function database() {
@@ -56,8 +34,8 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
       const songs = tx.objectStore('songs').getAll(),
         books = tx.objectStore('songbooks').getAll(),
         personal = tx.objectStore('personal').getAll();
-      const journal = tx.objectStore('sync').get(journalId),
-        state = tx.objectStore('sync').get(`private-account-v1:${accountId}`);
+      const journal = tx.objectStore('sync').get(journalKey),
+        state = tx.objectStore('sync').get(syncStateKey(accountId));
       tx.oncomplete = () => {
         db.close();
         if (state.result && (state.result.version !== 1 || state.result.accountId !== accountId)) {
@@ -88,8 +66,8 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
     return new Promise((resolve, reject) => {
       const tx = db.transaction('sync'),
         store = tx.objectStore('sync'),
-        journal = store.get(journalId),
-        state = accountId ? store.get(`private-account-v1:${accountId}`) : undefined;
+        journal = store.get(journalKey),
+        state = accountId ? store.get(syncStateKey(accountId)) : undefined;
       tx.oncomplete = () => {
         db.close();
         if (state?.result && (state.result.version !== 1 || state.result.accountId !== accountId)) {
@@ -124,7 +102,7 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
     return new Promise<void>((resolve, reject) => {
       const tx = db.transaction(['songs', 'songbooks', 'personal', 'sync'], 'readwrite'),
         store = tx.objectStore('sync'),
-        read = store.get(journalId);
+        read = store.get(journalKey);
       let deferred = false;
       read.onsuccess = () => {
         const journal: LocalJournal = read.result ?? emptyJournal();
@@ -174,7 +152,7 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
     return new Promise<void>((resolve, reject) => {
       const tx = db.transaction('sync', 'readwrite'),
         store = tx.objectStore('sync'),
-        read = store.get(journalId);
+        read = store.get(journalKey);
       read.onsuccess = () => {
         const journal: LocalJournal = read.result ?? emptyJournal();
         if (songId) {
@@ -203,7 +181,7 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
     return new Promise<void>((resolve, reject) => {
       const tx = db.transaction('sync', 'readwrite'),
         store = tx.objectStore('sync'),
-        read = store.get(journalId);
+        read = store.get(journalKey);
       read.onsuccess = () => {
         if (!read.result) return;
         const journal: LocalJournal = read.result;
@@ -238,7 +216,7 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
     return new Promise<void>((resolve, reject) => {
       const tx = db.transaction('sync', 'readwrite'),
         store = tx.objectStore('sync'),
-        get = store.get(`private-account-v1:${accountId}`);
+        get = store.get(syncStateKey(accountId));
       get.onsuccess = () => {
         const state: SyncState | undefined = get.result;
         if (state?.accountId === accountId && state.namespaceJob?.id === job.id)
@@ -267,7 +245,7 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
     return new Promise<void>((resolve, reject) => {
       const tx = db.transaction('sync', 'readwrite'),
         store = tx.objectStore('sync'),
-        get = store.get(`private-account-v1:${accountId}`);
+        get = store.get(syncStateKey(accountId));
       get.onsuccess = () => {
         const state: SyncState | undefined = get.result;
         if (state?.accountId === accountId && job.id && state.placement?.id === job.id)

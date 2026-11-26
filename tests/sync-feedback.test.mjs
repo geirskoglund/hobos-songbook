@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture, song} from './sync-fixture.mjs';
-import {newSyncState, emptyJournal} from '../src/core/sync-model.ts';
+import {emptyJournal} from '../src/core/sync-model.ts';
+import {newSyncState} from '../src/sync/state.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 import {SyncFailure, failureCodes, RetrySync} from '../src/core/failure.ts';
 

@@ -1,14 +1,14 @@
 import type {AppEnvironment} from '../environment.ts';
-import {
-  type FileValue,
-  type RemoteFiles,
-  type RemoteEntry,
-  type UploadResult,
-  type MoveReply,
-  mutationPath,
-  type ApiEvent,
-  type ApiContext,
+import type {
+  FileValue,
+  RemoteFiles,
+  RemoteEntry,
+  UploadResult,
+  MoveReply,
+  ApiEvent,
+  ApiContext,
 } from '../core/sync-model.ts';
+import {appFolder, libraryPath, mutationPath} from '../core/paths.ts';
 import {checkSize, textBytes, maxFileBytes, maxBatchAppendBytes, SkippedFile} from '../core/limits.ts';
 import {
   DeferredSync,
@@ -123,7 +123,7 @@ export function dropboxAdapter(
       ? 'personal'
       : /^\/\.app\/uploads\//i.test(path)
         ? 'staging'
-        : path.startsWith('/.app/')
+        : path.startsWith(appFolder + '/')
           ? 'control'
           : /^\/Songbooks\/[^/]+\/(Private|Shared)\//i.test(path)
             ? 'content'
@@ -925,7 +925,7 @@ export function dropboxAdapter(
       },
       undefined,
       {resource: resource(path)},
-      {releaseFence, finishMove: path === '/.app/library.json'},
+      {releaseFence, finishMove: path === libraryPath},
     );
     await beforeRequest();
     if (!response.ok) {

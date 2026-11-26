@@ -1,16 +1,10 @@
 import {DeferredSync, failureCodes, SyncFailure} from '../core/failure.ts';
 import {parseManifest} from './model.ts';
-import type {
-  RemoteEntry,
-  RemoteFiles,
-  SyncState,
-  MoveReply,
-  MoveEntry,
-  FolderEntry,
-  DeleteEntry,
-} from '../core/sync-model.ts';
+import type {RemoteEntry, RemoteFiles, MoveReply, MoveEntry, FolderEntry, DeleteEntry} from '../core/sync-model.ts';
+import type {SyncState} from './state.ts';
 import {checkSize, textBytes} from '../core/limits.ts';
-import {parseUploadIndex, uploadIndexPath} from './bridge.ts';
+import {parseUploadIndex} from './bridge.ts';
+import {libraryPath, uploadIndexPath} from '../core/paths.ts';
 
 export const pathKey = (path: string) => path.normalize('NFC').toLowerCase();
 /** A phase uses one immutable, complete view for IDs, paths and all children. */
@@ -154,7 +148,7 @@ export function indexedFiles(raw: RemoteFiles, state: SyncState) {
       if (state.remote && !entry && !path.startsWith('rev:')) return null;
       if (entry?.id && entry.rev) {
         let text: string | undefined;
-        if (pathKey(entry.path) === '/.app/library.json' && state.library?.rev === entry.rev)
+        if (pathKey(entry.path) === libraryPath && state.library?.rev === entry.rev)
           text = JSON.stringify(state.library.value);
         if (pathKey(entry.path) === uploadIndexPath && state.uploadIndex?.rev === entry.rev)
           text = JSON.stringify(state.uploadIndex.value);
@@ -173,7 +167,7 @@ export function indexedFiles(raw: RemoteFiles, state: SyncState) {
       const result = await raw.read(path, entry?.path);
       if (result && !path.startsWith('rev:')) {
         put({id: result.id, path: result.path, rev: result.rev, folder: false});
-        if (pathKey(result.path) === '/.app/library.json')
+        if (pathKey(result.path) === libraryPath)
           state.library = {id: result.id, rev: result.rev, value: parseManifest(result.text)};
       } else if (entry) remove(entry.path);
       return result;
@@ -181,8 +175,7 @@ export function indexedFiles(raw: RemoteFiles, state: SyncState) {
     async write(path, text, rev) {
       const result = await raw.write(path, text, rev);
       put({id: result.id, path: result.path, rev: result.rev, folder: false});
-      if (pathKey(path) === '/.app/library.json')
-        state.library = {id: result.id, rev: result.rev, value: parseManifest(text)};
+      if (pathKey(path) === libraryPath) state.library = {id: result.id, rev: result.rev, value: parseManifest(text)};
       if (pathKey(path) === uploadIndexPath)
         state.uploadIndex = {id: result.id, rev: result.rev, value: parseUploadIndex(text)};
       return result;

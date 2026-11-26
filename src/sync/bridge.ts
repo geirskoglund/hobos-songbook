@@ -1,8 +1,9 @@
 import {RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
 import {same} from './model.ts';
-import type {Manifest, RemoteFiles, SyncState, UploadClaim, UploadIndex, UploadJob} from '../core/sync-model.ts';
+import {isBookPath, libraryPath, stagingPath, uploadIndexPath} from '../core/paths.ts';
+import type {RemoteFiles, UploadJob} from '../core/sync-model.ts';
+import type {Manifest, SyncState, UploadClaim, UploadIndex} from './state.ts';
 
-export const uploadIndexPath = '/.app/upload-index.json';
 export function parseUploadIndex(text: string): UploadIndex {
   try {
     const value = JSON.parse(text);
@@ -36,8 +37,8 @@ export function parseUploadIndex(text: string): UploadIndex {
         !row.book.name ||
         typeof row.book.folderId !== 'string' ||
         !row.book.folderId ||
-        !/^\/Songbooks\/[^/]+$/i.test(row.book.path ?? '') ||
-        row.stagePath !== `/.app/uploads/${id}.cho` ||
+        !isBookPath(row.book.path ?? '') ||
+        row.stagePath !== stagingPath(id) ||
         typeof row.fileId !== 'string' ||
         !row.fileId ||
         typeof row.rev !== 'string' ||
@@ -91,7 +92,7 @@ export function uploadBridge(
         // Revisions are opaque: the index anchor can also be older, so verify the
         // actual library once rather than blindly retrying unequal revisions.
         await hooks.check();
-        const actual = await (files.inspectFile ?? files.read)('/.app/library.json');
+        const actual = await (files.inspectFile ?? files.read)(libraryPath);
         await hooks.check();
         if ((actual?.rev ?? null) !== (state.library?.rev ?? null)) throw new RetrySync();
       }

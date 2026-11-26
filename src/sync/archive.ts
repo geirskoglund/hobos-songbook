@@ -1,14 +1,15 @@
 import {DeferredSync, RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
 import {pathKey} from './remote.ts';
-import type {BookLink, Manifest, MoveEntry, RemoteEntry, RemoteFiles, SyncState} from '../core/sync-model.ts';
+import {deletedFolder, isBookPath} from '../core/paths.ts';
+import type {BookLink, MoveEntry, RemoteEntry, RemoteFiles} from '../core/sync-model.ts';
+import type {Manifest, SyncState} from './state.ts';
 
-const sourcePath = (path: string) => /^\/Songbooks\/[^/]+$/i.test(path);
 export function needsArchive(book: BookLink, find: (path: string) => RemoteEntry | undefined) {
-  return Boolean(book.deleted && book.folderId && !book.archive?.done && sourcePath(find(book.folderId)?.path ?? ''));
+  return Boolean(book.deleted && book.folderId && !book.archive?.done && isBookPath(find(book.folderId)?.path ?? ''));
 }
 function archiveBase(name: string, date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `/Deleted/${name} ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}${pad(date.getMinutes())}`;
+  return `${deletedFolder}/${name} ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}${pad(date.getMinutes())}`;
 }
 /** A shared, published intent precedes the ID move. The mutation fence spans
  * its receipt and final manifest acknowledgement. Timestamps survive retries. */
@@ -47,13 +48,13 @@ export async function archiveBooks(
     books.find(book => book.archive)?.archive ?? books.map(book => state.archiveIntents?.[book.id]).find(Boolean);
   if (anchored) {
     const parent = hooks.find(anchored.parentId);
-    if (!parent?.folder || pathKey(parent.path) !== '/deleted')
+    if (!parent?.folder || pathKey(parent.path) !== pathKey(deletedFolder))
       throw new SyncFailure(
         {code: failureCodes.bookChanges, stage: 'sync.namespace', action: 'check-folders'},
         'Arkivroten er erstattet eller flyttet.',
       );
   }
-  const root = await files.folder('/Deleted', anchored?.parentId);
+  const root = await files.folder(deletedFolder, anchored?.parentId);
   await hooks.check();
   const targets = new Set<string>(),
     moves: MoveEntry[] = [],
@@ -62,7 +63,7 @@ export async function archiveBooks(
   for (const book of books) {
     const actual = hooks.find(book.folderId!);
     if (!actual) continue;
-    if (!book.archive && !sourcePath(actual.path)) continue;
+    if (!book.archive && !isBookPath(actual.path)) continue;
     if (!actual.folder)
       throw new SyncFailure(
         {code: failureCodes.bookChanges, stage: 'sync.namespace', action: 'check-folders'},
@@ -110,7 +111,7 @@ export async function archiveBooks(
       changed = true;
       continue;
     }
-    if (!sourcePath(actual.path))
+    if (!isBookPath(actual.path))
       throw new SyncFailure(
         {code: failureCodes.bookChanges, stage: 'sync.namespace', action: 'check-move'},
         'Arkivflyttingen er fortsatt uavklart.',
@@ -148,7 +149,7 @@ export async function archiveBooks(
     for (const book of placing) {
       const actual = hooks.find(book.folderId!),
         intent = book.archive!;
-      if (!actual || pathKey(actual.path) !== pathKey(intent.path) || hooks.find('/Deleted')?.id !== intent.parentId)
+      if (!actual || pathKey(actual.path) !== pathKey(intent.path) || hooks.find(deletedFolder)?.id !== intent.parentId)
         throw new RetrySync();
       intent.done = true;
     }

@@ -13,17 +13,17 @@ import {
 } from '../core/failure.ts';
 import {metadataView, pathKey} from './remote.ts';
 import {ownSong, songLocation} from './model.ts';
+import {bookPath, deletedFolder, isBookPath, personalPath, renameStagingPath} from '../core/paths.ts';
 import type {
   DeleteEntry,
   FolderEntry,
   MoveEntry,
   MoveReply,
   MoveResult,
-  NamespaceJob,
   RemoteEntry,
   RemoteFiles,
-  SyncState,
 } from '../core/sync-model.ts';
+import type {NamespaceJob, SyncState} from './state.ts';
 
 type Hooks = {
   check(): Promise<void>;
@@ -82,8 +82,7 @@ export function namespaceQueue(files: RemoteFiles, state: SyncState, hooks: Hook
     const book = knownBooks()[entry.link!.songbookId];
     if (!parent?.folder || !parent.path.toLowerCase().endsWith('/' + target.area.toLowerCase())) return null;
     const root = await inspect(parent.path.slice(0, parent.path.lastIndexOf('/')));
-    if (!root?.folder || root.id !== book?.folderId || book.deleted || !/^\/Songbooks\/[^/]+$/i.test(root.path))
-      return null;
+    if (!root?.folder || root.id !== book?.folderId || book.deleted || !isBookPath(root.path)) return null;
     return {path: `${parent.path}/${target.name}`, bookPath: root.path};
   }
   async function authorize(job: NamespaceJob) {
@@ -112,7 +111,7 @@ export function namespaceQueue(files: RemoteFiles, state: SyncState, hooks: Hook
           if (
             !id ||
             !manifest?.deletedSongs?.[id] ||
-            entry.sourcePath !== `/.app/songs/${id}.json` ||
+            entry.sourcePath !== personalPath(id) ||
             entry.path !== entry.fileId ||
             !entry.rev ||
             entry.folder
@@ -206,8 +205,8 @@ export function namespaceQueue(files: RemoteFiles, state: SyncState, hooks: Hook
             entry.to !== intent.path ||
             entry.toReference !== intent.parentId + '/' + intent.path.split('/').at(-1) ||
             !parent?.folder ||
-            pathKey(parent.path) !== '/deleted' ||
-            !/^\/Songbooks\/[^/]+$/i.test(archive.sourcePath)
+            pathKey(parent.path) !== pathKey(deletedFolder) ||
+            !isBookPath(archive.sourcePath)
           )
             throw invalid();
           if (
@@ -266,21 +265,19 @@ export function namespaceQueue(files: RemoteFiles, state: SyncState, hooks: Hook
         const match = /^\/Songbooks\/([^/]+)/i.exec(entry.path);
         if (
           match &&
-          !Object.values(books).some(
-            book => pathKey(book.path ?? `/Songbooks/${book.name}`) === pathKey('/Songbooks/' + match[1]),
-          )
+          !Object.values(books).some(book => pathKey(book.path ?? bookPath(book.name)) === pathKey(bookPath(match[1])))
         )
           throw invalid();
         if (entry.book) {
           const intent = state.renames?.[entry.book.id],
-            base = `/Songbooks/.rename-${entry.book.id}`,
+            base = renameStagingPath(entry.book.id),
             staged =
               entry.temporary &&
               intent?.from === entry.path &&
-              intent.to === `/Songbooks/${entry.book.name}` &&
+              intent.to === bookPath(entry.book.name) &&
               (entry.path === base ||
                 (entry.path.startsWith(base + '-') && /^\d+$/.test(entry.path.slice(base.length + 1))));
-          if (!books[entry.book.id] || (entry.path !== `/Songbooks/${entry.book.name}` && !staged)) throw invalid();
+          if (!books[entry.book.id] || (entry.path !== bookPath(entry.book.name) && !staged)) throw invalid();
         } else if (entry.temporary) throw invalid();
       }
     }

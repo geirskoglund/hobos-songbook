@@ -1,5 +1,7 @@
 import {DeferredSync, RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
-import {mutationPath, type RemoteFiles, type SyncState} from '../core/sync-model.ts';
+import type {RemoteFiles} from '../core/sync-model.ts';
+import type {SyncState} from './state.ts';
+import {appFolder, mutationPath} from '../core/paths.ts';
 
 type Lock = {version: 1; owner: string | null; libraryRev: string | null};
 function parse(text: string): Lock {
@@ -52,8 +54,8 @@ export function mutationFence(
     // Infrastructure bootstrap only. No user folder can be created before the
     // fence. Repeating this fixed app-owned root cannot move or rename anything.
     if (!current) {
-      if (files.createFoldersBatch) await files.createFoldersBatch([{key: '/.app', path: '/.app'}]);
-      else await files.folder('/.app');
+      if (files.createFoldersBatch) await files.createFoldersBatch([{key: appFolder, path: appFolder}]);
+      else await files.folder(appFolder);
       await hooks.check();
     }
     let result;

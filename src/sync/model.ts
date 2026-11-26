@@ -1,7 +1,8 @@
 import {cleanPersonal} from '../domain/annotations.ts';
 import type {Song, SongPersonal} from '../core/song.ts';
 import {failureCodes, SyncFailure} from '../core/failure.ts';
-import type {BookLink, DeletedSong, Manifest, PersonalFile, SongLink} from '../core/sync-model.ts';
+import type {BookLink, PersonalFile, SongLink} from '../core/sync-model.ts';
+import type {DeletedSong, Manifest} from './state.ts';
 
 export const ownSong = ({origin}: Pick<Song, 'origin'>) =>
   origin.kind === 'local' || (origin.provider === 'dropbox' && !origin.sourceId);
