@@ -11,7 +11,7 @@ Produksjon: https://geirskoglund.github.io/hobos-songbook/app/ · Test: https://
 
 - Svar på bokmål.
 - Aktuell GitHub-issue er oppgavegrunnlaget. Bevar brukerkrav og stabile ID-er (krav, beslutninger D01–D24, komponent-ID-er som L05 og D10).
-- Arbeid på egen gren og lever PR mot `master` med `Closes #N`. Merge bare etter produktansvarligs uttrykkelige godkjenning; grønn CI er ikke produktgodkjenning.
+- Merge bare etter produktansvarligs uttrykkelige godkjenning; grønn CI er ikke produktgodkjenning.
 - Lukk ferdigløste issues etter merge hvis automatisk lukking uteblir. Delvis løste issues holdes åpne.
 
 ## Kommandoer
@@ -22,7 +22,9 @@ Produksjon: https://geirskoglund.github.io/hobos-songbook/app/ · Test: https://
 - `npm run typecheck`: typesjekk med TypeScript 7. Pakken `typescript` er 6.0 fordi typescript-eslint trenger den.
 - `npm test`: enhetstester (raske)
 - `npx playwright test tests/e2e/<fil>.spec.mjs`: én e2e-fil. Hele suiten (`npm run test:e2e`) tar ca. 8 min; kjør den bare ved brede endringer, CI kjører den uansett.
+- `npm run check:quick`: kontrollen før PR
 - `npm run check`: full validering, som i CI
+- En ny worktree trenger `npm ci` først.
 
 ## Design og UI
 
@@ -33,7 +35,7 @@ Produksjon: https://geirskoglund.github.io/hobos-songbook/app/ · Test: https://
 ## Publisering
 
 - `/app/` bygges alltid fra `master`. `/test/` viser en valgt PR eller master.
-- Funksjons- og UI-PR-er publiseres på testadressen før brukertest.
+- Funksjons- og UI-PR-er publiseres på testadressen før brukertest: `gh workflow run pages.yml --ref master -f preview=<PR-nummer>`. Tilbake til `master`: `-f preview=master`. Publisert commit står under `preview` i `https://geirskoglund.github.io/hobos-songbook/deployment.json`.
 - Kjør aldri PR-kode med deployrettigheter. Slett aldri brukerdata ved publisering.
 
 ## Dokumentasjon
