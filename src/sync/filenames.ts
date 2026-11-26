@@ -1,4 +1,4 @@
-import type {Song} from '../domain/song.ts';
+import type {Song} from '../core/song.ts';
 
 const safe = (name: string) => name.replace(/[\\/<>:"|?*\u0000-\u001f]/g, '_');
 export const songFilename = (song: Song) =>

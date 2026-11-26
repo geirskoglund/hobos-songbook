@@ -1,7 +1,6 @@
-import {DeferredSync, RetrySync, SyncFailure, failureCodes} from './failure.ts';
-import type {RemoteFiles, SyncState} from './model.ts';
+import {DeferredSync, RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
+import {mutationPath, type RemoteFiles, type SyncState} from '../core/sync-model.ts';
 
-export const mutationPath = '/.app/mutation.json';
 type Lock = {version: 1; owner: string | null; libraryRev: string | null};
 function parse(text: string): Lock {
   try {

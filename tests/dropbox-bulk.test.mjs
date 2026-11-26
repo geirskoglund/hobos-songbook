@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dropboxAdapter} from '../src/adapters/dropbox.ts';
-import {maxFileBytes, SkippedFile} from '../src/sync/limits.ts';
-import {NamespacePlanNeedsRefresh, UnsentBatch, failureCodes} from '../src/sync/failure.ts';
+import {maxFileBytes, SkippedFile} from '../src/core/limits.ts';
+import {NamespacePlanNeedsRefresh, UnsentBatch, failureCodes} from '../src/core/failure.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 import {fixture} from './sync-fixture.mjs';
 

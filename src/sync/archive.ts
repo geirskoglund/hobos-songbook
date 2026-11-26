@@ -1,6 +1,6 @@
-import {DeferredSync, RetrySync, SyncFailure, failureCodes} from './failure.ts';
+import {DeferredSync, RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
 import {pathKey} from './remote.ts';
-import type {BookLink, Manifest, MoveEntry, RemoteEntry, RemoteFiles, SyncState} from './model.ts';
+import type {BookLink, Manifest, MoveEntry, RemoteEntry, RemoteFiles, SyncState} from '../core/sync-model.ts';
 
 const sourcePath = (path: string) => /^\/Songbooks\/[^/]+$/i.test(path);
 export function needsArchive(book: BookLink, find: (path: string) => RemoteEntry | undefined) {

@@ -1,11 +1,11 @@
-import type {Song, SongPersonal} from '../domain/song.ts';
+import type {Song, SongPersonal} from '../core/song.ts';
 import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
 import {standardSongbook, songbookName, MissingSongbookError, type Songbook} from '../domain/songbook.ts';
 import {setlistName, type Setlist} from '../domain/setlist.ts';
 import {syncStorage, trackLocal} from './sync.ts';
-import {failureCodes, SyncFailure} from '../sync/failure.ts';
+import {failureCodes, SyncFailure} from '../core/failure.ts';
 import {transferPlan, type TransferPlan} from '../domain/transfer.ts';
-import type {SyncState} from '../sync/model.ts';
+import type {SyncState} from '../core/sync-model.ts';
 const schemaVersion = 4;
 export interface LibrarySnapshot {
   songs: Song[];

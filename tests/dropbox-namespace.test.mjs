@@ -4,7 +4,7 @@ import {dropboxAdapter} from '../src/adapters/dropbox.ts';
 import {fixture, song} from './sync-fixture.mjs';
 import {syncEngine} from '../src/sync/engine.ts';
 import {namespaceQueue} from '../src/sync/namespace.ts';
-import {DeferredSync, SubmittedBatchInterruption, BatchJobFailed, RetrySync} from '../src/sync/failure.ts';
+import {DeferredSync, SubmittedBatchInterruption, BatchJobFailed, RetrySync} from '../src/core/failure.ts';
 async function adapterTest(request, run, guard = () => {}) {
   const old = {
       localStorage: globalThis.localStorage,

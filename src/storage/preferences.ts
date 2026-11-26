@@ -1,6 +1,5 @@
-import {requestLayout} from '../ui/layout.ts';
 import {localSettings} from './local-settings.ts';
-interface Preferences {
+export interface Preferences {
   theme: 'dark';
   fontSize: number;
   showDynamics: boolean;
@@ -20,11 +19,4 @@ export function readPreferences(namespace: string): Preferences {
 }
 export function savePreferences(namespace: string, value: Preferences) {
   localSettings(namespace, localStorage).set('display', JSON.stringify(value));
-}
-export function applyPreferences(value: Preferences) {
-  document.documentElement.dataset.dynamics = value.showDynamics ? 'on' : 'off';
-  document.documentElement.dataset.grids = value.showGrids ? 'on' : 'off';
-  document.documentElement.dataset.theme = value.theme;
-  document.documentElement.style.setProperty('--song-size', `${value.fontSize}px`);
-  requestLayout();
 }

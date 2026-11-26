@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture, song} from './sync-fixture.mjs';
-import {BatchStatusUnconfirmed, SyncFailure, failureCodes, RetrySync} from '../src/sync/failure.ts';
-import {hash, newSyncState, emptyJournal} from '../src/sync/model.ts';
+import {BatchStatusUnconfirmed, SyncFailure, failureCodes, RetrySync} from '../src/core/failure.ts';
+import {hash} from '../src/sync/model.ts';
+import {newSyncState, emptyJournal} from '../src/core/sync-model.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 
 async function retry(f) {

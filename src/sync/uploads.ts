@@ -1,17 +1,18 @@
-import {RetrySync, SyncFailure, failureCodes} from './failure.ts';
-import {checkSize, maxBatchAppendBytes, textBytes, SkippedFile} from './limits.ts';
+import {RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
+import {checkSize, maxBatchAppendBytes, textBytes, SkippedFile} from '../core/limits.ts';
+import {same} from './model.ts';
 import {
-  same,
   type FileValue,
   type RemoteFiles,
   type SyncState,
   type UploadIntent,
   type UploadJob,
   type UploadResult,
-} from './model.ts';
+  emptyManifest,
+  type Manifest,
+} from '../core/sync-model.ts';
 import {creationQueue} from './creations.ts';
 import {uploadBridge, claimReady} from './bridge.ts';
-import {emptyManifest, type Manifest} from './model.ts';
 
 const batchSize = 100,
   sessionLifetime = 7 * 24 * 60 * 60 * 1000;

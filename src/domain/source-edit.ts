@@ -1,7 +1,7 @@
 import {isChord} from './chordpro.ts';
 import {withOriginal} from './original.ts';
 import {shiftChord, shiftGridText} from './personal.ts';
-import type {Song} from './song.ts';
+import type {Song} from '../core/song.ts';
 interface SourceLine {
   index: number;
   start: number;

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture, song} from './sync-fixture.mjs';
 import {syncEngine} from '../src/sync/engine.ts';
-import {BatchStatusUnconfirmed, RetrySync, SyncFailure, failureCodes} from '../src/sync/failure.ts';
+import {BatchStatusUnconfirmed, RetrySync, SyncFailure, failureCodes} from '../src/core/failure.ts';
 
 async function run(f, files = f.files, manual = true) {
   for (let i = 0; i < 5; i++)

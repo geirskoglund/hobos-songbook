@@ -5,6 +5,28 @@ import {defineConfig} from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+// Lagene i src/, nederst først. Et lag importerer bare fra lagene under seg.
+// Rotfilen environment.ts har ingen importer og kan brukes av alle lag over core.
+const layers = ['core', 'domain', 'storage', 'adapters', 'sync', 'ui'];
+const layerRules = layers.map((layer, index) => {
+  const below = layers.slice(0, index);
+  const allowed = index ? [...below, 'environment\\.ts'] : [];
+  const message = index
+    ? `${layer}/ importerer bare fra ${below.join(', ')} og environment.ts. Se docs/ARCHITECTURE.md.`
+    : 'core/ importerer ikke fra andre lag. Se docs/ARCHITECTURE.md.';
+  return {
+    files: [`src/${layer}/**/*.ts`],
+    rules: {
+      'no-restricted-imports': ['error', {patterns: [{regex: `^\\.\\./(?!(?:${allowed.join('|')})(?:/|$))`, message}]}],
+      // Innebygde import()-er går utenom regelen over.
+      'no-restricted-syntax': [
+        'error',
+        {selector: 'TSImportType, ImportExpression', message: 'Bruk en vanlig import, slik at lagregelen ser den.'},
+      ],
+    },
+  };
+});
+
 export default defineConfig(
   // .ci-infra/ er CI-ens kopi av master-skriptene.
   {ignores: ['dist/', 'site/', 'builds/', 'work/', 'test-results/', 'playwright-report/', '.ci-infra/']},
@@ -36,4 +58,5 @@ export default defineConfig(
     files: ['tests/e2e/**/*.mjs'],
     languageOptions: {globals: {...globals.node, ...globals.browser}},
   },
+  ...layerRules,
 );

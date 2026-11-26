@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture, song} from './sync-fixture.mjs';
-import {newSyncState, emptyJournal} from '../src/sync/model.ts';
+import {newSyncState, emptyJournal} from '../src/core/sync-model.ts';
 import {syncEngine} from '../src/sync/engine.ts';
-import {SyncFailure, failureCodes, RetrySync} from '../src/sync/failure.ts';
+import {SyncFailure, failureCodes, RetrySync} from '../src/core/failure.ts';
 
 const versionA = '{t: Banner of Heaven}\n{k: Am}\n{time: 4/4}\n[C]Version A';
 const versionB = '{t: Banner of Heaven}\n{k: C}\n{time: 3/4}\n[G]Version B';

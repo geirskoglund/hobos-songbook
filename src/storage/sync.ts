@@ -1,4 +1,4 @@
-import type {Song, SongPersonal} from '../domain/song.ts';
+import type {Song, SongPersonal} from '../core/song.ts';
 import type {Songbook} from '../domain/songbook.ts';
 import {
   emptyJournal,
@@ -7,8 +7,8 @@ import {
   type LocalJournal,
   type NamespaceJob,
   type PlacementJob,
-} from '../sync/model.ts';
-import {DeferredSync, failureCodes, SyncFailure} from '../sync/failure.ts';
+} from '../core/sync-model.ts';
+import {DeferredSync, failureCodes, SyncFailure} from '../core/failure.ts';
 export interface SyncSnapshot {
   songs: Song[];
   songbooks: Songbook[];

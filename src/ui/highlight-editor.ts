@@ -1,6 +1,6 @@
 import {readingTop} from './layout.ts';
-import {anchorFor, changeAnnotation, type Highlight, type LineAnchor} from '../domain/personal.ts';
-import type {Song, SongPersonal} from '../domain/song.ts';
+import {anchorFor, changeAnnotation} from '../domain/personal.ts';
+import type {Highlight, LineAnchor, Song, SongPersonal} from '../core/song.ts';
 interface TextSpan {
   line: HTMLElement;
   start: number;

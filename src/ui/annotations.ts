@@ -1,5 +1,5 @@
 import {logicalLines, notePlacements} from '../domain/annotations.ts';
-import type {Song, SongPersonal} from '../domain/song.ts';
+import type {Song, SongPersonal} from '../core/song.ts';
 import {noteAnchor} from './note-position.ts';
 
 /** Rendering never decides whether a saved note is still valid. Every note gets a visible placement. */

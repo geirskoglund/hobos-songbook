@@ -1,5 +1,5 @@
 import {parseChordPro, type Block, type GridBlock, type ParsedSong} from './chordpro.ts';
-import type {SongPersonal} from './song.ts';
+import type {SongPersonal} from '../core/song.ts';
 function gridsIn(blocks: Block[]): GridBlock[] {
   return blocks.flatMap(block =>
     block.kind === 'grid'

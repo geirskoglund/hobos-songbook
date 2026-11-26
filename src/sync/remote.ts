@@ -1,13 +1,15 @@
-import {DeferredSync, failureCodes, SyncFailure} from './failure.ts';
+import {DeferredSync, failureCodes, SyncFailure} from '../core/failure.ts';
+import {parseManifest} from './model.ts';
 import {
-  parseManifest,
   type RemoteEntry,
   type RemoteFiles,
   type SyncState,
   type MoveReply,
   type MoveEntry,
-} from './model.ts';
-import {checkSize, textBytes} from './limits.ts';
+  type FolderEntry,
+  type DeleteEntry,
+} from '../core/sync-model.ts';
+import {checkSize, textBytes} from '../core/limits.ts';
 import {parseUploadIndex, uploadIndexPath} from './bridge.ts';
 
 export const pathKey = (path: string) => path.normalize('NFC').toLowerCase();
@@ -237,7 +239,7 @@ export function indexedFiles(raw: RemoteFiles, state: SyncState) {
           async checkCreateFoldersBatch(id, retryAttempt) {
             return foldersCreated(
               await raw.checkCreateFoldersBatch!(id, retryAttempt),
-              (state.namespaceJob?.entries as import('./model.ts').FolderEntry[]) ?? [],
+              (state.namespaceJob?.entries as FolderEntry[]) ?? [],
             );
           },
         }
@@ -254,7 +256,7 @@ export function indexedFiles(raw: RemoteFiles, state: SyncState) {
           async checkDeleteBatch(id, retryAttempt) {
             return deleted(
               await raw.checkDeleteBatch!(id, retryAttempt),
-              (state.namespaceJob?.entries as import('./model.ts').DeleteEntry[]) ?? [],
+              (state.namespaceJob?.entries as DeleteEntry[]) ?? [],
             );
           },
         }
@@ -326,7 +328,7 @@ export function indexedFiles(raw: RemoteFiles, state: SyncState) {
         }
       : {}),
   };
-  function foldersCreated(reply: MoveReply, entries: import('./model.ts').FolderEntry[]) {
+  function foldersCreated(reply: MoveReply, entries: FolderEntry[]) {
     if (!('entries' in reply)) return reply;
     if (reply.entries.length !== entries.length)
       throw new SyncFailure(
@@ -341,7 +343,7 @@ export function indexedFiles(raw: RemoteFiles, state: SyncState) {
     }
     return reply;
   }
-  function deleted(reply: MoveReply, entries: import('./model.ts').DeleteEntry[]) {
+  function deleted(reply: MoveReply, entries: DeleteEntry[]) {
     if (!('entries' in reply)) return reply;
     if (reply.entries.length !== entries.length)
       throw new SyncFailure(

@@ -5,8 +5,8 @@ import {
   SyncFailure,
   type RateInfo,
   type RateLimitReason,
-} from '../sync/failure.ts';
-import type {ApiEvent, ApiContext} from '../sync/diagnostics.ts';
+} from '../core/failure.ts';
+import type {ApiEvent, ApiContext} from '../core/sync-model.ts';
 
 export class DropboxError extends SyncFailure {
   status: number;

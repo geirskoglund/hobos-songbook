@@ -1,11 +1,10 @@
 import {parseChordPro} from '../domain/chordpro.ts';
 import {reconcilePersonal} from '../domain/annotations.ts';
 import {songbookName} from '../domain/songbook.ts';
-import type {Song, SongPersonal} from '../domain/song.ts';
+import type {Song, SongPersonal} from '../core/song.ts';
 import type {syncStorage, SyncSnapshot} from '../storage/sync.ts';
 import {
   direction,
-  emptyManifest,
   hash,
   mergeManifest,
   ownSong,
@@ -14,6 +13,11 @@ import {
   personalData,
   same,
   songLocation,
+  type PublicationChoice,
+  type PublicationResult,
+} from './model.ts';
+import {
+  emptyManifest,
   type BookLink,
   type Conflict,
   type FileValue,
@@ -22,14 +26,13 @@ import {
   type NamespaceJob,
   type FolderEntry,
   type PersonalFile,
-  type PublicationChoice,
-  type PublicationResult,
   type RemoteFiles,
   type SongLink,
   type SyncState,
   type UploadIntent,
   type UploadJob,
-} from './model.ts';
+  type UploadClaim,
+} from '../core/sync-model.ts';
 import {
   DeferredSync,
   failureCodes,
@@ -38,13 +41,13 @@ import {
   SyncFailure,
   RetrySync,
   PublicationInProgress,
-} from './failure.ts';
+} from '../core/failure.ts';
 import {indexedFiles, pathKey} from './remote.ts';
 import {syncIdentities} from './identities.ts';
 import {uploadQueue} from './uploads.ts';
-import {checkSize, textBytes, maxFileBytes, SkippedFile} from './limits.ts';
+import {checkSize, textBytes, maxFileBytes, SkippedFile} from '../core/limits.ts';
 import {songFilename, originalFilename, numberedPath} from './filenames.ts';
-import {claimReady, type UploadClaim} from './bridge.ts';
+import {claimReady} from './bridge.ts';
 import {namespaceQueue} from './namespace.ts';
 import {mutationFence} from './mutation.ts';
 import {archiveBooks, needsArchive} from './archive.ts';
@@ -512,9 +515,9 @@ export function syncEngine(
         );
       }
     }
-    const renames: import('./model.ts').MoveEntry[] = [],
-      cases: import('./model.ts').MoveEntry[] = [],
-      creates: import('./model.ts').FolderEntry[] = [];
+    const renames: MoveEntry[] = [],
+      cases: MoveEntry[] = [],
+      creates: FolderEntry[] = [];
     for (const book of active) {
       const target = `/Songbooks/${book.name}`,
         known = state.folders[book.id] ?? state.manifest.books[book.id] ?? book;
@@ -569,7 +572,7 @@ export function syncEngine(
     if (cases.length) await namespace.move(cases);
     if (renames.length) await namespace.move(renames);
     await namespace.folders(creates);
-    const children: import('./model.ts').FolderEntry[] = [];
+    const children: FolderEntry[] = [];
     for (const book of active) {
       const target = blocked.has(book.id) ? state.folders[book.id].path! : `/Songbooks/${book.name}`,
         known = state.folders[book.id] ?? book,
@@ -586,7 +589,7 @@ export function syncEngine(
     return blocked;
   }
   async function finishBookNames(merged: Manifest) {
-    const moves: import('./model.ts').MoveEntry[] = [];
+    const moves: MoveEntry[] = [];
     let waiting = false;
     for (const id of Object.keys(state.renames ?? {})) {
       const local = snapshot.songbooks.find(book => book.id === id),
@@ -1349,7 +1352,7 @@ export function syncEngine(
         }
       });
       const contentResults = await send(plans.flatMap(plan => (plan.contentIntent ? [plan.contentIntent] : [])));
-      const transfers: import('./model.ts').MoveEntry[] = [];
+      const transfers: MoveEntry[] = [];
       const targets = new Set<string>();
       for (const plan of plans) {
         if (failed.has(plan.link.id)) continue;

@@ -1,4 +1,4 @@
-import {DeferredSync, RetrySync, SyncFailure, BatchStatusUnconfirmed, failureCodes} from './failure.ts';
+import {DeferredSync, RetrySync, SyncFailure, BatchStatusUnconfirmed, failureCodes} from '../core/failure.ts';
 import {numberedPath} from './filenames.ts';
 import {metadataView, pathKey} from './remote.ts';
 import type {
@@ -10,7 +10,8 @@ import type {
   SyncState,
   UploadJob,
   UploadResult,
-} from './model.ts';
+  DeleteEntry,
+} from '../core/sync-model.ts';
 
 /** New user-visible files commit first to an app-owned, never-reused path.
  * A readable destination and matching bytes alone cannot prove ownership. */
@@ -380,7 +381,7 @@ export function creationQueue(
   async function discardMany(songIds: string[], role?: 'original') {
     const allowed = new Set(songIds),
       blocked = new Set<string>(),
-      deletions: import('./model.ts').DeleteEntry[] = [],
+      deletions: DeleteEntry[] = [],
       observed = new Map<string, RemoteEntry>();
     const group = Object.values(jobs).filter(
       job => allowed.has(job.songId) && job.creation && (!role || job.kind === role),
@@ -441,7 +442,7 @@ export function creationQueue(
     if (!state.abandoned?.length) return;
     const inspectMeta = await metadata();
     const keep: NonNullable<SyncState['abandoned']> = [],
-      deletions: import('./model.ts').DeleteEntry[] = [];
+      deletions: DeleteEntry[] = [];
     for (const item of state.abandoned ?? []) {
       await hooks.check();
       const current = await inspectMeta(item.fileId ?? item.path);

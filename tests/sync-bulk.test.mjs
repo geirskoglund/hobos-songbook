@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture, song} from './sync-fixture.mjs';
-import {SyncFailure, failureCodes, RetrySync} from '../src/sync/failure.ts';
-import {maxFileBytes} from '../src/sync/limits.ts';
+import {SyncFailure, failureCodes, RetrySync} from '../src/core/failure.ts';
+import {maxFileBytes} from '../src/core/limits.ts';
 import {syncEngine} from '../src/sync/engine.ts';
 
 function bulkFixture(count = 20) {

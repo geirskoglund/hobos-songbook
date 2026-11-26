@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {dropboxRate, DropboxError} from '../src/adapters/dropbox-rate.ts';
 import {dropboxAdapter} from '../src/adapters/dropbox.ts';
-import {DeferredSync, failureCodes} from '../src/sync/failure.ts';
+import {DeferredSync, failureCodes} from '../src/core/failure.ts';
 import {syncDiagnostics} from '../src/sync/diagnostics.ts';
 const limited = (seconds = 0, reason = 'too_many_write_operations', headers = {}) =>
   Response.json(
