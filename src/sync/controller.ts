@@ -323,10 +323,8 @@ export function syncController(
     } finally {
       popup = false;
       notify();
-      if (changedDuringPopup && !paused && !hooks.busy()) {
-        changedDuringPopup = false;
-        void execute();
-      }
+      // execute() clears the flag only when a run actually starts; a busy Dropbox action retries afterwards.
+      if (changedDuringPopup && !paused && !hooks.busy()) void execute();
     }
   }
   async function manual() {
@@ -386,7 +384,7 @@ export function syncController(
       }
       if (publication) notify();
       await refresh().catch(() => {});
-      if (requestedManual || changedDuringRun)
+      if (requestedManual || changedDuringRun || (changedDuringPopup && !popup))
         queueMicrotask(() => {
           void execute();
         });
