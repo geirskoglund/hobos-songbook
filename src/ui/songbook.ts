@@ -74,6 +74,10 @@ export function startSongbook() {
       await bookManager.copyShare(consent.bookId, consent.authorized);
     },
   });
+  document.addEventListener('library-local-change', cloud.localChanged);
+  window.addEventListener('online', cloud.online);
+  window.addEventListener('offline', cloud.offline);
+  window.addEventListener('storage', event => cloud.storageChanged(event.key));
   const songPage = startSongPage(storage, library, bookManager, cloud, nav, {
     settingsRestored: view => (settingsReturn = view),
   });
