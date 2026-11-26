@@ -1,0 +1,13 @@
+// knip finner ubrukte filer, eksporter og avhengigheter. Inngangspunktene for appen, Vite,
+// Playwright, testene og skriptene i package.json og arbeidsflytene finner knip selv.
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    // Claude Code-hooken startes fra .claude/settings.json, som knip ikke leser.
+    ".claude/hooks/format-edited.mjs",
+    // Kjøres for hånd for å lage ikonene i assets/icons/ på nytt.
+    "scripts/generate-icons.mjs",
+  ],
+  // E2E-serveren leverer /__test__/controls.js, bygd av scripts/prepare-e2e.mjs.
+  "ignoreUnresolved": ["^/__test__/controls\\.js$"],
+}

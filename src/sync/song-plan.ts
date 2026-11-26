@@ -25,7 +25,7 @@ function fromRemote(link: SongLink, text: string): Song {
 function project(personal: SongPersonal, source: Song, target: Song) {
   return personalData(source.original === target.original ? personal : reconcilePersonal(source, target, personal));
 }
-export async function personalFile(
+async function personalFile(
   s: SyncSession,
   link: SongLink,
   content: FileValue,

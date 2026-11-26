@@ -15,7 +15,7 @@ import {
   renameStagingPath,
   songbooksFolder,
 } from '../core/paths.ts';
-export function remoteBookName(value: string, books: BookLink[], ownId?: string) {
+function remoteBookName(value: string, books: BookLink[], ownId?: string) {
   try {
     return songbookName(value, books, ownId);
   } catch (cause) {

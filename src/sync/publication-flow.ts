@@ -18,7 +18,7 @@ import type {SyncSession} from './session.ts';
 import {hasUnconfirmedNamespaceChanges} from './local-work.ts';
 import {run} from './run.ts';
 import {libraryPath} from '../core/paths.ts';
-export async function readPublicationInventory(s: SyncSession, fenced = false) {
+async function readPublicationInventory(s: SyncSession, fenced = false) {
   await s.step(() => s.index.refresh());
   const value = await s.step(() => (fenced ? s.files.inspectFile!(libraryPath) : s.files.read(libraryPath)));
   if (value) s.state.library = {id: value.id, rev: value.rev, value: parseManifest(value.text)};
@@ -60,7 +60,7 @@ export async function refreshPublication(s: SyncSession) {
   await s.save();
   return view;
 }
-export async function savePublicationMoves(s: SyncSession) {
+async function savePublicationMoves(s: SyncSession) {
   const receipts = s.state.movedPublications ?? {};
   if (!Object.keys(receipts).length) return;
   const {manifest, records} = publicationCatalog(s.snapshot);
@@ -85,7 +85,7 @@ export async function savePublicationMoves(s: SyncSession) {
   }
   await s.save();
 }
-export async function settlePublication(s: SyncSession, work: () => Promise<void>) {
+async function settlePublication(s: SyncSession, work: () => Promise<void>) {
   if (s.files.withMoveReceipt) await s.files.withMoveReceipt(work);
   else await work();
 }
