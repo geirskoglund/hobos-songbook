@@ -1,4 +1,4 @@
-import type {syncStorage} from '../storage/sync.ts';
+import type {syncStorage} from './store.ts';
 import type {Conflict, RemoteFiles} from '../core/sync-model.ts';
 import type {PublicationChoice} from './model.ts';
 import {PausedSync, SyncSession, type SyncHooks} from './session.ts';

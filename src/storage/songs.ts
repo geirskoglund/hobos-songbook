@@ -2,7 +2,7 @@ import type {Song, SongPersonal} from '../core/song.ts';
 import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
 import {standardSongbook, songbookName, MissingSongbookError, type Songbook} from '../domain/songbook.ts';
 import {setlistName, type Setlist} from '../domain/setlist.ts';
-import {syncStorage, trackLocal} from './sync.ts';
+import {trackLocal} from './journal.ts';
 import {failureCodes, SyncFailure} from '../core/failure.ts';
 import {transferPlan, type TransferPlan} from '../domain/transfer.ts';
 import type {SyncState} from '../core/sync-model.ts';
@@ -399,7 +399,8 @@ export function songStorage(namespace: string) {
     });
   }
   return {
-    sync: syncStorage(open),
+    /** Åpner sanglageret. Synkens egne lagre i det leses og skrives av sync/store.ts. */
+    database: open,
     createSongbook: (id: string, name: string) => writeSongbook(id, name, true),
     renameSongbook: (id: string, name: string) => writeSongbook(id, name, false),
     deleteSongbook,

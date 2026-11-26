@@ -1,4 +1,4 @@
-import type {syncStorage, SyncSnapshot} from '../storage/sync.ts';
+import type {syncStorage, SyncSnapshot} from './store.ts';
 import {parseManifest, same} from './model.ts';
 import {
   emptyManifest,

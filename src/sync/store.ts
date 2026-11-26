@@ -10,31 +10,15 @@ import {
 } from '../core/sync-model.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../core/failure.ts';
 import {journalKey, syncStateKey} from '../core/paths.ts';
+// Synkens poster i IndexedDB-lageret `sync`: synktilstanden per konto, journalens
+// generasjon og åpne sangøkter, og kvitteringer for Dropbox-jobber. Sanglageret i
+// storage/ teller bare opp journalen ved lokale endringer (storage/journal.ts).
 export interface SyncSnapshot {
   songs: Song[];
   songbooks: Songbook[];
   personal: SongPersonal[];
   journal: LocalJournal;
   state: SyncState;
-}
-/** Called inside every local data-write transaction: the outbox cannot miss a committed write. */
-export function trackLocal(tx: IDBTransaction, change?: (journal: LocalJournal) => void) {
-  const store = tx.objectStore('sync'),
-    read = store.get(journalKey);
-  read.onsuccess = () => {
-    const journal: LocalJournal = read.result ?? emptyJournal();
-    if (journal.version !== 1) {
-      tx.abort();
-      return;
-    }
-    journal.generation++;
-    for (const session of Object.values(journal.sessions)) session.edited = true;
-    change?.(journal);
-    store.put(journal);
-  };
-  tx.addEventListener('complete', () => {
-    document.dispatchEvent(new Event('library-local-change'));
-  });
 }
 export function syncStorage(open: () => Promise<IDBDatabase>) {
   async function database() {

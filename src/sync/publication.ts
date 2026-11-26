@@ -1,6 +1,6 @@
 import {parseChordPro} from '../domain/chordpro.ts';
 import type {Song} from '../core/song.ts';
-import type {SyncSnapshot} from '../storage/sync.ts';
+import type {SyncSnapshot} from './store.ts';
 import {DeferredSync, failureCodes, failureInfo, PublicationInProgress} from '../core/failure.ts';
 import {syncIdentities} from './identities.ts';
 import {ownSong, songLocation, type PublicationView} from './model.ts';
