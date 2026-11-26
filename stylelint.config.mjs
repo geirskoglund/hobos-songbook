@@ -1,6 +1,7 @@
 // stylelint holder fargeverdiene i src/theme.css, der designsystemets farger defineres.
 // Andre CSS-filer bruker variablene derfra. Bare fargereglene er slått på; stil eies av Prettier.
-const colorFunctions = ['rgb', 'rgba', 'hsl', 'hsla', 'hwb', 'lab', 'lch', 'oklab', 'oklch', 'color'];
+// CSS-funksjonsnavn skiller ikke mellom store og små bokstaver, så mønstrene gjør det heller ikke.
+const colorFunctions = [/^rgba?$/i, /^hsla?$/i, /^hwb$/i, /^(ok)?lab$/i, /^(ok)?lch$/i, /^color$/i];
 
 export default {
   rules: {
