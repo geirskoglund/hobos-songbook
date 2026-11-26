@@ -1,4 +1,4 @@
-# Prettier formaterer bare kode: src/, scripts/, tests/, index.html og *.config.mjs.
+# Prettier formaterer bare kode: src/, scripts/, tests/, index.html, *.config.mjs og knip.jsonc.
 # .gitignore gjelder i tillegg.
 docs/
 .github/
