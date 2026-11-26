@@ -20,11 +20,10 @@ import type {
   MoveEntry,
   MoveReply,
   MoveResult,
-  NamespaceJob,
   RemoteEntry,
   RemoteFiles,
-  SyncState,
 } from '../core/sync-model.ts';
+import type {NamespaceJob, SyncState} from './state.ts';
 
 type Hooks = {
   check(): Promise<void>;

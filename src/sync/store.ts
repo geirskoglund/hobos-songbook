@@ -1,13 +1,7 @@
 import type {Song, SongPersonal} from '../core/song.ts';
 import type {Songbook} from '../domain/songbook.ts';
-import {
-  emptyJournal,
-  newSyncState,
-  type SyncState,
-  type LocalJournal,
-  type NamespaceJob,
-  type PlacementJob,
-} from '../core/sync-model.ts';
+import {emptyJournal, type LocalJournal} from '../core/sync-model.ts';
+import {newSyncState, type SyncState, type NamespaceJob, type PlacementJob} from './state.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../core/failure.ts';
 import {journalKey, syncStateKey} from '../core/paths.ts';
 // Synkens poster i IndexedDB-lageret `sync`: synktilstanden per konto, journalens

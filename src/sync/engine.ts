@@ -1,5 +1,6 @@
 import type {syncStorage} from './store.ts';
-import type {Conflict, RemoteFiles} from '../core/sync-model.ts';
+import type {RemoteFiles} from '../core/sync-model.ts';
+import type {Conflict} from './state.ts';
 import type {PublicationChoice} from './model.ts';
 import {PausedSync, SyncSession, type SyncHooks} from './session.ts';
 import {run} from './run.ts';

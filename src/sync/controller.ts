@@ -2,7 +2,8 @@ import {dropboxAdapter, type SharingConsent} from '../adapters/dropbox.ts';
 import type {songStorage} from '../storage/songs.ts';
 import {syncEngine, PausedSync} from './engine.ts';
 import {syncStorage} from './store.ts';
-import type {Conflict, SyncState, ApiEvent} from '../core/sync-model.ts';
+import type {ApiEvent} from '../core/sync-model.ts';
+import type {Conflict, SyncState} from './state.ts';
 import type {PublicationChoice, PublicationResult} from './model.ts';
 import {publicationError, publicationView} from './publication.ts';
 import {

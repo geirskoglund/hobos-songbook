@@ -1,12 +1,12 @@
 import type {AppEnvironment} from '../environment.ts';
-import {
-  type FileValue,
-  type RemoteFiles,
-  type RemoteEntry,
-  type UploadResult,
-  type MoveReply,
-  type ApiEvent,
-  type ApiContext,
+import type {
+  FileValue,
+  RemoteFiles,
+  RemoteEntry,
+  UploadResult,
+  MoveReply,
+  ApiEvent,
+  ApiContext,
 } from '../core/sync-model.ts';
 import {appFolder, libraryPath, mutationPath} from '../core/paths.ts';
 import {checkSize, textBytes, maxFileBytes, maxBatchAppendBytes, SkippedFile} from '../core/limits.ts';

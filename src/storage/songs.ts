@@ -5,13 +5,18 @@ import {setlistName, type Setlist} from '../domain/setlist.ts';
 import {trackLocal} from './journal.ts';
 import {failureCodes, SyncFailure} from '../core/failure.ts';
 import {transferPlan, type TransferPlan} from '../domain/transfer.ts';
-import type {SyncState} from '../core/sync-model.ts';
 import {syncStateKey} from '../core/paths.ts';
 const schemaVersion = 4;
 export interface LibrarySnapshot {
   songs: Song[];
   songbooks: Songbook[];
   personal: Pick<SongPersonal, 'songId' | 'capo' | 'tuning'>[];
+}
+/** Det sanglageret leser fra synktilstanden i lageret `sync`: filnavnet hver sang har i Dropbox. */
+interface SyncedFileNames {
+  bindings?: {songs: Record<string, string>};
+  reservations: Record<string, {path: string}>;
+  manifest: {songs: Record<string, {path: string}>};
 }
 export function songStorage(namespace: string) {
   if (!['hobos-songbook-production', 'hobos-songbook-test'].includes(namespace))
@@ -305,7 +310,7 @@ export function songStorage(namespace: string) {
       }
     });
   }
-  function transferNames(songs: Song[], state?: SyncState) {
+  function transferNames(songs: Song[], state?: SyncedFileNames) {
     const names: Record<string, string> = {};
     for (const song of songs) {
       const wire = state?.bindings?.songs[song.id] ?? song.id,

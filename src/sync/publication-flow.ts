@@ -1,6 +1,7 @@
 import {parseChordPro} from '../domain/chordpro.ts';
 import {parseManifest, same, songLocation, type PublicationChoice, type PublicationResult} from './model.ts';
-import {type FileValue, type MoveEntry, type SyncState} from '../core/sync-model.ts';
+import type {FileValue, MoveEntry} from '../core/sync-model.ts';
+import type {SyncState} from './state.ts';
 import {
   DeferredSync,
   failureCodes,

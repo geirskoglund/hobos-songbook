@@ -1,7 +1,7 @@
 import {actionButton, controlHeading, dialogFooter, dialogFrame, type DialogAction} from './controls.ts';
 import {openDialog} from './dialog.ts';
 import type {syncController} from '../sync/controller.ts';
-import type {Conflict} from '../core/sync-model.ts';
+import type {Conflict} from '../sync/state.ts';
 import {copyText} from './clipboard.ts';
 export function syncPage(controller: ReturnType<typeof syncController>) {
   const root = document.getElementById('sync')!;

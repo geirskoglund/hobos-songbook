@@ -1,5 +1,6 @@
 import {songLocation} from './model.ts';
-import {type Manifest, type SongLink} from '../core/sync-model.ts';
+import type {SongLink} from '../core/sync-model.ts';
+import type {Manifest} from './state.ts';
 import {pathKey} from './remote.ts';
 import type {SyncSession} from './session.ts';
 import {isBookPath} from '../core/paths.ts';

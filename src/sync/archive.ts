@@ -1,7 +1,8 @@
 import {DeferredSync, RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
 import {pathKey} from './remote.ts';
 import {deletedFolder, isBookPath} from '../core/paths.ts';
-import type {BookLink, Manifest, MoveEntry, RemoteEntry, RemoteFiles, SyncState} from '../core/sync-model.ts';
+import type {BookLink, MoveEntry, RemoteEntry, RemoteFiles} from '../core/sync-model.ts';
+import type {Manifest, SyncState} from './state.ts';
 
 export function needsArchive(book: BookLink, find: (path: string) => RemoteEntry | undefined) {
   return Boolean(book.deleted && book.folderId && !book.archive?.done && isBookPath(find(book.folderId)?.path ?? ''));

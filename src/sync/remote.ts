@@ -1,14 +1,7 @@
 import {DeferredSync, failureCodes, SyncFailure} from '../core/failure.ts';
 import {parseManifest} from './model.ts';
-import type {
-  RemoteEntry,
-  RemoteFiles,
-  SyncState,
-  MoveReply,
-  MoveEntry,
-  FolderEntry,
-  DeleteEntry,
-} from '../core/sync-model.ts';
+import type {RemoteEntry, RemoteFiles, MoveReply, MoveEntry, FolderEntry, DeleteEntry} from '../core/sync-model.ts';
+import type {SyncState} from './state.ts';
 import {checkSize, textBytes} from '../core/limits.ts';
 import {parseUploadIndex} from './bridge.ts';
 import {libraryPath, uploadIndexPath} from '../core/paths.ts';

@@ -1,6 +1,6 @@
 import type {SyncSnapshot} from './store.ts';
 import {ownSong, personalData, same} from './model.ts';
-import {emptyManifest, type Manifest} from '../core/sync-model.ts';
+import {emptyManifest, type Manifest} from './state.ts';
 import {originalFilename} from './filenames.ts';
 import {needsArchive} from './archive.ts';
 import type {SyncSession} from './session.ts';

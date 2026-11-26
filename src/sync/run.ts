@@ -1,15 +1,7 @@
 import type {Song} from '../core/song.ts';
 import {hash, mergeManifest, ownSong, parseManifest, same, songLocation} from './model.ts';
-import {
-  emptyManifest,
-  type Conflict,
-  type FileValue,
-  type Manifest,
-  type MoveEntry,
-  type PersonalFile,
-  type SongLink,
-  type UploadIntent,
-} from '../core/sync-model.ts';
+import type {FileValue, MoveEntry, PersonalFile, SongLink, UploadIntent} from '../core/sync-model.ts';
+import {emptyManifest, type Conflict, type Manifest} from './state.ts';
 import {
   DeferredSync,
   failureCodes,

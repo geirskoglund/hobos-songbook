@@ -2,14 +2,8 @@ import {parseChordPro} from '../domain/chordpro.ts';
 import {reconcilePersonal} from '../domain/annotations.ts';
 import type {Song, SongPersonal} from '../core/song.ts';
 import {direction, hash, parsePersonal, personalData, same, songLocation} from './model.ts';
-import {
-  type Conflict,
-  type FileValue,
-  type Manifest,
-  type PersonalFile,
-  type SongLink,
-  type UploadIntent,
-} from '../core/sync-model.ts';
+import type {FileValue, PersonalFile, SongLink, UploadIntent} from '../core/sync-model.ts';
+import type {Conflict, Manifest} from './state.ts';
 import {failureCodes, SyncFailure, RetrySync} from '../core/failure.ts';
 import {pathKey} from './remote.ts';
 import {checkSize, textBytes} from '../core/limits.ts';

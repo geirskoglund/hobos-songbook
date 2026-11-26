@@ -1,7 +1,8 @@
 import {RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
 import {same} from './model.ts';
 import {isBookPath, libraryPath, stagingPath, uploadIndexPath} from '../core/paths.ts';
-import type {Manifest, RemoteFiles, SyncState, UploadClaim, UploadIndex, UploadJob} from '../core/sync-model.ts';
+import type {RemoteFiles, UploadJob} from '../core/sync-model.ts';
+import type {Manifest, SyncState, UploadClaim, UploadIndex} from './state.ts';
 
 export function parseUploadIndex(text: string): UploadIndex {
   try {

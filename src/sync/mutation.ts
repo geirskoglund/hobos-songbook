@@ -1,5 +1,6 @@
 import {DeferredSync, RetrySync, SyncFailure, failureCodes} from '../core/failure.ts';
-import type {RemoteFiles, SyncState} from '../core/sync-model.ts';
+import type {RemoteFiles} from '../core/sync-model.ts';
+import type {SyncState} from './state.ts';
 import {appFolder, mutationPath} from '../core/paths.ts';
 
 type Lock = {version: 1; owner: string | null; libraryRev: string | null};

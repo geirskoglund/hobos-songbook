@@ -1,17 +1,7 @@
 import type {syncStorage, SyncSnapshot} from './store.ts';
 import {parseManifest, same} from './model.ts';
-import {
-  emptyManifest,
-  type BookLink,
-  type FileValue,
-  type FolderEntry,
-  type NamespaceJob,
-  type RemoteFiles,
-  type SongLink,
-  type SyncState,
-  type UploadClaim,
-  type UploadJob,
-} from '../core/sync-model.ts';
+import type {BookLink, FileValue, FolderEntry, RemoteFiles, SongLink, UploadJob} from '../core/sync-model.ts';
+import {emptyManifest, type NamespaceJob, type SyncState, type UploadClaim} from './state.ts';
 import {DeferredSync, failureCodes, SyncFailure, RetrySync} from '../core/failure.ts';
 import {libraryPath, stagingFolder} from '../core/paths.ts';
 import {indexedFiles, pathKey} from './remote.ts';

@@ -8,11 +8,11 @@ import type {
   MoveResult,
   RemoteEntry,
   RemoteFiles,
-  SyncState,
   UploadJob,
   UploadResult,
   DeleteEntry,
 } from '../core/sync-model.ts';
+import type {SyncState} from './state.ts';
 
 /** New user-visible files commit first to an app-owned, never-reused path.
  * A readable destination and matching bytes alone cannot prove ownership. */

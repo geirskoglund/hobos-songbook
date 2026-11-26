@@ -1,6 +1,7 @@
 import {songbookName} from '../domain/songbook.ts';
 import {songLocation} from './model.ts';
-import {type BookLink, type Manifest, type MoveEntry, type FolderEntry} from '../core/sync-model.ts';
+import type {BookLink, MoveEntry, FolderEntry} from '../core/sync-model.ts';
+import type {Manifest} from './state.ts';
 import {failureCodes, SyncFailure, RetrySync} from '../core/failure.ts';
 import {pathKey} from './remote.ts';
 import {maxFileBytes} from '../core/limits.ts';
