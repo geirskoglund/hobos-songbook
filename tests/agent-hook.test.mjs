@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+import {copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 
@@ -34,6 +34,24 @@ test('agent hook is silent for a clean file', () => {
   const result = run(hook, join(root, 'tests', 'agent-hook.test.mjs'));
   assert.equal(result.status, 0);
   assert.equal(result.stdout, '');
+});
+
+test('agent hook formats a file in a nested worktree under .claude/worktrees/', () => {
+  // Hovedmappens .gitignore utelater .claude/worktrees/, så hooken må kjøre fra worktreens egen rot.
+  const worktree = join(root, '.claude', 'worktrees', `hook-probe-${process.pid}`);
+  try {
+    mkdirSync(join(worktree, 'tests'), {recursive: true});
+    for (const name of ['.gitignore', '.prettierignore', '.prettierrc.json']) {
+      copyFileSync(join(root, name), join(worktree, name));
+    }
+    const probe = join(worktree, 'tests', 'probe.mjs');
+    writeFileSync(probe, 'export const value=1\n');
+    const result = run(hook, probe);
+    assert.equal(result.status, 0);
+    assert.equal(readFileSync(probe, 'utf8'), 'export const value = 1;\n');
+  } finally {
+    rmSync(worktree, {recursive: true, force: true});
+  }
 });
 
 test('agent hook is silent when ESLint and Prettier are missing', () => {
