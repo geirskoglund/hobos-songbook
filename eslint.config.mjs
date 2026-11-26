@@ -3,6 +3,8 @@
 import path from 'node:path';
 import js from '@eslint/js';
 import {defineConfig} from 'eslint/config';
+import noUnsanitized from 'eslint-plugin-no-unsanitized';
+import playwright from 'eslint-plugin-playwright';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -55,9 +57,24 @@ const layerImports = {
   },
 };
 
+// DOM-typene som core/, domain/ og sync/ ikke får bruke.
+const domTypes =
+  '/^(Document|DocumentFragment|Window|Node|NodeList|Element|HTMLCollection|HTML\\w*Element|SVG\\w*Element|ShadowRoot|Text|DOMParser|MutationObserver|ResizeObserver|IntersectionObserver)$/';
+
 export default defineConfig(
-  // .ci-infra/ er CI-ens kopi av master-skriptene.
-  {ignores: ['dist/', 'site/', 'builds/', 'work/', 'test-results/', 'playwright-report/', '.ci-infra/']},
+  // .ci-infra/ er CI-ens kopi av master-skriptene, og .claude/worktrees/ har nestede git-worktrees.
+  {
+    ignores: [
+      'dist/',
+      'site/',
+      'builds/',
+      'work/',
+      'test-results/',
+      'playwright-report/',
+      '.ci-infra/',
+      '.claude/worktrees/',
+    ],
+  },
   js.configs.recommended,
   tseslint.configs.recommended,
   {
@@ -69,13 +86,54 @@ export default defineConfig(
       'no-empty-pattern': ['error', {allowObjectPatternsAsParameters: true}],
       // Filnavn og sangtekst renses bevisst for kontrolltegn.
       'no-control-regex': 'off',
-      // Kan slås på når tolkningen av Dropbox-svar har fått typer.
-      '@typescript-eslint/no-explicit-any': 'off',
+      // Fanger løs likhet, som gir uventede typekonverteringer. `== null` fanger både null og undefined og er tillatt.
+      eqeqeq: ['error', 'always', {null: 'ignore'}],
     },
   },
   {
     files: ['src/**/*.ts'],
     languageOptions: {globals: globals.browser},
+  },
+  {
+    // Typebaserte regler for src/, valgt enkeltvis i stedet for hele recommendedTypeChecked.
+    files: ['src/**/*.ts'],
+    languageOptions: {parserOptions: {projectService: true}},
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      // Dropbox-unioner har alltid et default-tilfelle, og det regnes som dekkende.
+      '@typescript-eslint/switch-exhaustiveness-check': ['error', {considerDefaultExhaustiveForUnions: true}],
+    },
+  },
+  {
+    files: ['src/**/*.ts'],
+    plugins: {'no-unsanitized': noUnsanitized},
+    rules: {
+      // Fanger HTML fra strenger (innerHTML, insertAdjacentHTML o.l.), som åpner for skriptinjeksjon.
+      'no-unsanitized/method': 'error',
+      'no-unsanitized/property': 'error',
+    },
+  },
+  {
+    // core/, domain/ og sync/ kjører uten DOM. IndexedDB, crypto, TextEncoder, navigator
+    // og andre ikke-DOM-API-er er tillatt.
+    files: ['src/core/**/*.ts', 'src/domain/**/*.ts', 'src/sync/**/*.ts'],
+    rules: {
+      // Fanger bruk av siden og nettleservinduet i lag som ikke skal ha DOM.
+      'no-restricted-globals': [
+        'error',
+        {name: 'document', message: 'core/, domain/ og sync/ bruker ikke DOM. Flytt koden til ui/.'},
+        {name: 'window', message: 'core/, domain/ og sync/ bruker ikke DOM. Flytt koden til ui/.'},
+      ],
+      // Fanger DOM-elementtyper, både som typer og som verdier (instanceof, new).
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: `Identifier[name=${domTypes}]:not(MemberExpression > .property):not(Property > .key)`,
+          message: 'core/, domain/ og sync/ bruker ikke DOM-typer. Flytt koden til ui/.',
+        },
+      ],
+    },
   },
   {
     files: ['**/*.mjs'],
@@ -85,6 +143,18 @@ export default defineConfig(
     // E2E-testene sender funksjoner til nettleseren med page.evaluate().
     files: ['tests/e2e/**/*.mjs'],
     languageOptions: {globals: {...globals.node, ...globals.browser}},
+  },
+  {
+    files: ['tests/e2e/**/*.mjs'],
+    plugins: {playwright},
+    rules: {
+      // Fanger Playwright-kall og forventninger uten await, som kan passere uten å sjekke noe.
+      'playwright/missing-playwright-await': 'error',
+      // Fanger test.only og describe.only, som ville hoppet over resten av suiten.
+      'playwright/no-focused-test': 'error',
+      // Fanger expect uten matcher eller med feil antall argumenter, som ikke sjekker noe.
+      'playwright/valid-expect': 'error',
+    },
   },
   {
     files: ['src/**/*.ts'],

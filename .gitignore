@@ -8,3 +8,7 @@ work/
 # Screenshot references are made on Linux only, see docs/TESTING.md.
 tests/e2e/*-snapshots/*-win32.png
 tests/e2e/*-snapshots/*-darwin.png
+# CI sjekker ut master-skriptene her.
+.ci-infra/
+# Claude Code legger nestede git-worktrees her. Prettier og knip leser .gitignore.
+.claude/worktrees/

@@ -7,6 +7,7 @@ import {
   type RateLimitReason,
 } from '../core/failure.ts';
 import type {ApiEvent, ApiContext} from '../core/sync-model.ts';
+import {field} from './dropbox-reply.ts';
 
 export class DropboxError extends SyncFailure {
   status: number;
@@ -220,13 +221,13 @@ export function dropboxRate(
     }
   }
   async function rateInfo(response: Response, attempt: number): Promise<RateInfo> {
-    const body = await response
+    const body: unknown = await response
         .clone()
         .json()
         .catch(() => null),
-      value = body?.error ?? body;
-    const candidate = value?.reason?.['.tag'] ?? value?.['.tag'];
-    const reason: RateLimitReason = reasons.has(candidate) ? candidate : 'unknown';
+      value = field(body, 'error') ?? body;
+    const candidate = field(value, 'reason', '.tag') ?? field(value, '.tag');
+    const reason = [...reasons].find(known => known === candidate) ?? 'unknown';
     const seconds = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined);
     const header = response.headers.get('Retry-After'),
       numeric = header !== null && header.trim() !== '' ? Number(header) : NaN;
@@ -236,7 +237,7 @@ export function dropboxRate(
         : header
           ? Math.max(0, Date.parse(header) - Date.now())
           : NaN;
-    const bodySeconds = seconds(value?.retry_after),
+    const bodySeconds = seconds(field(value, 'retry_after')),
       bodyMs = bodySeconds === undefined ? NaN : bodySeconds * 1000;
     const hints = [headerMs, bodyMs].filter(Number.isFinite),
       minimum = hints.length ? Math.max(...hints) : 1000;

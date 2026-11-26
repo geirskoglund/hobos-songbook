@@ -280,6 +280,8 @@ function environmentInfo(): EnvironmentInfo {
     locale: navigator.language,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
+  // Diagnosen tar med skjermmål bare når den kjører i et vindu. Den leser ikke siden.
+  // eslint-disable-next-line no-restricted-globals
   if (typeof window !== 'undefined')
     Object.assign(info, {
       viewportWidth: innerWidth,

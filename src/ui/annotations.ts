@@ -142,7 +142,7 @@ export function attachAnnotationGeometry(root: HTMLElement) {
     childList: true,
     subtree: true,
   });
-  document.fonts.ready.then(schedule);
+  void document.fonts.ready.then(schedule); // fonts.ready avvises aldri.
   document.fonts.addEventListener('loadingdone', schedule);
   window.addEventListener('resize', schedule);
   schedule();

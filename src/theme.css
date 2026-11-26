@@ -55,3 +55,16 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
+
+/* ::backdrop arver ikke fra :root i eldre nettlesere, blant annet iPadOS før 17.4. */
+:root,
+::backdrop {
+  --shade-2: #0002;
+  --shade-3: #0003;
+  --shade-4: #0004;
+  --shade-5: #0005;
+  --shade-6: #0006;
+  --shade-7: #0007;
+  --shade-8: #0008;
+  --shade-9: #0009;
+}
