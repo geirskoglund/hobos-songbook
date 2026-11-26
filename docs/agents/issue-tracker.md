@@ -14,6 +14,10 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## Acceptance criteria
+
+Before work on an issue starts, the agent adds verifiable acceptance criteria to the issue if it has none. Derive them from the user requirements in the issue; ask the product owner only about unclear product behaviour. Do not add a separate clarification section.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
