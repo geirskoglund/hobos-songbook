@@ -1,5 +1,5 @@
 import {isChord, parseChordPro, type GridBlock} from './chordpro.ts';
-import {type SongPersonal, type LineAnchor, type Annotation, type PersonalNote} from '../core/song.ts';
+import type {SongPersonal, LineAnchor, Annotation, PersonalNote} from '../core/song.ts';
 import {changeAnnotation, changeNote} from './annotations.ts';
 export {anchorFor, changeAnnotation} from './annotations.ts';
 

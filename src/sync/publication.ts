@@ -4,7 +4,7 @@ import type {SyncSnapshot} from '../storage/sync.ts';
 import {DeferredSync, failureCodes, failureInfo, PublicationInProgress} from '../core/failure.ts';
 import {syncIdentities} from './identities.ts';
 import {ownSong, songLocation, type PublicationView} from './model.ts';
-import {type RemoteEntry, type SongLink} from '../core/sync-model.ts';
+import type {RemoteEntry, SongLink} from '../core/sync-model.ts';
 import {metadataView, pathKey} from './remote.ts';
 
 export function publicationCatalog(snapshot: SyncSnapshot) {

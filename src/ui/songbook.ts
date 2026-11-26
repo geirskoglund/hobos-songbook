@@ -24,7 +24,7 @@ import {attachDynamicsProfile} from './dynamics-profile.ts';
 import {renderContent, type DynamicsContext} from './song-content.ts';
 import {parseChordPro} from '../domain/chordpro.ts';
 import {createSong} from '../domain/song.ts';
-import {type Song, type SongPersonal} from '../core/song.ts';
+import type {Song, SongPersonal} from '../core/song.ts';
 import {songStorage} from '../storage/songs.ts';
 import {defaultPreferences, readPreferences, savePreferences} from '../storage/preferences.ts';
 import {applyPreferences} from './preferences.ts';

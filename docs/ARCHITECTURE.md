@@ -10,7 +10,7 @@ Statisk HTML, CSS og TypeScript bygget med Vite. Ingen backend, skydatabase, Dro
 
 | Mappe | Ansvar | Grense |
 | --- | --- | --- |
-| `src/core/` | Typer og feil som flere lag deler: sangdata, synkmodell, Dropbox-kontrakt, feilkoder, filgrenser | Importerer ingen andre lag |
+| `src/core/` | Typer, feil og små felles konstanter og fabrikker: sangdata, synkmodell, Dropbox-kontrakt, feilkoder, filgrenser | Importerer ingen andre lag |
 | `src/domain/` | Regler for sang, ChordPro-tolkning, personlig lag, sangbok, setliste | Ingen DOM, lagring eller Dropbox |
 | `src/storage/` | IndexedDB og localStorage per kanal | Ingen nettkall |
 | `src/adapters/` | Dropbox: OAuth/PKCE, HTTP, ratebegrensning | Ingen domenelogikk |
@@ -18,7 +18,7 @@ Statisk HTML, CSS og TypeScript bygget med Vite. Ingen backend, skydatabase, Dro
 | `src/ui/` | Ren DOM uten rammeverk | Eier visning, ikke lagringsbetydning |
 | `scripts/`, `.github/workflows/` | Bygg og publisering | Se [TESTING](TESTING.md) |
 
-Lagene i `src/` står nederst først. Et lag importerer bare fra lagene over seg i tabellen, og alle lag unntatt `core` kan bruke `src/environment.ts`. ESLint håndhever regelen (`eslint.config.mjs`).
+Tabellen lister lagene i `src/` med laveste lag først. Et lag importerer bare fra seg selv og lavere lag, og alle lag unntatt `core` kan bruke `src/environment.ts`. ESLint håndhever regelen (`eslint.config.mjs`).
 
 Domenet importerer aldri Dropbox. Originalteksten er autoritativ; parserens struktur og DOM-en er avledet og skrives aldri tilbake som original. Kildehandlinger endrer avgrensede tekstområder og bevarer BOM, linjeskift, ukjente direktiver og uberørt whitespace.
 

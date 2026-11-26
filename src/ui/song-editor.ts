@@ -9,7 +9,7 @@ import {attachHeldElements, type ElementDrag} from './held-elements.ts';
 import {attachDynamicMarkers} from './dynamic-markers.ts';
 import {paintAnnotations} from './annotations.ts';
 import {changeNote, noteAt, logicalLines, changeAnnotation} from '../domain/annotations.ts';
-import {type Highlight, type Song, type SongPersonal} from '../core/song.ts';
+import type {Highlight, Song, SongPersonal} from '../core/song.ts';
 import {shiftChord, shiftGridText, sharedGridText, validGrid} from '../domain/personal.ts';
 import {
   sourceLines,
