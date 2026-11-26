@@ -14,14 +14,18 @@ const layerRules = layers.map((layer, index) => {
   const message = index
     ? `${layer}/ importerer bare fra ${below.join(', ')} og environment.ts. Se docs/ARCHITECTURE.md.`
     : 'core/ importerer ikke fra andre lag. Se docs/ARCHITECTURE.md.';
+  // Selektorer tillater ikke / i regex, derfor \x2F.
+  const outside = (slash = '/') => `^\\.\\.${slash}(?!(?:${allowed.join('|')})(?:${slash}|$))`;
   return {
     files: [`src/${layer}/**/*.ts`],
     rules: {
-      'no-restricted-imports': ['error', {patterns: [{regex: `^\\.\\./(?!(?:${allowed.join('|')})(?:/|$))`, message}]}],
-      // Innebygde import()-er går utenom regelen over.
+      'no-restricted-imports': ['error', {patterns: [{regex: outside(), message}]}],
+      // no-restricted-imports ser ikke import() i koden, så samme regel gjelder den her.
+      // import('…').Type som type er bare en annen skrivemåte for en vanlig import.
       'no-restricted-syntax': [
         'error',
-        {selector: 'TSImportType, ImportExpression', message: 'Bruk en vanlig import, slik at lagregelen ser den.'},
+        {selector: `ImportExpression[source.value=/${outside('\\x2F')}/]`, message},
+        {selector: 'TSImportType', message: 'Bruk en vanlig import øverst i filen.'},
       ],
     },
   };
