@@ -1,5 +1,7 @@
 // PostToolUse-hook for Edit og Write: formaterer filen Claude Code endret med prosjektets Prettier,
 // og kjører deretter ESLint på den. Lintfeil meldes tilbake til agenten som tilleggskontekst.
+// En fil i en nestet worktree under .claude/worktrees/<navn>/ kontrolleres fra den worktreens rot,
+// fordi hovedmappens .gitignore utelater .claude/worktrees/, og Prettier da ville hoppet over filen.
 // Stopper aldri en redigering. Mangler Prettier eller ESLint, eller feiler et av dem, er hooken stille; CI fanger det.
 import {spawnSync} from 'node:child_process';
 import {existsSync} from 'node:fs';
@@ -16,18 +18,21 @@ try {
   for await (const chunk of process.stdin) input += chunk;
   const file = JSON.parse(input)?.tool_input?.file_path;
   const path = typeof file === 'string' ? resolve(root, file) : '';
-  const inside = path && relative(root, path);
+  const fromRoot = path && relative(root, path);
+  const nested = fromRoot ? /^\.claude[\\/]worktrees[\\/][^\\/]+(?=[\\/])/.exec(fromRoot) : null;
+  const base = nested ? join(root, nested[0]) : root;
+  const inside = path && relative(base, path);
   if (inside && !inside.startsWith('..') && !isAbsolute(inside)) {
     if (existsSync(prettier)) {
       spawnSync(process.execPath, [prettier, '--write', '--ignore-unknown', '--log-level', 'silent', inside], {
-        cwd: root,
+        cwd: base,
         stdio: 'ignore',
         timeout: 20_000,
       });
     }
     if (linted.test(inside) && existsSync(eslint)) {
       const result = spawnSync(process.execPath, [eslint, '--no-warn-ignored', '--no-color', inside], {
-        cwd: root,
+        cwd: base,
         encoding: 'utf8',
         timeout: 20_000,
       });
