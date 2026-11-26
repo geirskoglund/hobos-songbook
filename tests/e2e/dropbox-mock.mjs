@@ -538,6 +538,9 @@ export async function dropboxMock(context, {connected = true, pageSize = 2000, b
     fault(endpoint, status, skip = 0, {repeat = 1, retryAfter = 0, reason = 'too_many_write_operations', path} = {}) {
       fault = {endpoint, status, skip, remaining: repeat, retryAfter, reason, path};
     },
+    clearFault() {
+      fault = null;
+    },
     hold(endpoint, all = false, path) {
       let release;
       const resolve = new Promise(r => (release = r)),
