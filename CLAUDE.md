@@ -35,7 +35,7 @@ Produksjon: https://geirskoglund.github.io/hobos-songbook/app/ · Test: https://
 ## Publisering
 
 - `/app/` bygges alltid fra `master`. `/test/` viser en valgt PR eller master.
-- Funksjons- og UI-PR-er publiseres på testadressen før brukertest: `gh workflow run pages.yml --ref master -f preview=<PR-nummer>`. Tilbake til `master`: `-f preview=master`. Publisert commit står under `preview` i `https://geirskoglund.github.io/hobos-songbook/deployment.json`.
+- Funksjons- og UI-PR-er publiseres på testadressen før brukertest, se `docs/TESTING.md`.
 - Kjør aldri PR-kode med deployrettigheter. Slett aldri brukerdata ved publisering.
 
 ## Dokumentasjon

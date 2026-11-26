@@ -44,9 +44,9 @@ Når alle underissuene er lukket:
 1. Har `master` nye commits, fletter en utfører `master` inn i mellomgrenen via PR.
 2. Samle-PR mot `master` med `Closes #<hovedissue>` og et sammendrag.
 3. Ny kontroll av hele diffen. Funn rettes av en utfører i en PR mot mellomgrenen, med kontroll og merge som for underissuer. Oppdraget peker på hovedissuen og samle-PR-en.
-4. Publiser samle-PR-en på testadressen slik CLAUDE.md angir. Publiseringen er bekreftet når publisert commit er PR-ens hode. Den kan vise gammel commit i inntil ti minutter; det er ikke rød CI.
+4. Samle-PR-en på testadressen: Publiser og bekreft slik `docs/TESTING.md` beskriver.
 5. Oppsummer til produktansvarlig: hva som er gjort, merknadene, og hva hen bør vite før merge.
-6. Etter beskjed om merge: vanlig merge, sett testadressen til `master`, slett mellomgrenen og rydd gjenværende worktrees og grener.
+6. Etter beskjed om merge: vanlig merge, slett mellomgrenen og rydd gjenværende worktrees og grener.
 
 ## Forsøk
 

@@ -33,7 +33,7 @@ Fra en supervisor får du «Supervisor: ja. Målgren: X.», og ved retting «PR 
 
 1. Når CI er grønn etter en push: start kontrolløren med Agent, `model: "fable"`, `isolation: "worktree"` og oppdraget «Last skillen `kontroll`. Issue #N. PR #M.» Ny kontrollør hver runde.
 2. Legg svaret som PR-kommentar med runde og commit. Rydd kontrollørens worktree.
-3. Funksjons- og UI-PR-er publiseres på testadressen slik CLAUDE.md angir. Publiseringen er bekreftet når publisert commit er PR-ens hode. Den kan vise gammel commit i inntil ti minutter; det er ikke rød CI.
+3. Funksjons- og UI-PR-er: Publiser og bekreft slik `docs/TESTING.md` beskriver.
 4. Merge aldri. Meld ferdig til produktansvarlig: PR, antall runder, merknader og hva som må prøves.
 
 ## Startet av en supervisor
