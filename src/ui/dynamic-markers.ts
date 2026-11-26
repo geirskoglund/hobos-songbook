@@ -34,7 +34,7 @@ export function attachDynamicMarkers(root: HTMLElement) {
   for (const anchor of anchors) resize.observe(anchor);
   window.addEventListener('resize', schedule);
   document.fonts.addEventListener('loadingdone', schedule);
-  document.fonts.ready.then(schedule);
+  void document.fonts.ready.then(schedule); // fonts.ready avvises aldri.
   schedule();
   return () => {
     disposed = true;

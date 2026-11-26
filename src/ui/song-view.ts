@@ -126,7 +126,7 @@ export function renderSongView(article: HTMLElement, options: SongViewOptions) {
       };
       button.setAttribute('aria-controls', text.id);
       reflect();
-      button.addEventListener('click', async () => {
+      const toggle = async () => {
         button.disabled = true;
         try {
           await options.saveChorus(block.occurrence, !expanded);
@@ -139,7 +139,9 @@ export function renderSongView(article: HTMLElement, options: SongViewOptions) {
         } finally {
           button.disabled = false;
         }
-      });
+      };
+      // toggle() viser selv feilen, og lytteren har ingen som venter.
+      button.addEventListener('click', () => void toggle());
       if (editing) heading.textContent = 'Refreng';
       else heading.append(button);
       section.append(heading, text);

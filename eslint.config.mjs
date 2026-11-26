@@ -76,6 +76,17 @@ export default defineConfig(
     languageOptions: {globals: globals.browser},
   },
   {
+    // Typebaserte regler for src/, valgt enkeltvis i stedet for hele recommendedTypeChecked.
+    files: ['src/**/*.ts'],
+    languageOptions: {parserOptions: {projectService: true}},
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      // Dropbox-unioner har alltid et default-tilfelle, og det regnes som dekkende.
+      '@typescript-eslint/switch-exhaustiveness-check': ['error', {considerDefaultExhaustiveForUnions: true}],
+    },
+  },
+  {
     files: ['**/*.mjs'],
     languageOptions: {globals: globals.node},
   },
