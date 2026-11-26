@@ -2,7 +2,7 @@ import {isChord} from './chordpro.ts';
 import {withOriginal} from './original.ts';
 import {shiftChord, shiftGridText} from './personal.ts';
 import type {Song} from './song.ts';
-export interface SourceLine {
+interface SourceLine {
   index: number;
   start: number;
   end: number;
@@ -15,7 +15,7 @@ export interface SourceLine {
     end: number;
   };
 }
-export interface SourceEdit {
+interface SourceEdit {
   start: number;
   end: number;
   text: string;
@@ -235,7 +235,7 @@ export function setDirective(song: Song, lineIndex: number, value: string): Song
     },
   ]);
 }
-export interface SourceBlock {
+interface SourceBlock {
   start: SourceLine;
   end?: SourceLine;
 }

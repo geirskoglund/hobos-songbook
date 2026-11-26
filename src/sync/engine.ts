@@ -70,7 +70,7 @@ function fromRemote(link: SongLink, text: string): Song {
 function project(personal: SongPersonal, source: Song, target: Song) {
   return personalData(source.original === target.original ? personal : reconcilePersonal(source, target, personal));
 }
-export interface SyncHooks {
+interface SyncHooks {
   valid(): boolean;
   changed(): void;
   failed?(error: unknown): void;

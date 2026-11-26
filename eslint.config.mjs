@@ -6,10 +6,12 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  {ignores: ['dist/', 'site/', 'builds/', 'work/', 'test-results/', 'playwright-report/']},
+  // .ci-infra/ er CI-ens kopi av master-skriptene.
+  {ignores: ['dist/', 'site/', 'builds/', 'work/', 'test-results/', 'playwright-report/', '.ci-infra/']},
   js.configs.recommended,
   tseslint.configs.recommended,
   {
+    languageOptions: {parserOptions: {tsconfigRootDir: import.meta.dirname}},
     rules: {
       // `const {done, ...rest} = value` er måten koden utelater et felt på.
       '@typescript-eslint/no-unused-vars': ['error', {ignoreRestSiblings: true}],

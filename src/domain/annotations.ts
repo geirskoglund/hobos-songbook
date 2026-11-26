@@ -19,7 +19,7 @@ export interface PersonalNote {
   line: number;
   text: string;
 }
-export interface LogicalLine {
+interface LogicalLine {
   occurrence: string;
   sourceLine: number;
   text: string;

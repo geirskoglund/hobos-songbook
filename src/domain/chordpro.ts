@@ -1,5 +1,5 @@
 import {parseGridRow, gridOptions, type GridRow, type GridOptions} from './grid.ts';
-export interface Segment {
+interface Segment {
   chord?: string;
   text: string;
 }

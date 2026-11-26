@@ -1,5 +1,5 @@
 import type {Song} from './song.ts';
-export interface ImportCandidate {
+interface ImportCandidate {
   filename: string;
 }
 export const sameImportFilename = (a: string, b: string) => Boolean(a) && a === b;

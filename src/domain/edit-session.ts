@@ -1,7 +1,7 @@
 import type {Song, SongPersonal} from './song.ts';
 import {personalChanges} from './personal.ts';
 import {reconcilePersonal} from './annotations.ts';
-export interface DraftSnapshot {
+interface DraftSnapshot {
   song: Song;
   personal: SongPersonal;
 }

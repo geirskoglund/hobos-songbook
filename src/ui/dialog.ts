@@ -1,7 +1,7 @@
 import {placeOverlay} from './layout.ts';
 import {dialogFrame, dialogFooter, controlHeading} from './controls.ts';
 export {dialogFrame, dialogFooter};
-export interface DialogOptions {
+interface DialogOptions {
   opener?: HTMLElement;
   focus?: HTMLElement;
   place?: () => void;
