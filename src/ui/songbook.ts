@@ -223,7 +223,8 @@ export function startSongbook() {
       window.scrollTo(0, 0);
     });
   }
-  byId('back').addEventListener('click', back);
+  // Lytteren har ingen som venter; en feil i back() havner i konsollen som før.
+  byId('back').addEventListener('click', () => void back());
   showPage('library');
   nav.publicationAvailable(Boolean(cloud.account()));
   void load().then(() => cloud.start(songPage.activeId() === restoredSongId ? restoredSongId : null));

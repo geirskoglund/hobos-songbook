@@ -44,7 +44,7 @@ export function startSongImport(
     file.disabled = value;
     library.lockImport(value);
   }
-  file.addEventListener('change', async () => {
+  async function importSelected() {
     const selected = file.files?.[0];
     if (!selected || importing || !importBook) return;
     setImporting(true);
@@ -95,7 +95,9 @@ export function startSongImport(
       file.value = '';
       options.resume();
     }
-  });
+  }
+  // importSelected() viser selv feilen, og lytteren har ingen som venter.
+  file.addEventListener('change', () => void importSelected());
   return {
     choose,
     importing: () => importing,

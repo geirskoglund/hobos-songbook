@@ -111,7 +111,7 @@ export function startAppUpdates(beforeReload: (focusId: string | null) => void |
     if (!matches(workers.controller)) return;
     if (applying && workers.controller === activationTarget) {
       clearTimeout(activationTimer);
-      reload();
+      void reload(); // reload() viser selv feilen, og lytteren har ingen som venter.
     } else void inspect();
   });
   async function check(manual = false) {
@@ -180,7 +180,7 @@ export function startAppUpdates(beforeReload: (focusId: string | null) => void |
     if (!announced) return;
     reloadFocusId = document.activeElement?.id || null;
     if (reloadAvailable && workers.controller === announced) {
-      reload();
+      await reload();
       return;
     }
     if (registration?.waiting !== announced) {
@@ -196,7 +196,7 @@ export function startAppUpdates(beforeReload: (focusId: string | null) => void |
       activationTarget.postMessage({type: 'SKIP_WAITING'});
       activationTimer = setTimeout(() => {
         if (workers.controller === activationTarget) {
-          reload();
+          void reload(); // reload() viser selv feilen, og tidtakeren har ingen som venter.
           return;
         }
         applying = false;
