@@ -69,8 +69,6 @@ export default defineConfig(
       'no-empty-pattern': ['error', {allowObjectPatternsAsParameters: true}],
       // Filnavn og sangtekst renses bevisst for kontrolltegn.
       'no-control-regex': 'off',
-      // Kan slås på når tolkningen av Dropbox-svar har fått typer.
-      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   {

@@ -1,13 +1,5 @@
 import type {AppEnvironment} from '../environment.ts';
-import type {
-  FileValue,
-  RemoteFiles,
-  RemoteEntry,
-  UploadResult,
-  MoveReply,
-  ApiEvent,
-  ApiContext,
-} from '../core/sync-model.ts';
+import type {RemoteFiles, RemoteEntry, UploadResult, ApiEvent, ApiContext} from '../core/sync-model.ts';
 import {appFolder, libraryPath, mutationPath} from '../core/paths.ts';
 import {checkSize, textBytes, maxFileBytes, maxBatchAppendBytes, SkippedFile} from '../core/limits.ts';
 import {
@@ -15,12 +7,25 @@ import {
   SubmittedBatchInterruption,
   failureCodes,
   SyncFailure,
-  BatchJobFailed,
   UnsentBatch,
   NamespacePlanNeedsRefresh,
   BatchStatusUnconfirmed,
 } from '../core/failure.ts';
 import {DropboxError, dropboxRate} from './dropbox-rate.ts';
+import {
+  changeEntry,
+  displayPath,
+  errorSummary,
+  field,
+  fileValue,
+  list,
+  moveReply,
+  namespaceReply,
+  oneOf,
+  tag,
+  text,
+  tokenReply,
+} from './dropbox-reply.ts';
 export {DropboxError} from './dropbox-rate.ts';
 export const requiredScopes = ['account_info.read', 'files.metadata.read', 'files.content.read', 'files.content.write'];
 export const sharingScopes = ['sharing.read', 'sharing.write'];
@@ -152,13 +157,11 @@ export function dropboxAdapter(
     let renewedAfterRejection = false;
     async function recoverAuthentication(response: Response, guard: () => Promise<void>) {
       if (!grant || !rejectedToken) return false;
-      const problem = await response
+      const problem: unknown = await response
         .clone()
         .json()
         .catch(() => null);
-      const reason =
-        problem?.error?.['.tag'] ??
-        (typeof problem?.error_summary === 'string' ? problem.error_summary.split('/')[0] : undefined);
+      const reason = tag(problem, 'error') ?? errorSummary(problem)?.split('/')[0];
       if (reason !== 'invalid_access_token' && (reason !== 'expired_access_token' || renewedAfterRejection))
         return false;
       try {
@@ -193,9 +196,9 @@ export function dropboxAdapter(
           )
         )
           try {
-            const body = JSON.parse(init.body),
-              count = body.entries?.length ?? body.paths?.length ?? body.num_sessions;
-            if (Number.isInteger(count)) details = {...details, batchSize: count};
+            const body: unknown = JSON.parse(init.body),
+              count = field(body, 'entries', 'length') ?? field(body, 'paths', 'length') ?? field(body, 'num_sessions');
+            if (typeof count === 'number' && Number.isInteger(count)) details = {...details, batchSize: count};
           } catch {
             /* Never include request contents in diagnostics. */
           }
@@ -252,9 +255,10 @@ export function dropboxAdapter(
       },
     );
   }
-  async function json(response: Response, stage = 'dropbox.request') {
+  async function json(response: Response, stage = 'dropbox.request'): Promise<unknown> {
     try {
-      return await response.json();
+      const value: unknown = await response.json();
+      return value;
     } catch (cause) {
       throw new SyncFailure(
         {
@@ -308,8 +312,8 @@ export function dropboxAdapter(
       {releaseFence},
     );
     if (!response.ok) {
-      const problem = await response.json().catch(() => null);
-      if ((response.status === 400 || response.status === 401) && problem?.error === 'invalid_grant') {
+      const problem: unknown = await response.json().catch(() => null);
+      if ((response.status === 400 || response.status === 401) && field(problem, 'error') === 'invalid_grant') {
         if (refresh && ticket === invalidated && credentials()?.refreshToken === refresh)
           loseAccess('dropbox.token', response.status);
         throw new SyncFailure(
@@ -319,16 +323,7 @@ export function dropboxAdapter(
       }
       throw new DropboxError(response.status, 'token', 'dropbox.token');
     }
-    const value = await json(response, 'dropbox.token');
-    if (
-      typeof value?.access_token !== 'string' ||
-      !value.access_token ||
-      typeof value.expires_in !== 'number' ||
-      !Number.isFinite(value.expires_in) ||
-      value.expires_in < 0
-    )
-      throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.token'}, 'Ugyldig tokenrespons.');
-    return value;
+    return tokenReply(await json(response, 'dropbox.token'));
   }
   async function access(onRenew?: () => void, releaseFence = false, rejected?: RejectedToken) {
     return navigator.locks.request(`${env.namespace}:dropbox-token`, async () => {
@@ -349,8 +344,8 @@ export function dropboxAdapter(
       value = credentials();
       if (epoch !== invalidated || value?.refreshToken !== previous)
         throw new DeferredSync('connection', 'Dropbox-tilkoblingen er endret.');
-      value.accessToken = next.access_token;
-      value.expires = Date.now() + next.expires_in * 1000;
+      value.accessToken = next.accessToken;
+      value.expires = Date.now() + next.expiresIn * 1000;
       localStorage.setItem(authKey, JSON.stringify(value));
       return value.accessToken;
     });
@@ -436,20 +431,18 @@ export function dropboxAdapter(
           code_verifier: pending.verifier,
         }),
       );
-      const scopes = String(value.scope ?? '')
-        .split(/\s+/)
-        .filter(Boolean);
+      const scopes = value.scopes;
       if (sharing && ![...requiredScopes, ...sharingScopes].every(scope => scopes.includes(scope))) {
         return {bookId: sharing.bookId, authorized: false};
       }
-      if (!value.refresh_token || !requiredScopes.every(scope => scopes.includes(scope)))
+      if (!value.refreshToken || !requiredScopes.every(scope => scopes.includes(scope)))
         throw new SyncFailure(
           {code: failureCodes.permission, stage: 'dropbox.oauth'},
           'Dropbox mangler nødvendig fornybar tilgang eller nødvendige scopes.',
         );
       const response = await send('users/get_current_account', {
         method: 'POST',
-        headers: {Authorization: `Bearer ${value.access_token}`},
+        headers: {Authorization: `Bearer ${value.accessToken}`},
         cache: 'no-store',
         credentials: 'omit',
         referrerPolicy: 'no-referrer',
@@ -457,29 +450,32 @@ export function dropboxAdapter(
       if (!response.ok) throw new DropboxError(response.status, 'account', 'dropbox.account');
       const user = await json(response, 'dropbox.account');
       if (epoch !== invalidated) throw new DeferredSync('connection', 'Dropbox-tilkoblingen er endret.');
+      const accountId = field(user, 'account_id'),
+        name = field(user, 'name', 'display_name'),
+        email = field(user, 'email');
       if (
-        typeof user?.account_id !== 'string' ||
-        user.account_id !== value.account_id ||
-        typeof user.name?.display_name !== 'string' ||
-        typeof user.email !== 'string'
+        typeof accountId !== 'string' ||
+        accountId !== value.accountId ||
+        typeof name !== 'string' ||
+        typeof email !== 'string'
       )
         throw new SyncFailure(
           {code: failureCodes.oauthResponse, stage: 'dropbox.account'},
           'Dropbox returnerte ugyldig kontorespons.',
         );
-      if (sharing && (user.account_id !== sharing.accountId || account()?.id !== sharing.accountId)) {
+      if (sharing && (accountId !== sharing.accountId || account()?.id !== sharing.accountId)) {
         return {bookId: sharing.bookId, authorized: false};
       }
       localStorage.setItem(
         authKey,
         JSON.stringify({
           version: 1,
-          accountId: user.account_id,
-          name: user.name.display_name,
-          email: user.email,
-          accessToken: value.access_token,
-          refreshToken: value.refresh_token,
-          expires: Date.now() + value.expires_in * 1000,
+          accountId,
+          name,
+          email,
+          accessToken: value.accessToken,
+          refreshToken: value.refreshToken,
+          expires: Date.now() + value.expiresIn * 1000,
           scopes,
         } satisfies Credentials),
       );
@@ -522,11 +518,12 @@ export function dropboxAdapter(
           if (renewed || rate.waitCount() !== waits) throw new NamespacePlanNeedsRefresh();
         }
       : options.beforeSend;
-    const locked = (failure: any): boolean =>
-      failure?.['.tag'] === 'too_many_write_operations' ||
-      ['path', 'path_write', 'from_write', 'to', 'relocation_error', 'failed'].some(
-        key => failure?.[key] && locked(failure[key]),
-      );
+    const locked = (failure: unknown): boolean =>
+      tag(failure) === 'too_many_write_operations' ||
+      ['path', 'path_write', 'from_write', 'to', 'relocation_error', 'failed'].some(key => {
+        const inner = field(failure, key);
+        return Boolean(inner) && locked(inner);
+      });
     const response = await send(
       path,
       {
@@ -540,13 +537,13 @@ export function dropboxAdapter(
       batch
         ? async reply => {
             if (reply.status === 200) {
-              const value = await reply
+              const value: unknown = await reply
                 .clone()
                 .json()
                 .catch(() => null);
               if (
-                (Array.isArray(value?.entries) && value.entries.some((entry: any) => locked(entry?.failure))) ||
-                (value?.['.tag'] === 'failed' && locked(value.failed))
+                list(field(value, 'entries'))?.some(entry => locked(field(entry, 'failure'))) ||
+                (tag(value) === 'failed' && locked(field(value, 'failed')))
               )
                 Object.defineProperty(reply, 'entryRateAttempt', {value: entryAttempt});
             }
@@ -568,11 +565,11 @@ export function dropboxAdapter(
         throw error;
       }
     if (!response.ok) {
-      const problem = await response.json().catch(() => ({}));
-      const summary = typeof problem?.error_summary === 'string' ? problem.error_summary : 'request';
-      const tag = problem?.error?.['.tag'];
+      const problem: unknown = await response.json().catch(() => ({}));
+      const summary = errorSummary(problem) ?? 'request';
+      const reason = tag(problem, 'error');
       if (statusStage && response.status === 409) {
-        const pollError = tag ?? summary.split('/')[0];
+        const pollError = reason ?? summary.split('/')[0];
         if (pollError === 'invalid_async_job_id') throw new DropboxError(409, pollError, statusStage);
         if (pollError === 'internal_error') {
           const action =
@@ -587,10 +584,7 @@ export function dropboxAdapter(
           );
         }
       }
-      if (
-        path.startsWith('sharing/') &&
-        (problem?.error?.['.tag'] === 'missing_scope' || /^missing_scope(?:\/|$)/.test(summary))
-      ) {
+      if (path.startsWith('sharing/') && (reason === 'missing_scope' || /^missing_scope(?:\/|$)/.test(summary))) {
         const current = credentials();
         if (current?.scopes)
           localStorage.setItem(
@@ -616,165 +610,6 @@ export function dropboxAdapter(
       throw error;
     }
   }
-  const displayPath = (data: any, fallback?: string): string | undefined =>
-    data?.path_display ??
-    (typeof data?.path_lower === 'string'
-      ? typeof data.name === 'string'
-        ? data.path_lower.slice(0, data.path_lower.lastIndexOf('/') + 1) + data.name
-        : data.path_lower
-      : fallback);
-  const fileValue = (data: any, text: string, requestedPath: string): FileValue => {
-    // Metadata.path_display is optional. A literal/revision lookup or strict upload
-    // already identifies its path; an ID lookup needs the returned location.
-    const path = displayPath(data, /^(\/|rev:)/.test(requestedPath) ? requestedPath : undefined);
-    if (
-      !data ||
-      typeof data.id !== 'string' ||
-      !data.id ||
-      typeof data.rev !== 'string' ||
-      !data.rev ||
-      typeof path !== 'string'
-    )
-      throw new SyncFailure(
-        {code: failureCodes.response, stage: 'dropbox.file-metadata'},
-        'Dropbox returnerte ugyldig filmetadata.',
-      );
-    return {text, id: data.id, rev: data.rev, path};
-  };
-  function moveReply(value: any, launch: boolean): MoveReply {
-    if (launch && value?.['.tag'] === 'async_job_id' && typeof value.async_job_id === 'string' && value.async_job_id)
-      return {asyncJobId: value.async_job_id};
-    if (!launch && value?.['.tag'] === 'in_progress') return {inProgress: true};
-    if (value?.['.tag'] !== 'complete' || !Array.isArray(value.entries))
-      throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.move-batch'}, 'Ugyldig flytterespons.');
-    return {
-      entries: value.entries.map((entry: any) => {
-        if (entry?.['.tag'] === 'success') {
-          const meta = entry.success,
-            path = displayPath(meta);
-          if (
-            !['file', 'folder'].includes(meta?.['.tag']) ||
-            typeof meta.id !== 'string' ||
-            !meta.id ||
-            (meta['.tag'] === 'file' && (typeof meta.rev !== 'string' || !meta.rev)) ||
-            (path !== undefined && typeof path !== 'string')
-          )
-            throw new SyncFailure(
-              {code: failureCodes.response, stage: 'dropbox.move-batch'},
-              'Ugyldig flyttekvittering.',
-            );
-          return {
-            value: {
-              id: meta.id,
-              path: path ?? '',
-              ...(meta.rev ? {rev: meta.rev} : {}),
-              ...(meta['.tag'] === 'folder' ? {folder: true} : {}),
-            },
-          };
-        }
-        if (entry?.['.tag'] !== 'failure' || typeof entry.failure?.['.tag'] !== 'string')
-          throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.move-batch'}, 'Ugyldig flyttefeil.');
-        const problem = entry.failure,
-          relocation = problem['.tag'] === 'relocation_error' ? problem.relocation_error : null;
-        const collision = relocation?.['.tag'] === 'to' && relocation.to?.['.tag'] === 'conflict';
-        const missing = relocation?.['.tag'] === 'from_lookup' && relocation.from_lookup?.['.tag'] === 'not_found';
-        const throttled =
-          problem['.tag'] === 'too_many_write_operations' ||
-          (relocation?.['.tag'] === 'to' && relocation.to?.['.tag'] === 'too_many_write_operations') ||
-          (relocation?.['.tag'] === 'from_write' && relocation.from_write?.['.tag'] === 'too_many_write_operations');
-        const verifyEffect = problem['.tag'] === 'internal_error' || relocation?.['.tag'] === 'internal_error';
-        return {
-          failure: {
-            code: collision
-              ? failureCodes.changed
-              : missing
-                ? failureCodes.missingFile
-                : throttled
-                  ? failureCodes.throttled
-                  : failureCodes.request,
-            stage: 'dropbox.move-batch',
-            status: 200,
-            ...(throttled ? {limitReason: 'too_many_write_operations' as const, retryAfterMs: 0} : {}),
-          },
-          ...(collision ? {collision: true} : {}),
-          ...(missing ? {missing: true} : {}),
-          ...(verifyEffect ? {verifyEffect: true} : {}),
-        };
-      }),
-    };
-  }
-  function namespaceReply(value: any, kind: 'delete' | 'folders'): MoveReply {
-    const stage = `dropbox.${kind}-batch`;
-    if (value?.['.tag'] === 'async_job_id' && typeof value.async_job_id === 'string' && value.async_job_id)
-      return {asyncJobId: value.async_job_id};
-    if (value?.['.tag'] === 'in_progress') return {inProgress: true};
-    if (value?.['.tag'] === 'failed') {
-      const throttled = value.failed?.['.tag'] === 'too_many_write_operations';
-      throw new BatchJobFailed(
-        {
-          code: throttled ? failureCodes.throttled : failureCodes.request,
-          stage,
-          status: 200,
-          ...(throttled ? {limitReason: 'too_many_write_operations' as const, retryAfterMs: 0} : {}),
-        },
-        'Dropbox-jobben feilet.',
-      );
-    }
-    if (value?.['.tag'] !== 'complete' || !Array.isArray(value.entries))
-      throw new SyncFailure({code: failureCodes.response, stage}, 'Ugyldig batchrespons.');
-    return {
-      entries: value.entries.map((entry: any) => {
-        if (entry?.['.tag'] === 'success') {
-          const meta = entry.metadata,
-            path = displayPath(meta);
-          if (
-            typeof meta?.id !== 'string' ||
-            !meta.id ||
-            (path !== undefined && typeof path !== 'string') ||
-            (kind === 'folders' && meta['.tag'] !== undefined && meta['.tag'] !== 'folder') ||
-            (kind === 'delete' && !['file', 'folder'].includes(meta['.tag']))
-          )
-            throw new SyncFailure({code: failureCodes.response, stage}, 'Ugyldig batchkvittering.');
-          return {
-            value: {
-              id: meta.id,
-              path: path ?? '',
-              ...(meta.rev ? {rev: meta.rev} : {}),
-              ...(kind === 'folders' || meta['.tag'] === 'folder' ? {folder: true} : {}),
-            },
-          };
-        }
-        const failure = entry?.failure,
-          tag = failure?.['.tag'];
-        if (entry?.['.tag'] !== 'failure' || typeof tag !== 'string')
-          throw new SyncFailure({code: failureCodes.response, stage}, 'Ugyldig batchfeil.');
-        const missing = tag === 'path_lookup' && failure.path_lookup?.['.tag'] === 'not_found';
-        const collision =
-          (tag === 'path' && failure.path?.['.tag'] === 'conflict') ||
-          (tag === 'path_write' && failure.path_write?.['.tag'] === 'conflict');
-        const throttled =
-          tag === 'too_many_write_operations' ||
-          (tag === 'path_write' && failure.path_write?.['.tag'] === 'too_many_write_operations') ||
-          (tag === 'path' && failure.path?.['.tag'] === 'too_many_write_operations');
-        return {
-          failure: {
-            code: missing
-              ? failureCodes.missingFile
-              : collision
-                ? failureCodes.changed
-                : throttled
-                  ? failureCodes.throttled
-                  : failureCodes.request,
-            stage,
-            status: 200,
-            ...(throttled ? {limitReason: 'too_many_write_operations' as const, retryAfterMs: 0} : {}),
-          },
-          ...(missing ? {missing: true} : {}),
-          ...(collision ? {collision: true} : {}),
-        };
-      }),
-    };
-  }
   async function namespaceCheck(route: string, id: string, kind: 'delete' | 'folders', attempt = 0) {
     try {
       return namespaceReply(await rpc(route, {async_job_id: id}, attempt), kind);
@@ -791,28 +626,33 @@ export function dropboxAdapter(
         {code: failureCodes.permission, stage: 'dropbox.sharing-policy'},
         'Dropbox-kontoen tillater ikke en leselenke til sangbokens delingsmappe.',
       );
-    function viewerUrl(link: any): string | null | undefined {
-      if (link?.['.tag'] !== 'folder' || (link.id && link.id !== folder.id)) return;
-      if (typeof link.path_lower === 'string' && !samePath(link.path_lower, folder.path)) {
-        if (link.id === folder.id)
+    function viewerUrl(link: unknown): string | null | undefined {
+      const id = field(link, 'id'),
+        lower = field(link, 'path_lower'),
+        expires = field(link, 'expires'),
+        href = field(link, 'url');
+      if (tag(link) !== 'folder' || (id && id !== folder.id)) return;
+      if (typeof lower === 'string' && !samePath(lower, folder.path)) {
+        if (id === folder.id)
           throw new SyncFailure(
             {code: failureCodes.changed, stage: 'dropbox.sharing-target'},
             'Sangbokens delingsmappe har flyttet seg. Kontroller sangboken og prøv igjen.',
           );
         return;
       }
-      if (!link.id && typeof link.path_lower !== 'string') return;
-      const permissions = link.link_permissions;
-      const audience = permissions?.effective_audience?.['.tag'] ?? permissions?.resolved_visibility?.['.tag'];
-      const access = permissions?.link_access_level?.['.tag'];
+      if (!id && typeof lower !== 'string') return;
+      const permissions = field(link, 'link_permissions');
+      const audience =
+        field(permissions, 'effective_audience', '.tag') ?? field(permissions, 'resolved_visibility', '.tag');
+      const access = field(permissions, 'link_access_level', '.tag');
       // The documented legacy folder-link response uses resolved_visibility in place
       // of effective_audience. Its public folder links grant read access.
       const legacyViewer =
-        permissions?.effective_audience == null &&
-        permissions?.link_access_level == null &&
-        permissions?.resolved_visibility?.['.tag'] === 'public';
+        field(permissions, 'effective_audience') == null &&
+        field(permissions, 'link_access_level') == null &&
+        field(permissions, 'resolved_visibility', '.tag') === 'public';
       if (
-        [
+        oneOf(audience, [
           'team',
           'team_only',
           'public_logged_in_only',
@@ -821,27 +661,27 @@ export function dropboxAdapter(
           'team_and_password',
           'members',
           'shared_folder_only',
-        ].includes(audience) ||
-        permissions?.require_password === true ||
+        ]) ||
+        field(permissions, 'require_password') === true ||
         access === 'editor'
       )
         return null;
       if (
         audience !== 'public' ||
         (access !== 'viewer' && !legacyViewer) ||
-        (link.expires && !(Date.parse(link.expires) > Date.now())) ||
-        typeof link.url !== 'string'
+        (expires && !(Date.parse(String(expires)) > Date.now())) ||
+        typeof href !== 'string'
       )
         return;
       try {
-        const url = new URL(link.url);
+        const url = new URL(href);
         if (
           url.protocol === 'https:' &&
           ['www.dropbox.com', 'dropbox.com'].includes(url.hostname) &&
           !url.username &&
           !url.password
         )
-          return link.url;
+          return href;
       } catch {
         /* An invalid URL cannot be copied as a Dropbox link. */
       }
@@ -850,13 +690,16 @@ export function dropboxAdapter(
       let args: {path: string; direct_only: true} | {cursor: string} = {path: folder.id, direct_only: true};
       const cursors = new Set<string>();
       for (;;) {
-        const page = await rpc('sharing/list_shared_links', args);
-        if (!Array.isArray(page?.links) || typeof page.has_more !== 'boolean') break;
-        const url = (page.links as unknown[]).map(viewerUrl).find(candidate => typeof candidate === 'string');
-        if (url || !page.has_more) return url;
-        if (typeof page.cursor !== 'string' || !page.cursor || cursors.has(page.cursor)) break;
-        cursors.add(page.cursor);
-        args = {cursor: page.cursor};
+        const page = await rpc('sharing/list_shared_links', args),
+          links = list(field(page, 'links')),
+          more = field(page, 'has_more'),
+          cursor = text(field(page, 'cursor'));
+        if (!links || typeof more !== 'boolean') break;
+        const url = links.map(viewerUrl).find(candidate => typeof candidate === 'string');
+        if (url || !more) return url;
+        if (!cursor || cursors.has(cursor)) break;
+        cursors.add(cursor);
+        args = {cursor};
       }
       throw new SyncFailure(
         {code: failureCodes.response, stage: 'dropbox.sharing'},
@@ -929,8 +772,8 @@ export function dropboxAdapter(
     );
     await beforeRequest();
     if (!response.ok) {
-      const value = await response.json().catch(() => ({}));
-      throw new DropboxError(response.status, value.error_summary ?? 'upload');
+      const value: unknown = await response.json().catch(() => ({}));
+      throw new DropboxError(response.status, errorSummary(value) ?? 'upload');
     }
     return fileValue(await json(response, 'dropbox.upload'), text, path);
   }
@@ -946,16 +789,20 @@ export function dropboxAdapter(
     async metadata(path) {
       const value = await metadata(path);
       if (!value) return null;
-      const actual = displayPath(value, path.startsWith('/') ? path : undefined);
+      const actual = displayPath(value, path.startsWith('/') ? path : undefined),
+        id = field(value, 'id'),
+        kind = tag(value),
+        rev = field(value, 'rev');
       if (
-        typeof value.id !== 'string' ||
-        !value.id ||
+        typeof id !== 'string' ||
+        !id ||
+        typeof actual !== 'string' ||
         !actual ||
-        !['file', 'folder'].includes(value['.tag']) ||
-        (value['.tag'] === 'file' && (typeof value.rev !== 'string' || !value.rev))
+        (kind !== 'file' && kind !== 'folder') ||
+        (kind === 'file' && (typeof rev !== 'string' || !rev))
       )
         throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.file-metadata'}, 'Ugyldig metadata.');
-      return {id: value.id, path: actual, folder: value['.tag'] === 'folder', ...(value.rev ? {rev: value.rev} : {})};
+      return {id, path: actual, folder: kind === 'folder', ...(typeof rev === 'string' && rev ? {rev} : {})};
     },
     async deleteBatch(entries, attempt = 0, options) {
       if (
@@ -1049,7 +896,7 @@ export function dropboxAdapter(
     },
     async changes(cursor) {
       let reset = !cursor,
-        page: any;
+        page: unknown;
       try {
         page = await rpc(
           cursor ? 'files/list_folder/continue' : 'files/list_folder',
@@ -1068,42 +915,14 @@ export function dropboxAdapter(
       }
       const entries: RemoteEntry[] = [];
       for (;;) {
-        if (
-          !Array.isArray(page?.entries) ||
-          typeof page.has_more !== 'boolean' ||
-          typeof page.cursor !== 'string' ||
-          !page.cursor
-        )
+        const listed = list(field(page, 'entries')),
+          more = field(page, 'has_more'),
+          next = field(page, 'cursor');
+        if (!listed || typeof more !== 'boolean' || typeof next !== 'string' || !next)
           throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.list'}, 'Ugyldig endringsoversikt.');
-        for (const entry of page.entries) {
-          const path = displayPath(entry),
-            tag = entry?.['.tag'];
-          if (
-            typeof path !== 'string' ||
-            !path.startsWith('/') ||
-            !['file', 'folder', 'deleted'].includes(tag) ||
-            (tag !== 'deleted' && (typeof entry.id !== 'string' || !entry.id)) ||
-            (tag === 'file' && (typeof entry.rev !== 'string' || !entry.rev))
-          )
-            throw new SyncFailure(
-              {code: failureCodes.response, stage: 'dropbox.list'},
-              'Ugyldig oppføring i endringsoversikten.',
-            );
-          if (tag === 'file' && entry.size !== undefined && (!Number.isSafeInteger(entry.size) || entry.size < 0))
-            throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.list'}, 'Ugyldig filstørrelse.');
-          entries.push(
-            tag === 'deleted'
-              ? {path, deleted: true}
-              : {
-                  id: entry.id,
-                  path,
-                  folder: tag === 'folder',
-                  ...(tag === 'file' ? {rev: entry.rev, ...(entry.size !== undefined ? {size: entry.size} : {})} : {}),
-                },
-          );
-        }
-        if (!page.has_more) return {entries, cursor: page.cursor, reset};
-        page = await rpc('files/list_folder/continue', {cursor: page.cursor});
+        for (const entry of listed) entries.push(changeEntry(entry));
+        if (!more) return {entries, cursor: next, reset};
+        page = await rpc('files/list_folder/continue', {cursor: next});
       }
     },
     async read(path, knownPath) {
@@ -1124,12 +943,12 @@ export function dropboxAdapter(
       );
       await beforeRequest();
       if (!response.ok) {
-        const value = await response.json().catch(() => ({}));
-        const error = new DropboxError(response.status, value.error_summary ?? 'download');
+        const value: unknown = await response.json().catch(() => ({}));
+        const error = new DropboxError(response.status, errorSummary(value) ?? 'download');
         if (missing(error)) return null;
         throw error;
       }
-      let meta;
+      let meta: unknown;
       try {
         meta = JSON.parse(response.headers.get('Dropbox-API-Result') ?? 'null');
       } catch (cause) {
@@ -1139,7 +958,8 @@ export function dropboxAdapter(
           cause,
         );
       }
-      if (meta?.size > maxFileBytes) {
+      const reported = field(meta, 'size');
+      if (typeof reported === 'number' && reported > maxFileBytes) {
         await response.body?.cancel();
         throw new SkippedFile();
       }
@@ -1197,10 +1017,10 @@ export function dropboxAdapter(
       if (!response.ok) {
         throw new DropboxError(response.status, 'session', 'dropbox.upload');
       }
-      const value = await json(response, 'dropbox.upload');
-      if (typeof value?.session_id !== 'string' || !value.session_id)
+      const id = field(await json(response, 'dropbox.upload'), 'session_id');
+      if (typeof id !== 'string' || !id)
         throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.upload'}, 'Ugyldig opplastingsøkt.');
-      return {id: value.session_id, created: Date.now()};
+      return {id, created: Date.now()};
     },
     async beginUploadBatch(texts) {
       const stage = 'dropbox.upload';
@@ -1216,11 +1036,11 @@ export function dropboxAdapter(
       if (byteLength > maxBatchAppendBytes)
         throw new SyncFailure({code: failureCodes.response, stage}, 'Opplastingsgruppen overskrider Dropbox-grensen.');
       const started = await rpc('files/upload_session/start_batch', {num_sessions: contents.length});
-      const ids: string[] = started?.session_ids;
+      const ids = list(field(started, 'session_ids'));
       if (
-        !Array.isArray(ids) ||
+        !ids ||
         ids.length !== contents.length ||
-        ids.some(id => typeof id !== 'string' || !id) ||
+        !ids.every((id): id is string => typeof id === 'string' && Boolean(id)) ||
         new Set(ids).size !== ids.length
       ) {
         throw new SyncFailure({code: failureCodes.response, stage}, 'Ugyldig svar for opplastingsøktene.');
@@ -1257,12 +1077,12 @@ export function dropboxAdapter(
       if (!response.ok) {
         throw new DropboxError(response.status, 'append-batch', stage);
       }
-      const value = await json(response, stage);
-      if (!Array.isArray(value?.entries) || value.entries.length !== ids.length)
+      const appended = list(field(await json(response, stage), 'entries'));
+      if (!appended || appended.length !== ids.length)
         throw new SyncFailure({code: failureCodes.response, stage}, 'Ufullstendig svar for opplastingsgruppen.');
-      return value.entries.map((entry: any, i: number) => {
-        if (entry?.['.tag'] === 'success') return {session: {id: ids[i], created}};
-        if (entry?.['.tag'] === 'failure' && typeof entry.failure?.['.tag'] === 'string')
+      return appended.map((entry, i) => {
+        if (tag(entry) === 'success') return {session: {id: ids[i], created}};
+        if (tag(entry) === 'failure' && tag(entry, 'failure') !== undefined)
           return {failure: {code: failureCodes.request, stage, status: 200}};
         throw new SyncFailure({code: failureCodes.response, stage}, 'Ugyldig svaroppføring for opplastingsgruppen.');
       });
@@ -1302,27 +1122,27 @@ export function dropboxAdapter(
         }),
         async reply => {
           if (!reply.ok) return reply;
-          const value = await json(reply, 'dropbox.batch');
-          if (!Array.isArray(value?.entries) || value.entries.length !== pending.length)
+          const finished = list(field(await json(reply, 'dropbox.batch'), 'entries'));
+          if (!finished || finished.length !== pending.length)
             throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.batch'}, 'Ufullstendig batchrespons.');
           const throttled: number[] = [];
           for (let n = 0; n < pending.length; n++) {
             const i = pending[n],
-              entry = value.entries[n],
-              job = jobs[i];
-            if (entry?.['.tag'] === 'success') results[i] = {value: fileValue(entry, job.text, job.path)};
-            else if (entry?.['.tag'] === 'failure' && entry.failure && typeof entry.failure['.tag'] === 'string') {
-              const tag = entry.failure['.tag'];
+              entry = finished[n],
+              job = jobs[i],
+              kind = tag(entry, 'failure');
+            if (tag(entry) === 'success') results[i] = {value: fileValue(entry, job.text, job.path)};
+            else if (tag(entry) === 'failure' && kind !== undefined) {
               if (
-                tag === 'too_many_write_operations' ||
-                (tag === 'path' && entry.failure.path?.['.tag'] === 'too_many_write_operations')
+                kind === 'too_many_write_operations' ||
+                (kind === 'path' && tag(entry, 'failure', 'path') === 'too_many_write_operations')
               ) {
                 throttled.push(i);
                 continue;
               }
               const resetSession =
-                tag === 'lookup_failed' && ['not_found', 'closed'].includes(entry.failure.lookup_failed?.['.tag']);
-              const conflict = tag === 'path' && entry.failure.path?.['.tag'] === 'conflict';
+                kind === 'lookup_failed' && oneOf(tag(entry, 'failure', 'lookup_failed'), ['not_found', 'closed']);
+              const conflict = kind === 'path' && tag(entry, 'failure', 'path') === 'conflict';
               results[i] = {
                 failure: {
                   code: conflict ? failureCodes.changed : failureCodes.request,
@@ -1351,100 +1171,110 @@ export function dropboxAdapter(
       if (!response.ok) {
         throw new DropboxError(response.status, 'batch', 'dropbox.batch');
       }
-      return (await json(response, 'dropbox.batch')).entries;
+      // A successful reply is the one the transform above built from these results.
+      return results;
     },
     async folder(path, expectedId, knownMissing) {
-      let current = knownMissing && !expectedId ? null : await metadata(expectedId ?? path);
-      if (current) current = {...current, path_display: displayPath(current, expectedId ? undefined : path)};
+      const samePath = (a: string) => a.normalize('NFC').toLowerCase() === path.normalize('NFC').toLowerCase();
+      const found = knownMissing && !expectedId ? null : await metadata(expectedId ?? path);
+      let current = found
+        ? {kind: field(found, '.tag'), id: field(found, 'id'), path: displayPath(found, expectedId ? undefined : path)}
+        : null;
       if (expectedId && !current)
         throw new SyncFailure(
           {code: failureCodes.missingFolder, stage: 'dropbox.ensure-folder'},
           'Kjent sangbokmappe mangler.',
         );
-      if (
-        expectedId &&
-        current?.['.tag'] === 'folder' &&
-        typeof current.path_display === 'string' &&
-        current.path_display.normalize('NFC').toLowerCase() !== path.normalize('NFC').toLowerCase()
-      )
+      if (expectedId && current?.kind === 'folder' && typeof current.path === 'string' && !samePath(current.path))
         throw new DeferredSync('remote', 'Dropbox har endringer som venter på manuell synk.');
       if (!current) {
         try {
           // CreateFolderResult.metadata is FolderMetadata, not the tagged Metadata union.
           // Unlike get_metadata, the successful create response normally has no .tag.
-          current = (await rpc('files/create_folder_v2', {path, autorename: false}))?.metadata;
-          if (current && current.path_display == null) current = {...current, path_display: path};
+          const created = field(await rpc('files/create_folder_v2', {path, autorename: false}), 'metadata'),
+            kind = field(created, '.tag'),
+            id = field(created, 'id'),
+            actual = field(created, 'path_display') ?? path;
           if (
-            !current ||
-            (current['.tag'] && current['.tag'] !== 'folder') ||
-            typeof current.id !== 'string' ||
-            !current.id ||
-            typeof current.path_display !== 'string' ||
-            current.path_display.normalize('NFC').toLowerCase() !== path.normalize('NFC').toLowerCase()
+            !created ||
+            (kind && kind !== 'folder') ||
+            typeof id !== 'string' ||
+            !id ||
+            typeof actual !== 'string' ||
+            !samePath(actual)
           )
             throw new SyncFailure(
               {code: failureCodes.folderResponse, stage: 'dropbox.create-folder'},
               'Dropbox returnerte ugyldig bekreftelse på mappeopprettelse.',
             );
-          return {id: current.id, path: current.path_display};
+          return {id, path: actual};
         } catch (error) {
           if (!(error instanceof DropboxError && error.status === 409 && /^path\/conflict\//.test(error.summary)))
             throw error;
-          current = await metadata(path);
-          if (!current) throw error;
+          const existing = await metadata(path);
+          if (!existing) throw error;
+          current = {kind: field(existing, '.tag'), id: field(existing, 'id'), path: field(existing, 'path_display')};
         }
       }
-      if (current?.['.tag'] !== 'folder')
+      if (current.kind !== 'folder')
         throw new SyncFailure(
           {code: failureCodes.folderOccupied, stage: 'dropbox.ensure-folder', action: 'folder-layout'},
           'Dropbox-stien er opptatt av en fil.',
         );
-      if (typeof current.id !== 'string' || !current.id || typeof current.path_display !== 'string')
+      if (typeof current.id !== 'string' || !current.id || typeof current.path !== 'string')
         throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.ensure-folder'}, 'Ugyldig mappemetadata.');
-      return {id: current.id, path: current.path_display};
+      return {id: current.id, path: current.path};
     },
     async locateFolder(id) {
-      let value = await metadata(id);
+      const value = await metadata(id);
       if (!value) return null;
-      value = {...value, path_display: displayPath(value, id.startsWith('/') ? id : undefined)};
-      if (value['.tag'] !== 'folder' || typeof value.id !== 'string' || typeof value.path_display !== 'string')
+      const actualId = field(value, 'id'),
+        actual = displayPath(value, id.startsWith('/') ? id : undefined);
+      if (tag(value) !== 'folder' || typeof actualId !== 'string' || typeof actual !== 'string')
         throw new SyncFailure(
           {code: failureCodes.response, stage: 'dropbox.locate-folder'},
           'Ugyldig kjent mappemetadata.',
         );
-      return {id: value.id, path: value.path_display};
+      return {id: actualId, path: actual};
     },
     async move(from, to, known) {
-      let current = known ? {id: known.id, path_display: known.path} : await metadata(from);
+      const current = known ? {id: known.id, path_display: known.path} : await metadata(from);
       if (!current)
         throw new SyncFailure(
           {code: failureCodes.missingFile, stage: 'dropbox.move'},
           'Oppføringen som skal flyttes mangler.',
         );
-      current = {...current, path_display: displayPath(current, from.startsWith('/') ? from : undefined)};
-      if (current.path_display === to) return {id: current.id, path: current.path_display};
-      const result = await rpc('files/move_v2', {from_path: from, to_path: to, autorename: false});
-      if (
-        typeof result?.metadata?.id !== 'string' ||
-        (result.metadata.path_display != null && typeof result.metadata.path_display !== 'string')
-      )
+      if (displayPath(current, from.startsWith('/') ? from : undefined) === to) {
+        const id = field(current, 'id');
+        if (typeof id !== 'string')
+          throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.move'}, 'Ugyldig metadata.');
+        return {id, path: to};
+      }
+      const moved = field(await rpc('files/move_v2', {from_path: from, to_path: to, autorename: false}), 'metadata'),
+        id = field(moved, 'id'),
+        actual = field(moved, 'path_display');
+      if (typeof id !== 'string' || (actual != null && typeof actual !== 'string'))
         throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.move'}, 'Ugyldig flytterespons.');
-      return {id: result.metadata.id, path: result.metadata.path_display ?? to};
+      return {id, path: typeof actual === 'string' ? actual : to};
     },
     async list(path) {
       const entries: {id: string; path: string; folder: boolean}[] = [];
+      const invalid = () =>
+        new SyncFailure({code: failureCodes.response, stage: 'dropbox.list'}, 'Ugyldig mappelisting.');
       let page = await rpc('files/list_folder', {path, recursive: false, include_deleted: false});
       for (;;) {
-        if (
-          !Array.isArray(page?.entries) ||
-          typeof page.has_more !== 'boolean' ||
-          (page.has_more && typeof page.cursor !== 'string')
-        )
-          throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.list'}, 'Ugyldig mappelisting.');
-        for (const entry of page.entries)
-          entries.push({id: entry.id, path: entry.path_display, folder: entry['.tag'] === 'folder'});
-        if (!page.has_more) return entries;
-        page = await rpc('files/list_folder/continue', {cursor: page.cursor});
+        const listed = list(field(page, 'entries')),
+          more = field(page, 'has_more'),
+          cursor = field(page, 'cursor');
+        if (!listed || typeof more !== 'boolean' || (more && typeof cursor !== 'string')) throw invalid();
+        for (const entry of listed) {
+          const id = field(entry, 'id'),
+            actual = field(entry, 'path_display');
+          if (typeof id !== 'string' || typeof actual !== 'string') throw invalid();
+          entries.push({id, path: actual, folder: tag(entry) === 'folder'});
+        }
+        if (!more) return entries;
+        page = await rpc('files/list_folder/continue', {cursor});
       }
     },
     async removeEmpty(path) {
