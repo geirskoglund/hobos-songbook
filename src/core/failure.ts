@@ -22,7 +22,7 @@ export const failureCodes = {
   oauthResponse: 'SYNC-020',
   configuration: 'SYNC-021',
   credentials: 'SYNC-022',
-  revoke: 'SYNC-023',
+  // SYNC-023 is retired and never reused.
   bookName: 'SYNC-024',
 } as const;
 export type FailureCode = (typeof failureCodes)[keyof typeof failureCodes];
@@ -40,7 +40,6 @@ export const userActions = {
     'Kontroller mappene i Dropbox. En fil står på en nødvendig mappeplassering; flytt filen eller endre filnavnet og prøv igjen.',
   'close-tabs': 'Lukk andre faner med appen og prøv igjen.',
   'update-browser': 'Åpne appen i en oppdatert nettleser og prøv igjen.',
-  'check-revoke': 'Du er koblet fra lokalt. Kontroller appens tilgang under tilkoblede apper i Dropbox.',
 } as const;
 export type RateLimitReason = 'too_many_requests' | 'too_many_write_operations' | 'unknown';
 export interface RateInfo {

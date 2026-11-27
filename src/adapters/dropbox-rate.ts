@@ -251,11 +251,17 @@ export function dropboxRate(
       settlement,
       namespacePlanAttempt,
       recoverAuthentication,
-    }: {settlement?: Settlement; namespacePlanAttempt?: number; recoverAuthentication?: RecoverAuthentication} = {},
+      immediate,
+    }: {
+      settlement?: Settlement;
+      namespacePlanAttempt?: number;
+      recoverAuthentication?: RecoverAuthentication;
+      immediate?: boolean;
+    } = {},
   ) {
-    // Revoke must remain immediate after local disconnect. Every other route,
-    // including queued token renewals, shares the same bounded Retry-After gate.
-    const recover = operation !== 'auth/token/revoke',
+    // Revoke, and the renewal it may need, must remain immediate after local
+    // disconnect. Every other route shares the same bounded Retry-After gate.
+    const recover = !immediate && operation !== 'auth/token/revoke',
       checkBefore = /^(files|sharing)\//.test(operation),
       ticket = lease,
       id = recover ? (account() ?? 'oauth') : null;

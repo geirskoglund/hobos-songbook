@@ -62,6 +62,7 @@ interface RequestOptions {
   releaseFence?: boolean;
   namespacePlanAttempt?: number;
   beforeSend?: () => void | Promise<void>;
+  immediate?: boolean;
 }
 interface RejectedToken {
   grant: Credentials;
@@ -247,6 +248,7 @@ export function dropboxAdapter(
       {
         recoverAuthentication: grant ? recoverAuthentication : undefined,
         namespacePlanAttempt: options.namespacePlanAttempt,
+        immediate: options.immediate,
         settlement: options.releaseFence
           ? 'fence-release'
           : finishingMove > 0 && (options.finishMove || moveReceiptReads.has(operation))
@@ -375,6 +377,8 @@ export function dropboxAdapter(
       code_challenge: challenge,
       code_challenge_method: 'S256',
       token_access_type: 'offline',
+      // Without this Dropbox may skip its approval page; a new connection always asks again.
+      force_reapprove: 'true',
       scope: scopes.join(' '),
     }).toString();
     location.assign(url.href);
@@ -1304,13 +1308,26 @@ export function dropboxAdapter(
     localStorage.removeItem(authKey);
     sessionStorage.removeItem(pendingKey);
     if (!value) return true;
-    const response = await send('auth/token/revoke', {
-      method: 'POST',
-      headers: {Authorization: `Bearer ${value.accessToken}`},
-      cache: 'no-store',
-      credentials: 'omit',
-      referrerPolicy: 'no-referrer',
-    });
+    const init = {method: 'POST', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer'} as const;
+    const revoke = (accessToken: string) =>
+      send('auth/token/revoke', {...init, headers: {Authorization: `Bearer ${accessToken}`}});
+    // Revoking an access token also disables its refresh token. Dropbox rejects
+    // an expired access token, so renew it first with the saved refresh token.
+    async function renewed() {
+      const body = new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: value!.refreshToken,
+        client_id: config.key,
+      });
+      const response = await send('oauth2/token', {...init, body}, undefined, {}, {immediate: true});
+      return response.ok ? tokenReply(await json(response, 'dropbox.token')).accessToken : null;
+    }
+    let response = value.accessToken && value.expires > Date.now() + 60000 ? await revoke(value.accessToken) : null;
+    if (!response || response.status === 401) {
+      const accessToken = await renewed();
+      if (!accessToken) return false;
+      response = await revoke(accessToken);
+    }
     return response.ok;
   }
   return {

@@ -249,6 +249,7 @@ test('AK39-05: additional scopes require explicit PKCE consent and keep the exis
     await adapter.connect('standard');
     assert.deepEqual(globalThis.authorize.searchParams.get('scope').split(' '), [...requiredScopes, ...sharingScopes]);
     assert.equal(globalThis.authorize.searchParams.get('code_challenge_method'), 'S256');
+    assert.equal(globalThis.authorize.searchParams.get('force_reapprove'), 'true');
     f.callback();
     assert.deepEqual(await adapter.callback(), {bookId: 'standard', authorized: false});
     assert.deepEqual(JSON.parse(f.saved.get(authKey)), f.original);

@@ -251,7 +251,10 @@ test('an ordinary Dropbox folder rename waits for manual sync without generating
   expect(JSON.parse(mock.find('/.app/library.json').text).books.standard.name).toBe('Nytt navn');
   expect(mock.find('/.app/sync-errors.json')).toBeUndefined();
 });
-test('a real folder collision and unconfirmed revocation give concrete user guidance', async ({page, context}) => {
+test('a real folder collision gives concrete user guidance and unconfirmed revocation shows no message', async ({
+  page,
+  context,
+}) => {
   const mock = await dropboxMock(context);
   await page.goto(url);
   await expect.poll(() => Boolean(mock.find('/.app/library.json'))).toBe(true);
@@ -273,14 +276,12 @@ test('a real folder collision and unconfirmed revocation give concrete user guid
     .getByRole('dialog', {name: 'Koble fra Dropbox', exact: true})
     .getByRole('button', {name: 'Koble fra', exact: true})
     .click();
-  await expect(page.locator('.sync-connect [role=status]')).toContainText('Feilkode SYNC-023');
-  await expect(page.locator('.sync-connect [role=status]')).toContainText(
-    'Kontroller appens tilgang under tilkoblede apper i Dropbox.',
-  );
+  await expect(page.locator('#dropbox-connect')).toBeVisible();
+  await expect(page.locator('.sync-connect [role=status]')).toHaveText('');
 });
 
 for (const lostAfterRevoke of [false, true])
-  test(`SYNC023 persists after disconnect and restart when revoke is unconfirmed (${lostAfterRevoke ? 'effect with lost reply' : 'request aborted'})`, async ({
+  test(`disconnect shows no message when revoke is unconfirmed, also after restart (${lostAfterRevoke ? 'effect with lost reply' : 'request aborted'})`, async ({
     page,
     context,
   }) => {
@@ -299,12 +300,45 @@ for (const lostAfterRevoke of [false, true])
       .getByRole('dialog', {name: 'Koble fra Dropbox', exact: true})
       .getByRole('button', {name: 'Koble fra', exact: true})
       .click();
-    await expect(page.locator('.sync-connect [role=status]')).toContainText('SYNC-023');
+    await expect(page.locator('#dropbox-connect')).toBeVisible();
+    await expect(page.locator('.sync-connect [role=status]')).toHaveText('');
     expect(await page.evaluate(() => localStorage.getItem('hobos-songbook-test:dropbox-auth-v1'))).toBeNull();
     expect(revoked).toBe(lostAfterRevoke);
     // The mock's normal connection bootstrap must not reconnect this restart.
     await context.unroute('https://api.dropboxapi.com/2/auth/token/revoke');
     await page.reload();
     await syncPage(page);
-    await expect(page.locator('.sync-connect [role=status]')).toContainText('SYNC-023');
+    await expect(page.locator('#dropbox-connect')).toBeVisible();
+    await expect(page.locator('.sync-connect [role=status]')).toHaveText('');
   });
+
+test('disconnect renews an expired access token before revoking it', async ({page, context}) => {
+  const mock = await dropboxMock(context);
+  await page.goto(url);
+  await expect.poll(() => Boolean(mock.find('/.app/library.json'))).toBe(true);
+  await syncPage(page);
+  await expect(page.locator('#dropbox-sync')).toBeEnabled();
+  await page.evaluate(() => {
+    const key = 'hobos-songbook-test:dropbox-auth-v1',
+      saved = JSON.parse(localStorage.getItem(key));
+    localStorage.setItem(key, JSON.stringify({...saved, accessToken: 'expired-access', expires: Date.now() - 1000}));
+  });
+  const bearers = [];
+  await context.route('https://api.dropboxapi.com/2/auth/token/revoke', async route => {
+    const bearer = route.request().headers().authorization;
+    bearers.push(bearer);
+    if (bearer === 'Bearer expired-access')
+      return route.fulfill({status: 401, json: {error_summary: 'expired_access_token/'}});
+    await route.fulfill({status: 200, json: null});
+  });
+  const start = mock.calls.length;
+  await page.locator('#dropbox-disconnect').click();
+  await page
+    .getByRole('dialog', {name: 'Koble fra Dropbox', exact: true})
+    .getByRole('button', {name: 'Koble fra', exact: true})
+    .click();
+  await expect(page.locator('#dropbox-connect')).toBeVisible();
+  await expect.poll(() => bearers).toEqual(['Bearer fixture-access']);
+  expect(mock.calls.slice(start).map(c => c.endpoint)).toEqual(['/oauth2/token']);
+  await expect(page.locator('.sync-connect [role=status]')).toHaveText('');
+});
