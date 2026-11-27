@@ -205,6 +205,31 @@ test('AK39-05: reuse or create a legacy public folder link and distinguish unver
   }
 });
 
+test('F19: a new connection asks for file and sharing access in one consent', async () => {
+  const f = setup();
+  try {
+    const adapter = dropboxAdapter({namespace, channel: 'test'}, async url =>
+      url.endsWith('/oauth2/token')
+        ? result({
+            access_token: 'new-access',
+            refresh_token: 'new-refresh',
+            expires_in: 3600,
+            account_id: 'same',
+            scope: [...requiredScopes, ...sharingScopes].join(' '),
+          })
+        : result({account_id: 'same', name: {display_name: 'Test'}, email: 'test@example.invalid'}),
+    );
+    f.saved.delete(authKey);
+    await adapter.connect();
+    assert.deepEqual(globalThis.authorize.searchParams.get('scope').split(' '), [...requiredScopes, ...sharingScopes]);
+    f.callback();
+    assert.equal(await adapter.callback(), true);
+    assert.equal(adapter.sharingAllowed(), true);
+  } finally {
+    f.cleanup();
+  }
+});
+
 test('AK39-05: additional scopes require explicit PKCE consent and keep the existing connection on a different account', async () => {
   const f = setup();
   try {
