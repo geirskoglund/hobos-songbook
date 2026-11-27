@@ -377,6 +377,8 @@ export function dropboxAdapter(
       code_challenge: challenge,
       code_challenge_method: 'S256',
       token_access_type: 'offline',
+      // Without this Dropbox may skip its approval page; a new connection always asks again.
+      force_reapprove: 'true',
       scope: scopes.join(' '),
     }).toString();
     location.assign(url.href);
