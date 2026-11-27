@@ -89,7 +89,7 @@ Begge Dropbox-appene er App Folder med `account_info.read`, `files.metadata.read
 - OAuth med PKCE S256 og offentlig klient-ID. Verifier og state ligger i `sessionStorage` i ti minutter og brukes én gang.
 - Tokens skrives aldri til synkfiler, byggmetadata eller worker-cache. Fornyelse serialiseres mellom faner.
 - Bare bekreftet `invalid_access_token` eller `invalid_grant` fjerner lagret tilkobling. HTTP 401 uten slik kode, 403, serverfeil og venting beholder den.
-- Delingstilgang hentes inkrementelt første gang brukeren kopierer en delingslenke. Avslag eller kontobytte beholder vanlig filtilgang.
+- Avslag eller kontobytte ved etterfølgende samtykke til delingstilgang beholder vanlig filtilgang.
 
 ### Mappestruktur i app-mappen
 

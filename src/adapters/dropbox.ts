@@ -365,7 +365,8 @@ export function dropboxAdapter(
     const challenge = await pkceChallenge(pending.verifier);
     sessionStorage.setItem(pendingKey, JSON.stringify(pending));
     const url = new URL('https://www.dropbox.com/oauth2/authorize');
-    const scopes = pending.sharing ? [...requiredScopes, ...sharingScopes] : requiredScopes;
+    // Every connection asks for sharing too, so sharing and import need no later consent.
+    const scopes = [...requiredScopes, ...sharingScopes];
     url.search = new URLSearchParams({
       client_id: config.key,
       response_type: 'code',
