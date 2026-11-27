@@ -42,8 +42,9 @@ async function validatedRun(github, repo, sha, pr, check = checks.validate) {
     ) {
       matches.push(run);
     } else if (run.pull_requests?.length === 0) {
-      // GitHub removes run.pull_requests after merge. Recover the historical binding
-      // from GitHub's commit/PR association, only for an already closed same-repo PR.
+      // GitHub removes run.pull_requests after merge. Recover the historical binding from the
+      // closed same-repo PR's own commits. GitHub's commit-to-PR lookup is not used: when the commit
+      // merged a stacked PR into the branch, it names only that stacked PR (#99).
       if (frozenSource === undefined) {
         const {data: pull} = await github.rest.pulls.get({...repo, pull_number: pr});
         frozenSource = false;
@@ -53,12 +54,12 @@ async function validatedRun(github, repo, sha, pr, check = checks.validate) {
           pull.base?.ref === 'master' &&
           pull.base?.repo?.full_name === repository
         ) {
-          const associated = await github.paginate(github.rest.repos.listPullRequestsAssociatedWithCommit, {
+          const commits = await github.paginate(github.rest.pulls.listCommits, {
             ...repo,
-            commit_sha: sha,
+            pull_number: pr,
             per_page: 100,
           });
-          frozenSource = associated.some(item => item.number === pr);
+          frozenSource = commits.some(commit => commit.sha === sha);
         }
       }
       if (frozenSource) matches.push(run);
