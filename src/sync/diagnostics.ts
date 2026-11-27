@@ -98,6 +98,7 @@ interface LogStore {
 }
 const limit = 20;
 const codes = new Set<string>(Object.values(failureCodes));
+const retiredDisconnectCode = 'SYNC-023';
 const errorTypes = new Set([
   'Error',
   'SyncFailure',
@@ -398,7 +399,13 @@ export function syncDiagnostics(env: AppEnvironment, notify: () => void = () => 
           const entries: SyncLog[] = value.entries.map(safeLog).slice(-limit);
           memory = {
             version: 1,
-            active: value.active,
+            // A disconnect message from before SYNC-023 was retired is never shown again.
+            active: value.entries.some(
+              (e: {id?: unknown; failure?: {code?: unknown}} | null) =>
+                e?.id === value.active && e?.failure?.code === retiredDisconnectCode,
+            )
+              ? null
+              : value.active,
             entries,
             pending: value.pending.filter((id: unknown) => typeof id === 'string'),
             owners: Object.fromEntries(

@@ -166,7 +166,7 @@ Kontrakten er Dropbox' egen dokumentasjon: [Performance](https://docs.dropboxapi
 
 ### Diagnostikk
 
-- Feilkodene `SYNC-001` til `SYNC-024` er konstanter i [failure.ts](../src/core/failure.ts).
+- Feilkodene `SYNC-001` til `SYNC-024` er konstanter i [failure.ts](../src/core/failure.ts). `SYNC-023` er ubrukt og gjenbrukes ikke.
 - En rapport inneholder tilfeldig hendelses-ID, tid, byggidentitet, feilkode, steg, siste 30 API-operasjoner uten argumenter, Dropbox-request-ID-er og filtrerte plattformopplysninger.
 - Rapporten inneholder aldri tokens, konto-ID, e-post, sang- eller boknavn, private stier, rå feiltekst eller API-svar.
 - Opplasting til `/.app/sync-errors.json` går bare til kontoen som laget rapporten, og påvirker ikke synkresultatet.

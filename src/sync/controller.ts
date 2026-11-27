@@ -541,37 +541,17 @@ export function syncController(
       void execute();
     });
   }
+  /** Disconnecting never shows a message; the saved connection is always removed locally. */
   async function disconnect() {
-    const accountId = account()?.id;
     epoch++;
     requestedManual = false;
     clearFailure();
     try {
-      const revoked = await adapter.disconnect();
-      state = undefined;
-      if (!revoked)
-        report(
-          new SyncFailure(
-            {code: failureCodes.revoke, stage: 'dropbox.revoke', action: 'check-revoke'},
-            'Dropbox bekreftet ikke tilbakekalling.',
-          ),
-          'app.disconnect',
-          false,
-          accountId,
-        );
-    } catch (cause) {
-      state = undefined;
-      report(
-        new SyncFailure(
-          {code: failureCodes.revoke, stage: 'dropbox.revoke', action: 'check-revoke'},
-          'Dropbox bekreftet ikke tilbakekalling.',
-          cause,
-        ),
-        'app.disconnect',
-        false,
-        accountId,
-      );
+      await adapter.disconnect();
+    } catch {
+      /* Offline or a rejected revocation still leaves the app disconnected. */
     }
+    state = undefined;
     notify();
     channel.postMessage('changed');
   }

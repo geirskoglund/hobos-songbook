@@ -450,3 +450,45 @@ test('batch diagnostics retain only resource category, count and transport class
     assert.equal(diagnostics.active().operations[1].resource, undefined);
     assert.equal(diagnostics.active().operations[1].batchSize, undefined);
   }));
+test('disconnect renews an expired access token before revoking, and offline still disconnects locally', () =>
+  browser(async values => {
+    const key = `${env.namespace}:dropbox-auth-v1`,
+      saved = JSON.parse(values.get(key));
+    values.set(key, JSON.stringify({...saved, expires: Date.now() - 1000}));
+    const oldSession = globalThis.sessionStorage;
+    globalThis.sessionStorage = {removeItem() {}};
+    const calls = [];
+    const adapter = dropboxAdapter(env, async (url, init) => {
+      calls.push({url, bearer: init.headers?.Authorization, grant: init.body?.get?.('grant_type')});
+      if (url.endsWith('/oauth2/token'))
+        return new Response(JSON.stringify({access_token: 'RENEWED', expires_in: 14400}));
+      return new Response('null');
+    });
+    assert.equal(await adapter.disconnect(), true);
+    assert.deepEqual(
+      calls.map(c => [c.url.replace(/^https:\/\/api\.dropboxapi\.com\//, ''), c.bearer ?? c.grant]),
+      [
+        ['oauth2/token', 'refresh_token'],
+        ['2/auth/token/revoke', 'Bearer RENEWED'],
+      ],
+    );
+    assert.equal(values.has(key), false);
+    values.set(key, JSON.stringify(saved));
+    const offline = dropboxAdapter(env, async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    await assert.rejects(offline.disconnect());
+    assert.equal(values.has(key), false);
+    globalThis.sessionStorage = oldSession;
+  }));
+test('a disconnect message saved before SYNC-023 was retired is not shown again', () =>
+  browser(async values => {
+    const diagnostics = syncDiagnostics(env);
+    diagnostics.record(new SyncFailure({code: failureCodes.network, stage: 'dropbox.request'}, 'x'), 'sync', false, []);
+    assert.ok(diagnostics.active());
+    const key = `${env.namespace}:sync-diagnostics-v1`,
+      store = JSON.parse(values.get(key));
+    store.entries.find(e => e.id === store.active).failure.code = 'SYNC-023';
+    values.set(key, JSON.stringify(store));
+    assert.equal(syncDiagnostics(env).active(), null);
+  }));
