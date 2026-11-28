@@ -16,7 +16,7 @@ Bruk [navneindeksen](#navneindeks) for komponentnavn, ID-er og SVG-er. Entydige 
 - Overordnet layout vedlikeholdes ett sted. Se [arkitekturen](ARCHITECTURE.md#felles-ui-og-layout).
 - Ingen separat generell statusindikator.
 - Ingen særskilt Takt-kontroll: samme generelle tekstlige verdikontroll som toneart.
-- Komponentene N01, N02, L01–L06, D01–D06, E01 og F01–F06 er rekonstruert fra oppgitte godkjente SVG-er og må ikke tolkes som nye produktbeslutninger.
+- Komponentene N01, N02, L01, L03–L06, D01–D06, E01 og F01–F06 er rekonstruert fra oppgitte godkjente SVG-er og må ikke tolkes som nye produktbeslutninger.
 
 Oppgaven bestemmer funksjon og innhold; designets eksempeltekst utvider ikke bestillingen. Avklar bare manglende eller tvetydig design.
 
@@ -68,7 +68,7 @@ Navn og stabile ID-er følger komponentbiblioteket.
 | Verktøyknapp | `H02_Verktoyknapp` | [SVG](design/komponenter/Komponenter/04_Verktoyknapp.svg) |
 | Fanevelger | `H03_Fanevelger` | [SVG](design/komponenter/Komponenter/05_Fanevelger.svg) |
 | Kontekstmeny | `H04_Kontekstmeny` | [SVG](design/komponenter/Komponenter/06_Kontekstmeny.svg) |
-| Listerad – tittel og metadata | `L01_Listerad_tittel_metadata` | [SVG](design/komponenter/Komponenter/L01_Listerad_tittel_metadata.svg) |
+| Listerad | `L01_Listerad_tittel_metadata` | [SVG](design/komponenter/Komponenter/L01_Listerad_tittel_metadata.svg) |
 | Listerad – nummerert | `L03_Listerad_nummerert` | [SVG](design/komponenter/Komponenter/L03_Listerad_nummerert.svg) |
 | Listerad – spesialelement | `L04_Listerad_spesial` | [SVG](design/komponenter/Komponenter/L04_Listerad_spesial.svg) |
 | Listerad – valgbar | `L05_Listerad_valgbar` | [SVG](design/komponenter/Komponenter/L05_Listerad_valgbar.svg) |
