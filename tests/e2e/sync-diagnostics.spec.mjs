@@ -101,7 +101,19 @@ test('only the copy icon acts on an error; exact message and private-data-free t
   await page.locator('#dropbox-sync').click();
   await expect(page.locator('#sync-status')).toContainText('Sist synkronisert:');
   await expect(copy).toBeHidden();
-  await expect(page.locator('#sync-status [role=button]')).toHaveCount(0);
+  // The test address keeps a timing log after a successful sync; it holds no paths and is not uploaded.
+  const timing = page.getByRole('button', {name: 'Kopier synklogg', exact: true});
+  await expect(page.locator('#sync-status button:visible')).toHaveCount(1);
+  await expect(timing).toBeVisible();
+  const uploads = mock.calls.length;
+  await timing.click();
+  const log = await copiedText(page);
+  expect(log).toMatch(/^Synklogg Hobo's Songbook Test /);
+  expect(log).toMatch(/manuell ok: \d+ ms, \d+ kall \d+ ms, utenom kall -?\d+ ms/);
+  expect(log).toContain('[synk]');
+  expect(log).toContain('files/list_folder');
+  for (const forbidden of ['Songbooks', 'library.json', '.cho']) expect(log).not.toContain(forbidden);
+  expect(mock.calls.length).toBe(uploads);
 });
 test('a local error can be copied after an offline restart without Dropbox', async ({page, context}) => {
   await stubClipboard(page);
@@ -341,4 +353,25 @@ test('disconnect renews an expired access token before revoking it', async ({pag
   await expect.poll(() => bearers).toEqual(['Bearer fixture-access']);
   expect(mock.calls.slice(start).map(c => c.endpoint)).toEqual(['/oauth2/token']);
   await expect(page.locator('.sync-connect [role=status]')).toHaveText('');
+});
+test('#106: disabled controls show the normal arrow, also where the control otherwise shows a hand', async ({
+  page,
+  context,
+}) => {
+  await dropboxMock(context);
+  await page.goto(url);
+  await syncPage(page);
+  const sync = page.locator('#dropbox-sync');
+  await expect(sync).toBeEnabled();
+  await context.setOffline(true);
+  await expect(sync).toBeDisabled();
+  await expect(sync).toHaveCSS('cursor', 'default');
+  // A dialog footer button sets a hand cursor of its own.
+  await page.evaluate(() => {
+    const footer = document.createElement('div');
+    footer.className = 'dialog-footer';
+    footer.innerHTML = '<button type="button" disabled id="probe">Lagre</button>';
+    document.body.append(footer);
+  });
+  await expect(page.locator('#probe')).toHaveCSS('cursor', 'default');
 });

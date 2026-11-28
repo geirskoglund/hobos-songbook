@@ -116,12 +116,11 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
       'kopier',
     );
     copy.className = 'sync-error-copy';
-    copy.setAttribute('aria-label', 'Kopier feillogg');
-    copy.dataset.tooltip = 'Kopier feillogg';
     copy.hidden = true;
+    let source: () => string | null = controller.reportText;
     node.append(text, code, tail, copy);
     async function copyReport() {
-      const report = controller.reportText();
+      const report = source();
       if (!report) return;
       copy.disabled = true;
       try {
@@ -133,12 +132,17 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
       }
     }
     return {
-      render(message: string, enabled: boolean) {
-        const parts = enabled ? /^(.*?)(SYNC-\d{3}\))(.*)$/.exec(message) : null;
+      /** With `timing`, the button copies the test address's timing log instead of an error report. */
+      render(message: string, enabled: boolean, timing = false) {
+        const label = timing ? 'Kopier synklogg' : 'Kopier feillogg';
+        source = timing ? controller.timingText : controller.reportText;
+        copy.setAttribute('aria-label', label);
+        copy.dataset.tooltip = label;
+        const parts = enabled && !timing ? /^(.*?)(SYNC-\d{3}\))(.*)$/.exec(message) : null;
         text.data = parts ? parts[1] : message;
         code.textContent = parts?.[2] ?? '';
         tail.data = parts?.[3] ?? '';
-        copy.hidden = !enabled;
+        copy.hidden = !enabled && !timing;
         node.hidden = !message;
       },
     };
@@ -156,7 +160,11 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
     const message = controller.status(),
       hasReport = Boolean(controller.reportText());
     messages[0].render(account ? '' : message, !account && hasReport);
-    messages[1].render(account ? message : '', Boolean(account) && hasReport);
+    messages[1].render(
+      account ? message : '',
+      Boolean(account) && hasReport,
+      Boolean(account) && !hasReport && !controller.running() && Boolean(controller.timingText()),
+    );
   }
   function confirmDisconnect() {
     const box = dialogFrame('Koble fra Dropbox', 'name-dialog sync-dialog');

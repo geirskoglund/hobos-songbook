@@ -49,7 +49,11 @@ button:where(:has(> .icon), :has(> img)) {
 button:disabled,
 input:disabled {
   opacity: 0.65;
-  cursor: wait;
+}
+/* Disabled controls always show the normal arrow, whatever cursor the control has otherwise. */
+:is(button, input, select, textarea):disabled,
+:is(button, input, select, textarea):disabled::file-selector-button {
+  cursor: default !important;
 }
 :where(button, a, input, textarea, select, summary, [role='spinbutton'], dialog):focus {
   outline: none;
@@ -668,7 +672,6 @@ body:has(#update-notice:not([hidden])) {
 }
 .editor-tool-panel button:disabled {
   opacity: 0.3;
-  cursor: default;
 }
 .tool-divider {
   height: 46px;
@@ -1541,7 +1544,6 @@ body.menu-open {
 }
 .dialog-footer button:disabled {
   opacity: 0.4;
-  cursor: default;
 }
 @media (max-width: 420px) {
   .topbar {
@@ -1834,7 +1836,4 @@ main > section {
 }
 .publication-actions button {
   flex: none;
-}
-.publication-actions .primary-action:disabled {
-  cursor: default;
 }
