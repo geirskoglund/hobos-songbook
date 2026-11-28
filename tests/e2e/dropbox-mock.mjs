@@ -114,6 +114,7 @@ export async function dropboxMock(context, {connected = true, pageSize = 2000, b
   }
   const metadata = value => {
     const copy = {...value};
+    if (typeof value.text === 'string') copy.content_hash = contentHash(value.text);
     delete copy.text;
     return copy;
   };

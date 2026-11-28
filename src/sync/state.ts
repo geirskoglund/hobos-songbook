@@ -121,6 +121,8 @@ export interface SyncState {
   mutationOwner?: string;
   mutationFileId?: string;
   mutationPending?: boolean;
+  /** The lock file as this device released it. While its rev is current, nobody has taken the lock since. */
+  mutationRelease?: {rev: string; libraryRev: string | null};
   movedSongs?: Record<string, SongLink>;
   movedPublications?: Record<string, SongLink>;
   movedBooks?: Record<string, BookLink>;

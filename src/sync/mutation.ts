@@ -29,11 +29,37 @@ export function mutationFence(
 ) {
   let held = false,
     revision: string | undefined;
+  /** Answers true when the lock was taken straight from this device's own release: nobody has held it since. */
   async function acquire() {
     state.mutationOwner ??= crypto.randomUUID();
     state.mutationPending = true;
     await hooks.save();
     await hooks.check();
+    const released = state.mutationRelease;
+    // Tried only when the index shows our release as the latest lock: otherwise it would be refused.
+    if (released && state.mutationFileId && state.remote?.entries[mutationPath]?.rev === released.rev) {
+      // A conditional write against our own release proves the file still says owner null,
+      // so it needs no read first. Any other write since makes Dropbox refuse it.
+      delete state.mutationRelease;
+      let result;
+      try {
+        result = await files.write(
+          mutationPath,
+          JSON.stringify({version: 1, owner: state.mutationOwner, libraryRev: released.libraryRev}),
+          released.rev,
+        );
+      } catch (error) {
+        if (!(error instanceof SyncFailure && error.info.code === failureCodes.changed)) throw error;
+      }
+      await hooks.check();
+      if (result) {
+        held = true;
+        revision = result.rev;
+        state.mutationFileId = result.id;
+        await hooks.save();
+        return true;
+      }
+    }
     const current = await files.read(mutationPath);
     await hooks.check();
     const lock = current ? parse(current.text) : null;
@@ -49,7 +75,7 @@ export function mutationFence(
       revision = current!.rev;
       state.mutationFileId = current!.id;
       await hooks.save();
-      return;
+      return false;
     }
     // Infrastructure bootstrap only. No user folder can be created before the
     // fence. Repeating this fixed app-owned root cannot move or rename anything.
@@ -73,22 +99,27 @@ export function mutationFence(
     revision = result.rev;
     state.mutationFileId = result.id;
     await hooks.save();
+    return false;
   }
   async function release() {
     if (!held) return;
     // The exact revision is the ownership proof, including when an older release
     // response was lost. A fresh acquire always precedes any subsequent write.
     await hooks.check();
-    const text = JSON.stringify({version: 1, owner: null, libraryRev: state.library?.rev ?? null});
+    const libraryRev = state.library?.rev ?? null,
+      text = JSON.stringify({version: 1, owner: null, libraryRev});
+    let result;
     try {
-      if (files.releaseMutation) await files.releaseMutation(text, revision!);
-      else await files.write(mutationPath, text, revision!);
+      result = files.releaseMutation
+        ? await files.releaseMutation(text, revision!)
+        : await files.write(mutationPath, text, revision!);
     } catch (error) {
       if (error instanceof SyncFailure && error.info.code === failureCodes.changed) throw new RetrySync();
       throw error;
     }
     held = false;
     state.mutationPending = false;
+    if (result?.id === state.mutationFileId && result.rev) state.mutationRelease = {rev: result.rev, libraryRev};
     await hooks.save();
   }
   return {acquire, release};

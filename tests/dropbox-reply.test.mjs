@@ -77,7 +77,13 @@ test('dropbox reply: display path falls back to path_lower and name', () => {
 
 test('dropbox reply: file metadata needs id, rev and a path', () => {
   const meta = {'.tag': 'file', id: 'id:1', rev: 'r1', path_display: '/Songs/A.cho', size: 3, content_hash: 'x'};
-  assert.deepEqual(fileValue(meta, 'abc', 'id:1'), {text: 'abc', id: 'id:1', rev: 'r1', path: '/Songs/A.cho'});
+  assert.deepEqual(fileValue(meta, 'abc', 'id:1'), {
+    text: 'abc',
+    id: 'id:1',
+    rev: 'r1',
+    path: '/Songs/A.cho',
+    hash: 'x',
+  });
   // A literal path request identifies the path when path_display is missing.
   assert.equal(fileValue({id: 'id:1', rev: 'r1'}, '', '/Songs/A.cho').path, '/Songs/A.cho');
   for (const value of [null, 'text', {...meta, id: undefined}, {...meta, rev: ''}, {id: 'id:1', rev: 'r1'}])

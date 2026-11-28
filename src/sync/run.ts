@@ -187,13 +187,24 @@ async function confirmUnchanged(s: SyncSession, library: Manifest) {
     );
   const before = structuredClone(domain()),
     epochBefore = s.state.remote!.epoch;
-  await s.step(() => s.index.refresh());
+  // Imports are read from their shared folders, which the index does not cover. Both are
+  // asked at once; a full sync reuses the listings, and a changed import list shows in the index.
+  const imports = importsPending(s).then(
+    pending => ({pending}),
+    error => ({error}),
+  );
+  try {
+    await s.step(() => s.index.refresh());
+  } finally {
+    await imports;
+  }
+  s.indexFresh = true;
+  const probe = await imports;
+  if ('error' in probe) throw probe.error;
   const resetCleanup =
     epochBefore !== s.state.remote!.epoch &&
     Object.values(library.books).some(book => needsArchive(book, s.index.find));
-  if (!same(before, domain()) || resetCleanup) return false;
-  // Imports are read from their shared folders, which the index does not cover.
-  if (await importsPending(s)) return false;
+  if (!same(before, domain()) || resetCleanup || probe.pending) return false;
   s.state.pending = false;
   s.state.localGeneration = s.generation;
   s.state.lastManual = new Date().toISOString();
@@ -207,9 +218,11 @@ async function confirmUnchanged(s: SyncSession, library: Manifest) {
  * biblioteket etter sletting og kobling av identiteter, flettegrunnlaget og ID-ene som var publisert.
  */
 async function readRemoteLibrary(s: SyncSession, manual: boolean) {
-  await s.fence.acquire();
-  await s.step(() => s.index.refresh());
-  const manifestFile = await s.step(() => (s.files.inspectFile ?? s.files.read)(libraryPath));
+  // Taken straight from our own release, the lock proves no device has changed the namespace
+  // since this run's index refresh: the index is still current and needs no second listing.
+  if (!((await s.fence.acquire()) && s.indexFresh)) await s.step(() => s.index.refresh());
+  // A current index names the library's rev; the stored copy at that rev needs no download.
+  const manifestFile = await s.read(libraryPath);
   if (manifestFile)
     s.state.library = {id: manifestFile.id, rev: manifestFile.rev, value: parseManifest(manifestFile.text)};
   if (!manifestFile && s.state.library)

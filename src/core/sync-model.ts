@@ -37,6 +37,8 @@ export interface FileValue {
   rev: string;
   id: string;
   path: string;
+  /** Dropbox' content_hash, when the reply gave one. */
+  hash?: string;
 }
 export interface RemoteEntry {
   id?: string;
