@@ -1069,7 +1069,8 @@ export function dropboxAdapter(
       }
     },
     async read(path, knownPath) {
-      const result = await download('files/download', {path}, {resource: resource(path)});
+      // A read by file ID is classified by the path it is known by.
+      const result = await download('files/download', {path}, {resource: resource(knownPath ?? path)});
       if (!result) return null;
       return fileValue(result.meta, result.text, knownPath ?? path);
     },
