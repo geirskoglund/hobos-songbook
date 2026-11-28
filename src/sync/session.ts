@@ -1,6 +1,14 @@
 import type {syncStorage, SyncSnapshot} from './store.ts';
 import {parseManifest, same} from './model.ts';
-import type {BookLink, FileValue, FolderEntry, RemoteFiles, SongLink, UploadJob} from '../core/sync-model.ts';
+import type {
+  BookLink,
+  FileValue,
+  FolderEntry,
+  RemoteFiles,
+  SharedListing,
+  SongLink,
+  UploadJob,
+} from '../core/sync-model.ts';
 import {emptyManifest, type NamespaceJob, type SyncState, type UploadClaim} from './state.ts';
 import {DeferredSync, failureCodes, SyncFailure, RetrySync} from '../core/failure.ts';
 import {libraryPath, stagingFolder} from '../core/paths.ts';
@@ -41,6 +49,8 @@ export class SyncSession {
   confirmedLinks: Record<string, SongLink> = {};
   publicationMoves: Set<string> | undefined;
   claims: UploadClaim[] = [];
+  /** Shared-folder listings already received in this run, so a probe is not listed twice. */
+  importListings = new Map<string, SharedListing>();
   snapshot!: SyncSnapshot;
   state!: SyncState;
   generation = 0;
@@ -119,6 +129,7 @@ export class SyncSession {
     const check = () => this.check(),
       save = (changes?: CommitChanges) => this.save(changes);
     this.confirmedLinks = {};
+    this.importListings = new Map();
     this.interruption = undefined;
     this.snapshot = await storage.snapshot(accountId);
     this.state = this.snapshot.state;

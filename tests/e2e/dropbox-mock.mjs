@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 /** HTTP-level Dropbox simulator; app builds contain no test hooks or credentials. */
 export async function dropboxMock(context, {connected = true, pageSize = 2000, backend, sharing = false} = {}) {
   let sequence = 0;
@@ -26,6 +27,43 @@ export async function dropboxMock(context, {connected = true, pageSize = 2000, b
   const links = new Map();
   // Shared links owned by another account: url -> {meta, folders: {path: entries}} or {error}.
   const foreign = new Map();
+  // A foreign link with `files` lists them like Dropbox: folder by folder, with continuable cursors.
+  const sharedCursors = new Map();
+  const contentHash = text => createHash('sha256').update(text).digest('hex');
+  function sharedChildren(shared, path) {
+    const result = new Map();
+    for (const file of shared.files.values()) {
+      if (!key(file.path).startsWith(key(path) + '/')) continue;
+      const [name, ...rest] = file.path.slice(path.length + 1).split('/');
+      result.set(
+        key(name),
+        rest.length
+          ? {'.tag': 'folder', id: 'id:dir-' + key(`${path}/${name}`), name}
+          : {
+              '.tag': 'file',
+              id: file.id,
+              name,
+              rev: file.rev,
+              content_hash: contentHash(file.text),
+              size: Buffer.byteLength(file.text),
+            },
+      );
+    }
+    return result;
+  }
+  function sharedPage(url, path, prior) {
+    const shared = foreign.get(url),
+      current = sharedChildren(shared, path),
+      entries = [];
+    if (prior) {
+      for (const [name, entry] of prior) if (!current.has(name)) entries.push({'.tag': 'deleted', name: entry.name});
+      for (const [name, entry] of current)
+        if (JSON.stringify(prior.get(name)) !== JSON.stringify(entry)) entries.push(entry);
+    } else entries.push(...current.values());
+    const cursor = 'shared-cursor-' + crypto.randomUUID();
+    sharedCursors.set(cursor, {url, path, snapshot: current});
+    return {entries, has_more: false, cursor};
+  }
   const mutating = endpoint =>
     [
       '/upload',
@@ -235,9 +273,40 @@ export async function dropboxMock(context, {connected = true, pageSize = 2000, b
         if (shared.error) return route.fulfill({status: 409, json: {error_summary: shared.error}});
         return ok(shared.meta);
       }
+      if (endpoint.endsWith('/list_folder/continue') && args.cursor.startsWith('shared-cursor-')) {
+        const prior = sharedCursors.get(args.cursor),
+          shared = prior && foreign.get(prior.url);
+        if (!shared?.meta) return route.fulfill({status: 409, json: {error_summary: 'shared_link_not_found/'}});
+        return ok(sharedPage(prior.url, prior.path, prior.snapshot));
+      }
+      if (endpoint.endsWith('/get_shared_link_file')) {
+        const shared = foreign.get(args.url),
+          file = shared?.files?.get(key(args.path));
+        if (!shared?.meta || !file)
+          return route.fulfill({status: 409, json: {error_summary: 'shared_link_not_found/'}});
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/octet-stream',
+          headers: {
+            'Access-Control-Expose-Headers': 'Dropbox-API-Result',
+            'Dropbox-API-Result': JSON.stringify({
+              '.tag': 'file',
+              id: file.id,
+              name: file.path.split('/').at(-1),
+              rev: file.rev,
+            }),
+          },
+          body: Buffer.from(file.text),
+        });
+      }
       if (endpoint.endsWith('/list_folder') && args?.shared_link) {
         const shared = foreign.get(args.shared_link.url);
         if (!shared?.meta) return route.fulfill({status: 409, json: {error_summary: 'shared_link_not_found/'}});
+        if (shared.files) {
+          if (args.path && !sharedChildren(shared, args.path).size)
+            return route.fulfill({status: 409, json: {error_summary: 'path/not_found/'}});
+          return ok(sharedPage(args.shared_link.url, args.path, null));
+        }
         return ok({entries: shared.folders?.[args.path] ?? [], has_more: false, cursor: 'shared-' + args.path});
       }
       if (endpoint.startsWith('/2/sharing/')) {
@@ -494,12 +563,22 @@ export async function dropboxMock(context, {connected = true, pageSize = 2000, b
     calls,
     links,
     /** A folder link from another account; `folders` maps link-relative paths to entries. */
-    shareForeign(url, {error, folders = {}, ...meta} = {}) {
+    shareForeign(url, {error, folders = {}, files, ...meta} = {}) {
       foreign.set(
         url,
         error
           ? {error}
           : {
+              ...(files
+                ? {
+                    files: new Map(
+                      Object.entries(files).map(([path, text]) => [
+                        key(path),
+                        {path, text, id: 'id:src-' + ++sequence, rev: String(++sequence)},
+                      ]),
+                    ),
+                  }
+                : {}),
               meta: {
                 '.tag': 'folder',
                 id: 'id:foreign-' + foreign.size,
@@ -514,6 +593,17 @@ export async function dropboxMock(context, {connected = true, pageSize = 2000, b
     },
     find,
     put,
+    /** Changes a file in a foreign link with `files`; null removes it. */
+    sharePut(url, path, text) {
+      const shared = foreign.get(url),
+        old = shared.files.get(key(path));
+      if (text === null) shared.files.delete(key(path));
+      else shared.files.set(key(path), {path, text, id: old?.id ?? 'id:src-' + ++sequence, rev: String(++sequence)});
+    },
+    /** Makes a foreign link unavailable, as when the owner deletes the folder or the link. */
+    unshare(url) {
+      foreign.set(url, {error: 'shared_link_not_found/'});
+    },
     loseDeleteReply() {
       lostDelete = true;
     },

@@ -51,6 +51,11 @@ export async function openMenu(page) {
   if (!(await page.locator('#main-menu').isVisible()))
     await page.getByRole('button', {name: 'Meny', exact: true}).click();
 }
+/** Opening Synkronisering checks the import list in Dropbox (#106); wait so call counts start after it. */
+export async function importListChecked(page) {
+  await expect(page.locator('#sync')).toBeVisible();
+  await expect(page.locator('#import-list')).not.toHaveAttribute('aria-busy', 'true');
+}
 export async function closeMenu(page) {
   if (await page.locator('#main-menu').isVisible()) await page.getByRole('button', {name: 'Meny', exact: true}).click();
 }

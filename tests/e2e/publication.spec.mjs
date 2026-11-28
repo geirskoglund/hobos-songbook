@@ -1,7 +1,7 @@
 import {mkdir, writeFile} from 'node:fs/promises';
 import {test, expect} from './fixtures.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
-import {goSongs, importAndOpenSong, openMenu, savedSongs} from './song-helpers.mjs';
+import {goSongs, importAndOpenSong, openMenu, savedSongs, importListChecked} from './song-helpers.mjs';
 
 const url = '/hobos-songbook/test/';
 test.beforeEach(async ({request}) => {
@@ -12,6 +12,7 @@ const action = (page, name) => page.getByRole('button', {name, exact: true});
 async function go(page, name) {
   await openMenu(page);
   await action(page, name).click();
+  if (name === 'Synkronisering') await importListChecked(page);
 }
 async function seed(page, context, {publishedInBand = false, additionalPrivate = 0, ...options} = {}) {
   const mock = await dropboxMock(context, options);

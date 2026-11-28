@@ -35,9 +35,12 @@ export interface ToolbarState {
   tool: string | undefined;
 }
 
-/** Redigeringsverktøylinjen med fanene Filinnhold og Egentilpasning. Fanevalget eies her. */
-export function createEditorToolbar(run: (name: string, button: HTMLElement) => void) {
-  let tab = 'file';
+/**
+ * Redigeringsverktøylinjen med fanene Filinnhold og Egentilpasning. Fanevalget eies her.
+ * Uten `file` (importert sang) vises bare Egentilpasning.
+ */
+export function createEditorToolbar(run: (name: string, button: HTMLElement) => void, {file = true} = {}) {
+  let tab = file ? 'file' : 'personal';
   const toolbar = document.createElement('div');
   toolbar.className = 'edit-toolbar';
   const tabs = tabSwitcher(
@@ -66,8 +69,8 @@ export function createEditorToolbar(run: (name: string, button: HTMLElement) => 
   personalPanel.setAttribute('role', 'toolbar');
   filePanel.setAttribute('aria-label', 'Filinnhold');
   personalPanel.setAttribute('aria-label', 'Egentilpasning');
-  panels.append(filePanel, personalPanel);
-  toolbar.append(tabs.element, panels);
+  panels.append(...(file ? [filePanel] : []), personalPanel);
+  toolbar.append(...(file ? [tabs.element] : []), panels);
   const buttons = new Map<string, HTMLButtonElement[]>();
   for (const [panel, entries] of [
     [filePanel, fileTools],

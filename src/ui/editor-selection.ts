@@ -9,6 +9,7 @@ import {
   sourceLines,
 } from '../domain/source-edit.ts';
 import type {Highlight, Song, SongPersonal} from '../core/song.ts';
+import {importedSong} from '../domain/song.ts';
 
 /** Et valgt element i redigeringsvisningen, beskrevet slik at valget overlever en ny tegning. */
 export type ElementChoice =
@@ -33,7 +34,14 @@ export type ElementChoice =
 const isComment = (session: EditSession, line: number) =>
   ['comment', 'c'].includes(sourceLines(session.song.original)[line]?.directive?.name ?? '');
 
+/** The element the target belongs to. In an imported song only personal elements can be chosen. */
 export function choiceAt(session: EditSession, target: Element): ElementChoice | undefined {
+  const choice = elementAt(session, target);
+  return choice && importedSong(session.song) && choice.kind !== 'note' && choice.kind !== 'highlight'
+    ? undefined
+    : choice;
+}
+function elementAt(session: EditSession, target: Element): ElementChoice | undefined {
   const note = target.closest<HTMLElement>('.personal-note');
   if (note?.dataset.noteId)
     return {

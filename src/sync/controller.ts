@@ -17,10 +17,11 @@ import {
   type FailureInfo,
 } from '../core/failure.ts';
 import {syncDiagnostics, type SyncLog} from './diagnostics.ts';
+import {syncTiming} from './timing.ts';
 import {addImport, readImports} from './imports.ts';
 import {pathKey} from './remote.ts';
 import {importsPath} from '../core/paths.ts';
-import type {ImportTest, SharedImport} from '../domain/shared-import.ts';
+import type {ImportStatus, ImportTest, SharedImport} from '../domain/shared-import.ts';
 export function syncController(
   storage: ReturnType<typeof songStorage>,
   hooks: {
@@ -37,7 +38,8 @@ export function syncController(
     syncStore = syncStorage(storage.database);
   const events: ApiEvent[] = [],
     operationTotals: Record<string, number> = {},
-    diagnostics = syncDiagnostics(env, () => hooks.notify());
+    diagnostics = syncDiagnostics(env, () => hooks.notify()),
+    timing = syncTiming(env);
   let logging = false;
   let requestEpoch = -1,
     requestAccount: string | null = null,
@@ -59,6 +61,7 @@ export function syncController(
         throw new DeferredSync('recovery', 'Lagrede endringer etter avbrudd venter på Synkroniser.');
     },
     event => {
+      timing.request(event);
       if (!logging) {
         operationTotals[event.operation] = (operationTotals[event.operation] ?? 0) + 1;
         events.push(event);
@@ -211,6 +214,7 @@ export function syncController(
     error = null;
     events.length = 0;
     for (const operation of Object.keys(operationTotals)) delete operationTotals[operation];
+    timing.begin(wasManual);
     notify();
     const reported = new Set<unknown>();
     const failed = (cause: unknown) => {
@@ -220,11 +224,15 @@ export function syncController(
       }
     };
     try {
+      timing.phase('venter');
       await opening;
       await ready;
       await navigator.locks.request(`${env.namespace}:dropbox-sync`, async () => {
+        timing.phase('venter');
         if (ticket !== epoch || paused || hooks.busy() || account()?.id !== user.id) throw new PausedSync();
+        timing.phase('gjenoppretting');
         await recover();
+        timing.phase('gjenoppretting');
         const latest = await syncStore.status();
         recoveryRequired = Boolean(latest.journal.recoveryRequired);
         if (recoveryRequired && !wasManual) return;
@@ -235,6 +243,7 @@ export function syncController(
         adapter.beginRun();
         for (let attempt = 0; attempt < 3; attempt++) {
           let idle = false;
+          timing.phase('synk');
           try {
             state = await syncEngine(syncStore, adapter.files, user.id, {
               valid: () => ticket === epoch && !paused && !hooks.busy() && account()?.id === user.id,
@@ -254,14 +263,22 @@ export function syncController(
                 'Dropbox-versjonen endres fortsatt.',
                 cause,
               );
+          } finally {
+            timing.phase('synk');
           }
         }
       });
       localPending = Boolean(state?.pending && !state?.awaitingDownload);
-      if (wasManual && completed) await refreshImports(user.id, ticket);
+      if (wasManual && completed) {
+        timing.phase('importliste');
+        await refreshImports(user.id, ticket);
+        timing.phase('importliste');
+      }
       if (wasManual) {
+        timing.phase('visning');
         await hooks.downloaded();
         await refresh();
+        timing.phase('visning');
       }
       channel.postMessage('changed');
     } catch (cause) {
@@ -286,6 +303,7 @@ export function syncController(
       }
       running = false;
       activeManual = false;
+      timing.end(error ? 'failed' : completed ? 'ok' : 'deferred');
       notify();
       uploadLog(user.id, ticket, wasManual);
     }
@@ -470,6 +488,36 @@ export function syncController(
       /* The previous list stays until the next Synkroniser. */
     }
   }
+  /** #101 F15: how the last Synkroniser on this device went for one import. */
+  /**
+   * #106: opening Synkronisering shows the list that is in Dropbox. One metadata call shows whether
+   * it changed; only a changed list is downloaded. A running sync reads the list itself, so this
+   * steps aside, and a failure keeps the last known list without a message.
+   */
+  async function checkImports() {
+    const user = account(),
+      ticket = epoch;
+    if (!user || navigator.onLine === false || running || workingWithDropbox || !adapter.files.metadata) return;
+    try {
+      await navigator.locks.request(`${env.namespace}:dropbox-sync`, {ifAvailable: true}, async lock => {
+        if (!lock || ticket !== epoch || paused || hooks.busy() || account()?.id !== user.id) return;
+        requestEpoch = ticket;
+        requestAccount = user.id;
+        requestManual = true;
+        requestGeneration = null;
+        const saved = await syncStore.imports(user.id),
+          rev = (await adapter.files.metadata!(importsPath))?.rev ?? null;
+        if (saved && rev === saved.rev) return;
+        const current = rev === null ? {rev: null, imports: []} : await readImports(adapter.files);
+        await syncStore.saveImports(user.id, current.rev, current.imports);
+      });
+    } catch {
+      /* The last known list stays; the next Synkroniser reads it again. */
+    }
+  }
+  function importStatus(id: string): ImportStatus | undefined {
+    return state?.sharedImports?.status[id];
+  }
   /** #101 F05. Without sharing consent the user is first sent to Dropbox to give it. */
   async function testImport(folder: string): Promise<ImportTest | 'consent'> {
     const user = account();
@@ -652,6 +700,10 @@ export function syncController(
       entry = errorEntry && (diagnostics.entry(errorEntry.id) ?? errorEntry);
     return error && entry ? `${statusFailure(error, connected)}\n\n${diagnostics.text(entry)}` : null;
   }
+  /** Test address only: the timing of recent runs, also after a successful sync. */
+  function timingText() {
+    return timing.enabled && timing.has() ? timing.text() : null;
+  }
   return {
     start,
     begin,
@@ -669,11 +721,14 @@ export function syncController(
     account,
     status,
     reportText,
+    timingText,
     readPublication,
     cachedPublication,
     publish,
     shareBook,
     imports,
+    checkImports,
+    importStatus,
     testImport,
     saveImport,
     running: () => running,

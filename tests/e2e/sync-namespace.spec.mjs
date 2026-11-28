@@ -1,6 +1,6 @@
 import {test, expect} from './fixtures.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
-import {openMenu} from './song-helpers.mjs';
+import {openMenu, importListChecked} from './song-helpers.mjs';
 test.use({serviceWorkers: 'block'});
 const url = '/hobos-songbook/test/';
 async function state(page) {
@@ -28,6 +28,7 @@ const account = data => data.sync.find(row => row.id.startsWith('private-account
 async function syncPage(page) {
   await openMenu(page);
   await page.locator('#main-menu').getByRole('button', {name: 'Synkronisering', exact: true}).click();
+  await importListChecked(page);
   await expect(page.locator('#dropbox-sync')).toBeEnabled();
 }
 async function synchronize(page) {

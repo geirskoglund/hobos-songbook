@@ -6,7 +6,7 @@ import {copyText} from './clipboard.ts';
 import {floatingAction, listRow} from './list-controls.ts';
 import {importDialog} from './import-dialog.ts';
 import type {startSongbooks} from './songbooks.ts';
-import type {SharedImport} from '../domain/shared-import.ts';
+import {importStatusText, type SharedImport} from '../domain/shared-import.ts';
 export function syncPage(controller: ReturnType<typeof syncController>, books: ReturnType<typeof startSongbooks>) {
   const root = document.getElementById('sync')!;
   const disconnected = document.createElement('div');
@@ -51,6 +51,7 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
   disconnect.className = 'secondary';
   accountPanel.append(identity, disconnect);
   // L01 rows without an action; the row menu (H04) arrives with deleting an import.
+  let checking = 0;
   const imports = document.createElement('ul');
   imports.id = 'import-list';
   imports.className = 'song-list import-list';
@@ -68,22 +69,42 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
       ...[...importItems]
         .sort((a, b) => a.name.localeCompare(b.name, 'nb'))
         .map(item => {
-          const {row} = listRow({title: item.name, details: [books.bookName(item.songbookId) ?? '']});
+          const {row} = listRow({
+            title: item.name,
+            details: [books.bookName(item.songbookId) ?? '', importStatusText(controller.importStatus(item.id))],
+          });
           row.dataset.importId = item.id;
           return row;
         }),
     );
   }
-  /** Reads the saved import list; songbook names come from the latest library read. */
-  async function refreshImports() {
+  /**
+   * Reads the saved import list; songbook names come from the latest library read. With `fresh`
+   * it shows the saved list at once, then the list in Dropbox if it has changed (#106). The list
+   * is aria-busy meanwhile.
+   */
+  async function refreshImports(fresh = false) {
     const current = ++reading;
+    if (fresh) {
+      checking++;
+      imports.setAttribute('aria-busy', 'true');
+    }
     try {
       const next = await controller.imports();
       if (current !== reading) return;
       importItems = next;
       drawImports();
+      if (!fresh) return;
+      await controller.checkImports();
+      if (current !== reading) return;
+      const checked = await controller.imports();
+      if (current !== reading) return;
+      importItems = checked;
+      drawImports();
     } catch {
       /* The shown list stays; the next Synkroniser or visit reads it again. */
+    } finally {
+      if (fresh && --checking === 0) imports.removeAttribute('aria-busy');
     }
   }
   async function register() {
@@ -113,12 +134,11 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
       'kopier',
     );
     copy.className = 'sync-error-copy';
-    copy.setAttribute('aria-label', 'Kopier feillogg');
-    copy.dataset.tooltip = 'Kopier feillogg';
     copy.hidden = true;
+    let source: () => string | null = controller.reportText;
     node.append(text, code, tail, copy);
     async function copyReport() {
-      const report = controller.reportText();
+      const report = source();
       if (!report) return;
       copy.disabled = true;
       try {
@@ -130,12 +150,17 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
       }
     }
     return {
-      render(message: string, enabled: boolean) {
-        const parts = enabled ? /^(.*?)(SYNC-\d{3}\))(.*)$/.exec(message) : null;
+      /** With `timing`, the button copies the test address's timing log instead of an error report. */
+      render(message: string, enabled: boolean, timing = false) {
+        const label = timing ? 'Kopier synklogg' : 'Kopier feillogg';
+        source = timing ? controller.timingText : controller.reportText;
+        copy.setAttribute('aria-label', label);
+        copy.dataset.tooltip = label;
+        const parts = enabled && !timing ? /^(.*?)(SYNC-\d{3}\))(.*)$/.exec(message) : null;
         text.data = parts ? parts[1] : message;
         code.textContent = parts?.[2] ?? '';
         tail.data = parts?.[3] ?? '';
-        copy.hidden = !enabled;
+        copy.hidden = !enabled && !timing;
         node.hidden = !message;
       },
     };
@@ -153,7 +178,11 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
     const message = controller.status(),
       hasReport = Boolean(controller.reportText());
     messages[0].render(account ? '' : message, !account && hasReport);
-    messages[1].render(account ? message : '', Boolean(account) && hasReport);
+    messages[1].render(
+      account ? message : '',
+      Boolean(account) && hasReport,
+      Boolean(account) && !hasReport && !controller.running() && Boolean(controller.timingText()),
+    );
   }
   function confirmDisconnect() {
     const box = dialogFrame('Koble fra Dropbox', 'name-dialog sync-dialog');

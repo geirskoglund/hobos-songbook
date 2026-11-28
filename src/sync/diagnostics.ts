@@ -34,6 +34,8 @@ const operations = [
   'files/delete_batch/check',
   'sharing/list_shared_links',
   'sharing/create_shared_link_with_settings',
+  'sharing/get_shared_link_metadata',
+  'sharing/get_shared_link_file',
 ] as const;
 const entryLimited = (event: ApiEvent) =>
   event.status === 200 &&

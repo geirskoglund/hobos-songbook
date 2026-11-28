@@ -1,12 +1,13 @@
 import {test, expect} from './fixtures.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
-import {openMenu, importAndOpenSong, goSongs, savedSongs} from './song-helpers.mjs';
+import {openMenu, importAndOpenSong, goSongs, savedSongs, importListChecked} from './song-helpers.mjs';
 import {stubClipboard, copiedText} from './clipboard-stub.mjs';
 test.use({serviceWorkers: 'block'});
 const url = '/hobos-songbook/test/';
 async function syncPage(page) {
   await openMenu(page);
   await page.locator('#main-menu').getByRole('button', {name: 'Synkronisering', exact: true}).click();
+  await importListChecked(page);
   await expect(page.locator('#dropbox-sync')).toBeEnabled();
 }
 async function setup(page, context, song = true) {

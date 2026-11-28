@@ -20,6 +20,7 @@ import {hasLocalWork, hasUnconfirmedNamespaceChanges, localManifest, personalOf}
 import {inspectRemovals, removedChanges} from './removals.ts';
 import {discover, ensureBooks, finishBookNames, refreshBookNames} from './books.ts';
 import {finishContent, prepareSong, songDestination, type SongPlan} from './song-plan.ts';
+import {fetchImports, importsPending} from './shared-imports.ts';
 import {deletedFolder, isBookPath, libraryPath, mutationPath, personalPath, syncErrorsPath} from '../core/paths.ts';
 
 type Resolution = {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'};
@@ -191,6 +192,8 @@ async function confirmUnchanged(s: SyncSession, library: Manifest) {
     epochBefore !== s.state.remote!.epoch &&
     Object.values(library.books).some(book => needsArchive(book, s.index.find));
   if (!same(before, domain()) || resetCleanup) return false;
+  // Imports are read from their shared folders, which the index does not cover.
+  if (await importsPending(s)) return false;
   s.state.pending = false;
   s.state.localGeneration = s.generation;
   s.state.lastManual = new Date().toISOString();
@@ -327,6 +330,8 @@ async function mergeLibrary(
       for (const id of Object.keys(previous.songs)) if (!local.songs[id] && !remote.songs[id]) delete merged.songs[id];
       await s.save();
     }
+    // New imported songs have no personal file yet, so they are not treated as published.
+    for (const id of await fetchImports(s, merged)) publishedIds.delete(id);
     merged = mergeManifest(base, local, merged);
   }
   return {local, merged, pendingNames};

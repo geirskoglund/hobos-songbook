@@ -15,7 +15,8 @@ import {changeNote, noteAt, logicalLines} from '../domain/annotations.ts';
 import type {Highlight, Song, SongPersonal} from '../core/song.ts';
 import {shiftGridText} from '../domain/personal.ts';
 import {sourceLines, sourceChords, moveChord, setMetadata, transposeSong} from '../domain/source-edit.ts';
-import type {EditSession} from '../domain/edit-session.ts';
+import {readOnlyImport, type EditSession} from '../domain/edit-session.ts';
+import {importedSong} from '../domain/song.ts';
 
 /**
  * Redigeringsmodus for én sang. Editoren eier verktøyet, valget og den åpne kontrollen; delmodulene
@@ -40,7 +41,7 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
         discard?: () => void;
       }
     | undefined;
-  const toolbar = createEditorToolbar(run);
+  const toolbar = createEditorToolbar(run, {file: !importedSong(session.song)});
   function paintTools() {
     toolbar.paint({canUndo: session.canUndo(), canRedo: session.canRedo(), selected: Boolean(selected), tool});
     body?.setAttribute('data-tool', tool ?? '');
@@ -62,6 +63,11 @@ export function createSongEditor(session: EditSession, change: (source?: boolean
   };
   const original = (next: Song, fn?: (state: SongPersonal) => SongPersonal) => {
     toolbar.clearError();
+    // #101 F16: the file content of an imported song is never changed.
+    if (importedSong(session.song)) {
+      toolbar.showError(readOnlyImport);
+      return;
+    }
     session.replaceOriginal(next, fn);
     paintTools();
     change(true);

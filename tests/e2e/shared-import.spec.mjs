@@ -1,5 +1,5 @@
 import {test, expect} from './fixtures.mjs';
-import {openMenu} from './song-helpers.mjs';
+import {openMenu, importListChecked} from './song-helpers.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
 
 const url = '/hobos-songbook/test/';
@@ -7,6 +7,7 @@ const source = 'https://www.dropbox.com/scl/fo/kilde/Bandet?rlkey=a';
 async function syncPage(page) {
   await openMenu(page);
   await page.getByRole('button', {name: 'Synkronisering', exact: true}).click();
+  await importListChecked(page);
   await expect(page.locator('#sync')).toBeVisible();
 }
 const dialog = page => page.locator('dialog[open].import-dialog');
@@ -133,7 +134,8 @@ test('#105: register a tested import; every test answer, field errors and other 
   await expect(page.locator('#add-import')).toBeFocused();
   await expect(page.locator('#import-list > li')).toHaveCount(1);
   await expect(page.locator('#import-list .row-title')).toHaveText('Bandet');
-  await expect(page.locator('#import-list .row-metadata')).toHaveText('Standard');
+  // #106: before its first Synkroniser the row says so after the songbook.
+  await expect(page.locator('#import-list .row-metadata > span')).toHaveText(['Standard', 'Aldri synkronisert']);
   // The shared L01 row, without an action until the import gets one.
   await expect(page.locator('#import-list .row-title')).toHaveCSS('font-weight', '500');
   await expect(page.locator('#import-list button')).toHaveCount(0);

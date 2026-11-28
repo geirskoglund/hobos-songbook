@@ -8,7 +8,7 @@ const song = {
   key: 'D',
   original: '\uFEFF{t: Behold sangen}\r\n{key: D}\r\n[D]Ord\r\n',
   origin: {
-    kind: 'external',
+    kind: 'local',
     filename: 'behold.cho',
     importedAt: '2026-01-01',
     provider: 'dropbox',

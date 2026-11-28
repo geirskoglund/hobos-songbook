@@ -2,7 +2,7 @@ import {test, expect} from './fixtures.mjs';
 import {createHash} from 'node:crypto';
 import {mkdir, appendFile} from 'node:fs/promises';
 import {dropboxMock} from './dropbox-mock.mjs';
-import {openMenu, savedSongs} from './song-helpers.mjs';
+import {openMenu, savedSongs, importListChecked} from './song-helpers.mjs';
 test.use({serviceWorkers: 'block'});
 const url = '/hobos-songbook/test/',
   original = '{t: Samme sang}\n[C]Tekst';
@@ -43,6 +43,7 @@ async function state(page) {
 async function syncPage(page) {
   await openMenu(page);
   await page.locator('#main-menu').getByRole('button', {name: 'Synkronisering', exact: true}).click();
+  await importListChecked(page);
   await expect(page.locator('#dropbox-sync')).toBeEnabled();
 }
 async function quality(page, kind) {

@@ -8,12 +8,14 @@ import {
   openSettings,
   closeSettings,
   savedSongs,
+  importListChecked,
 } from './song-helpers.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
 const url = '/hobos-songbook/test/';
 async function syncPage(page) {
   await openMenu(page);
   await page.getByRole('button', {name: 'Synkronisering', exact: true}).click();
+  await importListChecked(page);
   await expect(page.locator('#sync')).toBeVisible();
 }
 async function synchronize(page) {
