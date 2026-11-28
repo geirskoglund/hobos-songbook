@@ -1,7 +1,7 @@
 import {test, expect} from './fixtures.mjs';
 import {createHash} from 'node:crypto';
 import {dropboxMock} from './dropbox-mock.mjs';
-import {openMenu, goSongs} from './song-helpers.mjs';
+import {openMenu, goSongs, importListChecked} from './song-helpers.mjs';
 test.use({serviceWorkers: 'block'});
 const url = '/hobos-songbook/test/';
 const originals = [
@@ -98,6 +98,7 @@ async function connect(page) {
 async function syncPage(page) {
   await openMenu(page);
   await page.locator('#main-menu').getByRole('button', {name: 'Synkronisering', exact: true}).click();
+  await importListChecked(page);
   await expect(page.locator('#dropbox-sync')).toBeEnabled();
 }
 async function sync(page) {

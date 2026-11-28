@@ -1,11 +1,12 @@
 import {test, expect} from './fixtures.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
-import {openMenu, importAndOpenSong, goSongs} from './song-helpers.mjs';
+import {openMenu, importAndOpenSong, goSongs, importListChecked} from './song-helpers.mjs';
 import {stubClipboard, copiedText} from './clipboard-stub.mjs';
 const url = '/hobos-songbook/test/';
 async function syncPage(page) {
   await openMenu(page);
   await page.locator('#main-menu').getByRole('button', {name: 'Synkronisering', exact: true}).click();
+  await importListChecked(page);
 }
 async function fail(page, mock, status = 500) {
   await expect(page.locator('#dropbox-sync')).toBeEnabled();
@@ -109,7 +110,7 @@ test('only the copy icon acts on an error; exact message and private-data-free t
   await timing.click();
   const log = await copiedText(page);
   expect(log).toMatch(/^Synklogg Hobo's Songbook Test /);
-  expect(log).toMatch(/manuell ok: \d+ ms, \d+ kall \d+ ms, utenom kall -?\d+ ms/);
+  expect(log).toMatch(/manuell ok: \d+ ms, \d+ kall, venter på Dropbox \d+ ms, utenom kall \d+ ms/);
   expect(log).toContain('[synk]');
   expect(log).toContain('files/list_folder');
   for (const forbidden of ['Songbooks', 'library.json', '.cho']) expect(log).not.toContain(forbidden);

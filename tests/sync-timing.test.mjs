@@ -28,7 +28,7 @@ test('the timing log runs only on the test address', () =>
     assert.equal(values.size, 0);
   }));
 
-test('a successful run shows calls, phases and time outside calls', () =>
+test('a successful run shows calls, phases and time outside calls; overlapping calls count once', () =>
   withStorage(() => {
     let clock = 0;
     const timing = syncTiming(environment('test', 'b'.repeat(40), '115'), () => clock);
@@ -45,7 +45,7 @@ test('a successful run shows calls, phases and time outside calls', () =>
     timing.end('ok');
     const text = timing.text();
     assert.match(text, /PR 115/);
-    assert.match(text, /manuell ok: 1200 ms, 3 kall 700 ms, utenom kall 500 ms/);
+    assert.match(text, /manuell ok: 1200 ms, 3 kall, venter på Dropbox 550 ms, utenom kall 650 ms/);
     assert.match(text, /files\/download: 2 kall, 400 ms/);
     assert.match(text, /^ {2}0 \+100 \[venter\]$/m);
     assert.match(text, /^ {2}100 \+300 files\/list_folder 200$/m);
@@ -63,6 +63,6 @@ test('the log keeps the last ten runs across reloads', () =>
     const reloaded = syncTiming(env, () => 0);
     assert.equal(reloaded.has(), true);
     const text = reloaded.text();
-    assert.equal(text.match(/ms, 0 kall/g).length, 10);
+    assert.equal(text.match(/ms, 0 kall,/g).length, 10);
     assert.match(text, /automatisk failed/);
   }));

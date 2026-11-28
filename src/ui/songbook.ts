@@ -157,7 +157,7 @@ export function startSongbook() {
         if (page === 'library') void library.refresh();
         if (page === 'setlists') void setlists.refresh();
         if (page === 'songbooks') await bookManager.refresh();
-        if (page === 'sync') void cloudPage.refreshImports();
+        if (page === 'sync') void cloudPage.refreshImports(true);
         byId(page === 'library' ? 'library-title' : `${page}-title`).focus({preventScroll: true});
         window.scrollTo(0, 0);
       },

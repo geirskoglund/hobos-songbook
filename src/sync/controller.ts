@@ -489,6 +489,32 @@ export function syncController(
     }
   }
   /** #101 F15: how the last Synkroniser on this device went for one import. */
+  /**
+   * #106: opening Synkronisering shows the list that is in Dropbox. One metadata call shows whether
+   * it changed; only a changed list is downloaded. A running sync reads the list itself, so this
+   * steps aside, and a failure keeps the last known list without a message.
+   */
+  async function checkImports() {
+    const user = account(),
+      ticket = epoch;
+    if (!user || navigator.onLine === false || running || workingWithDropbox || !adapter.files.metadata) return;
+    try {
+      await navigator.locks.request(`${env.namespace}:dropbox-sync`, {ifAvailable: true}, async lock => {
+        if (!lock || ticket !== epoch || paused || hooks.busy() || account()?.id !== user.id) return;
+        requestEpoch = ticket;
+        requestAccount = user.id;
+        requestManual = true;
+        requestGeneration = null;
+        const saved = await syncStore.imports(user.id),
+          rev = (await adapter.files.metadata!(importsPath))?.rev ?? null;
+        if (saved && rev === saved.rev) return;
+        const current = rev === null ? {rev: null, imports: []} : await readImports(adapter.files);
+        await syncStore.saveImports(user.id, current.rev, current.imports);
+      });
+    } catch {
+      /* The last known list stays; the next Synkroniser reads it again. */
+    }
+  }
   function importStatus(id: string): ImportStatus | undefined {
     return state?.sharedImports?.status[id];
   }
@@ -701,6 +727,7 @@ export function syncController(
     publish,
     shareBook,
     imports,
+    checkImports,
     importStatus,
     testImport,
     saveImport,

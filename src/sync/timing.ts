@@ -92,9 +92,21 @@ export function syncTiming(env: AppEnvironment, now: () => number = () => perfor
   };
 }
 
+/** Time with at least one call underway; calls that run at the same time count once. */
+function waitingMs(calls: readonly Step[]) {
+  let waited = 0,
+    reached = 0;
+  for (const call of [...calls].sort((a, b) => a.at - b.at)) {
+    const end = call.at + call.ms;
+    if (end > reached) waited += end - Math.max(call.at, reached);
+    reached = Math.max(reached, end);
+  }
+  return waited;
+}
+
 function timingText(run: TimingRun) {
   const calls = run.steps.filter(step => !step.name.startsWith('[')),
-    callMs = calls.reduce((sum, step) => sum + step.ms, 0),
+    callMs = waitingMs(calls),
     totals = new Map<string, {count: number; ms: number}>();
   for (const call of calls) {
     const total = totals.get(call.name) ?? {count: 0, ms: 0};
@@ -104,7 +116,7 @@ function timingText(run: TimingRun) {
   }
   return [
     `${run.started} ${run.manual ? 'manuell' : 'automatisk'} ${run.outcome}: ${run.totalMs} ms, ` +
-      `${calls.length} kall ${callMs} ms, utenom kall ${run.totalMs - callMs} ms`,
+      `${calls.length} kall, venter på Dropbox ${callMs} ms, utenom kall ${Math.max(0, run.totalMs - callMs)} ms`,
     ...[...totals].map(([name, total]) => `  ${name}: ${total.count} kall, ${total.ms} ms`),
     '  Tidslinje (start ms, varighet ms):',
     ...run.steps.map(

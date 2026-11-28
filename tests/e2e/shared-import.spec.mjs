@@ -1,5 +1,5 @@
 import {test, expect} from './fixtures.mjs';
-import {openMenu} from './song-helpers.mjs';
+import {openMenu, importListChecked} from './song-helpers.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
 
 const url = '/hobos-songbook/test/';
@@ -7,6 +7,7 @@ const source = 'https://www.dropbox.com/scl/fo/kilde/Bandet?rlkey=a';
 async function syncPage(page) {
   await openMenu(page);
   await page.getByRole('button', {name: 'Synkronisering', exact: true}).click();
+  await importListChecked(page);
   await expect(page.locator('#sync')).toBeVisible();
 }
 const dialog = page => page.locator('dialog[open].import-dialog');

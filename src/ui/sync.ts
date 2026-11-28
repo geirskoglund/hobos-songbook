@@ -51,6 +51,7 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
   disconnect.className = 'secondary';
   accountPanel.append(identity, disconnect);
   // L01 rows without an action; the row menu (H04) arrives with deleting an import.
+  let checking = 0;
   const imports = document.createElement('ul');
   imports.id = 'import-list';
   imports.className = 'song-list import-list';
@@ -77,16 +78,33 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
         }),
     );
   }
-  /** Reads the saved import list; songbook names come from the latest library read. */
-  async function refreshImports() {
+  /**
+   * Reads the saved import list; songbook names come from the latest library read. With `fresh`
+   * it shows the saved list at once, then the list in Dropbox if it has changed (#106). The list
+   * is aria-busy meanwhile.
+   */
+  async function refreshImports(fresh = false) {
     const current = ++reading;
+    if (fresh) {
+      checking++;
+      imports.setAttribute('aria-busy', 'true');
+    }
     try {
       const next = await controller.imports();
       if (current !== reading) return;
       importItems = next;
       drawImports();
+      if (!fresh) return;
+      await controller.checkImports();
+      if (current !== reading) return;
+      const checked = await controller.imports();
+      if (current !== reading) return;
+      importItems = checked;
+      drawImports();
     } catch {
       /* The shown list stays; the next Synkroniser or visit reads it again. */
+    } finally {
+      if (fresh && --checking === 0) imports.removeAttribute('aria-busy');
     }
   }
   async function register() {

@@ -1,5 +1,5 @@
 import {test, expect} from './fixtures.mjs';
-import {openMenu, goSongs, savedSongs} from './song-helpers.mjs';
+import {openMenu, goSongs, savedSongs, importListChecked} from './song-helpers.mjs';
 import {dropboxMock} from './dropbox-mock.mjs';
 
 const url = '/hobos-songbook/test/';
@@ -8,6 +8,7 @@ const base = '/Songbooks/Standard/Import/Bandet';
 async function go(page, name) {
   await openMenu(page);
   await page.getByRole('button', {name, exact: true}).click();
+  if (name === 'Synkronisering') await importListChecked(page);
 }
 async function synchronize(page) {
   await go(page, 'Synkronisering');
@@ -90,4 +91,38 @@ test('#106: Synkroniser fetches an import into its songbook, keeps it current an
   ]);
   await goSongs(page);
   await expect(page.locator('#song-list .row-title')).toHaveText(['Alfa', 'Beta']);
+});
+
+test('#106: opening Synkronisering shows imports registered on another device before any sync', async ({
+  page,
+  context,
+}) => {
+  const mock = await dropboxMock(context, {sharing: true});
+  mock.shareForeign(source, {files: {'/Alfa.cho': '{t: Alfa}\n[C]Ord'}});
+  await page.goto(url);
+  await expect.poll(() => Boolean(mock.find('/.app/library.json'))).toBe(true);
+  await go(page, 'Synkronisering');
+  await expect(page.locator('#import-list > *')).toHaveCount(0);
+  await goSongs(page);
+  mock.put(
+    '/.app/imports.json',
+    JSON.stringify({version: 1, imports: {bandet: {name: 'Bandet', folder: source, songbookId: 'standard'}}}),
+  );
+  const list = () => mock.calls.filter(call => call.args?.path === '/.app/imports.json'),
+    before = list().length;
+  await go(page, 'Synkronisering');
+  // The row shows this device's status: it has not fetched the import yet.
+  await expect(page.locator('#import-list .row-metadata > span')).toHaveText(['Standard', 'Aldri synkronisert']);
+  expect(
+    list()
+      .slice(before)
+      .map(call => call.endpoint.split('/2/')[1]),
+  ).toEqual(['files/get_metadata', 'files/download']);
+  // An unchanged list costs one metadata call and no download.
+  await goSongs(page);
+  const again = list().length;
+  await go(page, 'Synkronisering');
+  await expect.poll(() => list().length).toBe(again + 1);
+  expect(list().at(-1).endpoint).toMatch(/files\/get_metadata$/);
+  await expect(page.locator('#import-list .row-title')).toHaveText(['Bandet']);
 });
