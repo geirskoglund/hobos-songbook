@@ -204,7 +204,7 @@ test('opening a song cancels a pending retry; an explicit manual request resumes
   await page.locator('#dropbox-sync').click();
   await expect.poll(() => mock.throttled()).toBe(1);
   await goSongs(page);
-  await page.locator('#song-list .song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await expect(page.locator('#song-title')).toHaveText('Lokal');
   const start = mock.calls.length;
   await page.waitForTimeout(1100);

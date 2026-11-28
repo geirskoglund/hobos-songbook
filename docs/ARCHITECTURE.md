@@ -31,7 +31,7 @@ Domenet importerer aldri Dropbox. Originalteksten er autoritativ; parserens stru
 | `src/theme.css` | Farger, fonter, bredder, dialogmål |
 | `src/ui/layout.ts` | Aktiv hovedflate, viewport, målt header- og verktøylinjehøyde |
 | `src/ui/controls.ts`, `dialog.ts` | Knapper, felt, brytere, dialogramme og -livssyklus |
-| `src/ui/list-controls.ts` | Listerader, overskrifter og velgere (H01/H04, L01/L02/L05, D09/D10) |
+| `src/ui/list-controls.ts` | Listerader, overskrifter og velgere (H01/H04, L01/L05, D09/D10) |
 | `src/ui/app-interactions.ts` | Tastaturmarkering (`data-keyboard-focus` på roten) og appens egen tekst- og kontekstbetjening |
 
 Normative mål står i [DESIGN](DESIGN.md).

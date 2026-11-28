@@ -64,9 +64,9 @@ test.describe('Publisering på smal berøringsskjerm', () => {
     const root = page.locator('#publication'),
       tabs = root.locator('.publication-tab-row');
     const all = action(page, 'Velg alle'),
-      first = root.locator('.metadata-row').first();
+      first = root.locator('.row-choice').first();
     const counts = root.locator('.publication-actions p');
-    await expect(root.locator('.song-name')).toHaveText(['Alfa', 'Zulu']);
+    await expect(root.locator('.row-title')).toHaveText(['Alfa', 'Zulu']);
     await action(page, 'Sangbok: Alle').tap();
     await page.getByRole('option', {name: 'Band', exact: true}).tap();
     const geometry = async () => {
@@ -100,7 +100,7 @@ test.describe('Publisering på smal berøringsskjerm', () => {
     await expect(all).toHaveAttribute('aria-pressed', 'true');
 
     await page.getByRole('tab', {name: 'Publisert', exact: true}).tap();
-    await expect(root.locator('.song-name')).toHaveText(['Delt i Band']);
+    await expect(root.locator('.row-title')).toHaveText(['Delt i Band']);
     await all.tap();
     await expect(counts).toHaveText('2 valgt for publisering · 1 for avpublisering');
     await action(page, 'Sangbok: Band').tap();
@@ -134,7 +134,7 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
     syncIcon = perform.locator('svg');
   await expect(summary).toHaveText(['21', '19', '2']);
   await expect(privateTab).toHaveAttribute('aria-selected', 'true');
-  await expect(root.locator('.song-name')).toHaveText(['Alfa', 'Zulu']);
+  await expect(root.locator('.row-title')).toHaveText(['Alfa', 'Zulu']);
   await expect(perform).toBeDisabled();
   await expect(perform).toHaveCSS('cursor', 'default');
   await expect(syncIcon).toBeVisible();
@@ -200,7 +200,7 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
         tabs: style('.tab-switcher'),
         selectAll: style('.publication-select-all'),
         active: style('[role=tab][aria-selected=true]'),
-        row: style('.metadata-row[aria-pressed=true]'),
+        row: style('.row-choice[aria-pressed=true]'),
         check: style('.choice-check'),
         button: style('.primary-action'),
         bar: style('.publication-actions'),
@@ -224,7 +224,7 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
     expect(geometry.bar.bottom).toBe(560);
     await writeFile(`work/publication/geometry-${width}.json`, JSON.stringify(geometry, null, 2));
     await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
-    const last = await root.locator('.metadata-row').last().boundingBox(),
+    const last = await root.locator('.row-choice').last().boundingBox(),
       bar = await root.locator('.publication-actions').boundingBox();
     expect(last.y + last.height).toBeLessThan(bar.y);
     await expect(perform).toBeInViewport();
@@ -239,7 +239,7 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
     await expect(perform).toBeDisabled();
     await expect(perform).toHaveCSS('cursor', 'default');
     await expect(action(page, 'Velg alle')).toBeDisabled();
-    await expect(root.locator('.metadata-row').first()).toBeDisabled();
+    await expect(root.locator('.row-choice').first()).toBeDisabled();
     await expect(syncIcon).toBeVisible();
     await expect(syncIcon).toHaveCSS('animation-name', 'sync-rotation');
     await expect(page.locator('#header-sync')).toHaveCSS('opacity', '0.65');

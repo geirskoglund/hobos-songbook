@@ -1,5 +1,5 @@
 import {byId} from './dom.ts';
-import {contextMenu, floatingAction, metadataRow, songbookFilter} from './list-controls.ts';
+import {contextMenu, floatingAction, listRow, songbookFilter} from './list-controls.ts';
 import {parseChordPro} from '../domain/chordpro.ts';
 import {gripKey} from '../domain/personal.ts';
 import {suggestedSongbook, type Songbook} from '../domain/songbook.ts';
@@ -100,9 +100,9 @@ export function startSongLibrary(
         metadata.push(`Capo ${personal.capo}${key ? `: ${key}` : ''}`);
       }
       if (personal?.tuning) metadata.push(`Stemming: ${personal.tuning}`);
-      const {row, button} = metadataRow(song.title, metadata, () => options.open(song));
-      button.dataset.songId = song.id;
-      button.disabled = options.importing();
+      const {row, main} = listRow({title: song.title, details: metadata, choose: () => options.open(song)});
+      main.dataset.songId = song.id;
+      main.disabled = options.importing();
       list.append(row);
     }
     status.textContent = visible.length

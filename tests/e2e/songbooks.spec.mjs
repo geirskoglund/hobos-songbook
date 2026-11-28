@@ -269,7 +269,7 @@ test('successful creation and import follow the chosen book filter; cancelled fl
   await button(dialog(page, 'Råtekst'), 'Lagre').click();
   await goSongs(page);
   await expect(page.locator('#songbook-filter')).toHaveText('Band');
-  await expect(page.locator('#song-list .song-choice')).toHaveCount(1);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(1);
   await beginImport(page, 'Tom bok');
   await page.locator('#song-file').setInputFiles({
     name: 'filter-import.cho',
@@ -279,7 +279,7 @@ test('successful creation and import follow the chosen book filter; cancelled fl
   await expect(page.locator('#song-list')).toContainText('Imported into empty');
   await goSongs(page);
   await expect(page.locator('#songbook-filter')).toHaveText('Tom bok');
-  await expect(page.locator('#song-list .song-choice')).toHaveCount(1);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(1);
   await page.reload();
   await expect(page.locator('#songbook-filter')).toHaveText('Tom bok');
 });
@@ -299,7 +299,7 @@ test('menu, L02 administration, validation, rename identity, D09 icons and safe 
   ]);
   expect(await page.locator('[data-destination=songbooks] .icon path').first().getAttribute('d')).toContain('M12 6.5');
   await button(page, 'Sangbøker').click();
-  await expect(page.locator('#songbook-list .count-choice')).toHaveText([
+  await expect(page.locator('#songbook-list .row-choice')).toHaveText([
     'Band0 sanger',
     'Standard2 sanger',
     'Tom bok0 sanger',
@@ -672,7 +672,7 @@ for (const width of [320, 768, 1440])
     await context.setOffline(false);
     await production.goto('/hobos-songbook/app/');
     await goBooks(production);
-    await expect(production.locator('#songbook-list .count-choice')).toHaveText(['Standard0 sanger']);
+    await expect(production.locator('#songbook-list .row-choice')).toHaveText(['Standard0 sanger']);
     await production.close();
   });
 
@@ -685,7 +685,7 @@ test('worker update restores book-list position, menu and Settings return and pr
   await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
   await goBooks(page);
   for (let i = 0; i < 9; i++) await createBook(page, `Bok ${i}`);
-  await page.locator('#songbook-list .count-choice').nth(7).scrollIntoViewIfNeeded();
+  await page.locator('#songbook-list .row-choice').nth(7).scrollIntoViewIfNeeded();
   const position = await page.evaluate(() => scrollY);
   await openSettings(page);
   await request.post('/__test__/update?channel=test');

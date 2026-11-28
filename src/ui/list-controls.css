@@ -1,26 +1,47 @@
-/* H01/H04, L01/L02/L05 and D09/D10: shared geometry and interaction states. */
+/* H01/H04, L01/L05 and D09/D10: shared geometry and interaction states. */
 .song-list {
   list-style: none;
   margin: 0;
   padding: 0 0 calc(110px + var(--safe-bottom));
 }
-.song-list > li {
+/* L01 is the only list row; its rules live here and nowhere else. */
+.list-row {
+  display: flex;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
 }
-.metadata-row {
+.row-choice {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
   padding: 20px 0;
   border: 0;
   border-radius: 0;
   background: none;
+}
+.row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
   min-width: 0;
 }
-.song-name {
+.row-title {
   font: 500 clamp(21px, 3vw, 24px)/1.3 var(--font-ui);
   overflow-wrap: anywhere;
+}
+.row-metadata:empty {
+  display: none;
+}
+/* Status icons stand directly before the row menu, or in its place at the far right. */
+.row-statuses {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  color: var(--muted);
 }
 .row-metadata {
   display: flex;
@@ -37,55 +58,20 @@
   content: '·';
   padding: 0 8px;
 }
-.metadata-row:hover {
+.row-choice:where(button):hover {
   background: color-mix(in srgb, var(--raised) 25%, transparent);
 }
-.metadata-row[aria-pressed] {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 24px;
-  align-items: center;
-}
-.metadata-row[aria-pressed] > span {
-  grid-column: 1;
-}
-.metadata-row[aria-pressed] > .row-metadata:empty {
-  display: none;
-}
-.metadata-row > .choice-check {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-}
-.song-list > .count-row {
-  border-bottom-color: color-mix(in srgb, var(--border) 48%, transparent);
-}
-.count-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 60px;
-  align-items: start;
-  min-height: 115px;
-}
-.count-choice {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  min-width: 0;
-  min-height: 114px;
-  padding: 22px 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-}
-.count-choice .song-name {
-  font: 400 22px/1.3 var(--font-ui);
-}
+/* H04 at the far right, as tall as the row without setting its height. */
 .row-menu {
   display: grid;
   place-items: center;
-  min-height: 74px;
+  flex: none;
+  align-self: stretch;
   width: 60px;
+  min-height: 44px;
   padding: 0;
   border: 0;
+  border-radius: 0;
   background: none;
   color: var(--muted);
 }

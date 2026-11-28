@@ -50,7 +50,7 @@ test('modes share saved grouped history; title/capo survive view, tab and settin
   await page.getByRole('button', {name: 'Gjør om', exact: true}).click();
   await expect.poll(async () => (await savedSongs(page))[0].title).toBe('To');
   await page.locator('#back').click();
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await editSong(page);
   await expect(page.getByRole('button', {name: 'Angre', exact: true})).toBeDisabled();
 });

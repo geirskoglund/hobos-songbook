@@ -60,7 +60,7 @@ for (const width of [320, 768, 1440])
     await expect(page.locator('#library')).toBeVisible();
     await expect(page.locator('#reader')).toBeHidden();
     await expect(page.locator('#songbook-filter')).toHaveText(name);
-    await expect(page.locator('#song-list .song-choice')).toHaveCount(1);
+    await expect(page.locator('#song-list .row-choice')).toHaveCount(1);
     await expect(page.locator('#song-list')).toContainText('Første import');
     expect((await journal(page)).sessions).toEqual({});
     await expect.poll(() => Object.keys(manifest(mock).songs).length).toBe(1);
@@ -73,7 +73,7 @@ for (const width of [320, 768, 1440])
     await selectFile(page, 'andre.txt', '{t: Andre import}\nOrd');
     await expect(page.locator('#library')).toBeVisible();
     await expect(page.locator('#reader')).toBeHidden();
-    await expect(page.locator('#song-list .song-choice')).toHaveCount(2);
+    await expect(page.locator('#song-list .row-choice')).toHaveCount(2);
     expect((await journal(page)).sessions).toEqual({});
     await expect.poll(() => Object.keys(manifest(mock).songs).length).toBe(2);
     await expect(page.locator('#dropbox-sync')).toBeEnabled();
@@ -81,7 +81,7 @@ for (const width of [320, 768, 1440])
     expect(new Set(songs.map(song => song.songbookId)).size).toBe(1);
     await page.reload();
     await expect(page.locator('#songbook-filter')).toHaveText(name);
-    await expect(page.locator('#song-list .song-choice')).toHaveCount(2);
+    await expect(page.locator('#song-list .row-choice')).toHaveCount(2);
     const visual = await page.evaluate(() => {
       const read = id => {
         const e = document.getElementById(id),
@@ -105,7 +105,7 @@ for (const width of [320, 768, 1440])
         header: read('page-title'),
         filter: read('songbook-filter'),
         add: read('add-song'),
-        rows: [...document.querySelectorAll('#song-list .song-choice')].map(e => ({
+        rows: [...document.querySelectorAll('#song-list .row-choice')].map(e => ({
           height: e.getBoundingClientRect().height,
           font: getComputedStyle(e).fontSize,
         })),
@@ -169,11 +169,11 @@ test('offline import errors and cancellation keep the filter; retry returns to t
   await expect(page.locator('#library')).toBeVisible();
   await expect(page.locator('#reader')).toBeHidden();
   await expect(page.locator('#songbook-filter')).toHaveText('Band');
-  await expect(page.locator('#song-list .song-choice')).toHaveCount(1);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(1);
   expect((await journal(page)).sessions).toEqual({});
   expect(await savedSongs(page)).toHaveLength(1);
   await context.setOffline(false);
   await page.reload();
   await expect(page.locator('#songbook-filter')).toHaveText('Band');
-  await expect(page.locator('#song-list .song-choice')).toHaveCount(1);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(1);
 });

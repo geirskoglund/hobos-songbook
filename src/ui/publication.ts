@@ -3,7 +3,7 @@ import type {PublicationView} from '../sync/model.ts';
 import {actionButton, primaryButton, tabSwitcher} from './controls.ts';
 import type {Songbook} from '../domain/songbook.ts';
 import {currentPage} from './layout.ts';
-import {metadataRow, setRowSelected, songbookFilter} from './list-controls.ts';
+import {listRow, setRowSelected, songbookFilter} from './list-controls.ts';
 
 type Tab = 'unpublished' | 'published';
 const tabs: {id: Tab; label: string; icon: string}[] = [
@@ -152,10 +152,10 @@ export function publicationPage(
         ? (document.activeElement as HTMLElement).dataset.songId
         : undefined;
       const rows = visible.map(song => {
-        const {row, button} = metadataRow(
-          song.title,
-          [song.key, song.time].filter((value): value is string => Boolean(value)),
-          () => {
+        const {row, main: button} = listRow({
+          title: song.title,
+          details: [song.key, song.time].filter((value): value is string => Boolean(value)),
+          choose: () => {
             if (!enabled()) return;
             resultText = '';
             if (chosen.has(song.id)) chosen.delete(song.id);
@@ -163,7 +163,7 @@ export function publicationPage(
             setRowSelected(button, chosen.has(song.id), 'aria-pressed');
             renderActions();
           },
-        );
+        });
         button.dataset.songId = song.id;
         button.disabled = !enabled();
         setRowSelected(button, chosen.has(song.id), 'aria-pressed');
