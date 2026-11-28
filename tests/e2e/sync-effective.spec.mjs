@@ -49,7 +49,7 @@ async function setup(page, context, titles = ['Alpha'], options) {
 }
 async function editTitle(page, title, next) {
   await goSongs(page);
-  await page.locator('#song-list .song-choice').filter({hasText: title}).click();
+  await page.locator('#song-list .row-choice').filter({hasText: title}).click();
   await tool(page, 'Tittel');
   await fillValue(page, 'Tittel', next);
   await goSongs(page);
@@ -443,7 +443,7 @@ test('F23: a revision race is rechecked as an ordinary conflict without a false 
   const mock = await setup(page, context),
     song = (await savedSongs(page))[0];
   await goSongs(page);
-  await page.locator('#song-list .song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await setCapo(page, 4);
   const release = mock.hold('/upload', false, '/.app/songs/' + song.id + '.json');
   try {
@@ -510,7 +510,7 @@ test('F57: deleting the last master book leaves an empty library without recreat
   expect(mock.find('/Songbooks/Standard')).toBeUndefined();
   await goSongs(page);
   await expect(page.locator('#songbook-filter')).toContainText('Alle');
-  await expect(page.locator('#song-list .song-choice')).toHaveCount(0);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(0);
 });
 test('F56/F23: deletion during an upload cannot recreate the file or produce a false failure', async ({
   page,
@@ -520,7 +520,7 @@ test('F56/F23: deletion during an upload cannot recreate the file or produce a f
     song = (await savedSongs(page))[0],
     link = JSON.parse(mock.find('/.app/library.json').text).songs[song.id];
   await goSongs(page);
-  await page.locator('#song-list .song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await tool(page, 'Tittel');
   await fillValue(page, 'Tittel', 'Unsent Alpha');
   const release = mock.hold('/upload', false, link.path);
@@ -558,7 +558,7 @@ test('automatic content-copy and personal choices continue in sequence without d
   remote.data.capo = 7;
   mock.put(personal, JSON.stringify(remote));
   await goSongs(page);
-  await page.locator('#song-list .song-choice').filter({hasText: 'Alpha'}).click();
+  await page.locator('#song-list .row-choice').filter({hasText: 'Alpha'}).click();
   await setCapo(page, 4);
   await tool(page, 'Tittel');
   await fillValue(page, 'Tittel', 'Local Alpha');
@@ -590,7 +590,7 @@ test('parallel incoming responses respect a newly opened song session and resume
       .poll(() => mock.calls.slice(start).filter(c => c.endpoint.endsWith('/download')).length)
       .toBeGreaterThanOrEqual(2);
     await goSongs(page);
-    await page.locator('#song-list .song-choice').filter({hasText: 'Alpha'}).click();
+    await page.locator('#song-list .row-choice').filter({hasText: 'Alpha'}).click();
     await expect(page.locator('#song-title')).toHaveText('Alpha');
   } finally {
     release();
@@ -850,7 +850,7 @@ test('bulk: opening a song during commit pauses receipts and dependent uploads u
     await mutate(page, {seed: 20});
     await expect.poll(() => mock.calls.some(c => c.endpoint.endsWith('/finish_batch_v2'))).toBe(true);
     await goSongs(page);
-    await page.locator('#song-list .song-choice').filter({hasText: 'Bulk 0'}).click();
+    await page.locator('#song-list .row-choice').filter({hasText: 'Bulk 0'}).click();
     await expect(page.locator('#song-title')).toHaveText('Bulk 0');
   } finally {
     release();

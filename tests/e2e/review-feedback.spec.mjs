@@ -358,7 +358,7 @@ test('opening and closing a legacy multiline note in a single line control prese
     state,
   );
   await page.reload();
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await tool(page, 'Notater', true);
   await page.locator('.personal-note').click();
   expect(await page.getByRole('textbox', {name: 'Notat', exact: true}).evaluate(n => n.tagName)).toBe('INPUT');

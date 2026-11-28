@@ -22,12 +22,12 @@ const stateKey = (namespace: string) => `${namespace}:update-view`;
 const rows = (songId: string | null, page?: Page) => [
   ...document.querySelectorAll<HTMLElement>(
     page === 'setlists'
-      ? '#setlist-list .count-choice'
+      ? '#setlist-list .row-choice'
       : page === 'songbooks'
-        ? '#songbook-list .count-choice'
+        ? '#songbook-list .row-choice'
         : songId
           ? '#song-body .song-line, #song-body .comment, #song-body .unknown, #song-body .chorus > h2'
-          : '#song-list .song-choice',
+          : '#song-list .row-choice',
   ),
 ];
 export type SetlistView = Pick<UpdateView, 'setlistId' | 'setlistsReturn'>;

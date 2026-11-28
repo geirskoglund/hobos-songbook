@@ -17,7 +17,7 @@ async function create(page, name) {
   await expect(page.locator('#setlist')).toBeVisible();
   await expect(page.locator('#page-title')).toHaveText('Setliste');
   await page.locator('#back').click();
-  await expect(page.locator('#setlist-list .count-choice').first()).toBeFocused();
+  await expect(page.locator('#setlist-list .row-choice').first()).toBeFocused();
 }
 async function menu(page, index = 0) {
   await page.locator('#setlist-list .row-menu').nth(index).click();
@@ -75,7 +75,7 @@ test('create, cancel, rename and confirmed deletion preserve IDs, order and unre
   expect((await read(page)).setlists).toEqual([]);
   await create(page, 'Første');
   await create(page, 'Andre');
-  await expect(page.locator('#setlist-list .count-choice')).toHaveText(['Andre0 sanger', 'Første0 sanger']);
+  await expect(page.locator('#setlist-list .row-choice')).toHaveText(['Andre0 sanger', 'Første0 sanger']);
   const baseline = await read(page);
   await menu(page, 1);
   await expect(page.getByRole('menuitem')).toHaveText(['Endre info', 'Slett']);
@@ -87,7 +87,7 @@ test('create, cancel, rename and confirmed deletion preserve IDs, order and unre
   await expect(page.locator('#setlist-list .row-menu').nth(1)).toBeFocused();
   const renamed = await read(page);
   expect(renamed.setlists.map(x => ({...x, name: 'same'}))).toEqual(baseline.setlists.map(x => ({...x, name: 'same'})));
-  await expect(page.locator('#setlist-list .count-choice')).toHaveText(['Andre0 sanger', 'Andre0 sanger']);
+  await expect(page.locator('#setlist-list .row-choice')).toHaveText(['Andre0 sanger', 'Andre0 sanger']);
   await menu(page);
   await page.getByRole('menuitem', {name: 'Endre info', exact: true}).click();
   await page.getByLabel('Navn', {exact: true}).fill('Forkastes');
@@ -102,12 +102,12 @@ test('create, cancel, rename and confirmed deletion preserve IDs, order and unre
   await context.setOffline(true);
   await page.reload();
   await goSetlists(page);
-  await expect(page.locator('#setlist-list .count-choice')).toHaveCount(2);
+  await expect(page.locator('#setlist-list .row-choice')).toHaveCount(2);
   await create(page, 'Uten nett');
   await menu(page, 1);
   await page.getByRole('menuitem', {name: 'Slett', exact: true}).click();
   await page.getByRole('button', {name: 'Slett', exact: true}).click();
-  await expect(page.locator('#setlist-list .count-choice')).toHaveCount(2);
+  await expect(page.locator('#setlist-list .row-choice')).toHaveCount(2);
   expect(await savedSongs(page)).toEqual(songs);
   const after = await read(page);
   expect(after.personal).toEqual(baseline.personal);
@@ -116,7 +116,7 @@ test('create, cancel, rename and confirmed deletion preserve IDs, order and unre
   const prod = await context.newPage();
   await prod.goto('/hobos-songbook/app/');
   await goSetlists(prod);
-  await expect(prod.locator('#setlist-list .count-choice')).toHaveCount(0);
+  await expect(prod.locator('#setlist-list .row-choice')).toHaveCount(0);
   await prod.close();
 });
 
@@ -134,7 +134,7 @@ test('aborted create, rename, delete and read keep drafts and committed data; re
   await page.getByRole('button', {name: 'Lagre', exact: true}).dblclick();
   await expect(page.locator('#setlist')).toBeVisible();
   await page.locator('#back').click();
-  await expect(page.locator('#setlist-list .count-choice')).toHaveCount(1);
+  await expect(page.locator('#setlist-list .row-choice')).toHaveCount(1);
   const before = await read(page);
   await injectAbort(page, 'put');
   await menu(page);
@@ -212,9 +212,9 @@ test('detail, settings return, keyboard and list position survive a real worker 
   await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
   await goSetlists(page);
   for (let i = 0; i < 12; i++) await create(page, `Setliste ${i}`);
-  await page.locator('#setlist-list .count-choice').last().scrollIntoViewIfNeeded();
+  await page.locator('#setlist-list .row-choice').last().scrollIntoViewIfNeeded();
   const before = await page.evaluate(() => scrollY);
-  await page.locator('#setlist-list .count-choice').last().click();
+  await page.locator('#setlist-list .row-choice').last().click();
   await expect(page.locator('#page-title')).toHaveText('Setliste');
   await expect(page.locator('#setlist').locator(':not(h1)')).toHaveCount(0);
   await expect(page.locator('#back')).toHaveAccessibleName('Tilbake til Setlister');
@@ -233,12 +233,12 @@ test('detail, settings return, keyboard and list position survive a real worker 
   await expect(page.locator('#main-menu')).toBeVisible();
   await page.keyboard.press('Escape');
   await page.locator('#back').click();
-  await expect(page.locator('#setlist-list .count-choice').last()).toBeFocused();
+  await expect(page.locator('#setlist-list .row-choice').last()).toBeFocused();
   expect(Math.abs((await page.evaluate(() => scrollY)) - before)).toBeLessThan(2);
   await page.reload();
   await expect(page.locator('#library')).toBeVisible();
   await goSetlists(page);
-  await expect(page.locator('#setlist-list .count-choice')).toHaveCount(12);
+  await expect(page.locator('#setlist-list .row-choice')).toHaveCount(12);
 });
 
 test('320px, long names, last row, dialog and field context controls remain usable', async ({page}) => {
@@ -251,7 +251,7 @@ test('320px, long names, last row, dialog and field context controls remain usab
     await page.setViewportSize({width, height: 800});
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
-    const last = await page.locator('#setlist-list .count-choice').last().boundingBox(),
+    const last = await page.locator('#setlist-list .row-choice').last().boundingBox(),
       fab = await page.locator('#add-setlist').boundingBox();
     expect(last.y + last.height).toBeLessThanOrEqual(fab.y);
     const more = await page.locator('#setlist-list .row-menu').last().boundingBox();
@@ -277,10 +277,10 @@ for (const mode of ['oversikt', 'innstillinger'])
     await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
     await goSetlists(page);
     for (let i = 0; i < 9; i++) await create(page, `Liste ${i}`);
-    await page.locator('#setlist-list .count-choice').last().scrollIntoViewIfNeeded();
+    await page.locator('#setlist-list .row-choice').last().scrollIntoViewIfNeeded();
     const y = await page.evaluate(() => scrollY);
     if (mode === 'innstillinger') {
-      await page.locator('#setlist-list .count-choice').last().click();
+      await page.locator('#setlist-list .row-choice').last().click();
       await openSettings(page);
     }
     await request.post('/__test__/update?channel=test');
@@ -348,7 +348,7 @@ test('unsaved names block update reload and pending save prevents cancel/double 
   await expect(page.locator('.build')).toContainText('ccccccc');
   await expect(page.locator('#setlist')).toBeVisible();
   await page.locator('#back').click();
-  await expect(page.locator('#setlist-list .count-choice')).toHaveText('Behold navnet0 sanger');
+  await expect(page.locator('#setlist-list .row-choice')).toHaveText('Behold navnet0 sanger');
 });
 
 test('rename retains song references and unknown fields on the current stored record', async ({page}) => {
@@ -374,13 +374,13 @@ test('rename retains song references and unknown fields on the current stored re
   );
   await goSongs(page);
   await goSetlists(page);
-  await expect(page.locator('#setlist-list .count-choice')).toHaveText('Min liste2 sanger');
+  await expect(page.locator('#setlist-list .row-choice')).toHaveText('Min liste2 sanger');
   const before = await read(page);
   await menu(page);
   await page.getByRole('menuitem', {name: 'Endre info', exact: true}).click();
   await page.getByLabel('Navn', {exact: true}).fill('Nytt navn');
   await page.getByRole('button', {name: 'Lagre', exact: true}).click();
-  await expect(page.locator('#setlist-list .count-choice')).toHaveText('Nytt navn2 sanger');
+  await expect(page.locator('#setlist-list .row-choice')).toHaveText('Nytt navn2 sanger');
   expect((await read(page)).setlists).toEqual(before.setlists.map(item => ({...item, name: 'Nytt navn'})));
 });
 
@@ -467,7 +467,7 @@ test('saving a new setlist opens its own ID directly and returns to its new row'
   await expect(page.locator('.build')).toContainText('ccccccc');
   await expect(page.locator('#setlist')).toBeVisible();
   await page.locator('#back').click();
-  await expect(page.locator('#setlist-list .count-choice').first()).toBeFocused();
-  await expect(page.locator('#setlist-list .count-choice').first()).toHaveAttribute('data-setlist-id', saved.id);
-  await expect(page.locator('#setlist-list .count-choice').last()).toHaveAttribute('data-setlist-id', old.id);
+  await expect(page.locator('#setlist-list .row-choice').first()).toBeFocused();
+  await expect(page.locator('#setlist-list .row-choice').first()).toHaveAttribute('data-setlist-id', saved.id);
+  await expect(page.locator('#setlist-list .row-choice').last()).toHaveAttribute('data-setlist-id', old.id);
 });

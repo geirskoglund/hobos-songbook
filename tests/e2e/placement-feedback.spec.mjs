@@ -72,7 +72,7 @@ test('note connectors use lyric height, stay horizontal and keep the preview pos
   await expect(page.locator('.note-overflow')).toHaveCount(0);
   expect((await savedSongs(page))[0].original).toBe(source);
   await page.reload();
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await expect(page.locator('.personal-note')).toHaveText('Husk');
   expect((await savedPersonal(page))[0].notes[id]).toEqual(saved);
 });

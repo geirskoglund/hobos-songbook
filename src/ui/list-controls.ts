@@ -1,27 +1,83 @@
-import {actionButton, controlHeading, dialogFrame} from './controls.ts';
+import {actionButton, controlHeading, dialogFrame, icon} from './controls.ts';
 import {openDialog} from './dialog.ts';
 import {placeOverlay} from './layout.ts';
 
-/** L01: presentation belongs here; the caller owns metadata and navigation. */
-export function metadataRow(title: string, metadata: string[], choose: () => void) {
+/** The approved status icons a list row may show, with their spoken names. */
+const rowStatuses = {
+  'status-privat': 'Privat',
+  'status-delt': 'Delt',
+  'status-importert': 'Importert',
+  'status-slettet': 'Slettet',
+  'status-slettet-hos-kilden': 'Slettet hos kilden',
+} as const;
+type RowStatus = keyof typeof rowStatuses;
+
+type RowOptions = {
+  title: string;
+  details: string[];
+  choose?: () => void;
+  menu?: (opener: HTMLButtonElement) => void;
+  statuses?: RowStatus[];
+};
+/** A tap makes the row a button, and a menu gives it a menu button. */
+type Row<Options extends RowOptions> = {
+  row: HTMLLIElement;
+  main: Options extends {choose: () => void} ? HTMLButtonElement : HTMLElement;
+  more: Options extends {menu: (opener: HTMLButtonElement) => void} ? HTMLButtonElement : undefined;
+};
+
+/**
+ * L01: the one list row. Each list supplies only the text under the title, the row menu (H04),
+ * the status icons and what a tap does. Without `choose` the row is not a button.
+ */
+export function listRow<Options extends RowOptions>(options: Options): Row<Options> {
   const row = document.createElement('li');
-  const button = actionButton('', choose);
-  button.className = 'song-choice metadata-row';
-  button.setAttribute('aria-label', [title, ...metadata].join(', '));
-  const name = document.createElement('span');
-  name.className = 'song-name';
-  name.textContent = title;
+  row.className = 'list-row';
+  const main = options.choose ? actionButton('', options.choose) : document.createElement('div');
+  main.className = 'row-choice';
+  const text = document.createElement('span');
+  text.className = 'row-text';
+  const title = document.createElement('span');
+  title.className = 'row-title';
+  title.textContent = options.title;
   const details = document.createElement('span');
   details.className = 'row-metadata';
-  for (const text of metadata) {
+  const visible = options.details.filter(Boolean);
+  for (const detail of visible) {
     const part = document.createElement('span');
-    part.textContent = text;
+    part.textContent = detail;
     details.append(part);
   }
-  button.append(name, details);
-  row.append(button);
-  return {row, button};
+  text.append(title, details);
+  main.append(text);
+  const statuses = options.statuses ?? [];
+  const names = statuses.map(status => rowStatuses[status]);
+  if (statuses.length) {
+    const group = document.createElement('span');
+    group.className = 'row-statuses';
+    group.setAttribute('role', 'img');
+    group.setAttribute('aria-label', names.join(', '));
+    group.append(...statuses.map(status => icon(status)));
+    main.append(group);
+  }
+  if (options.choose) main.setAttribute('aria-label', [options.title, ...visible, ...names].join(', '));
+  row.append(main);
+  let more: HTMLButtonElement | undefined;
+  const menu = options.menu;
+  if (menu) {
+    const button = actionButton('', () => menu(button), 'meny');
+    button.className = 'row-menu';
+    button.setAttribute('aria-label', `Handlinger for ${options.title}`);
+    button.setAttribute('aria-haspopup', 'menu');
+    button.setAttribute('aria-expanded', 'false');
+    row.append(button);
+    more = button;
+  }
+  return {row, main, more} as Row<Options>;
 }
+
+/** The number of songs, as Setlister and Sangbøker show it under the title. */
+export const songCount = (count: number) => `${count} ${count === 1 ? 'sang' : 'sanger'}`;
 
 /** L05: one selected state and checkmark implementation for every choice row. */
 function selectableRow(name: string, selected: boolean, choose: () => void) {
@@ -124,45 +180,6 @@ export function contextMenu(
     closed: () => opener.setAttribute('aria-expanded', 'false'),
   });
   return lifecycle;
-}
-
-/** L02: shared title/count row, with an independent menu target. */
-export function countRow(name: string, count: number, choose: () => void, menu: (opener: HTMLButtonElement) => void) {
-  const {row, main, more} = titleRow(name, `${count} ${count === 1 ? 'sang' : 'sanger'}`, choose, menu);
-  return {row, button: main as HTMLButtonElement, more: more!};
-}
-
-/** L02 with any text in the count position; without `choose` the row is not a button, without `menu` it has none. */
-export function titleRow(
-  name: string,
-  detailText: string,
-  choose?: () => void,
-  menu?: (opener: HTMLButtonElement) => void,
-) {
-  const row = document.createElement('li');
-  row.className = 'count-row';
-  const main = choose ? actionButton('', choose) : document.createElement('div');
-  main.className = 'count-choice';
-  const title = document.createElement('span');
-  title.className = 'song-name';
-  title.textContent = name;
-  const detail = document.createElement('span');
-  detail.className = 'row-metadata';
-  detail.textContent = detailText;
-  if (choose) main.setAttribute('aria-label', `${name}, ${detailText}`);
-  main.append(title, detail);
-  row.append(main);
-  let more: HTMLButtonElement | undefined;
-  if (menu) {
-    const button = actionButton('', () => menu(button), 'meny');
-    button.className = 'row-menu';
-    button.setAttribute('aria-label', `Handlinger for ${name}`);
-    button.setAttribute('aria-haspopup', 'menu');
-    button.setAttribute('aria-expanded', 'false');
-    row.append(button);
-    more = button;
-  }
-  return {row, main, more};
 }
 
 type Choice = {id: string | null; name: string};

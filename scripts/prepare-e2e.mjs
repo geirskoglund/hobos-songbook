@@ -16,6 +16,7 @@ await writeFile(
   [
     `export * from ${JSON.stringify(resolve('src/ui/controls.ts'))};`,
     `export {openDialog} from ${JSON.stringify(resolve('src/ui/dialog.ts'))};`,
+    `export {listRow, setRowSelected} from ${JSON.stringify(resolve('src/ui/list-controls.ts'))};`,
   ].join('\n'),
 );
 await build({

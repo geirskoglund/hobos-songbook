@@ -188,7 +188,7 @@ test('AK37-02/04/07: real IndexedDB outbox, view/edit/settings pause, auto uploa
   const version = mock.find(manifest.songs[id].path);
   mock.put(version.path_display, '{t: Fra annen enhet}\nNy tekst');
   await page.reload();
-  await expect(page.locator('#song-list .song-choice')).toContainText('Privat');
+  await expect(page.locator('#song-list .row-choice')).toContainText('Privat');
   await syncPage(page);
   await page.evaluate(() => dispatchEvent(new Event('online')));
   await page.waitForTimeout(100);
@@ -196,7 +196,7 @@ test('AK37-02/04/07: real IndexedDB outbox, view/edit/settings pause, auto uploa
   await synchronize(page);
   await expect(page.locator('#sync-status')).not.toContainText('venter på opplasting');
   await goSongs(page);
-  await expect(page.locator('#song-list .song-choice')).toContainText('Fra annen enhet');
+  await expect(page.locator('#song-list .row-choice')).toContainText('Fra annen enhet');
 });
 test('#104: one page with sync panel, import list and account panel in that order', async ({page, context}) => {
   const mock = await dropboxMock(context);
@@ -248,7 +248,7 @@ test('AK37-06/10: E04/E03 conflict decisions, safe Enter, Escape, both conflicts
   const p = JSON.parse(mock.find(`/.app/songs/${id}.json`).text);
   p.data.capo = 6;
   mock.put(`/.app/songs/${id}.json`, JSON.stringify(p));
-  await page.locator('#song-list .song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await setCapo(page, 2);
   const {tool, fillValue} = await import('./song-helpers.mjs');
   await tool(page, 'Tittel');
@@ -304,7 +304,7 @@ test('AK37-05/07: in-flight response after song opening cannot change song or pe
   await syncPage(page);
   await page.locator('#dropbox-sync').click();
   await goSongs(page);
-  await page.locator('#song-list .song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   release();
   await expect(page.locator('#song-title')).toHaveText('Behold');
   await page.waitForTimeout(100);
@@ -398,7 +398,7 @@ test('AK37-05/07: interrupted edit survives reload, and failed data write cannot
   expect((await state(page)).sync.find(s => s.id === 'private-local-v1').recoveryRequired).toBe(true);
   expect(mock.find(`/.app/songs/${imported}.json`).text).toBe(initialPersonal);
   await goSongs(page);
-  await page.locator('#song-list .song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await expect(page.locator('#song-title')).toBeVisible();
   await goSongs(page);
   await page.evaluate(() => dispatchEvent(new Event('online')));
@@ -409,7 +409,7 @@ test('AK37-05/07: interrupted edit survives reload, and failed data write cannot
   expect(Object.keys(JSON.parse(mock.find('/.app/library.json').text).songs)).toHaveLength(1);
   expect((await state(page)).sync.find(s => s.id === 'private-local-v1').recoveryRequired).toBe(false);
   await goSongs(page);
-  await page.locator('#song-list .song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await page.getByRole('button', {name: 'Rediger', exact: true}).click();
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put;
@@ -473,7 +473,7 @@ test('AK37-01: local songs remain usable without the browser capability used to 
   await importAndOpenSong(page, 'lokal.cho', '{t: Bare lokalt}\nOrd');
   await setCapo(page, 2);
   await goSongs(page);
-  await page.locator('#song-list .song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await expect(page.locator('#song-title')).toHaveText('Bare lokalt');
   await expect(page.locator('.song-metadata')).toContainText('Capo 2');
 });

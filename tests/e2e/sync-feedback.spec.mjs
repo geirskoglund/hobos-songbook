@@ -265,7 +265,7 @@ test('feedback: lost async move launch resumes after reload and a late job canno
   ).toHaveLength(0);
   expect(account(await state(page)).pending).toBe(false);
   await goSongs(page);
-  await expect(page.locator('#song-list .song-choice')).toHaveCount(1);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(1);
 });
 
 test('feedback: a stale mutex CAS retries with the completed owner manifest and cannot duplicate a txt import', async ({

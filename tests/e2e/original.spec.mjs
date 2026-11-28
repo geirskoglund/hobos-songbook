@@ -181,7 +181,7 @@ test('a raw draft blocks real worker reload and saved source/person fields reope
   await expect(page.locator('.edit-toolbar')).toBeVisible();
   await context.setOffline(true);
   await page.reload();
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await expect(page.locator('#song-body')).toContainText('Endret æøå 😀');
   await expect(page.locator('.song-metadata')).toContainText('Capo 2');
   await context.setOffline(false);

@@ -31,7 +31,7 @@ test('same titles and same files remain independent; exact originals and chorus 
   expect(new Set(songs.map(song => song.id)).size).toBe(3);
   expect(songs.every(song => song.original === original && song.origin.importedAt)).toBe(true);
   await page.reload();
-  await expect(page.locator('.song-choice')).toHaveCount(3);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(3);
   // Sort-independent lookup: the original song is the first import timestamp.
   const first = songs.toSorted((a, b) => a.origin.importedAt.localeCompare(b.origin.importedAt))[0];
   await page.locator(`[data-song-id="${first.id}"]`).click();
@@ -153,7 +153,7 @@ test('invalid files, transaction abort, unavailable database and unavailable pre
   await expect(page.locator('#settings-status')).toContainText('kunne ikke hentes');
   await setDisplay(page, {fontSize: 27});
   await expect(page.locator('#settings-status')).toContainText('kunne ikke lagres');
-  await expect(page.locator('.song-choice')).toHaveCount(2);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(2);
   await page.addInitScript(() => {
     indexedDB.open = () => {
       throw new Error('Denied');

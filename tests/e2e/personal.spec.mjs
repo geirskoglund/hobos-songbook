@@ -64,7 +64,7 @@ test('two tabs preserve independent fields and same titles retain independent so
   const id = (await savedSongs(page))[0].id;
   const other = await context.newPage();
   await other.goto(url);
-  await other.locator('.song-choice').click();
+  await other.locator('#song-list .row-choice').click();
   await tool(page, 'Stemming', true);
   await fillValue(page, 'Stemming', 'DADGAD');
   await setCapo(other, 3);

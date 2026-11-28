@@ -86,7 +86,7 @@ async function chooseBook(page, name) {
 test('v1 upgrades atomically, preserves every stored field and remains stable offline', async ({page, context}) => {
   await seed(page);
   await page.goto(url);
-  await expect(page.locator('.song-choice')).toHaveCount(1);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(1);
   const state = await snapshot(page);
   expect(state).toEqual({
     version: 4,
@@ -105,7 +105,7 @@ test('v1 upgrades atomically, preserves every stored field and remains stable of
   await context.setOffline(true);
   await page.reload();
   await expect(page.locator('#songbook-filter')).toHaveText('Standard');
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await expect(page.locator('#song-title')).toHaveText('Behold meg');
   expect(await savedSongs(page)).toEqual(state.songs);
 });
@@ -129,7 +129,7 @@ test('an aborted upgrade rolls back new store and song changes; retry migrates o
   expect(await snapshot(page)).toEqual({version: 1, songs: [legacy], personal: [personal]});
   await page.evaluate(() => window.restoreMigration());
   await page.locator('#retry-storage').click();
-  await expect(page.locator('.song-choice')).toHaveCount(1);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(1);
   const state = await snapshot(page);
   expect(state.songbooks).toEqual([{id: 'standard', name: 'Standard'}]);
   expect(state.songs).toEqual([{...legacy, songbookId: 'standard'}]);
@@ -153,7 +153,7 @@ test('an old open connection reports blocked upgrade and allows a safe retry', a
   await expect(app.locator('#library-status')).toContainText('blokkert');
   await page.evaluate(() => window.blocker.close());
   await app.locator('#retry-storage').click();
-  await expect(app.locator('.song-choice')).toHaveCount(1);
+  await expect(app.locator('#song-list .row-choice')).toHaveCount(1);
   expect((await snapshot(app)).songbooks).toHaveLength(1);
   await app.close();
 });
@@ -169,8 +169,8 @@ test('book choices filter real songs, preserve membership and persist separately
   await page.locator('#songbook-filter').click();
   await expect(page.getByRole('option')).toHaveText(['Alle', 'Band', 'Standard', 'Tom sangbok']);
   await page.getByRole('option', {name: 'Band', exact: true}).click();
-  await expect(page.locator('.song-choice')).toHaveCount(1);
-  await expect(page.locator('.song-choice')).toContainText('Behold meg');
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(1);
+  await expect(page.locator('#song-list .row-choice')).toContainText('Behold meg');
   await openMenu(page);
   await page.getByRole('button', {name: 'Synkronisering', exact: true}).click();
   await goSongs(page);
@@ -182,16 +182,16 @@ test('book choices filter real songs, preserve membership and persist separately
   await expect(page.locator('#library-status')).toContainText('Ingen sanger i Tom sangbok');
   await expect(page.locator('#add-song')).toBeEnabled();
   await chooseBook(page, 'Alle');
-  await expect(page.locator('.song-choice')).toHaveCount(2);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(2);
   const prod = await context.newPage();
   await prod.goto('/hobos-songbook/app/');
   await expect(prod.locator('#songbook-filter')).toHaveText('Alle');
-  await expect(prod.locator('.song-choice')).toHaveCount(0);
+  await expect(prod.locator('#song-list .row-choice')).toHaveCount(0);
   await prod.close();
   await page.evaluate(() => localStorage.setItem('hobos-songbook-test:songbook-filter', 'missing'));
   await page.reload();
   await expect(page.locator('#songbook-filter')).toHaveText('Alle');
-  await expect(page.locator('.song-choice')).toHaveCount(2);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(2);
 });
 
 test('menu and picker use real keyboard/touch entrypoints, focus return and native file selection', async ({page}) => {
@@ -220,7 +220,7 @@ test('menu and picker use real keyboard/touch entrypoints, focus return and nati
   await expect(page.locator('#reader')).toBeHidden();
   await expect(page.locator('#songbook-filter')).toHaveText('Standard');
   await expect(page.locator('#song-list')).toContainText('Valgt sang');
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await expect(page.locator('#song-title')).toHaveText('Valgt sang');
   await page.locator('#back').click();
   await page.locator('#songbook-filter').click();
@@ -241,7 +241,7 @@ test('rows reflect autosaved personal metadata and undone values without changin
   await setCapo(page, 3);
   await page.locator('#back').click();
   await expect(page.locator('.row-metadata')).toHaveText('Am4/4Capo 3: F#m');
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await setCapo(page, 7);
   await page.getByRole('button', {name: 'Angre', exact: true}).click();
   await goSongs(page);
@@ -249,8 +249,8 @@ test('rows reflect autosaved personal metadata and undone values without changin
   await importAndOpenSong(page, 'uten.txt', '{t: Uten toneart}\nTekst');
   await setCapo(page, 2);
   await page.locator('#back').click();
-  await expect(page.locator('.song-choice').filter({hasText: 'Uten toneart'})).toContainText('Capo 2');
-  await expect(page.locator('.song-choice').filter({hasText: 'Uten toneart'})).not.toContainText('Capo 2:');
+  await expect(page.locator('#song-list .row-choice').filter({hasText: 'Uten toneart'})).toContainText('Capo 2');
+  await expect(page.locator('#song-list .row-choice').filter({hasText: 'Uten toneart'})).not.toContainText('Capo 2:');
 });
 
 test('metadata read and filter storage errors remain truthful and retry keeps stored data', async ({page}) => {
@@ -268,7 +268,7 @@ test('metadata read and filter storage errors remain truthful and retry keeps st
   });
   await page.goto(url);
   await expect(page.locator('#library-status')).toContainText('Kunne ikke lese sanglisten og metadata');
-  await expect(page.locator('.song-choice')).toHaveCount(0);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(0);
   await expect(page.locator('#retry-storage')).toBeVisible();
   await page.evaluate(() => window.restoreListRead());
   await page.locator('#retry-storage').click();
@@ -326,7 +326,7 @@ test('a real worker update preserves chosen songbook and active song', async ({p
   await page.goto(url);
   await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
   await chooseBook(page, 'Band');
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await request.post('/__test__/update?channel=test');
   await page.evaluate(async () => {
     await (await navigator.serviceWorker.getRegistration()).update();
@@ -375,7 +375,7 @@ test('header stays centered and long rows, picker and final row fit mobile/table
     expect(Math.abs(button.x + button.width / 2 - (header.x + header.width / 2))).toBeLessThan(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
-    const last = await page.locator('.song-choice').last().boundingBox(),
+    const last = await page.locator('#song-list .row-choice').last().boundingBox(),
       fab = await page.locator('#add-song').boundingBox();
     expect(last.y + last.height).toBeLessThanOrEqual(fab.y);
     await page.locator('#songbook-filter').click();

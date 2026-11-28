@@ -132,8 +132,11 @@ test('#105: register a tested import; every test answer, field errors and other 
   await expect(dialog(page)).toBeHidden();
   await expect(page.locator('#add-import')).toBeFocused();
   await expect(page.locator('#import-list > li')).toHaveCount(1);
-  await expect(page.locator('#import-list .song-name')).toHaveText('Bandet');
+  await expect(page.locator('#import-list .row-title')).toHaveText('Bandet');
   await expect(page.locator('#import-list .row-metadata')).toHaveText('Standard');
+  // The shared L01 row, without an action until the import gets one.
+  await expect(page.locator('#import-list .row-title')).toHaveCSS('font-weight', '500');
+  await expect(page.locator('#import-list button')).toHaveCount(0);
   expect(mock.calls.filter(call => call.endpoint.endsWith('/get_shared_link_file')).length).toBe(downloads);
   const file = JSON.parse(mock.find('/.app/imports.json').text);
   expect(Object.values(file.imports)).toEqual([{name: 'Bandet', folder: source, songbookId: 'standard'}]);
@@ -167,8 +170,8 @@ test('#105: register a tested import; every test answer, field errors and other 
   };
   mock.put('/.app/imports.json', JSON.stringify(file));
   await page.locator('#dropbox-sync').click();
-  await expect(page.locator('#import-list .song-name')).toHaveText(['Annen enhet', 'Bandet']);
+  await expect(page.locator('#import-list .row-title')).toHaveText(['Annen enhet', 'Bandet']);
   await page.reload();
   await syncPage(page);
-  await expect(page.locator('#import-list .song-name')).toHaveText(['Annen enhet', 'Bandet']);
+  await expect(page.locator('#import-list .row-title')).toHaveText(['Annen enhet', 'Bandet']);
 });

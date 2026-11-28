@@ -1,5 +1,5 @@
 import {test, expect} from './fixtures.mjs';
-import {openMenu, goSongs, beginCreate} from './song-helpers.mjs';
+import {openMenu, goSongs, beginCreate, importAndOpenSong} from './song-helpers.mjs';
 
 // Expectations come from DESIGN's source-linked table and the original SVGs.
 // Never derive them from runtime CSS tokens or update them to match a regression.
@@ -11,6 +11,45 @@ const go = async (page, name) => {
   await button(page, name).click();
 };
 const height = async node => (await node.boundingBox()).height;
+// L01 measured from the row: title and metadata offsets, type and the separator.
+const rowGeometry = row =>
+  row.evaluate(n => {
+    const r = n.getBoundingClientRect(),
+      title = n.querySelector('.row-title'),
+      meta = n.querySelector('.row-metadata'),
+      t = title.getBoundingClientRect(),
+      m = meta.getBoundingClientRect(),
+      ts = getComputedStyle(title),
+      rs = getComputedStyle(n),
+      list = n.parentElement.getBoundingClientRect();
+    return {
+      height: r.height,
+      top: t.top - r.top,
+      left: t.left - list.left,
+      reach: [list.left - r.left, r.right - list.right],
+      gap: m.top - t.bottom,
+      bottom: r.bottom - m.bottom,
+      size: parseFloat(ts.fontSize),
+      weight: ts.fontWeight,
+      lineHeight: parseFloat(ts.lineHeight) / parseFloat(ts.fontSize),
+      meta: getComputedStyle(meta).fontSize,
+      border: `${rs.borderBottomWidth} ${rs.borderBottomColor}`,
+    };
+  });
+// DESIGN L01: 21–24 px (3vw) title at weight 500, 15 px metadata, 20 px air, 10 px between, 1 px separator.
+// The row, separator included, reaches 12 px into the page margin while the title lines up with the list.
+function l01(geometry, width) {
+  expect(geometry.reach).toEqual([12, 12]);
+  expect(geometry.size).toBeCloseTo(Math.min(24, Math.max(21, width * 0.03)), 1);
+  expect(geometry.weight).toBe('500');
+  expect(geometry.lineHeight).toBeCloseTo(1.3, 2);
+  expect(geometry.meta).toBe('15px');
+  expect(geometry.top).toBeCloseTo(20, 0);
+  expect(geometry.gap).toBeCloseTo(10, 0);
+  expect(geometry.bottom).toBeCloseTo(21, 0);
+  expect(geometry.left).toBe(0);
+  expect(geometry.border).toMatch(/^1px /);
+}
 // Product feedback keeps the existing weak dimming for contextual controls.
 const weakBackdrop = async box =>
   expect(await box.evaluate(n => getComputedStyle(n, '::backdrop').backgroundColor)).toBe('rgba(0, 0, 0, 0.133)');
@@ -80,16 +119,14 @@ for (const width of [320, 768, 1440])
       ['Sangbøker', 'songbook', '#add-songbook', 'Endre navn'],
     ]) {
       await go(page, name);
-      const rows = page.locator(`#${id}-list .count-row`),
+      const rows = page.locator(`#${id}-list .list-row`),
         first = rows.first();
-      expect(await height(first)).toBeCloseTo(115, 0);
-      await expect(first.locator('.song-name')).toHaveCSS('font-size', '22px');
-      await expect(first.locator('.row-metadata')).toHaveCSS('font-size', '15px');
+      l01(await rowGeometry(first), width);
       const a = await rows.nth(0).boundingBox(),
         b = await rows.nth(1).boundingBox();
-      expect(b.y - a.y).toBeCloseTo(115, 0);
+      expect(b.y - a.y).toBeCloseTo(a.height, 0);
       const long = page.locator(`#${id}-long`);
-      expect(await height(long)).toBeGreaterThan(114);
+      expect(await height(long)).toBeGreaterThan(a.height);
       await expect(long).toHaveJSProperty('scrollWidth', await long.evaluate(n => n.clientWidth));
       await page.locator(add).click();
       const create = dialog(page, id === 'setlist' ? 'Ny setliste' : 'Ny sangbok');
@@ -210,4 +247,117 @@ test('E02/E03/E04 share the real footer geometry and secondary separator rules',
       );
       await button(box, 'Lagre').click();
     }
+});
+
+test('L01 is one row with optional menu and status icons, measured as the song list', async ({page}) => {
+  await page.goto(url);
+  await expect(page.locator('#add-song')).toBeEnabled();
+  await importAndOpenSong(page, 'rad.cho', '{title: Sangrad}\n{key: D}\n[D]Hei\n');
+  await goSongs(page);
+  const statuses = ['status-privat', 'status-delt', 'status-importert', 'status-slettet', 'status-slettet-hos-kilden'];
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({width, height: 900});
+    const songRow = page.locator('#song-list .list-row').first();
+    await expect(songRow).toBeVisible();
+    const song = await rowGeometry(songRow);
+    l01(song, width);
+    await page.evaluate(async statuses => {
+      const {listRow} = await import('/__test__/controls.js');
+      document.getElementById('row-fixture')?.remove();
+      const list = document.createElement('ul');
+      list.id = 'row-fixture';
+      list.className = 'song-list';
+      const long = 'Veldiglangtittelutenmellomrom'.repeat(8);
+      const rows = [
+        {title: 'Uten noe', details: ['D']},
+        {title: 'Med meny', details: ['D'], menu: () => {}},
+        {title: 'Med status', details: ['D'], statuses: statuses.slice(0, 2)},
+        {title: 'Med begge', details: ['D'], menu: () => {}, statuses: statuses.slice(0, 2)},
+        {title: long, details: [long, 'D'], menu: () => {}, statuses},
+        {title: 'Uten handling', details: ['D'], statuses: ['status-importert']},
+      ].map((options, i) => {
+        const {row} = listRow({...options, ...(i < 5 ? {choose: () => {}} : {})});
+        row.id = `row-${i}`;
+        return row;
+      });
+      list.append(...rows);
+      document.querySelector('#library').append(list);
+    }, statuses);
+    const rows = [0, 1, 2, 3, 4, 5].map(i => page.locator(`#row-${i}`));
+    const plain = await rowGeometry(rows[0]);
+    expect(plain).toEqual(song);
+    for (const row of rows.slice(1, 4)) expect(await rowGeometry(row)).toEqual(plain);
+    expect(await rowGeometry(rows[5])).toEqual(plain);
+    const placement = await page.evaluate(() =>
+      [1, 2, 3, 4, 5].map(i => {
+        const row = document.getElementById(`row-${i}`),
+          box = row.getBoundingClientRect(),
+          menu = row.querySelector('.row-menu')?.getBoundingClientRect(),
+          group = row.querySelector('.row-statuses'),
+          icons = [...(group?.querySelectorAll('.icon') ?? [])].map(icon => icon.getBoundingClientRect()),
+          title = row.querySelector('.row-title').getBoundingClientRect(),
+          text = row.querySelector('.row-text');
+        return {
+          right: row.parentElement.getBoundingClientRect().right,
+          menuLeft: menu?.left,
+          menuRight: menu?.right,
+          menuHeight: menu?.height,
+          rowHeight: box.height - 1,
+          groupRight: group?.getBoundingClientRect().right,
+          groupLeft: group?.getBoundingClientRect().left,
+          label: group?.getAttribute('aria-label'),
+          rowLabel: row.firstElementChild.getAttribute('aria-label'),
+          icons: icons.map(icon => ({x: icon.x, y: icon.y, w: icon.width})),
+          titleRight: title.right,
+          textOverflow: text.scrollWidth > text.clientWidth,
+        };
+      }),
+    );
+    const [menuOnly, statusOnly, both, long, inert] = placement;
+    // H04 stays at the far right and spans the row without growing it.
+    expect(menuOnly.menuRight).toBeCloseTo(menuOnly.right, 0);
+    expect(menuOnly.menuHeight).toBeCloseTo(menuOnly.rowHeight, 0);
+    expect(menuOnly.menuHeight).toBeGreaterThanOrEqual(44);
+    // Status icons stand in the menu's place without one, and directly before it with one.
+    expect(statusOnly.groupRight).toBeCloseTo(statusOnly.right, 0);
+    expect(inert.groupRight).toBeCloseTo(inert.right, 0);
+    expect(both.groupRight).toBeCloseTo(both.menuLeft, 0);
+    expect(long.label).toBe('Privat, Delt, Importert, Slettet, Slettet hos kilden');
+    for (const [row, count] of [
+      [statusOnly, 2],
+      [both, 2],
+      [long, 5],
+    ]) {
+      expect(row.icons).toHaveLength(count);
+      for (const [i, icon] of row.icons.entries()) {
+        expect(icon.w).toBe(24);
+        expect(icon.y).toBeCloseTo(row.icons[0].y, 0);
+        if (i) expect(icon.x).toBeGreaterThan(row.icons[i - 1].x + 24);
+      }
+      expect(row.titleRight).toBeLessThanOrEqual(row.groupLeft);
+    }
+    expect(both.label).toBe('Privat, Delt');
+    expect(both.rowLabel).toBe('Med begge, D, Privat, Delt');
+    expect(inert.rowLabel).toBeNull();
+    // Long text wraps inside the row, before the icons and the menu.
+    expect(long.textOverflow).toBe(false);
+    expect(long.rowHeight).toBeGreaterThan(plain.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    // The row without an action is neither a button nor focusable.
+    await expect(rows[5].locator('.row-choice')).not.toHaveAttribute('tabindex');
+    expect(await rows[5].locator('button').count()).toBe(0);
+    // Hover lights the whole row, the menu and the 12 px reach included.
+    const field = row => row.evaluate(n => getComputedStyle(n).backgroundColor);
+    const idle = await field(rows[1]);
+    expect(idle).toBe('rgba(0, 0, 0, 0)');
+    for (const target of [rows[1].locator('.row-choice'), rows[1].locator('.row-menu')]) {
+      await target.hover();
+      const lit = await field(rows[1]);
+      expect(lit).not.toBe(idle);
+    }
+    await rows[5].hover();
+    expect(await field(rows[5])).toEqual(idle);
+    await page.mouse.move(0, 0);
+  }
+  await page.evaluate(() => document.getElementById('row-fixture').remove());
 });

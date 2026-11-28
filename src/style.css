@@ -1769,7 +1769,7 @@ main > section {
 #publication .song-list {
   padding-bottom: var(--space-4);
 }
-#publication .song-choice {
+#publication .row-choice {
   scroll-margin-bottom: calc(var(--publication-action-height, 76px) + var(--update-notice-space, 0px));
 }
 .publication-summary {

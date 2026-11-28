@@ -101,11 +101,11 @@ test('the previously published v4 database reopens without downgrade, replacemen
 }) => {
   const before = await seed(page);
   await page.goto(url);
-  await expect(page.locator('#song-list .song-choice')).toHaveText('Behold sangenD4/4Capo 2: CStemming: DADGAD');
+  await expect(page.locator('#song-list .row-choice')).toHaveText('Behold sangenD4/4Capo 2: CStemming: DADGAD');
   await expect(page.locator('#retry-storage')).toBeHidden();
   expect(await snapshot(page)).toEqual(before);
   await goBooks(page);
-  await expect(page.locator('#songbook-list .count-choice')).toHaveText(['Min bok1 sang']);
+  await expect(page.locator('#songbook-list .row-choice')).toHaveText(['Min bok1 sang']);
   await page.locator('#songbook-my-book').click();
   await expect(page.locator('#songbook-filter')).toHaveText('Min bok');
   await expect(page.locator('#offline-status')).toHaveAttribute('data-ready', 'true');
@@ -114,7 +114,7 @@ test('the previously published v4 database reopens without downgrade, replacemen
   expect(await snapshot(page)).toEqual(before);
   await context.setOffline(true);
   await page.reload();
-  await expect(page.locator('#song-list .song-choice')).toHaveCount(1);
+  await expect(page.locator('#song-list .row-choice')).toHaveCount(1);
   expect(await snapshot(page)).toEqual(before);
 });
 
@@ -135,7 +135,7 @@ test('local book and song writes preserve v4 metadata, extra stores, identities 
   expect(renamed.songs).toEqual(before.songs);
   expect(renamed.personal).toEqual(before.personal);
   await page.locator('#songbook-my-book').click();
-  await page.locator('#song-list .song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await tool(page, 'Tittel');
   await fillValue(page, 'Tittel', 'Ny sangtittel');
   await expect.poll(async () => (await snapshot(page)).songs[0].title).toBe('Ny sangtittel');

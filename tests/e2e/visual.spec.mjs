@@ -109,10 +109,10 @@ for (const width of [320, 768, 1440]) {
       await shot(page, `navigasjon-fokus-${width}`);
     });
 
-    test('Setlister: L02 and H04', async ({page}) => {
+    test('Setlister: L01 and H04', async ({page}) => {
       await openMenu(page);
       await button(page, 'Setlister').click();
-      await expect(page.locator('#setlist-list .count-choice')).toHaveCount(2);
+      await expect(page.locator('#setlist-list .row-choice')).toHaveCount(2);
       await shot(page, `setlister-hvile-${width}`);
       await keyboardFocus(page, page.locator('#setlist-menu-fest'));
       await shot(page, `setlister-fokus-${width}`);
@@ -121,10 +121,10 @@ for (const width of [320, 768, 1440]) {
       await shot(page, `setlister-kontekstmeny-${width}`);
     });
 
-    test('Sangbøker: L02, H04 and D02/E03 name dialog', async ({page}) => {
+    test('Sangbøker: L01, H04 and D02/E03 name dialog', async ({page}) => {
       await openMenu(page);
       await button(page, 'Sangbøker').click();
-      await expect(page.locator('#songbook-list .count-choice')).toHaveCount(3);
+      await expect(page.locator('#songbook-list .row-choice')).toHaveCount(3);
       await shot(page, `sangboker-hvile-${width}`);
       await page.locator('#songbook-menu-band').click();
       await expect(page.getByRole('menuitem').first()).toBeFocused();

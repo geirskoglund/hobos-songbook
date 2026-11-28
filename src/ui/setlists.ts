@@ -3,7 +3,7 @@ import {setlistName, type Setlist} from '../domain/setlist.ts';
 import {nameDialog} from './name-dialog.ts';
 import {dialogFooter, dialogFrame} from './controls.ts';
 import {openDialog} from './dialog.ts';
-import {contextMenu, countRow, floatingAction} from './list-controls.ts';
+import {contextMenu, floatingAction, listRow, songCount} from './list-controls.ts';
 import {currentPage, showPage} from './layout.ts';
 import {captureView, focusUpdateView, restoreUpdateView, type SetlistView, type UpdateView} from './update-view.ts';
 
@@ -38,11 +38,11 @@ export function startSetlists(storage: ReturnType<typeof songStorage>) {
     list.replaceChildren();
     items.sort((a, b) => b.createdAt - a.createdAt || a.id.localeCompare(b.id));
     for (const item of items) {
-      const {row, button, more} = countRow(
-        item.name,
-        item.songIds.length,
-        () => openSetlist(item.id),
-        opener =>
+      const {row, main, more} = listRow({
+        title: item.name,
+        details: [songCount(item.songIds.length)],
+        choose: () => openSetlist(item.id),
+        menu: opener =>
           contextMenu(
             opener,
             [
@@ -51,9 +51,9 @@ export function startSetlists(storage: ReturnType<typeof songStorage>) {
             ],
             'below',
           ),
-      );
-      button.id = `setlist-${item.id}`;
-      button.dataset.setlistId = item.id;
+      });
+      main.id = `setlist-${item.id}`;
+      main.dataset.setlistId = item.id;
       more.id = `setlist-menu-${item.id}`;
       list.append(row);
     }
@@ -139,7 +139,7 @@ export function startSetlists(storage: ReturnType<typeof songStorage>) {
           items = items.filter(current => current.id !== item.id);
           draw();
           lifecycle.close();
-          (list.querySelectorAll<HTMLButtonElement>('.count-choice')[Math.min(index, items.length - 1)] ?? add).focus({
+          (list.querySelectorAll<HTMLButtonElement>('.row-choice')[Math.min(index, items.length - 1)] ?? add).focus({
             preventScroll: true,
           });
         } catch (cause) {

@@ -48,7 +48,7 @@ test('positional notes survive shortened and empty source and remain editable wi
   await fillValue(page, 'Notat', 'Endret uten sangtekst');
   await expect(page.locator('.personal-note').filter({hasText: 'Endret uten sangtekst'})).toBeVisible();
   await page.reload();
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await expect(page.locator('.personal-note')).toHaveCount(3);
 });
 test('raw source changes safely remap highlights, preserve notes and undo restores lost spans', async ({page}) => {
@@ -86,7 +86,7 @@ test('raw source changes safely remap highlights, preserve notes and undo restor
     before,
   );
   await page.reload();
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await raw(page, '{t: Endret}\nEn helt vanlig linje\nSyng høyt');
   expect((await page.locator('mark').allTextContents()).join('')).toBe('vanlighøyt');
   await raw(page, '{t: Endret}\nEn helt annen linje\nSyng høyt');
@@ -143,7 +143,7 @@ test('legacy annotations are cleaned while songs, capo, tuning and grids survive
     song,
   );
   await page.reload();
-  await page.locator('.song-choice').click();
+  await page.locator('#song-list .row-choice').click();
   await expect(page.locator('#song-title')).toHaveText('Gammel');
   await expect(page.locator('mark,.personal-note')).toHaveCount(0);
   const data = (await state(page))[0];

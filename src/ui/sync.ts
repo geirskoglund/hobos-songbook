@@ -3,7 +3,7 @@ import {openDialog} from './dialog.ts';
 import type {syncController} from '../sync/controller.ts';
 import type {Conflict} from '../sync/state.ts';
 import {copyText} from './clipboard.ts';
-import {floatingAction, titleRow} from './list-controls.ts';
+import {floatingAction, listRow} from './list-controls.ts';
 import {importDialog} from './import-dialog.ts';
 import type {startSongbooks} from './songbooks.ts';
 import type {SharedImport} from '../domain/shared-import.ts';
@@ -50,7 +50,7 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
   disconnect.id = 'dropbox-disconnect';
   disconnect.className = 'secondary';
   accountPanel.append(identity, disconnect);
-  // L02 rows as on Setlister; the row menu (H04) arrives with deleting an import.
+  // L01 rows without an action; the row menu (H04) arrives with deleting an import.
   const imports = document.createElement('ul');
   imports.id = 'import-list';
   imports.className = 'song-list import-list';
@@ -68,7 +68,7 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
       ...[...importItems]
         .sort((a, b) => a.name.localeCompare(b.name, 'nb'))
         .map(item => {
-          const {row} = titleRow(item.name, books.bookName(item.songbookId) ?? '');
+          const {row} = listRow({title: item.name, details: [books.bookName(item.songbookId) ?? '']});
           row.dataset.importId = item.id;
           return row;
         }),

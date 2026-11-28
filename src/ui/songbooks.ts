@@ -2,7 +2,7 @@ import {songbookName, type Songbook} from '../domain/songbook.ts';
 import type {LibrarySnapshot, songStorage} from '../storage/songs.ts';
 import {controlHeading, dialogFooter, dialogFrame, textInput} from './controls.ts';
 import {openDialog, confirmTransferCopy} from './dialog.ts';
-import {choiceControl, contextMenu, countRow, floatingAction} from './list-controls.ts';
+import {choiceControl, contextMenu, floatingAction, listRow, songCount} from './list-controls.ts';
 import {nameDialog} from './name-dialog.ts';
 import {currentPage} from './layout.ts';
 import {copyText} from './clipboard.ts';
@@ -35,11 +35,11 @@ export function startSongbooks(
   function draw() {
     list.replaceChildren();
     for (const book of books()) {
-      const {row, button, more} = countRow(
-        book.name,
-        count(book.id),
-        () => options.openBook(book.id),
-        opener =>
+      const {row, main, more} = listRow({
+        title: book.name,
+        details: [songCount(count(book.id))],
+        choose: () => options.openBook(book.id),
+        menu: opener =>
           contextMenu(
             opener,
             [
@@ -60,9 +60,9 @@ export function startSongbooks(
             ],
             'below',
           ),
-      );
-      button.id = `songbook-${book.id}`;
-      button.dataset.songbookId = book.id;
+      });
+      main.id = `songbook-${book.id}`;
+      main.dataset.songbookId = book.id;
       more.id = `songbook-menu-${book.id}`;
       list.append(row);
     }
@@ -296,7 +296,7 @@ export function startSongbooks(
           lifecycle.close();
           await refresh();
           (
-            list.querySelectorAll<HTMLButtonElement>('.count-choice')[Math.min(index, snapshot.songbooks.length - 1)] ??
+            list.querySelectorAll<HTMLButtonElement>('.row-choice')[Math.min(index, snapshot.songbooks.length - 1)] ??
             add
           ).focus({preventScroll: true});
         } catch (cause) {
