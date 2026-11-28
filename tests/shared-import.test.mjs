@@ -111,6 +111,7 @@ async function answer(handler, own = new Set()) {
 test('#105 F05: a readable shared folder is listed folder by folder through the link', async () => {
   const {result, calls} = await answer((route, args) => {
     if (route === 'sharing/get_shared_link_metadata') return reply(folderLink());
+    if (route === 'files/get_metadata') return reply({error_summary: 'path/not_found/'}, 409);
     if (route === 'files/list_folder' && args.path === '')
       return reply({
         entries: [
@@ -128,9 +129,15 @@ test('#105 F05: a readable shared folder is listed folder by folder through the 
   assert.equal(result, 'ok');
   assert.deepEqual(
     calls.map(call => call.route),
-    ['sharing/get_shared_link_metadata', 'files/list_folder', 'files/list_folder/continue', 'files/list_folder'],
+    [
+      'sharing/get_shared_link_metadata',
+      'files/get_metadata',
+      'files/list_folder',
+      'files/list_folder/continue',
+      'files/list_folder',
+    ],
   );
-  assert.deepEqual(calls[1].args, {path: '', shared_link: {url}});
+  assert.deepEqual(calls[2].args, {path: '', shared_link: {url}});
 });
 
 test('#105 F05: files, passwords, restricted access and missing links give their own answers', async () => {
@@ -143,7 +150,6 @@ test('#105 F05: files, passwords, restricted access and missing links give their
     [reply({error_summary: 'shared_link_access_denied/'}, 409), 'not-shared'],
     [reply({error_summary: 'shared_link_not_found/'}, 409), 'not-found'],
     [reply(folderLink({expires: '2000-01-01T00:00:00Z'})), 'not-found'],
-    [reply(folderLink({path_lower: '/songbooks/standard/shared'})), 'own-songbook'],
   ];
   for (const [response, expected] of cases)
     assert.equal((await answer(metadataOnly(response))).result, expected, expected);
@@ -153,6 +159,7 @@ test('#105 F05: a link above one of the own songbook folders is recognized by fo
   const {result} = await answer(
     (route, args) => {
       if (route === 'sharing/get_shared_link_metadata') return reply(folderLink());
+      if (route === 'files/get_metadata') return reply({error_summary: 'path/not_found/'}, 409);
       if (args.path === '')
         return reply({entries: [{'.tag': 'folder', id: 'id:mybook', name: 'Standard'}], has_more: false});
       throw new Error('No deeper listing is needed');
@@ -226,4 +233,19 @@ test('#105 F06: imports are added to the freshest list and repeat the field rule
     addImport(files, {...mine, id: 'four'}, current => importName('tre', current, 'four')),
     /allerede en import/,
   );
+});
+
+test('#105 F05: an own link is a songbook only when its folder is inside the app folder', async () => {
+  const own = (inside, route) => {
+    if (route === 'sharing/get_shared_link_metadata') return reply(folderLink({path_lower: '/musikk/bandet'}));
+    if (route === 'files/get_metadata')
+      return inside
+        ? reply({'.tag': 'folder', id: 'id:root', path_display: '/Songbooks/Standard/Shared'})
+        : reply({error_summary: 'path/not_found/'}, 409);
+    return reply({entries: [], has_more: false});
+  };
+  const inside = await answer(route => own(true, route));
+  assert.equal(inside.result, 'own-songbook');
+  assert.deepEqual(inside.calls[1], {route: 'files/get_metadata', args: {path: 'id:root'}});
+  assert.equal((await answer(route => own(false, route))).result, 'ok');
 });

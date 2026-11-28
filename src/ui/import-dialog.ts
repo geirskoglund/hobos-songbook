@@ -34,22 +34,14 @@ export function importDialog(options: {
     label.htmlFor = fieldId;
     label.textContent = labelText;
     const input = textInput(fieldId);
+    // The help text is shown inside the empty field.
+    if (help) input.placeholder = help;
     const error = document.createElement('p');
     error.id = `${fieldId}-error`;
-    error.className = 'hint';
+    error.className = 'hint error-text';
     error.setAttribute('role', 'alert');
-    const nodes: HTMLElement[] = [label, input];
-    const described = [error.id];
-    if (help) {
-      const hint = document.createElement('p');
-      hint.id = `${fieldId}-help`;
-      hint.className = 'hint field-help';
-      hint.textContent = help;
-      nodes.push(hint);
-      described.unshift(hint.id);
-    }
-    nodes.push(error);
-    input.setAttribute('aria-describedby', described.join(' '));
+    const nodes: HTMLElement[] = [label, input, error];
+    input.setAttribute('aria-describedby', error.id);
     const show = (message: string) => {
       error.textContent = message;
       input.setAttribute('aria-invalid', String(Boolean(message)));
@@ -167,6 +159,7 @@ export function importDialog(options: {
     folder.show('');
     busy(true);
     result.textContent = 'Tester tilkoblingen…';
+    result.classList.remove('error-text');
     try {
       const answer = await options.test(address);
       if (answer === 'consent') {
@@ -174,6 +167,7 @@ export function importDialog(options: {
         return;
       }
       result.textContent = importTestText[answer];
+      result.classList.toggle('error-text', answer !== 'ok');
       tested = answer === 'ok' && folder.input.value.trim() === address ? address : null;
     } finally {
       busy(false);
@@ -197,6 +191,7 @@ export function importDialog(options: {
       options.saved();
     } catch (cause) {
       result.textContent = cause instanceof Error ? cause.message : 'Kunne ikke lagre importen. Prøv igjen.';
+      result.classList.add('error-text');
       check(true);
     } finally {
       if (box.isConnected) busy(false);

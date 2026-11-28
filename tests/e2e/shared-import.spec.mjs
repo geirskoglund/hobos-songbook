@@ -39,9 +39,15 @@ test('#105: register a tested import; every test answer, field errors and other 
   });
   mock.shareForeign('https://www.dropbox.com/s/fil/sang.cho?dl=0', {'.tag': 'file'});
   mock.shareForeign('https://www.dropbox.com/scl/fo/passord/P?rlkey=b', {error: 'shared_link_access_denied/'});
-  mock.shareForeign('https://www.dropbox.com/scl/fo/egen/Shared?rlkey=c', {path_lower: '/songbooks/standard/shared'});
   await page.goto(url);
   await expect.poll(() => Boolean(mock.find('/.app/library.json'))).toBe(true);
+  // Own links: one to the app's songbook folder, one to an own folder outside the app folder.
+  // Dropbox reports a path for both; only the first ID can be looked up by the app.
+  mock.shareForeign('https://www.dropbox.com/scl/fo/egen/Shared?rlkey=c', {
+    id: mock.find('/Songbooks/Standard/Shared').id,
+    path_lower: '/apps/hobos/songbooks/standard/shared',
+  });
+  mock.shareForeign('https://www.dropbox.com/scl/fo/utenfor/Musikk?rlkey=g', {path_lower: '/musikk'});
   await syncPage(page);
   await expect(page.locator('#import-list > li')).toHaveCount(0);
   await page.locator('#add-import').click();
@@ -49,7 +55,7 @@ test('#105: register a tested import; every test answer, field errors and other 
   // F03: D02 Navn and Mappe with help text, D10 Sangbok and E03 Avbryt / Test tilkobling.
   await expect(dialog(page).locator('h2')).toHaveText('Ny import');
   await expect(page.locator('#import-name')).toBeFocused();
-  await expect(dialog(page).getByText('Nettadresse til delt mappe')).toBeVisible();
+  await expect(page.locator('#import-folder')).toHaveAttribute('placeholder', 'Nettadresse til delt mappe');
   await expect(dialog(page).locator('.choice-value')).toContainText('Velg sangbok');
   await expect(dialog(page).locator('footer button')).toHaveText(['Avbryt', 'Test tilkobling']);
   await page.locator('#import-name').fill('Bandet');
@@ -70,6 +76,10 @@ test('#105: register a tested import; every test answer, field errors and other 
   for (const [address, message] of failures) {
     await testFolder(page, address);
     await expect(page.locator('#import-test-result')).toHaveText(message);
+    await expect(page.locator('#import-test-result')).toHaveCSS('color', 'rgb(240, 160, 147)');
+    // Disabling the pressed button can leave focus on the dialog itself, which never shows a ring.
+    await dialog(page).evaluate(box => box.focus());
+    await expect(dialog(page)).toHaveCSS('outline-style', 'none');
     await expect(primary(page)).toHaveText('Test tilkobling');
   }
   mock.fault('/get_shared_link_metadata', 503, 0, {repeat: 3});
@@ -77,6 +87,9 @@ test('#105: register a tested import; every test answer, field errors and other 
   await expect(page.locator('#import-test-result')).toHaveText('Tilkobling feilet: Dropbox utilgjengelig');
   await expect(primary(page)).toHaveText('Test tilkobling');
   mock.clearFault();
+
+  await testFolder(page, 'https://www.dropbox.com/scl/fo/utenfor/Musikk?rlkey=g');
+  await expect(page.locator('#import-test-result')).toHaveText('Tilkobling ok');
 
   // A successful test lists every folder and turns the action into Lagre; changing Mappe undoes it.
   const before = linkCalls(mock).length;

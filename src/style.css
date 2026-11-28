@@ -51,7 +51,7 @@ input:disabled {
   opacity: 0.65;
   cursor: wait;
 }
-:where(button, a, input, textarea, select, summary, [role='spinbutton']):focus {
+:where(button, a, input, textarea, select, summary, [role='spinbutton'], dialog):focus {
   outline: none;
 }
 /* Programmatic heading/anchor focus is not an interactive control state. */
@@ -1727,9 +1727,12 @@ main > section {
   margin: 12px 0 0;
   font-size: 17px;
 }
-.import-dialog .field-help {
-  min-height: 0;
+.hint.error-text {
+  color: var(--error);
+}
+.text-control::placeholder {
   color: var(--muted);
+  opacity: 1;
 }
 #dropbox-account {
   overflow-wrap: anywhere;

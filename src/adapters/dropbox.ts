@@ -772,10 +772,20 @@ export function dropboxAdapter(
         oneOf(audience, ['password', 'team_and_password', 'team', 'team_only', 'no_one', 'members'])
       )
         return 'not-shared';
-      // Dropbox reports a path only for the user's own links inside the app folder.
+      // The app folder app can look up a folder ID only inside its own folder, so a found
+      // ID is the user's own app data. Dropbox reports a path for every own link, also
+      // outside the app folder, so the path alone does not decide it.
       const root = field(link, 'id');
-      if (typeof field(link, 'path_lower') === 'string' || (typeof root === 'string' && ownFolders.has(root)))
-        return 'own-songbook';
+      const inAppFolder = async (id: string) => {
+        try {
+          return Boolean(await metadata(id));
+        } catch (error) {
+          // Any lookup refusal for the ID means it is outside what the app can see.
+          if (error instanceof DropboxError && error.status === 409) return false;
+          throw error;
+        }
+      };
+      if (typeof root === 'string' && (ownFolders.has(root) || (await inAppFolder(root)))) return 'own-songbook';
       const pending = [''];
       for (let folder = pending.shift(); folder !== undefined; folder = pending.shift()) {
         let page = await rpc('files/list_folder', {path: folder, shared_link: {url}});
