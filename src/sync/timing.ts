@@ -3,15 +3,26 @@ import type {ApiEvent} from '../core/sync-model.ts';
 
 /**
  * Temporary timing log for the test address: where a sync run spends its time.
- * It holds operation names, statuses and milliseconds only, never paths or
- * content, and it is never uploaded, so measuring adds no Dropbox calls.
+ * It holds operation names, the kind of file, statuses and milliseconds only,
+ * never paths or content, and it is never uploaded, so measuring adds no Dropbox calls.
  */
 interface Step {
   at: number;
   ms: number;
   name: string;
   status?: number;
+  kind?: string;
 }
+/** The kind of file a call concerns, in the words the log shows. */
+const kinds: Record<NonNullable<ApiEvent['resource']>, string> = {
+  content: 'sang',
+  personal: 'personlig',
+  control: 'styring',
+  staging: 'mellomlager',
+  folder: 'mappe',
+  mixed: 'blandet',
+  other: 'annet',
+};
 interface TimingRun {
   started: string;
   manual: boolean;
@@ -59,7 +70,13 @@ export function syncTiming(env: AppEnvironment, now: () => number = () => perfor
     request(event: ApiEvent) {
       if (!current) return;
       const ms = Math.round(event.durationMs);
-      push({at: Math.max(0, Math.round(now() - current.start - ms)), ms, name: event.operation, status: event.status});
+      push({
+        at: Math.max(0, Math.round(now() - current.start - ms)),
+        ms,
+        name: event.operation,
+        status: event.status,
+        ...(event.resource ? {kind: kinds[event.resource]} : {}),
+      });
     },
     /** Start or end a named part of the run, such as waiting for the lock. */
     phase(name: string) {
@@ -109,10 +126,11 @@ function timingText(run: TimingRun) {
     callMs = waitingMs(calls),
     totals = new Map<string, {count: number; ms: number}>();
   for (const call of calls) {
-    const total = totals.get(call.name) ?? {count: 0, ms: 0};
+    const name = call.kind ? `${call.name} (${call.kind})` : call.name,
+      total = totals.get(name) ?? {count: 0, ms: 0};
     total.count++;
     total.ms += call.ms;
-    totals.set(call.name, total);
+    totals.set(name, total);
   }
   return [
     `${run.started} ${run.manual ? 'manuell' : 'automatisk'} ${run.outcome}: ${run.totalMs} ms, ` +
@@ -120,7 +138,8 @@ function timingText(run: TimingRun) {
     ...[...totals].map(([name, total]) => `  ${name}: ${total.count} kall, ${total.ms} ms`),
     '  Tidslinje (start ms, varighet ms):',
     ...run.steps.map(
-      step => `  ${step.at} +${step.ms} ${step.name}${step.status === undefined ? '' : ` ${step.status}`}`,
+      step =>
+        `  ${step.at} +${step.ms} ${step.name}${step.kind ? ` (${step.kind})` : ''}${step.status === undefined ? '' : ` ${step.status}`}`,
     ),
   ].join('\n');
 }

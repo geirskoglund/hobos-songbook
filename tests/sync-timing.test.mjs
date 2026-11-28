@@ -39,14 +39,16 @@ test('a successful run shows calls, phases and time outside calls; overlapping c
     clock = 400;
     timing.request({operation: 'files/list_folder', status: 200, durationMs: 300});
     clock = 1000;
-    timing.request({operation: 'files/download', status: 200, durationMs: 250});
-    timing.request({operation: 'files/download', status: 200, durationMs: 150});
+    timing.request({operation: 'files/download', status: 200, durationMs: 250, resource: 'content'});
+    timing.request({operation: 'files/download', status: 200, durationMs: 150, resource: 'content'});
     clock = 1200;
     timing.end('ok');
     const text = timing.text();
     assert.match(text, /PR 115/);
     assert.match(text, /manuell ok: 1200 ms, 3 kall, venter på Dropbox 550 ms, utenom kall 650 ms/);
-    assert.match(text, /files\/download: 2 kall, 400 ms/);
+    // The kind of file shows without its path.
+    assert.match(text, /files\/download \(sang\): 2 kall, 400 ms/);
+    assert.match(text, /^ {2}750 \+250 files\/download \(sang\) 200$/m);
     assert.match(text, /^ {2}0 \+100 \[venter\]$/m);
     assert.match(text, /^ {2}100 \+300 files\/list_folder 200$/m);
     assert.doesNotMatch(text, /Songbooks|\.cho/);
