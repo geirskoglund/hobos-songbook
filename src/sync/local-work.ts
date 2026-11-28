@@ -67,6 +67,12 @@ export function hasLocalWork(s: SyncSession) {
     )
       return true;
   }
+  // Imported songs are never edited, but their personal layer syncs like any other (#101 F16).
+  for (const song of s.snapshot.songs.filter(song => !ownSong(song))) {
+    const base = s.state.bases[song.id];
+    if (s.state.manifest.songs[song.id] && base && !same(personalOf(s.snapshot, song.id), base.personal.data))
+      return true;
+  }
   return false;
 }
 export function hasUnconfirmedNamespaceChanges(s: SyncSession) {

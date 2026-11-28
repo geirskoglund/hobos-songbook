@@ -1,10 +1,12 @@
 import type {Song, SongPersonal} from '../core/song.ts';
 import {personalChanges} from './personal.ts';
 import {reconcilePersonal} from './annotations.ts';
+import {importedSong} from './song.ts';
 interface DraftSnapshot {
   song: Song;
   personal: SongPersonal;
 }
+export const readOnlyImport = 'Importerte sanger kan ikke redigeres.';
 /** Song lifetime, independently of mode, render and storage completion. */
 export function createEditSession(initial: Song, personal: SongPersonal, saved: Song | null = initial) {
   let song = initial,
@@ -107,6 +109,7 @@ export function createEditSession(initial: Song, personal: SongPersonal, saved: 
       };
     },
     replaceOriginal(next: Song, change?: (current: SongPersonal) => SongPersonal) {
+      if (importedSong(song)) throw new Error(readOnlyImport);
       const before = snapshot();
       state = reconcilePersonal(song, next, state);
       if (change) state = change(state);

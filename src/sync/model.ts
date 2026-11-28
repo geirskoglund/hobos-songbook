@@ -6,11 +6,15 @@ import type {DeletedSong, Manifest} from './state.ts';
 
 export const ownSong = ({origin}: Pick<Song, 'origin'>) =>
   origin.kind === 'local' || (origin.provider === 'dropbox' && !origin.sourceId);
-type SongArea = 'Private' | 'Shared';
+type SongArea = 'Private' | 'Shared' | 'Import';
+/** A song file's book and area. In Import, `name` is the path below Import: `<import>/<subfolders>/<file>`. */
 export function songLocation(path: string) {
-  const match = /^(\/Songbooks\/[^/]+)\/(Private|Shared)\/([^/]+\.cho)$/i.exec(path);
+  const match =
+    /^(\/Songbooks\/[^/]+)\/(Private|Shared)\/([^/]+\.cho)$/i.exec(path) ??
+    /^(\/Songbooks\/[^/]+)\/(Import)\/((?:[^/]+\/)+[^/]+\.cho)$/i.exec(path);
   if (!match) return undefined;
-  const area: SongArea = match[2].toLowerCase() === 'shared' ? 'Shared' : 'Private';
+  const kind = match[2].toLowerCase(),
+    area: SongArea = kind === 'shared' ? 'Shared' : kind === 'import' ? 'Import' : 'Private';
   return {bookPath: match[1], area, name: match[3]};
 }
 interface PublicationSong {

@@ -133,7 +133,8 @@ test('#105: register a tested import; every test answer, field errors and other 
   await expect(page.locator('#add-import')).toBeFocused();
   await expect(page.locator('#import-list > li')).toHaveCount(1);
   await expect(page.locator('#import-list .row-title')).toHaveText('Bandet');
-  await expect(page.locator('#import-list .row-metadata')).toHaveText('Standard');
+  // #106: before its first Synkroniser the row says so after the songbook.
+  await expect(page.locator('#import-list .row-metadata > span')).toHaveText(['Standard', 'Aldri synkronisert']);
   // The shared L01 row, without an action until the import gets one.
   await expect(page.locator('#import-list .row-title')).toHaveCSS('font-weight', '500');
   await expect(page.locator('#import-list button')).toHaveCount(0);

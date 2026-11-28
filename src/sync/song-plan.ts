@@ -301,7 +301,10 @@ export async function finishContent(s: SyncSession, plan: SongPlan) {
 }
 export function songDestination(s: SyncSession, link: SongLink, books: Manifest['books']) {
   const parent = s.state.folders[link.songbookId]?.path ?? bookPath(books[link.songbookId].name);
-  const current = songLocation(s.index.find(link.fileId ?? link.path)?.path ?? link.path);
+  const currentPath = s.index.find(link.fileId ?? link.path)?.path ?? link.path,
+    current = songLocation(currentPath);
+  // An imported copy stays where the import placed it; only the import moves it.
+  if (current?.area === 'Import') return currentPath.slice(0, currentPath.lastIndexOf('/'));
   // Only confirmed book transfers change Shared to Private. File edits within
   // the same book stay where Dropbox currently has the song.
   const area = current && pathKey(current.bookPath) === pathKey(parent) ? current.area : 'Private';

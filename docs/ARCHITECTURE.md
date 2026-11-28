@@ -96,7 +96,8 @@ Begge Dropbox-appene er App Folder med `account_info.read`, `files.metadata.read
 ```text
 /Songbooks/<sangbok>/Private/<sang>.cho   egne sanger
 /Songbooks/<sangbok>/Shared/<sang>.cho    publiserte sanger
-/Songbooks/<sangbok>/Import/              opprettes for hver sangbok og skal fortsatt opprettes
+/Songbooks/<sangbok>/Import/              opprettes for hver sangbok
+/Songbooks/<sangbok>/Import/<import>/     kopi av importens delte mappe med kildens undermapper
 /Songbooks/<sangbok>/Originals/<fil>      uendret kopi av importert fil med annen endelse
 /Deleted/<sangbok> YYYY-MM-DD HHmm/       arkiv av slettet bokmappe
 /.app/library.json                        manifest: bøker, sanger, fil- og mappekoblinger, slettemarkører
@@ -106,6 +107,7 @@ Begge Dropbox-appene er App Folder med `account_info.read`, `files.metadata.read
 /.app/uploads/<operasjons-ID>.cho         midlertidig fil før plassering
 /.app/sync-errors.json                    opplastede diagnoserapporter
 /.app/imports.json                        registrerte importer: navn, delingslenke og sangbok-ID
+/.app/import-state.json                   per import: kildens fil-ID-er koblet til sang-ID og kopi, og en cursor per kildemappe
 ```
 
 - Sangens ID og personlige lag skrives aldri inn i `.cho`-filen.
@@ -116,7 +118,7 @@ Begge Dropbox-appene er App Folder med `account_info.read`, `files.metadata.read
 
 ### Lokal synktilstand
 
-Lageret `sync` har `private-local-v1` (generasjon, slettemarkører, aktive økter), `private-account-v1:<konto-ID>` (felles basis, rev-er, metadataindeks, reservasjoner, konfliktvalg, journal) og `imports-v1:<konto-ID>` (sist leste importliste, vist uten nett). Konto-ID er kontogrensen; e-post er bare visningstekst. `bindings` oversetter mellom lokale ID-er og sky-ID-er, slik at lokale poster og setlister beholder sine referanser.
+Lageret `sync` har `private-local-v1` (generasjon, slettemarkører, aktive økter), `private-account-v1:<konto-ID>` (felles basis, rev-er, metadataindeks, reservasjoner, konfliktvalg, journal) og `imports-v1:<konto-ID>` (sist leste importliste, vist uten nett). Kontotilstanden har også `sharedImports`: sist leste `import-state.json` og hver imports hentestatus på denne enheten. Konto-ID er kontogrensen; e-post er bare visningstekst. `bindings` oversetter mellom lokale ID-er og sky-ID-er, slik at lokale poster og setlister beholder sine referanser.
 
 ### Regler synk-motoren må holde
 
@@ -149,6 +151,15 @@ Dropbox har ingen transaksjon over flere filer. Reglene under erstatter den.
 
 15. Hver identitet vurderes treveis mot felles basis. Hele det personlige laget sammenlignes. Ulike versjoner krever uttrykkelig valg; uavhengige lag får ingen oppdiktet felles basis.
 16. Et original- og personvalg fra ulike grunnlag går én gang gjennom `reconcilePersonal`. Et kopivalg remapper ankrene.
+
+**Import**
+
+17. Importerte sanger står i manifestet som andre sanger, med `origin.kind: external` og import-ID som `sourceId`. Synken laster dem ned og synker personlig lag, men laster aldri opp innholdet og flytter dem aldri. Bare hentingen skriver i `Import/<import>/`.
+18. Henting skjer bare ved manuell Synkroniser, under skrivevernet, etter at sangbokmappene finnes og før sangene synkes. Hver kildemappe fortsettes fra sin cursor, fordi Dropbox ikke lister en delingslenke rekursivt. Uendret kilde gir ett kall per mappe og ingen nedlasting.
+19. En kopi er oppdatert når kildens `content_hash` og kopiens rev er de samme som da appen skrev den. Ellers lastes kildefilen ned og skrives med forventet rev eller streng add.
+20. Kildens fil-ID følger filen ved navneendring og flytting. En ny fil med samme sti som en fjernet fil får samme sang-ID. En fil som forsvinner fra kilden, beholdes.
+21. `import-state.json` skrives før manifestet, så et avbrudd aldri gir to sanger for samme kildefil.
+22. Svar fra delingslenken stopper bare den ene importen. Nett-, tilgangs- og ratefeil stopper synken som ellers.
 
 ### Når synk kjører
 

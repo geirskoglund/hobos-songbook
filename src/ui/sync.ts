@@ -6,7 +6,7 @@ import {copyText} from './clipboard.ts';
 import {floatingAction, listRow} from './list-controls.ts';
 import {importDialog} from './import-dialog.ts';
 import type {startSongbooks} from './songbooks.ts';
-import type {SharedImport} from '../domain/shared-import.ts';
+import {importStatusText, type SharedImport} from '../domain/shared-import.ts';
 export function syncPage(controller: ReturnType<typeof syncController>, books: ReturnType<typeof startSongbooks>) {
   const root = document.getElementById('sync')!;
   const disconnected = document.createElement('div');
@@ -68,7 +68,10 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
       ...[...importItems]
         .sort((a, b) => a.name.localeCompare(b.name, 'nb'))
         .map(item => {
-          const {row} = listRow({title: item.name, details: [books.bookName(item.songbookId) ?? '']});
+          const {row} = listRow({
+            title: item.name,
+            details: [books.bookName(item.songbookId) ?? '', importStatusText(controller.importStatus(item.id))],
+          });
           row.dataset.importId = item.id;
           return row;
         }),

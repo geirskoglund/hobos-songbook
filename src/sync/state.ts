@@ -72,6 +72,28 @@ export interface Conflict {
   personalFile: PersonalFile;
   generation: number;
 }
+/** One file in an import's shared folder and the song it was fetched to (#101 F13). */
+export interface ImportSourceFile {
+  songId: string;
+  /** Path relative to the shared folder, as the source shows it: `/Viser/Sang.cho`. */
+  path: string;
+  /** The source's content_hash. */
+  hash: string;
+  /** The copy in the songbook's Import folder and the source hash it was written from. */
+  own?: {id: string; rev: string; hash: string};
+  /** Removed from the source; the song is kept (#101 F12). */
+  gone?: boolean;
+}
+export interface ImportSource {
+  files: Record<string, ImportSourceFile>;
+  /** Listed folders by path key, with the cursor that continues each listing. */
+  folders: Record<string, {path: string; cursor: string}>;
+}
+/** /.app/import-state.json */
+export interface ImportStateFile {
+  version: 1;
+  imports: Record<string, ImportSource>;
+}
 export interface SyncState {
   id: string;
   version: 1;
@@ -115,6 +137,11 @@ export interface SyncState {
   publicationContent?: Record<string, {rev: string; title: string; key: string | null; time: string | null}>;
   // Account-local links preserve local IDs while using one cloud identity.
   bindings?: {books: Record<string, string>; songs: Record<string, string>};
+  /** The last read import state file, and each import's fetch status on this device (#101 F15). */
+  sharedImports?: {
+    file?: {id: string; rev: string; value: ImportStateFile};
+    status: Record<string, {synced?: string; failed?: boolean}>;
+  };
 }
 export const emptyManifest = (): Manifest => ({version: 1, books: {}, songs: {}});
 export const newSyncState = (accountId: string): SyncState => ({

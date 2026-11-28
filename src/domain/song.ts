@@ -27,3 +27,5 @@ export function createSong(filename: string, bytes: Uint8Array, songbookId: stri
     origin: {kind: 'local', filename, importedAt: new Date().toISOString()},
   };
 }
+/** A song fetched from an import's shared folder. Its file content is read-only (#101 F16). */
+export const importedSong = (song: Pick<Song, 'origin'>) => song.origin.kind === 'external';

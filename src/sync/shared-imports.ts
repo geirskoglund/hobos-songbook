@@ -1,0 +1,431 @@
+import type {FileValue, MoveEntry, SharedListing} from '../core/sync-model.ts';
+import type {ImportSource, ImportSourceFile, ImportStateFile, Manifest} from './state.ts';
+import type {SyncSession} from './session.ts';
+import type {SharedImport} from '../domain/shared-import.ts';
+import {importStatePath, importsPath} from '../core/paths.ts';
+import {failureCodes, SyncFailure} from '../core/failure.ts';
+import {maxBatchAppendBytes, maxFileBytes, SkippedFile, textBytes} from '../core/limits.ts';
+import {DropboxError} from '../adapters/dropbox.ts';
+import {pathKey} from './remote.ts';
+import {readImports} from './imports.ts';
+import {same} from './model.ts';
+
+/**
+ * Henting fra importenes delte mapper ved manuell Synkroniser (#101 F09–F15).
+ *
+ * Hver import kopieres til `Import/<importnavn>/` i sin sangbok. Kopiene blir vanlige sanger i
+ * biblioteket, så persondata, nedlasting til enhetene og sletting følger den vanlige synken.
+ * `/.app/import-state.json` kobler kildens filer til sangene og holder en cursor per mappe,
+ * fordi Dropbox ikke lister en delingslenke rekursivt. Uendret kilde koster ett kall per mappe.
+ */
+
+const validId = /^[a-zA-Z0-9_-]{1,128}$/;
+const unsafeKey = (id: string) => ['__proto__', 'constructor', 'prototype'].includes(id);
+const parent = (path: string) => path.slice(0, path.lastIndexOf('/'));
+const record = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+function parseState(text: string): ImportStateFile {
+  const value: unknown = JSON.parse(text);
+  const invalid = () =>
+    new SyncFailure({code: failureCodes.response, stage: 'imports.state'}, 'Ukjent format på importtilstanden.');
+  if (!record(value) || value.version !== 1 || !record(value.imports)) throw invalid();
+  for (const [id, source] of Object.entries(value.imports)) {
+    if (!validId.test(id) || unsafeKey(id) || !record(source) || !record(source.files) || !record(source.folders))
+      throw invalid();
+    for (const [fileId, file] of Object.entries(source.files))
+      if (
+        unsafeKey(fileId) ||
+        !record(file) ||
+        typeof file.songId !== 'string' ||
+        !validId.test(file.songId) ||
+        typeof file.path !== 'string' ||
+        !file.path.startsWith('/') ||
+        typeof file.hash !== 'string' ||
+        (file.own !== undefined &&
+          (!record(file.own) ||
+            typeof file.own.id !== 'string' ||
+            typeof file.own.rev !== 'string' ||
+            typeof file.own.hash !== 'string'))
+      )
+        throw invalid();
+    for (const folder of Object.values(source.folders))
+      if (!record(folder) || typeof folder.path !== 'string' || typeof folder.cursor !== 'string') throw invalid();
+  }
+  return value as unknown as ImportStateFile;
+}
+
+/** A failure that belongs to one import's shared folder and does not stop the sync (#101 F15). */
+function sourceFailure(error: unknown) {
+  if (error instanceof DropboxError) return error.status !== 401 && error.status !== 429;
+  return error instanceof SyncFailure && error.info.code === failureCodes.permission;
+}
+
+/** Runs a shared-link call with the session's guards; Dropbox' 409 answers are not retried as a sync. */
+async function guarded<T>(s: SyncSession, operation: () => Promise<T>): Promise<T> {
+  await s.check();
+  const result = await operation();
+  await s.check();
+  return result;
+}
+
+/** The registered imports, with wire book IDs. The saved list is used while its rev is current. */
+async function registeredImports(s: SyncSession): Promise<SharedImport[]> {
+  const entry = s.index.find(importsPath);
+  if (!entry?.rev) return [];
+  const saved = 'imports' in s.storage ? await s.storage.imports(s.accountId) : undefined;
+  if (saved?.rev === entry.rev) return saved.imports;
+  const current = await s.step(() => readImports(s.files));
+  if ('saveImports' in s.storage) await s.storage.saveImports(s.accountId, current.rev, current.imports);
+  return current.imports;
+}
+
+async function readState(s: SyncSession): Promise<{rev: string | null; value: ImportStateFile}> {
+  const entry = s.index.find(importStatePath),
+    cached = s.state.sharedImports?.file;
+  if (!entry?.rev) return {rev: null, value: {version: 1, imports: {}}};
+  if (cached?.rev === entry.rev) return {rev: cached.rev, value: structuredClone(cached.value)};
+  const file = await s.read(importStatePath);
+  if (!file) return {rev: null, value: {version: 1, imports: {}}};
+  const value = parseState(file.text);
+  (s.state.sharedImports ??= {status: {}}).file = {id: file.id, rev: file.rev, value: structuredClone(value)};
+  return {rev: file.rev, value};
+}
+
+/** Lists one folder; a probe earlier in the same run already answered the same request. */
+async function listFolder(s: SyncSession, item: SharedImport, path: string, cursor?: string): Promise<SharedListing> {
+  const key = JSON.stringify([item.id, pathKey(path), cursor ?? '']),
+    known = s.importListings.get(key);
+  if (known) return known;
+  const listing = await guarded(s, () => s.rawFiles.listShared!(item.folder, path, cursor));
+  s.importListings.set(key, listing);
+  return listing;
+}
+
+/**
+ * Reads the source's current files into a new mapping. Known folders are continued from their
+ * cursors; new folders are listed. Files the source no longer has are marked gone, not removed.
+ */
+async function scan(s: SyncSession, item: SharedImport, source: ImportSource): Promise<ImportSource> {
+  const next: ImportSource = {files: structuredClone(source.files), folders: {}};
+  const removed = new Set<string>(),
+    unknown: {id: string; path: string; hash: string}[] = [],
+    queue = [''],
+    seen = new Set<string>();
+  const knownChildren = (path: string) =>
+    Object.values(source.folders).filter(folder => folder.path && pathKey(parent(folder.path)) === pathKey(path));
+  const filesAt = (path: string) => Object.values(next.files).filter(file => pathKey(file.path) === pathKey(path));
+  for (let path = queue.shift(); path !== undefined; path = queue.shift()) {
+    const key = pathKey(path);
+    if (seen.has(key) || removed.has(key)) continue;
+    seen.add(key);
+    const prior = source.folders[key];
+    let listing: SharedListing;
+    try {
+      listing = await listFolder(s, item, path, prior?.cursor);
+    } catch (error) {
+      // A subfolder that can no longer be read is gone; the link itself failing fails the import.
+      if (path && error instanceof DropboxError && error.status === 409) {
+        removed.add(key);
+        continue;
+      }
+      throw error;
+    }
+    next.folders[key] = {path, cursor: listing.cursor};
+    for (const entry of listing.entries)
+      if (entry.kind === 'deleted') {
+        const child = `${path}/${entry.name}`;
+        if (source.folders[pathKey(child)]) removed.add(pathKey(child));
+        for (const file of filesAt(child)) file.gone = true;
+      }
+    const folders = new Set<string>(),
+      present = new Set<string>();
+    for (const entry of listing.entries) {
+      const child = `${path}/${entry.name}`;
+      if (entry.kind === 'folder') {
+        folders.add(pathKey(child));
+        removed.delete(pathKey(child));
+        queue.push(child);
+      } else if (entry.kind === 'file') {
+        const file = next.files[entry.id];
+        // F10: only .cho files within the size limit are fetched.
+        if (!/\.cho$/i.test(entry.name) || entry.size > maxFileBytes) {
+          if (file) file.gone = true;
+          continue;
+        }
+        present.add(entry.id);
+        if (file) {
+          file.path = child;
+          file.hash = entry.hash;
+          delete file.gone;
+        } else unknown.push({id: entry.id, path: child, hash: entry.hash});
+      }
+    }
+    if (!prior || listing.reset) {
+      // A full listing names every child: what it leaves out is gone.
+      for (const [id, file] of Object.entries(next.files))
+        if (pathKey(parent(file.path)) === key && !present.has(id)) file.gone = true;
+      for (const folder of knownChildren(path))
+        if (!folders.has(pathKey(folder.path))) removed.add(pathKey(folder.path));
+    } else for (const folder of knownChildren(path)) if (!removed.has(pathKey(folder.path))) queue.push(folder.path);
+  }
+  for (const key of removed)
+    for (const file of Object.values(next.files)) if (pathKey(file.path).startsWith(key + '/')) file.gone = true;
+  // F13: a new file with the name of a removed one in the same folder is the same song.
+  for (const file of unknown) {
+    const match = Object.entries(next.files).find(
+      ([, known]) => known.gone && pathKey(known.path) === pathKey(file.path),
+    );
+    if (match) {
+      delete next.files[match[0]];
+      const {gone: _gone, ...kept} = match[1];
+      next.files[file.id] = {...kept, path: file.path, hash: file.hash};
+    } else next.files[file.id] = {songId: '', path: file.path, hash: file.hash};
+  }
+  return next;
+}
+
+/** Uploads copies with the same batch transport as songs; a refused copy gives no value. */
+async function upload(s: SyncSession, jobs: {path: string; text: string; rev: string | null}[]) {
+  const values = new Map<number, FileValue>();
+  const single = async (index: number) => {
+    const job = jobs[index];
+    try {
+      values.set(index, await guarded(s, () => s.files.write(job.path, job.text, job.rev)));
+    } catch (error) {
+      if (!(error instanceof DropboxError && error.status === 409)) throw error;
+    }
+  };
+  const groups: number[][] = [];
+  let group: number[] = [],
+    bytes = 0;
+  for (let i = 0; i < jobs.length; i++) {
+    const size = textBytes(jobs[i].text);
+    if (group.length === 500 || (group.length && bytes + size > maxBatchAppendBytes)) {
+      groups.push(group);
+      group = [];
+      bytes = 0;
+    }
+    group.push(i);
+    bytes += size;
+  }
+  if (group.length) groups.push(group);
+  for (const indexes of groups) {
+    if (indexes.length === 1 || !s.files.beginUploadBatch || !s.files.commitBatch) {
+      for (const index of indexes) await single(index);
+      continue;
+    }
+    const started = await guarded(s, () => s.files.beginUploadBatch!(indexes.map(i => jobs[i].text)));
+    const ready = indexes.flatMap((index, n) => {
+      const result = started[n];
+      return 'session' in result ? [{index, job: {...jobs[index], session: result.session}}] : [];
+    });
+    if (!ready.length) continue;
+    const results = await guarded(s, () => s.files.commitBatch!(ready.map(entry => entry.job)));
+    ready.forEach((entry, n) => {
+      const result = results[n];
+      if ('value' in result) values.set(entry.index, result.value);
+    });
+  }
+  return values;
+}
+
+/** Moves copies whose file has a new name or folder in the source (#101 F13). */
+async function move(s: SyncSession, entries: MoveEntry[]) {
+  if (!s.files.moveBatch) return false;
+  let complete = true;
+  for (let start = 0; start < entries.length; start += 100) {
+    const chunk = entries.slice(start, start + 100);
+    let reply = await guarded(s, () => s.files.moveBatch!(chunk));
+    if ('asyncJobId' in reply && s.rawFiles.checkMoveBatch) {
+      const id = reply.asyncJobId;
+      for (let check = 0; check < 6; check++) {
+        await new Promise(resolve => setTimeout(resolve, 900));
+        const status = await guarded(s, () => s.rawFiles.checkMoveBatch!(id));
+        if ('inProgress' in status) continue;
+        // The raw status has no index receipt; a fresh index shows where each file ended up.
+        if ('entries' in status) {
+          await s.step(() => s.index.refresh());
+          reply = status;
+        }
+        break;
+      }
+    }
+    if (!('entries' in reply) || reply.entries.some(entry => !('value' in entry))) complete = false;
+  }
+  return complete;
+}
+
+/**
+ * Brings one import's copies up to date with its source and returns whether every file arrived.
+ * Only new and changed files are downloaded; renamed and moved files are moved.
+ */
+async function copyFiles(
+  s: SyncSession,
+  item: SharedImport,
+  next: ImportSource,
+  base: string,
+  merged: Manifest,
+): Promise<boolean> {
+  let complete = true;
+  const needed: {id: string; file: ImportSourceFile; path: string; rev: string | null}[] = [];
+  const copies = new Set(Object.values(next.files).flatMap(file => (file.own ? [file.own.id] : [])));
+  for (const [id, file] of Object.entries(next.files)) {
+    if (!file.songId || merged.deletedSongs?.[file.songId]) file.songId = crypto.randomUUID();
+    if (file.gone) continue;
+    const target = base + file.path,
+      own = file.own && s.index.find(file.own.id);
+    if (own && !own.folder) {
+      // F14: a copy changed outside the app is replaced by the source's version.
+      if (own.rev !== file.own!.rev || file.own!.hash !== file.hash)
+        needed.push({id, file, path: own.path, rev: own.rev ?? null});
+      continue;
+    }
+    const occupant = s.index.find(target);
+    // Never take over the copy of another song, for example one kept after its source file was removed.
+    if (occupant?.folder || (occupant?.id && copies.has(occupant.id))) {
+      complete = false;
+      continue;
+    }
+    needed.push({id, file, path: target, rev: occupant?.rev ?? null});
+  }
+  const texts = new Map<string, string>();
+  await s.parallel(needed, async entry => {
+    try {
+      texts.set(entry.id, await guarded(s, () => s.rawFiles.readShared!(item.folder, entry.file.path)));
+    } catch (error) {
+      if (error instanceof SkippedFile) return;
+      if (!(error instanceof DropboxError && error.status === 409)) throw error;
+      complete = false;
+    }
+  });
+  const jobs = needed.filter(entry => texts.has(entry.id));
+  const written = await upload(
+    s,
+    jobs.map(entry => ({path: entry.path, text: texts.get(entry.id)!, rev: entry.rev})),
+  );
+  jobs.forEach((entry, i) => {
+    const value = written.get(i);
+    if (value) entry.file.own = {id: value.id, rev: value.rev, hash: entry.file.hash};
+    else complete = false;
+  });
+  const moves: MoveEntry[] = [];
+  for (const [id, file] of Object.entries(next.files)) {
+    const own = !file.gone && file.own && s.index.find(file.own.id),
+      target = base + file.path;
+    if (own && !own.folder && own.id && pathKey(own.path) !== pathKey(target))
+      moves.push({key: `import:${id}`, from: own.id, to: target, fileId: own.id});
+  }
+  if (moves.length && !(await move(s, moves))) complete = false;
+  // A move can give the copy a new rev; it is still the copy the app wrote.
+  for (const entry of moves) {
+    const file = next.files[entry.key.slice('import:'.length)],
+      own = s.index.find(entry.fileId);
+    if (own?.rev && pathKey(own.path) === pathKey(entry.to)) file.own = {...file.own!, rev: own.rev};
+  }
+  return complete;
+}
+
+/** Adds or updates the library link of every copy; songs whose copy is gone leave the mapping. */
+function linkSongs(s: SyncSession, item: SharedImport, next: ImportSource, merged: Manifest, added: Set<string>) {
+  for (const [id, file] of Object.entries(next.files)) {
+    const own = file.own && s.index.find(file.own.id);
+    if (!own || own.folder || !own.id) {
+      // F14: a copy deleted by hand with its file gone from the source leaves the library.
+      if (file.gone || merged.deletedSongs?.[file.songId]) delete next.files[id];
+      continue;
+    }
+    if (merged.deletedSongs?.[file.songId]) {
+      if (file.gone) {
+        delete next.files[id];
+        continue;
+      }
+      file.songId = crypto.randomUUID();
+    }
+    const link = merged.songs[file.songId];
+    if (link) {
+      link.fileId = own.id;
+      link.path = own.path;
+      continue;
+    }
+    merged.songs[file.songId] = {
+      id: file.songId,
+      songbookId: item.songbookId,
+      origin: {
+        kind: 'external',
+        provider: 'dropbox',
+        sourceId: item.id,
+        filename: own.path.split('/').at(-1)!,
+        importedAt: new Date().toISOString(),
+      },
+      fileId: own.id,
+      path: own.path,
+    };
+    added.add(file.songId);
+  }
+}
+
+/**
+ * Manuell Synkroniser: henter hver import til sangboken og legger kopiene inn i det flettede
+ * biblioteket. Svarer med ID-ene til nye sanger, som ennå ikke har persondata i Dropbox.
+ */
+export async function fetchImports(s: SyncSession, merged: Manifest): Promise<Set<string>> {
+  const added = new Set<string>();
+  if (!s.rawFiles.listShared || !s.rawFiles.readShared) return added;
+  const imports = await registeredImports(s);
+  const status = (s.state.sharedImports ??= {status: {}}).status;
+  for (const id of Object.keys(status)) if (!imports.some(item => item.id === id)) delete status[id];
+  if (!imports.length) {
+    await s.save();
+    return added;
+  }
+  const {rev, value} = await readState(s),
+    before = structuredClone(value);
+  for (const item of [...imports].sort((a, b) => a.id.localeCompare(b.id))) {
+    const book = merged.books[item.songbookId],
+      bookPath = s.state.folders[item.songbookId]?.path ?? book?.path;
+    let ok = false;
+    if (book && !book.deleted && bookPath)
+      try {
+        const source = value.imports[item.id] ?? {files: {}, folders: {}},
+          next = await scan(s, item, source);
+        ok = await copyFiles(s, item, next, `${bookPath}/Import/${item.name}`, merged);
+        linkSongs(s, item, next, merged, added);
+        value.imports[item.id] = next;
+      } catch (error) {
+        if (!sourceFailure(error)) throw error;
+      }
+    status[item.id] = ok ? {synced: new Date().toISOString()} : {...status[item.id], failed: true};
+  }
+  if (!same(before, value)) {
+    const file = await s.write(importStatePath, JSON.stringify(value), rev);
+    s.state.sharedImports!.file = {id: file.id, rev: file.rev, value: structuredClone(value)};
+  }
+  await s.save();
+  return added;
+}
+
+/**
+ * Manuell Synkroniser uten andre endringer: svarer true hvis en import har noe å hente,
+ * aldri er hentet her eller feilet sist. Listingene gjenbrukes hvis hele synken må kjøre.
+ */
+export async function importsPending(s: SyncSession): Promise<boolean> {
+  if (!s.rawFiles.listShared) return false;
+  const imports = await registeredImports(s);
+  if (!imports.length) return false;
+  const {value} = await readState(s);
+  for (const item of imports) {
+    const status = s.state.sharedImports?.status[item.id],
+      source = value.imports[item.id];
+    if (!status || status.failed || !source || !Object.keys(source.folders).length) return true;
+    for (const folder of Object.values(source.folders))
+      try {
+        const listing = await listFolder(s, item, folder.path, folder.cursor);
+        if (listing.reset || listing.entries.length) return true;
+      } catch (error) {
+        if (sourceFailure(error)) return true;
+        throw error;
+      }
+  }
+  return false;
+}

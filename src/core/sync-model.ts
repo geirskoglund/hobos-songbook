@@ -77,6 +77,19 @@ export interface UploadJob extends UploadIntent {
     book?: BookLink;
   };
 }
+/** The fields a batch commit needs from an upload job. */
+type CommitJob = Pick<UploadJob, 'session' | 'text' | 'path' | 'rev'>;
+/** One entry in a shared folder's listing. Dropbox gives no path for these, only the name. */
+export type SharedEntry =
+  | {kind: 'file'; id: string; name: string; hash: string; size: number}
+  | {kind: 'folder'; id: string; name: string}
+  | {kind: 'deleted'; name: string};
+export interface SharedListing {
+  entries: SharedEntry[];
+  cursor: string;
+  /** The listing starts over: entries the folder no longer reports are gone. */
+  reset: boolean;
+}
 type BeginUploadResult = {session: UploadSession} | {failure: FailureInfo};
 export type UploadResult = {value: FileValue} | {failure: FailureInfo; resetSession?: boolean};
 export interface MoveEntry {
@@ -122,7 +135,7 @@ export interface RemoteFiles {
   releaseMutation?(text: string, rev: string): Promise<FileValue>;
   beginUpload?(text: string): Promise<UploadSession>;
   beginUploadBatch?(texts: string[]): Promise<BeginUploadResult[]>;
-  commitBatch?(jobs: UploadJob[]): Promise<UploadResult[]>;
+  commitBatch?(jobs: CommitJob[]): Promise<UploadResult[]>;
   moveBatch?(entries: MoveEntry[], retryAttempt?: number, options?: NamespaceBatchOptions): Promise<MoveReply>;
   withMoveReceipt?(work: () => Promise<void>): Promise<void>;
   checkMoveBatch?(id: string, retryAttempt?: number): Promise<MoveReply>;
@@ -145,6 +158,10 @@ export interface RemoteFiles {
   removeEmpty(path: string): Promise<boolean>;
   deleteFile?(path: string, rev: string): Promise<void>;
   deleteFiles?(entries: DeleteEntry[]): Promise<void>;
+  /** Lists one folder of a shared link, path relative to the link; continues from `cursor` when given. */
+  listShared?(url: string, path: string, cursor?: string): Promise<SharedListing>;
+  /** Downloads one file of a shared link, path relative to the link. */
+  readShared?(url: string, path: string): Promise<string>;
   changes?(cursor?: string): Promise<{entries: RemoteEntry[]; cursor: string; reset: boolean}>;
 }
 export interface LocalJournal {

@@ -1,5 +1,5 @@
 import type {AppEnvironment} from '../environment.ts';
-import type {RemoteFiles, RemoteEntry, UploadResult, ApiEvent, ApiContext} from '../core/sync-model.ts';
+import type {RemoteFiles, RemoteEntry, UploadResult, ApiEvent, ApiContext, SharedEntry} from '../core/sync-model.ts';
 import {appFolder, libraryPath, mutationPath} from '../core/paths.ts';
 import {checkSize, textBytes, maxFileBytes, maxBatchAppendBytes, SkippedFile} from '../core/limits.ts';
 import {
@@ -78,6 +78,7 @@ const apiArg = (value: unknown) =>
   );
 const contentRoutes = new Set([
   'files/download',
+  'sharing/get_shared_link_file',
   'files/upload',
   'files/upload_session/start',
   'files/upload_session/append_batch',
@@ -133,7 +134,7 @@ export function dropboxAdapter(
         ? 'staging'
         : path.startsWith(appFolder + '/')
           ? 'control'
-          : /^\/Songbooks\/[^/]+\/(Private|Shared)\//i.test(path)
+          : /^\/Songbooks\/[^/]+\/(Private|Shared|Import)\//i.test(path)
             ? 'content'
             : 'other';
   function loseAccess(stage: string, status: number): never {
@@ -816,6 +817,72 @@ export function dropboxAdapter(
       return linkFailure(error) ?? 'unavailable';
     }
   }
+  /** Downloads one file through a content route; null when Dropbox reports the path missing. */
+  async function download(route: string, arg: unknown, context: ApiContext) {
+    await beforeRequest();
+    const accessToken = await access();
+    await beforeRequest();
+    const response = await send(
+      route,
+      {
+        method: 'POST',
+        headers: {Authorization: `Bearer ${accessToken}`, 'Dropbox-API-Arg': apiArg(arg)},
+        cache: 'no-store',
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+      },
+      undefined,
+      context,
+    );
+    await beforeRequest();
+    if (!response.ok) {
+      const value: unknown = await response.json().catch(() => ({}));
+      const error = new DropboxError(response.status, errorSummary(value) ?? 'download');
+      if (missing(error)) return null;
+      throw error;
+    }
+    let meta: unknown;
+    try {
+      meta = JSON.parse(response.headers.get('Dropbox-API-Result') ?? 'null');
+    } catch (cause) {
+      throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.download'}, 'Ugyldig metadataheader.', cause);
+    }
+    const reported = field(meta, 'size');
+    if (typeof reported === 'number' && reported > maxFileBytes) {
+      await response.body?.cancel();
+      throw new SkippedFile();
+    }
+    const reader = response.body?.getReader(),
+      chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      if (reader)
+        for (;;) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          size += chunk.value.byteLength;
+          if (size > maxFileBytes) {
+            await reader.cancel();
+            throw new SkippedFile();
+          }
+          chunks.push(chunk.value);
+        }
+    } catch (cause) {
+      if (cause instanceof SkippedFile) throw cause;
+      throw new SyncFailure(
+        {code: failureCodes.network, stage: 'dropbox.download', status: response.status},
+        'Dropbox-nedlastingen ble avbrutt.',
+        cause,
+      );
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return {meta, text: new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(bytes)};
+  }
   async function writeFile(path: string, text: string, rev: string | null, releaseFence = false) {
     checkSize(textBytes(text));
     await beforeRequest();
@@ -1002,73 +1069,52 @@ export function dropboxAdapter(
       }
     },
     async read(path, knownPath) {
-      await beforeRequest();
-      const accessToken = await access();
-      await beforeRequest();
-      const response = await send(
-        'files/download',
-        {
-          method: 'POST',
-          headers: {Authorization: `Bearer ${accessToken}`, 'Dropbox-API-Arg': apiArg({path})},
-          cache: 'no-store',
-          credentials: 'omit',
-          referrerPolicy: 'no-referrer',
-        },
-        undefined,
-        {resource: resource(path)},
-      );
-      await beforeRequest();
-      if (!response.ok) {
-        const value: unknown = await response.json().catch(() => ({}));
-        const error = new DropboxError(response.status, errorSummary(value) ?? 'download');
-        if (missing(error)) return null;
-        throw error;
-      }
-      let meta: unknown;
+      const result = await download('files/download', {path}, {resource: resource(path)});
+      if (!result) return null;
+      return fileValue(result.meta, result.text, knownPath ?? path);
+    },
+    async listShared(url, path, cursor) {
+      const resetCursor = (error: unknown) =>
+        error instanceof DropboxError && error.status === 409 && /^reset(?:\/|$)/.test(error.summary);
+      let reset = !cursor,
+        page: unknown;
       try {
-        meta = JSON.parse(response.headers.get('Dropbox-API-Result') ?? 'null');
-      } catch (cause) {
-        throw new SyncFailure(
-          {code: failureCodes.response, stage: 'dropbox.download'},
-          'Ugyldig metadataheader.',
-          cause,
-        );
+        page = cursor
+          ? await rpc('files/list_folder/continue', {cursor})
+          : await rpc('files/list_folder', {path, shared_link: {url}});
+      } catch (error) {
+        if (!cursor || !resetCursor(error)) throw error;
+        reset = true;
+        page = await rpc('files/list_folder', {path, shared_link: {url}});
       }
-      const reported = field(meta, 'size');
-      if (typeof reported === 'number' && reported > maxFileBytes) {
-        await response.body?.cancel();
-        throw new SkippedFile();
-      }
-      const reader = response.body?.getReader(),
-        chunks: Uint8Array[] = [];
-      let size = 0;
-      try {
-        if (reader)
-          for (;;) {
-            const chunk = await reader.read();
-            if (chunk.done) break;
-            size += chunk.value.byteLength;
-            if (size > maxFileBytes) {
-              await reader.cancel();
-              throw new SkippedFile();
-            }
-            chunks.push(chunk.value);
+      const entries: SharedEntry[] = [];
+      for (;;) {
+        const listed = list(field(page, 'entries')),
+          more = field(page, 'has_more'),
+          next = text(field(page, 'cursor'));
+        if (!listed || typeof more !== 'boolean' || !next)
+          throw new SyncFailure({code: failureCodes.response, stage: 'dropbox.shared-list'}, 'Ugyldig mappeoversikt.');
+        for (const entry of listed) {
+          const kind = tag(entry),
+            name = text(field(entry, 'name')),
+            id = text(field(entry, 'id'));
+          if (!name || name.includes('/')) continue;
+          if (kind === 'deleted') entries.push({kind, name});
+          else if (kind === 'folder' && id) entries.push({kind, id, name});
+          else if (kind === 'file' && id) {
+            const hash = text(field(entry, 'content_hash')),
+              size = field(entry, 'size');
+            if (hash && typeof size === 'number') entries.push({kind, id, name, hash, size});
           }
-      } catch (cause) {
-        if (cause instanceof SkippedFile) throw cause;
-        throw new SyncFailure(
-          {code: failureCodes.network, stage: 'dropbox.download', status: response.status},
-          'Dropbox-nedlastingen ble avbrutt.',
-          cause,
-        );
+        }
+        if (!more) return {entries, cursor: next, reset};
+        page = await rpc('files/list_folder/continue', {cursor: next});
       }
-      const bytes = new Uint8Array(size);
-      let offset = 0;
-      for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
-      return fileValue(meta, new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(bytes), knownPath ?? path);
+    },
+    async readShared(url, path) {
+      const result = await download('sharing/get_shared_link_file', {url, path}, {resource: 'content'});
+      if (!result) throw new DropboxError(409, 'shared_link_not_found');
+      return result.text;
     },
     write: writeFile,
     releaseMutation: (text, rev) => writeFile(mutationPath, text, rev, true),

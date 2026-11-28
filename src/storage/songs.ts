@@ -3,6 +3,8 @@ import {cleanPersonal, reconcilePersonal} from '../domain/annotations.ts';
 import {standardSongbook, songbookName, MissingSongbookError, type Songbook} from '../domain/songbook.ts';
 import {setlistName, type Setlist} from '../domain/setlist.ts';
 import {trackLocal} from './journal.ts';
+import {importedSong} from '../domain/song.ts';
+import {readOnlyImport} from '../domain/edit-session.ts';
 import {failureCodes, SyncFailure} from '../core/failure.ts';
 import {transferPlan, type TransferPlan} from '../domain/transfer.ts';
 import {syncStateKey} from '../core/paths.ts';
@@ -476,6 +478,7 @@ export function songStorage(namespace: string) {
                 if (current) fail('Sangen er allerede opprettet. Åpne den på nytt før videre redigering.');
                 songStore.add(song);
               } else if (baseline.original !== song.original) {
+                if (current && importedSong(current)) fail(readOnlyImport);
                 if (!current || current.original !== baseline.original)
                   fail(
                     'Originalen er endret i en annen fane. Utkastet er beholdt; åpne sangen på nytt før videre lagring.',

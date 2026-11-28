@@ -7,6 +7,8 @@ export const mutationPath = '/.app/mutation.json';
 export const uploadIndexPath = '/.app/upload-index.json';
 export const syncErrorsPath = '/.app/sync-errors.json';
 export const importsPath = '/.app/imports.json';
+/** Koblingen mellom filene i hver imports delte mappe og sangene de er hentet til. */
+export const importStatePath = '/.app/import-state.json';
 export const personalFolder = '/.app/songs';
 export const stagingFolder = '/.app/uploads';
 export const songbooksFolder = '/Songbooks';

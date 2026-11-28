@@ -20,7 +20,7 @@ import {syncDiagnostics, type SyncLog} from './diagnostics.ts';
 import {addImport, readImports} from './imports.ts';
 import {pathKey} from './remote.ts';
 import {importsPath} from '../core/paths.ts';
-import type {ImportTest, SharedImport} from '../domain/shared-import.ts';
+import type {ImportStatus, ImportTest, SharedImport} from '../domain/shared-import.ts';
 export function syncController(
   storage: ReturnType<typeof songStorage>,
   hooks: {
@@ -470,6 +470,10 @@ export function syncController(
       /* The previous list stays until the next Synkroniser. */
     }
   }
+  /** #101 F15: how the last Synkroniser on this device went for one import. */
+  function importStatus(id: string): ImportStatus | undefined {
+    return state?.sharedImports?.status[id];
+  }
   /** #101 F05. Without sharing consent the user is first sent to Dropbox to give it. */
   async function testImport(folder: string): Promise<ImportTest | 'consent'> {
     const user = account();
@@ -674,6 +678,7 @@ export function syncController(
     publish,
     shareBook,
     imports,
+    importStatus,
     testImport,
     saveImport,
     running: () => running,

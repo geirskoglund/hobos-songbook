@@ -61,3 +61,15 @@ export const importTestText: Record<ImportTest, string> = {
   'not-found': 'Tilkobling feilet: Finner ikke mappen',
   unavailable: 'Tilkobling feilet: Dropbox utilgjengelig',
 };
+
+/** An import's fetch result on this device: the last success and whether the latest attempt failed. */
+export interface ImportStatus {
+  synced?: string;
+  failed?: boolean;
+}
+/** #101 F15: the row's status text. A successful fetch shows none. */
+export function importStatusText(status: ImportStatus | undefined): string {
+  if (!status) return 'Aldri synkronisert';
+  if (!status.failed) return '';
+  return `Feilet, sist synkronisert: ${status.synced ? new Date(status.synced).toLocaleString('nb-NO') : 'Aldri'}`;
+}
