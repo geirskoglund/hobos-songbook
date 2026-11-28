@@ -647,7 +647,8 @@ for (const width of [320, 768, 1440])
     const name = 'Langt navn æøå '.repeat(9).trim();
     const book = await createBook(page, name);
     await expect(page.locator(`#songbook-${book.id}`)).toBeInViewport();
-    expect(await page.locator('#songbooks').evaluate(n => n.scrollWidth <= n.clientWidth)).toBe(true);
+    // Rows reach 12 px into the page margin by design; the page itself must not scroll sideways.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.locator(`#songbook-${book.id}`).click();
     const step = await newStep(page);
     await step.getByRole('button', {name: /^Sangbok:/}).click();

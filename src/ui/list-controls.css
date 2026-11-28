@@ -4,23 +4,22 @@
   margin: 0;
   padding: 0 0 calc(110px + var(--safe-bottom));
 }
-/* L01 is the only list row; its rules live here and nowhere else. */
+/*
+ * L01 is the only list row; its rules live here and nowhere else. The row reaches 12px into the page
+ * margin on both sides, separator included, while its content lines up with the page.
+ */
 .list-row {
-  --row-field: transparent;
   display: flex;
+  margin-inline: -12px;
+  padding-inline: 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
-  background: var(--row-field) padding-box;
-  /* The field reaches 12px past the text on both sides without taking width, so nothing moves or scrolls. */
-  box-shadow:
-    -12px 0 var(--row-field),
-    12px 0 var(--row-field);
 }
-/* Hover and selection cover the whole row, the menu included. */
+/* Hover and selection light the whole row, the menu included. */
 .list-row:has(> button:hover) {
-  --row-field: color-mix(in srgb, var(--raised) 25%, transparent);
+  background: color-mix(in srgb, var(--raised) 25%, transparent);
 }
 .list-row:has(> .row-choice.row-selected) {
-  --row-field: var(--raised);
+  background: var(--raised);
 }
 .row-choice {
   display: flex;

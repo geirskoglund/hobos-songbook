@@ -20,11 +20,13 @@ const rowGeometry = row =>
       t = title.getBoundingClientRect(),
       m = meta.getBoundingClientRect(),
       ts = getComputedStyle(title),
-      rs = getComputedStyle(n);
+      rs = getComputedStyle(n),
+      list = n.parentElement.getBoundingClientRect();
     return {
       height: r.height,
       top: t.top - r.top,
-      left: t.left - r.left,
+      left: t.left - list.left,
+      reach: [list.left - r.left, r.right - list.right],
       gap: m.top - t.bottom,
       bottom: r.bottom - m.bottom,
       size: parseFloat(ts.fontSize),
@@ -35,7 +37,9 @@ const rowGeometry = row =>
     };
   });
 // DESIGN L01: 21–24 px (3vw) title at weight 500, 15 px metadata, 20 px air, 10 px between, 1 px separator.
+// The row, separator included, reaches 12 px into the page margin while the title lines up with the list.
 function l01(geometry, width) {
+  expect(geometry.reach).toEqual([12, 12]);
   expect(geometry.size).toBeCloseTo(Math.min(24, Math.max(21, width * 0.03)), 1);
   expect(geometry.weight).toBe('500');
   expect(geometry.lineHeight).toBeCloseTo(1.3, 2);
@@ -294,7 +298,7 @@ test('L01 is one row with optional menu and status icons, measured as the song l
           title = row.querySelector('.row-title').getBoundingClientRect(),
           text = row.querySelector('.row-text');
         return {
-          right: box.right,
+          right: row.parentElement.getBoundingClientRect().right,
           menuLeft: menu?.left,
           menuRight: menu?.right,
           menuHeight: menu?.height,
@@ -342,19 +346,14 @@ test('L01 is one row with optional menu and status icons, measured as the song l
     // The row without an action is neither a button nor focusable.
     await expect(rows[5].locator('.row-choice')).not.toHaveAttribute('tabindex');
     expect(await rows[5].locator('button').count()).toBe(0);
-    // Hover lights the whole row, menu included, 12px past the text on both sides.
-    const field = row =>
-      row.evaluate(n => {
-        const s = getComputedStyle(n);
-        return {background: s.backgroundColor, shadow: s.boxShadow};
-      });
+    // Hover lights the whole row, the menu and the 12 px reach included.
+    const field = row => row.evaluate(n => getComputedStyle(n).backgroundColor);
     const idle = await field(rows[1]);
-    expect(idle.background).toBe('rgba(0, 0, 0, 0)');
+    expect(idle).toBe('rgba(0, 0, 0, 0)');
     for (const target of [rows[1].locator('.row-choice'), rows[1].locator('.row-menu')]) {
       await target.hover();
       const lit = await field(rows[1]);
-      expect(lit.background).not.toBe(idle.background);
-      expect(lit.shadow).toBe(`${lit.background} -12px 0px 0px 0px, ${lit.background} 12px 0px 0px 0px`);
+      expect(lit).not.toBe(idle);
     }
     await rows[5].hover();
     expect(await field(rows[5])).toEqual(idle);
