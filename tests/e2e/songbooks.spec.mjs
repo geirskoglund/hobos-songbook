@@ -284,7 +284,7 @@ test('successful creation and import follow the chosen book filter; cancelled fl
   await expect(page.locator('#songbook-filter')).toHaveText('Tom bok');
 });
 
-test('menu, L02 administration, validation, rename identity, D09 icons and safe focus follow the shared controls', async ({
+test('menu, L01 administration, validation, rename identity, D09 icons and safe focus follow the shared controls', async ({
   page,
 }) => {
   await seed(page);

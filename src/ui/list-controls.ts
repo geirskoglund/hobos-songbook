@@ -10,7 +10,7 @@ const rowStatuses = {
   'status-slettet': 'Slettet',
   'status-slettet-hos-kilden': 'Slettet hos kilden',
 } as const;
-export type RowStatus = keyof typeof rowStatuses;
+type RowStatus = keyof typeof rowStatuses;
 
 type RowOptions = {
   title: string;
@@ -19,15 +19,18 @@ type RowOptions = {
   menu?: (opener: HTMLButtonElement) => void;
   statuses?: RowStatus[];
 };
-type Row<Main extends HTMLElement> = {row: HTMLLIElement; main: Main; more?: HTMLButtonElement};
+/** A tap makes the row a button, and a menu gives it a menu button. */
+type Row<Options extends RowOptions> = {
+  row: HTMLLIElement;
+  main: Options extends {choose: () => void} ? HTMLButtonElement : HTMLElement;
+  more: Options extends {menu: (opener: HTMLButtonElement) => void} ? HTMLButtonElement : undefined;
+};
 
 /**
  * L01: the one list row. Each list supplies only the text under the title, the row menu (H04),
  * the status icons and what a tap does. Without `choose` the row is not a button.
  */
-export function listRow(options: RowOptions & {choose: () => void}): Row<HTMLButtonElement>;
-export function listRow(options: RowOptions): Row<HTMLElement>;
-export function listRow(options: RowOptions): Row<HTMLElement> {
+export function listRow<Options extends RowOptions>(options: Options): Row<Options> {
   const row = document.createElement('li');
   row.className = 'list-row';
   const main = options.choose ? actionButton('', options.choose) : document.createElement('div');
@@ -70,7 +73,7 @@ export function listRow(options: RowOptions): Row<HTMLElement> {
     row.append(button);
     more = button;
   }
-  return {row, main, more};
+  return {row, main, more} as Row<Options>;
 }
 
 /** The number of songs, as Setlister and Sangbøker show it under the title. */

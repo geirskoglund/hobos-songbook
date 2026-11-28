@@ -63,7 +63,7 @@ export function startSongbooks(
       });
       main.id = `songbook-${book.id}`;
       main.dataset.songbookId = book.id;
-      more!.id = `songbook-menu-${book.id}`;
+      more.id = `songbook-menu-${book.id}`;
       list.append(row);
     }
     add.disabled = false;

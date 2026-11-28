@@ -54,7 +54,7 @@ export function startSetlists(storage: ReturnType<typeof songStorage>) {
       });
       main.id = `setlist-${item.id}`;
       main.dataset.setlistId = item.id;
-      more!.id = `setlist-menu-${item.id}`;
+      more.id = `setlist-menu-${item.id}`;
       list.append(row);
     }
     status.textContent = items.length ? '' : 'Ingen setlister ennå. Bruk plussknappen for å opprette en setliste.';
