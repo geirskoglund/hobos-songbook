@@ -222,7 +222,7 @@ test('#104: one page with sync panel, import list and account panel in that orde
         overflow: document.documentElement.scrollWidth > innerWidth,
       };
     });
-    expect(layout.order).toEqual(['display-settings', 'song-list import-list', 'app-info']);
+    expect(layout.order).toEqual(['display-settings', 'song-list import-list', 'app-info', 'floating-action']);
     expect(layout.listBelowPanel && layout.accountBelowList).toBe(true);
     expect(layout.disconnect).toBeGreaterThanOrEqual(44);
     expect(layout.overflow).toBe(false);

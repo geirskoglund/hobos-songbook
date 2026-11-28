@@ -128,25 +128,41 @@ export function contextMenu(
 
 /** L02: shared title/count row, with an independent menu target. */
 export function countRow(name: string, count: number, choose: () => void, menu: (opener: HTMLButtonElement) => void) {
+  const {row, main, more} = titleRow(name, `${count} ${count === 1 ? 'sang' : 'sanger'}`, choose, menu);
+  return {row, button: main as HTMLButtonElement, more: more!};
+}
+
+/** L02 with any text in the count position; without `choose` the row is not a button, without `menu` it has none. */
+export function titleRow(
+  name: string,
+  detailText: string,
+  choose?: () => void,
+  menu?: (opener: HTMLButtonElement) => void,
+) {
   const row = document.createElement('li');
   row.className = 'count-row';
-  const button = actionButton('', choose);
-  button.className = 'count-choice';
+  const main = choose ? actionButton('', choose) : document.createElement('div');
+  main.className = 'count-choice';
   const title = document.createElement('span');
   title.className = 'song-name';
   title.textContent = name;
   const detail = document.createElement('span');
   detail.className = 'row-metadata';
-  detail.textContent = `${count} ${count === 1 ? 'sang' : 'sanger'}`;
-  button.setAttribute('aria-label', `${name}, ${detail.textContent}`);
-  button.append(title, detail);
-  const more = actionButton('', () => menu(more), 'meny');
-  more.className = 'row-menu';
-  more.setAttribute('aria-label', `Handlinger for ${name}`);
-  more.setAttribute('aria-haspopup', 'menu');
-  more.setAttribute('aria-expanded', 'false');
-  row.append(button, more);
-  return {row, button, more};
+  detail.textContent = detailText;
+  if (choose) main.setAttribute('aria-label', `${name}, ${detailText}`);
+  main.append(title, detail);
+  row.append(main);
+  let more: HTMLButtonElement | undefined;
+  if (menu) {
+    const button = actionButton('', () => menu(button), 'meny');
+    button.className = 'row-menu';
+    button.setAttribute('aria-label', `Handlinger for ${name}`);
+    button.setAttribute('aria-haspopup', 'menu');
+    button.setAttribute('aria-expanded', 'false');
+    row.append(button);
+    more = button;
+  }
+  return {row, main, more};
 }
 
 type Choice = {id: string | null; name: string};

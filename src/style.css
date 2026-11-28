@@ -1719,6 +1719,18 @@ main > section {
 #sync .import-list:empty {
   margin-bottom: 0;
 }
+/* Room for H01, as below other lists with a floating action. */
+#sync .sync-connected {
+  padding-bottom: 110px;
+}
+.import-dialog .field-label {
+  margin: 12px 0 0;
+  font-size: 17px;
+}
+.import-dialog .field-help {
+  min-height: 0;
+  color: var(--muted);
+}
 #dropbox-account {
   overflow-wrap: anywhere;
   color: var(--text);

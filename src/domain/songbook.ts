@@ -5,18 +5,31 @@ export interface Songbook {
 }
 export const standardSongbook: Readonly<Songbook> = {id: 'standard', name: 'Standard'};
 
-/** One rule for every entry point, repeated inside the serialized write transaction. */
-export function songbookName(value: string, books: readonly Songbook[], ownId?: string): string {
+/** Folder-safe, unique names; shared by songbooks and imports, which both become Dropbox folder names. */
+export function folderName(
+  value: string,
+  taken: readonly {id: string; name: string}[],
+  ownId: string | undefined,
+  messages: {empty: string; duplicate: string},
+): string {
   const name = value.trim().normalize('NFC');
-  if (!name) throw new Error('Skriv inn et navn på sangboken.');
+  if (!name) throw new Error(messages.empty);
   if (/[\\/<>:"|?*]/u.test(name)) throw new Error('Navnet kan ikke inneholde /, \\, <, >, :, ", |, ? eller *.');
   if (name.endsWith('.')) throw new Error('Navnet kan ikke avsluttes med punktum.');
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(name))
     throw new Error('Dette navnet er reservert av systemet. Velg et annet navn.');
   const key = name.toLocaleLowerCase('nb');
-  if (books.some(book => book.id !== ownId && book.name.normalize('NFC').toLocaleLowerCase('nb') === key))
-    throw new Error('Det finnes allerede en sangbok med dette navnet.');
+  if (taken.some(item => item.id !== ownId && item.name.normalize('NFC').toLocaleLowerCase('nb') === key))
+    throw new Error(messages.duplicate);
   return name;
+}
+
+/** One rule for every entry point, repeated inside the serialized write transaction. */
+export function songbookName(value: string, books: readonly Songbook[], ownId?: string): string {
+  return folderName(value, books, ownId, {
+    empty: 'Skriv inn et navn på sangboken.',
+    duplicate: 'Det finnes allerede en sangbok med dette navnet.',
+  });
 }
 
 export function suggestedSongbook(

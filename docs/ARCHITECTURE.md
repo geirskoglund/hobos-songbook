@@ -105,16 +105,18 @@ Begge Dropbox-appene er App Folder med `account_info.read`, `files.metadata.read
 /.app/upload-index.json                   proveniens for opplastinger som ikke er ferdige
 /.app/uploads/<operasjons-ID>.cho         midlertidig fil før plassering
 /.app/sync-errors.json                    opplastede diagnoserapporter
+/.app/imports.json                        registrerte importer: navn, delingslenke og sangbok-ID
 ```
 
 - Sangens ID og personlige lag skrives aldri inn i `.cho`-filen.
+- `imports.json` skrives alene med forventet rev, uten skrivevernet, og leses på nytt etter hver fullført manuell Synkroniser. Feltreglene sjekkes mot den ferskeste listen før skriving.
 - Nye filnavn kommer fra importert filnavn eller sangtittel. Kollisjoner (uavhengig av store/små bokstaver og NFC) får `(2)`, `(3)` osv. Ingen fil overskrives.
 - Manuell Synkroniser oppdager nye `.cho`-filer i Private og nye mapper under `/Songbooks/`. En omdøpt kjent mappe følges via Dropbox-ID og blir navneendring på samme bok. Andre mapper skannes ikke.
 - Filer over 10 000 000 byte hoppes over. De regnes aldri som slettet.
 
 ### Lokal synktilstand
 
-Lageret `sync` har `private-local-v1` (generasjon, slettemarkører, aktive økter) og `private-account-v1:<konto-ID>` (felles basis, rev-er, metadataindeks, reservasjoner, konfliktvalg, journal). Konto-ID er kontogrensen; e-post er bare visningstekst. `bindings` oversetter mellom lokale ID-er og sky-ID-er, slik at lokale poster og setlister beholder sine referanser.
+Lageret `sync` har `private-local-v1` (generasjon, slettemarkører, aktive økter), `private-account-v1:<konto-ID>` (felles basis, rev-er, metadataindeks, reservasjoner, konfliktvalg, journal) og `imports-v1:<konto-ID>` (sist leste importliste, vist uten nett). Konto-ID er kontogrensen; e-post er bare visningstekst. `bindings` oversetter mellom lokale ID-er og sky-ID-er, slik at lokale poster og setlister beholder sine referanser.
 
 ### Regler synk-motoren må holde
 

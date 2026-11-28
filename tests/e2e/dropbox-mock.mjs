@@ -24,6 +24,8 @@ export async function dropboxMock(context, {connected = true, pageSize = 2000, b
     activeWrites = 0,
     rateCount = 0;
   const links = new Map();
+  // Shared links owned by another account: url -> {meta, folders: {path: entries}} or {error}.
+  const foreign = new Map();
   const mutating = endpoint =>
     [
       '/upload',
@@ -227,6 +229,17 @@ export async function dropboxMock(context, {connected = true, pageSize = 2000, b
       if (endpoint.endsWith('/get_current_account'))
         return ok({account_id: 'dbid:fixture', name: {display_name: 'Prøvebruker'}, email: 'bruker@eksempel.no'});
       if (endpoint.endsWith('/token/revoke')) return ok(null);
+      if (endpoint.endsWith('/get_shared_link_metadata')) {
+        const shared = foreign.get(args.url);
+        if (!shared) return route.fulfill({status: 409, json: {error_summary: 'shared_link_not_found/'}});
+        if (shared.error) return route.fulfill({status: 409, json: {error_summary: shared.error}});
+        return ok(shared.meta);
+      }
+      if (endpoint.endsWith('/list_folder') && args?.shared_link) {
+        const shared = foreign.get(args.shared_link.url);
+        if (!shared?.meta) return route.fulfill({status: 409, json: {error_summary: 'shared_link_not_found/'}});
+        return ok({entries: shared.folders?.[args.path] ?? [], has_more: false, cursor: 'shared-' + args.path});
+      }
       if (endpoint.startsWith('/2/sharing/')) {
         const folder = find(args.path);
         if (!folder || folder['.tag'] !== 'folder') return missing();
@@ -480,6 +493,25 @@ export async function dropboxMock(context, {connected = true, pageSize = 2000, b
     cursors,
     calls,
     links,
+    /** A folder link from another account; `folders` maps link-relative paths to entries. */
+    shareForeign(url, {error, folders = {}, ...meta} = {}) {
+      foreign.set(
+        url,
+        error
+          ? {error}
+          : {
+              meta: {
+                '.tag': 'folder',
+                id: 'id:foreign-' + foreign.size,
+                name: 'Kilde',
+                url,
+                link_permissions: {effective_audience: {'.tag': 'public'}, link_access_level: {'.tag': 'viewer'}},
+                ...meta,
+              },
+              folders,
+            },
+      );
+    },
     find,
     put,
     loseDeleteReply() {

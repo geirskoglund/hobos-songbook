@@ -322,6 +322,8 @@ export function startSongbooks(
     accept,
     refresh,
     chooseTarget,
+    targetControl,
+    bookName: (id: string) => snapshot.songbooks.find(book => book.id === id)?.name,
     copyShare,
     dirty: () => Boolean(writing || nameEditor?.dirty()),
     beforeUpdate: async () => {
