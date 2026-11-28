@@ -45,7 +45,12 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
   disconnect.id = 'dropbox-disconnect';
   disconnect.className = 'secondary';
   accountPanel.append(identity, disconnect);
-  connected.append(panel, accountPanel);
+  // L02 rows with a separate H04 row menu, as on Setlister; rows arrive with registered imports.
+  const imports = document.createElement('ul');
+  imports.id = 'import-list';
+  imports.className = 'song-list import-list';
+  imports.setAttribute('aria-label', 'Importer');
+  connected.append(panel, imports, accountPanel);
   root.append(disconnected, connected);
   const messages = [connectionStatus, status].map(node => {
     const text = document.createTextNode(''),

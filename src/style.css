@@ -1709,6 +1709,16 @@ main > section {
 .sync-connect .hint:empty {
   display: none;
 }
+#sync {
+  padding-bottom: var(--safe-bottom);
+}
+#sync .import-list {
+  margin-bottom: 32px;
+  padding-bottom: 0;
+}
+#sync .import-list:empty {
+  margin-bottom: 0;
+}
 #dropbox-account {
   overflow-wrap: anywhere;
   color: var(--text);
