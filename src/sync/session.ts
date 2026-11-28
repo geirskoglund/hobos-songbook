@@ -51,6 +51,8 @@ export class SyncSession {
   claims: UploadClaim[] = [];
   /** Shared-folder listings already received in this run, so a probe is not listed twice. */
   importListings = new Map<string, SharedListing>();
+  /** The index was refreshed in this run, before the lock was taken. */
+  indexFresh = false;
   snapshot!: SyncSnapshot;
   state!: SyncState;
   generation = 0;
@@ -130,6 +132,7 @@ export class SyncSession {
       save = (changes?: CommitChanges) => this.save(changes);
     this.confirmedLinks = {};
     this.importListings = new Map();
+    this.indexFresh = false;
     this.interruption = undefined;
     this.snapshot = await storage.snapshot(accountId);
     this.state = this.snapshot.state;

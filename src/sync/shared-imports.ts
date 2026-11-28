@@ -256,74 +256,101 @@ async function move(s: SyncSession, entries: MoveEntry[]) {
   return complete;
 }
 
-/**
- * Brings one import's copies up to date with its source and returns whether every file arrived.
- * Only new and changed files are downloaded; renamed and moved files are moved.
- */
-async function copyFiles(
-  s: SyncSession,
-  item: SharedImport,
-  next: ImportSource,
-  base: string,
-  merged: Manifest,
-): Promise<boolean> {
-  let complete = true;
-  const needed: {id: string; file: ImportSourceFile; path: string; rev: string | null}[] = [];
-  const copies = new Set(Object.values(next.files).flatMap(file => (file.own ? [file.own.id] : [])));
+/** One import in this run: its scanned source and whether every file arrived. */
+interface ImportWork {
+  item: SharedImport;
+  base: string;
+  next?: ImportSource;
+  needed: {id: string; file: ImportSourceFile; path: string; rev: string | null}[];
+  complete: boolean;
+  failed: boolean;
+}
+
+/** Picks the files to download: new files, changed files and copies changed outside the app. */
+function planCopies(s: SyncSession, work: ImportWork, merged: Manifest) {
+  const next = work.next!,
+    copies = new Set(Object.values(next.files).flatMap(file => (file.own ? [file.own.id] : [])));
   for (const [id, file] of Object.entries(next.files)) {
     if (!file.songId || merged.deletedSongs?.[file.songId]) file.songId = crypto.randomUUID();
     if (file.gone) continue;
-    const target = base + file.path,
+    const target = work.base + file.path,
       own = file.own && s.index.find(file.own.id);
     if (own && !own.folder) {
       // F14: a copy changed outside the app is replaced by the source's version.
       if (own.rev !== file.own!.rev || file.own!.hash !== file.hash)
-        needed.push({id, file, path: own.path, rev: own.rev ?? null});
+        work.needed.push({id, file, path: own.path, rev: own.rev ?? null});
       continue;
     }
     const occupant = s.index.find(target);
     // Never take over the copy of another song, for example one kept after its source file was removed.
     if (occupant?.folder || (occupant?.id && copies.has(occupant.id))) {
-      complete = false;
+      work.complete = false;
       continue;
     }
-    needed.push({id, file, path: target, rev: occupant?.rev ?? null});
+    work.needed.push({id, file, path: target, rev: occupant?.rev ?? null});
   }
-  const texts = new Map<string, string>();
-  await s.parallel(needed, async entry => {
+}
+
+/**
+ * Brings every import's copies up to date with its source. Only new and changed files are
+ * downloaded, at most four at once, and the copies of all imports are written in one round.
+ */
+async function copyFiles(s: SyncSession, works: ImportWork[]) {
+  const downloads = works.flatMap(work => work.needed.map(entry => ({work, entry})));
+  const texts = new Map<(typeof downloads)[number], string>();
+  await s.parallel(downloads, async download => {
+    const {work, entry} = download;
+    if (work.failed) return;
     try {
-      texts.set(entry.id, await guarded(s, () => s.rawFiles.readShared!(item.folder, entry.file.path)));
+      texts.set(download, await guarded(s, () => s.rawFiles.readShared!(work.item.folder, entry.file.path)));
     } catch (error) {
       if (error instanceof SkippedFile) return;
-      if (!(error instanceof DropboxError && error.status === 409)) throw error;
-      complete = false;
+      if (error instanceof DropboxError && error.status === 409) work.complete = false;
+      else if (sourceFailure(error)) work.failed = true;
+      else throw error;
     }
   });
-  const jobs = needed.filter(entry => texts.has(entry.id));
-  const written = await upload(
-    s,
-    jobs.map(entry => ({path: entry.path, text: texts.get(entry.id)!, rev: entry.rev})),
-  );
-  jobs.forEach((entry, i) => {
+  const jobs = downloads.filter(download => !download.work.failed && texts.has(download));
+  let written: Map<number, FileValue>;
+  try {
+    written = await upload(
+      s,
+      jobs.map(download => ({path: download.entry.path, text: texts.get(download)!, rev: download.entry.rev})),
+    );
+  } catch (error) {
+    if (!sourceFailure(error)) throw error;
+    for (const {work} of jobs) work.failed = true;
+    return;
+  }
+  jobs.forEach(({work, entry}, i) => {
     const value = written.get(i);
-    if (value) entry.file.own = {id: value.id, rev: value.rev, hash: entry.file.hash};
-    else complete = false;
+    if (!value) {
+      work.complete = false;
+      return;
+    }
+    entry.file.own = {id: value.id, rev: value.rev, hash: entry.file.hash};
+    // Dropbox' hash of the copy equals the source's: the sync can use the text without reading it back.
+    if (value.hash && value.hash === entry.file.hash) s.index.confirm(value);
   });
-  const moves: MoveEntry[] = [];
+}
+
+/** Moves copies whose file has a new name or folder in the source (#101 F13). */
+async function moveCopies(s: SyncSession, work: ImportWork) {
+  const next = work.next!,
+    moves: MoveEntry[] = [];
   for (const [id, file] of Object.entries(next.files)) {
     const own = !file.gone && file.own && s.index.find(file.own.id),
-      target = base + file.path;
+      target = work.base + file.path;
     if (own && !own.folder && own.id && pathKey(own.path) !== pathKey(target))
       moves.push({key: `import:${id}`, from: own.id, to: target, fileId: own.id});
   }
-  if (moves.length && !(await move(s, moves))) complete = false;
+  if (moves.length && !(await move(s, moves))) work.complete = false;
   // A move can give the copy a new rev; it is still the copy the app wrote.
   for (const entry of moves) {
     const file = next.files[entry.key.slice('import:'.length)],
       own = s.index.find(entry.fileId);
     if (own?.rev && pathKey(own.path) === pathKey(entry.to)) file.own = {...file.own!, rev: own.rev};
   }
-  return complete;
 }
 
 /** Adds or updates the library link of every copy; songs whose copy is gone leave the mapping. */
@@ -381,22 +408,41 @@ export async function fetchImports(s: SyncSession, merged: Manifest): Promise<Se
   }
   const {rev, value} = await readState(s),
     before = structuredClone(value);
+  const works: ImportWork[] = [];
   for (const item of [...imports].sort((a, b) => a.id.localeCompare(b.id))) {
     const book = merged.books[item.songbookId],
       bookPath = s.state.folders[item.songbookId]?.path ?? book?.path;
-    let ok = false;
-    if (book && !book.deleted && bookPath)
+    const work = {item, base: `${bookPath}/Import/${item.name}`, needed: [], complete: true, failed: false};
+    if (book && !book.deleted && bookPath) works.push(work);
+    else status[item.id] = {...status[item.id], failed: true};
+  }
+  // The imports' folders are independent: they are listed four at once.
+  await s.parallel(works, async work => {
+    try {
+      work.next = await scan(s, work.item, value.imports[work.item.id] ?? {files: {}, folders: {}});
+    } catch (error) {
+      if (!sourceFailure(error)) throw error;
+      work.failed = true;
+    }
+  });
+  const scanned = works.filter(work => !work.failed);
+  for (const work of scanned) planCopies(s, work, merged);
+  await copyFiles(s, scanned);
+  for (const work of works) {
+    if (!work.failed)
       try {
-        const source = value.imports[item.id] ?? {files: {}, folders: {}},
-          next = await scan(s, item, source);
-        ok = await copyFiles(s, item, next, `${bookPath}/Import/${item.name}`, merged);
-        linkSongs(s, item, next, merged, added);
-        value.imports[item.id] = next;
+        await moveCopies(s, work);
+        linkSongs(s, work.item, work.next!, merged, added);
+        value.imports[work.item.id] = work.next!;
       } catch (error) {
         if (!sourceFailure(error)) throw error;
+        work.failed = true;
       }
-    status[item.id] = ok ? {synced: new Date().toISOString()} : {...status[item.id], failed: true};
+    const ok = !work.failed && work.complete;
+    status[work.item.id] = ok ? {synced: new Date().toISOString()} : {...status[work.item.id], failed: true};
   }
+  // The status is written after the copies and before the songs' personal data: personal
+  // data for a song whose mapping is not saved would give its copy a second identity.
   if (!same(before, value)) {
     const file = await s.write(importStatePath, JSON.stringify(value), rev);
     s.state.sharedImports!.file = {id: file.id, rev: file.rev, value: structuredClone(value)};
@@ -414,18 +460,23 @@ export async function importsPending(s: SyncSession): Promise<boolean> {
   const imports = await registeredImports(s);
   if (!imports.length) return false;
   const {value} = await readState(s);
+  const folders: {item: SharedImport; path: string; cursor: string}[] = [];
   for (const item of imports) {
     const status = s.state.sharedImports?.status[item.id],
       source = value.imports[item.id];
     if (!status || status.failed || !source || !Object.keys(source.folders).length) return true;
-    for (const folder of Object.values(source.folders))
-      try {
-        const listing = await listFolder(s, item, folder.path, folder.cursor);
-        if (listing.reset || listing.entries.length) return true;
-      } catch (error) {
-        if (sourceFailure(error)) return true;
-        throw error;
-      }
+    for (const folder of Object.values(source.folders)) folders.push({item, ...folder});
   }
-  return false;
+  // F11: every folder is listed, at most four at once; the full sync reuses the listings.
+  let pending = false;
+  await s.parallel(folders, async ({item, path, cursor}) => {
+    try {
+      const listing = await listFolder(s, item, path, cursor);
+      if (listing.reset || listing.entries.length) pending = true;
+    } catch (error) {
+      if (!sourceFailure(error)) throw error;
+      pending = true;
+    }
+  });
+  return pending;
 }

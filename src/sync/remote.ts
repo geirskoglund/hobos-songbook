@@ -1,6 +1,14 @@
 import {DeferredSync, failureCodes, SyncFailure} from '../core/failure.ts';
 import {parseManifest} from './model.ts';
-import type {RemoteEntry, RemoteFiles, MoveReply, MoveEntry, FolderEntry, DeleteEntry} from '../core/sync-model.ts';
+import type {
+  RemoteEntry,
+  RemoteFiles,
+  MoveReply,
+  MoveEntry,
+  FolderEntry,
+  DeleteEntry,
+  FileValue,
+} from '../core/sync-model.ts';
 import type {SyncState} from './state.ts';
 import {checkSize, textBytes} from '../core/limits.ts';
 import {parseUploadIndex} from './bridge.ts';
@@ -20,6 +28,8 @@ export function metadataView(entries: RemoteEntry[]) {
 /** A complete metadata index, advanced only after every page has been received. */
 export function indexedFiles(raw: RemoteFiles, state: SyncState) {
   let refreshing = false;
+  /** Texts this run wrote and Dropbox confirmed byte for byte, by file ID. */
+  const confirmed = new Map<string, {rev: string; text: string}>();
   const find = (path: string) =>
     state.remote &&
     (path.startsWith('id:')
@@ -162,6 +172,7 @@ export function indexedFiles(raw: RemoteFiles, state: SyncState) {
           const basis = link && state.bases[link.id];
           if (basis?.contentRev === entry.rev) text = basis.original;
         }
+        if (text === undefined && confirmed.get(entry.id)?.rev === entry.rev) text = confirmed.get(entry.id)!.text;
         if (text !== undefined) return {text, id: entry.id, rev: entry.rev, path: entry.path};
       }
       const result = await raw.read(path, entry?.path);
@@ -388,6 +399,10 @@ export function indexedFiles(raw: RemoteFiles, state: SyncState) {
     refresh,
     find,
     unchangedFile,
+    /** A later read of this file at the same rev uses the text instead of downloading it. */
+    confirm(value: FileValue) {
+      confirmed.set(value.id, {rev: value.rev, text: value.text});
+    },
     forget(id: string) {
       const old = find(id);
       if (old) remove(old.path);

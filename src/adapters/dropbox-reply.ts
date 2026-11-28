@@ -73,7 +73,8 @@ export function fileValue(data: unknown, contents: string, requestedPath: string
       {code: failureCodes.response, stage: 'dropbox.file-metadata'},
       'Dropbox returnerte ugyldig filmetadata.',
     );
-  return {text: contents, id, rev, path};
+  const hash = field(data, 'content_hash');
+  return {text: contents, id, rev, path, ...(typeof hash === 'string' && hash ? {hash} : {})};
 }
 
 /** Én oppføring fra files/list_folder med include_deleted. */
