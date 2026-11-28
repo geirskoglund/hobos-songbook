@@ -788,19 +788,28 @@ export function dropboxAdapter(
       if (typeof root === 'string' && (ownFolders.has(root) || (await inAppFolder(root)))) return 'own-songbook';
       const pending = [''];
       for (let folder = pending.shift(); folder !== undefined; folder = pending.shift()) {
-        let page = await rpc('files/list_folder', {path: folder, shared_link: {url}});
-        for (;;) {
-          for (const entry of list(field(page, 'entries')) ?? []) {
-            if (tag(entry) !== 'folder') continue;
-            const id = field(entry, 'id'),
-              name = text(field(entry, 'name'));
-            if (typeof id === 'string' && ownFolders.has(id)) return 'own-songbook';
-            if (name) pending.push(`${folder}/${name}`);
+        const found: string[] = [];
+        try {
+          let page = await rpc('files/list_folder', {path: folder, shared_link: {url}});
+          for (;;) {
+            for (const entry of list(field(page, 'entries')) ?? []) {
+              if (tag(entry) !== 'folder') continue;
+              const id = field(entry, 'id'),
+                name = text(field(entry, 'name'));
+              if (typeof id === 'string' && ownFolders.has(id)) return 'own-songbook';
+              if (name) found.push(`${folder}/${name}`);
+            }
+            const cursor = text(field(page, 'cursor'));
+            if (field(page, 'has_more') !== true || !cursor) break;
+            page = await rpc('files/list_folder/continue', {cursor});
           }
-          const cursor = text(field(page, 'cursor'));
-          if (field(page, 'has_more') !== true || !cursor) break;
-          page = await rpc('files/list_folder/continue', {cursor});
+        } catch (error) {
+          // A subfolder that cannot be listed, for example one removed meanwhile, is skipped.
+          // A refusal for the link itself still answers the test.
+          if (folder && error instanceof DropboxError && error.status === 409) continue;
+          throw error;
         }
+        pending.push(...found);
       }
       return 'ok';
     } catch (error) {

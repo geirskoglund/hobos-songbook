@@ -1723,15 +1723,12 @@ main > section {
 #sync .sync-connected {
   padding-bottom: 110px;
 }
-.import-dialog .field-label {
-  margin: 12px 0 0;
-  font-size: 17px;
-}
 .hint.error-text {
   color: var(--error);
 }
 .text-control::placeholder {
-  color: var(--muted);
+  color: var(--placeholder);
+  font-style: italic;
   opacity: 1;
 }
 #dropbox-account {

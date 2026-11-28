@@ -30,10 +30,17 @@ test('#105 F04: only Dropbox web addresses are accepted, and each folder only on
     'https://user:pw@www.dropbox.com/x',
   ])
     assert.throws(() => importFolder(address, existing), {message: notDropboxAddress}, address);
+  // Same host in any case, path and rlkey; other query parameters do not name another folder.
   assert.throws(
-    () => importFolder('https://www.dropbox.com/scl/fo/ABC/Bandet?rlkey=x#top', existing),
+    () => importFolder('https://WWW.DROPBOX.COM/scl/fo/abc/Bandet?dl=0&rlkey=x&e=1#top', existing),
     /En annen import bruker allerede denne mappen/,
   );
+  // Path and rlkey are case-sensitive at Dropbox.
+  for (const address of [
+    'https://www.dropbox.com/scl/fo/ABC/Bandet?rlkey=x',
+    'https://www.dropbox.com/scl/fo/abc/Bandet?rlkey=X',
+  ])
+    assert.equal(importFolder(address, existing), address);
   assert.equal(importFolder(existing[0].folder, existing, 'a'), existing[0].folder);
 });
 
@@ -167,6 +174,33 @@ test('#105 F05: a link above one of the own songbook folders is recognized by fo
     new Set(['id:mybook']),
   );
   assert.equal(result, 'own-songbook');
+});
+
+test('#105 F05: a subfolder that cannot be listed is skipped; the link itself still decides', async () => {
+  const listing = rootStatus => (route, args) => {
+    if (route === 'sharing/get_shared_link_metadata') return reply(folderLink());
+    if (route === 'files/get_metadata') return reply({error_summary: 'path/not_found/'}, 409);
+    if (args.path === '')
+      return rootStatus
+        ? reply({error_summary: 'path/not_found/'}, rootStatus)
+        : reply({
+            entries: [
+              {'.tag': 'folder', id: 'id:gone', name: 'Borte'},
+              {'.tag': 'folder', id: 'id:sub', name: 'Under'},
+            ],
+            has_more: false,
+          });
+    if (args.path === '/Borte') return reply({error_summary: 'path/not_found/'}, 409);
+    if (args.path === '/Under') return reply({entries: [], has_more: false});
+    throw new Error(`Unexpected ${route}`);
+  };
+  const skipped = await answer(listing());
+  assert.equal(skipped.result, 'ok');
+  assert.deepEqual(
+    skipped.calls.filter(call => call.route === 'files/list_folder').map(call => call.args.path),
+    ['', '/Borte', '/Under'],
+  );
+  assert.equal((await answer(listing(409))).result, 'not-shared');
 });
 
 test('#105 F05: Dropbox errors that are not about the link make the address untested', async () => {

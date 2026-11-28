@@ -52,10 +52,11 @@ export function importDialog(options: {
     folder = field('import-folder', 'Mappe', 'Nettadresse til delt mappe');
   folder.input.inputMode = 'url';
   folder.input.spellcheck = false;
-  const bookLabel = document.createElement('p');
-  bookLabel.className = 'field-label';
-  bookLabel.textContent = 'Sangbok';
   const book = options.books.targetControl(null, update);
+  book.value.id = 'import-book';
+  const bookLabel = document.createElement('label');
+  bookLabel.htmlFor = book.value.id;
+  bookLabel.textContent = 'Sangbok';
   const result = document.createElement('p');
   result.id = 'import-test-result';
   result.className = 'hint';
@@ -90,23 +91,25 @@ export function importDialog(options: {
     }
     button.disabled = working || (saving ? !book.selected() : navigator.onLine === false);
   }
-  const check = (show: boolean, current = options.imports()) => {
+  const fields = [
+    [name, importName],
+    [folder, importFolder],
+  ] as const;
+  /** Shows each given field's error; only a field that breaks a rule gets one (#105). */
+  const check = (parts: readonly (typeof fields)[number][] = fields, current = options.imports()) => {
     let valid = true;
-    for (const [part, rule] of [
-      [name, importName],
-      [folder, importFolder],
-    ] as const)
+    for (const [part, rule] of parts)
       try {
         rule(part.input.value, current);
-        if (show) part.show('');
+        part.show('');
       } catch (cause) {
         valid = false;
-        if (show) part.show((cause as Error).message);
+        part.show((cause as Error).message);
       }
     return valid;
   };
   name.input.addEventListener('input', () => {
-    check(true);
+    check([fields[0]]);
   });
   folder.input.addEventListener('input', () => {
     if (!isTested()) result.textContent = '';
@@ -174,7 +177,7 @@ export function importDialog(options: {
     }
   }
   async function save() {
-    if (!check(true) || !book.selected()) return;
+    if (!check() || !book.selected()) return;
     busy(true);
     try {
       const entry: SharedImport = {
@@ -192,7 +195,7 @@ export function importDialog(options: {
     } catch (cause) {
       result.textContent = cause instanceof Error ? cause.message : 'Kunne ikke lagre importen. Prøv igjen.';
       result.classList.add('error-text');
-      check(true);
+      check();
     } finally {
       if (box.isConnected) busy(false);
     }

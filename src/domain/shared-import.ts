@@ -19,10 +19,13 @@ export function importName(value: string, imports: readonly SharedImport[], ownI
 
 export const notDropboxAddress = 'Adressen er ikke en Dropbox-adresse';
 
+/**
+ * Same folder: same host (case-insensitive), path and rlkey (case-sensitive at Dropbox).
+ * Other query parameters, such as dl=0 or tracking, do not name another folder.
+ */
 const folderKey = (value: string) => {
   const url = new URL(value);
-  url.hash = '';
-  return url.href.toLowerCase();
+  return `${url.hostname.toLowerCase()}${url.pathname}?rlkey=${url.searchParams.get('rlkey') ?? ''}`;
 };
 
 /** A Dropbox web address that no other import uses; checked before any Dropbox call. */

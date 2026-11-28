@@ -56,9 +56,25 @@ test('#105: register a tested import; every test answer, field errors and other 
   await expect(dialog(page).locator('h2')).toHaveText('Ny import');
   await expect(page.locator('#import-name')).toBeFocused();
   await expect(page.locator('#import-folder')).toHaveAttribute('placeholder', 'Nettadresse til delt mappe');
+  const placeholder = await page
+    .locator('#import-folder')
+    .evaluate(input => getComputedStyle(input, '::placeholder'))
+    .then(style => ({color: style.color, fontStyle: style.fontStyle}));
+  expect(placeholder).toEqual({color: 'rgb(158, 143, 128)', fontStyle: 'italic'});
+  // Sangbok is a real label for the D10 value, styled like Navn and Mappe.
+  await expect(dialog(page).locator('label[for=import-book]')).toHaveText('Sangbok');
+  await expect(dialog(page).locator('#import-book')).toHaveClass(/choice-value/);
+  const fontSize = selector =>
+    dialog(page)
+      .locator(selector)
+      .evaluate(node => getComputedStyle(node).fontSize);
+  expect(await fontSize('label[for=import-book]')).toBe(await fontSize('label[for=import-name]'));
   await expect(dialog(page).locator('.choice-value')).toContainText('Velg sangbok');
   await expect(dialog(page).locator('footer button')).toHaveText(['Avbryt', 'Test tilkobling']);
-  await page.locator('#import-name').fill('Bandet');
+  // Typing a name shows no error under the still empty Mappe.
+  await page.locator('#import-name').pressSequentially('Bandet');
+  await expect(page.locator('#import-name-error')).toHaveText('');
+  await expect(page.locator('#import-folder-error')).toHaveText('');
 
   // F04: no Dropbox call for an address outside Dropbox.
   await page.locator('#import-folder').fill('https://example.com/Bandet');
