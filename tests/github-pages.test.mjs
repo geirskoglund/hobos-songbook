@@ -34,7 +34,7 @@ function client({
   workflowPatch = {},
   getContent,
   getPull,
-  associated = [],
+  commits = [],
   artifacts = [],
 } = {}) {
   const actions = {
@@ -45,11 +45,11 @@ function client({
     listJobsForWorkflowRun: () => {},
     listWorkflowRunArtifacts: () => {},
   };
+  const listCommits = () => {};
   const repos = {
     getBranch: async () => ({data: {commit: {sha}}}),
     listDeployments: () => {},
     listDeploymentStatuses: () => {},
-    listPullRequestsAssociatedWithCommit: () => {},
     getContent:
       getContent ||
       (async () => {
@@ -61,6 +61,7 @@ function client({
       actions,
       repos,
       pulls: {
+        listCommits,
         get:
           getPull ||
           (async () => ({
@@ -87,9 +88,9 @@ function client({
       }
       if (method === repos.listDeployments) return deployments;
       if (method === repos.listDeploymentStatuses) return statuses;
-      if (method === repos.listPullRequestsAssociatedWithCommit) {
-        assert.equal(args.commit_sha, sha);
-        return associated;
+      if (method === listCommits) {
+        assert.equal(args.pull_number, 7);
+        return commits;
       }
       throw Error('Unexpected API');
     },
@@ -247,9 +248,22 @@ test('closed PR retains exact source proof when GitHub drops run PR links after 
       base: {ref: 'master', repo: {full_name: repository}},
     },
   });
-  assert.equal(await isValidated(client({runs, getPull, associated: [{number: 7}]}), repo, sha, 7), true);
-  assert.equal(await isValidated(client({runs, getPull, associated: [{number: 8}]}), repo, sha, 7), false);
-  assert.equal(await isValidated(client({runs, associated: [{number: 7}]}), repo, sha, 7), false);
+  const own = [{sha: previewSha}, {sha}];
+  assert.equal(await isValidated(client({runs, getPull, commits: own}), repo, sha, 7), true);
+  assert.equal(await isValidated(client({runs, getPull, commits: [{sha: previewSha}]}), repo, sha, 7), false);
+  assert.equal(await isValidated(client({runs, commits: own}), repo, sha, 7), false);
+});
+test('merged PR keeps its test commit when that commit merged another PR into the branch (#99)', async () => {
+  // PR #91 ended on the merge commit of stacked PR #93. GitHub then links that commit to #93 only.
+  const runs = [run({event: 'pull_request', head_branch: 'feature', pull_requests: []})];
+  const getPull = async () => ({
+    data: {
+      state: 'closed',
+      head: {sha, repo: {full_name: repository}},
+      base: {ref: 'master', repo: {full_name: repository}},
+    },
+  });
+  assert.equal(await isValidated(client({runs, getPull, commits: [{sha}]}), repo, sha, 7), true);
 });
 test('PR evidence requires PR number, head SHA and master base; latest failed rerun blocks', async () => {
   const prRun = run({
