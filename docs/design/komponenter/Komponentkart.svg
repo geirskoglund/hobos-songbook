@@ -338,8 +338,8 @@
   <text x="79" y="1934" fill="#F4EDE3" font-size="27" font-family="Inter,Arial,sans-serif" font-weight="600">Listerader</text>
   <text x="1814" y="1932" fill="#C7BAA9" font-size="15" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">5 komponenter</text>
   <rect x="56.0" y="1963" width="866.0" height="456" fill="#322E2A" stroke="#8F7B69" rx="18" stroke-width="1.2"/>
-  <text x="77.0" y="1995" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Listerad – tittel og metadata</text>
-  <text x="904.0" y="1992" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">L01_Listerad_tittel_metadata</text>
+  <text x="77.0" y="1995" fill="#F4EDE3" font-size="23" font-family="Inter,Arial,sans-serif" font-weight="600">Listerad</text>
+  <text x="904.0" y="1992" fill="#C7BAA9" font-size="13" font-family="Inter,Arial,sans-serif" font-weight="400" text-anchor="end">L01_Listerad</text>
   <line x1="78.0" y1="2010" x2="900.0" y2="2010" stroke="#8F7B69" opacity=".40"/>
   <rect x="74.0" y="2034" width="406" height="245" fill="#272421" rx="10"/>
   <svg x="78.0" y="2076.9" width="398.0" height="159.20000000000002" viewBox="0 0 620 248"><rect x="0" y="0" width="620" height="248" fill="#272421"/>
