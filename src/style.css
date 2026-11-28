@@ -51,7 +51,7 @@ input:disabled {
   opacity: 0.65;
   cursor: wait;
 }
-:where(button, a, input, textarea, select, summary, [role='spinbutton']):focus {
+:where(button, a, input, textarea, select, summary, [role='spinbutton'], dialog):focus {
   outline: none;
 }
 /* Programmatic heading/anchor focus is not an interactive control state. */
@@ -1708,6 +1708,28 @@ main > section {
 }
 .sync-connect .hint:empty {
   display: none;
+}
+#sync {
+  padding-bottom: var(--safe-bottom);
+}
+#sync .import-list {
+  margin-bottom: 32px;
+  padding-bottom: 0;
+}
+#sync .import-list:empty {
+  margin-bottom: 0;
+}
+/* Room for H01, as below other lists with a floating action. */
+#sync .sync-connected {
+  padding-bottom: 110px;
+}
+.hint.error-text {
+  color: var(--error);
+}
+.text-control::placeholder {
+  color: var(--placeholder);
+  font-style: italic;
+  opacity: 1;
 }
 #dropbox-account {
   overflow-wrap: anywhere;

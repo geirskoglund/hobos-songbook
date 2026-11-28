@@ -12,6 +12,7 @@ import {
   BatchStatusUnconfirmed,
 } from '../core/failure.ts';
 import {DropboxError, dropboxRate} from './dropbox-rate.ts';
+import type {ImportTest} from '../domain/shared-import.ts';
 import {
   changeEntry,
   displayPath,
@@ -53,6 +54,7 @@ interface Pending {
   sharing?: {accountId: string; bookId: string};
 }
 export interface SharingConsent {
+  /** The songbook whose link was requested, or empty when consent was asked for an import. */
   bookId: string;
   authorized: boolean;
   failure?: unknown;
@@ -352,6 +354,7 @@ export function dropboxAdapter(
       return value.accessToken;
     });
   }
+  /** With `bookId`, asks an existing connection for sharing consent; an empty ID means import. */
   async function connect(bookId?: string) {
     if (location.origin + location.pathname !== config.redirect)
       throw new SyncFailure(
@@ -359,7 +362,7 @@ export function dropboxAdapter(
         'Dropbox-tilkobling må startes fra den faste appadressen.',
       );
     const pending: Pending = {state: random(), verifier: random(), redirect: config.redirect, created: Date.now()};
-    if (bookId) {
+    if (bookId !== undefined) {
       const current = account();
       if (!current) throw new DeferredSync('connection', 'Dropbox er frakoblet.');
       pending.sharing = {accountId: current.id, bookId};
@@ -744,6 +747,74 @@ export function dropboxAdapter(
       {code: failureCodes.response, stage: 'dropbox.sharing-verification'},
       'Kunne ikke bekrefte lesetilgang til sangbokens delingsmappe.',
     );
+  }
+  /**
+   * #101 F05: reads a shared folder through its link. Every folder below it is listed, because
+   * Dropbox cannot list a shared link recursively, so a link above one of the user's own
+   * songbook folders is recognized by folder ID.
+   */
+  async function testSharedFolder(url: string, ownFolders: ReadonlySet<string>): Promise<ImportTest> {
+    const linkFailure = (error: unknown): ImportTest | undefined => {
+      if (!(error instanceof DropboxError) || error.status !== 409) return;
+      return /^shared_link_not_found(?:\/|$)/.test(error.summary) ? 'not-found' : 'not-shared';
+    };
+    try {
+      const link = await rpc('sharing/get_shared_link_metadata', {url});
+      const permissions = field(link, 'link_permissions'),
+        audience =
+          field(permissions, 'effective_audience', '.tag') ?? field(permissions, 'resolved_visibility', '.tag'),
+        expires = field(link, 'expires');
+      if (tag(link) !== 'folder') return 'not-shared';
+      if (expires && !(Date.parse(String(expires)) > Date.now())) return 'not-found';
+      if (
+        field(permissions, 'require_password') === true ||
+        field(permissions, 'allow_download') === false ||
+        oneOf(audience, ['password', 'team_and_password', 'team', 'team_only', 'no_one', 'members'])
+      )
+        return 'not-shared';
+      // The app folder app can look up a folder ID only inside its own folder, so a found
+      // ID is the user's own app data. Dropbox reports a path for every own link, also
+      // outside the app folder, so the path alone does not decide it.
+      const root = field(link, 'id');
+      const inAppFolder = async (id: string) => {
+        try {
+          return Boolean(await metadata(id));
+        } catch (error) {
+          // Any lookup refusal for the ID means it is outside what the app can see.
+          if (error instanceof DropboxError && error.status === 409) return false;
+          throw error;
+        }
+      };
+      if (typeof root === 'string' && (ownFolders.has(root) || (await inAppFolder(root)))) return 'own-songbook';
+      const pending = [''];
+      for (let folder = pending.shift(); folder !== undefined; folder = pending.shift()) {
+        const found: string[] = [];
+        try {
+          let page = await rpc('files/list_folder', {path: folder, shared_link: {url}});
+          for (;;) {
+            for (const entry of list(field(page, 'entries')) ?? []) {
+              if (tag(entry) !== 'folder') continue;
+              const id = field(entry, 'id'),
+                name = text(field(entry, 'name'));
+              if (typeof id === 'string' && ownFolders.has(id)) return 'own-songbook';
+              if (name) found.push(`${folder}/${name}`);
+            }
+            const cursor = text(field(page, 'cursor'));
+            if (field(page, 'has_more') !== true || !cursor) break;
+            page = await rpc('files/list_folder/continue', {cursor});
+          }
+        } catch (error) {
+          // A subfolder that cannot be listed, for example one removed meanwhile, is skipped.
+          // A refusal for the link itself still answers the test.
+          if (folder && error instanceof DropboxError && error.status === 409) continue;
+          throw error;
+        }
+        pending.push(...found);
+      }
+      return 'ok';
+    } catch (error) {
+      return linkFailure(error) ?? 'unavailable';
+    }
   }
   async function writeFile(path: string, text: string, rev: string | null, releaseFence = false) {
     checkSize(textBytes(text));
@@ -1337,6 +1408,7 @@ export function dropboxAdapter(
     disconnect,
     files,
     sharedLink,
+    testSharedFolder,
     sharingAllowed,
     beginRun: rate.begin,
     cancelPending: rate.cancel,

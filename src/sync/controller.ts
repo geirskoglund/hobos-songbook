@@ -17,6 +17,10 @@ import {
   type FailureInfo,
 } from '../core/failure.ts';
 import {syncDiagnostics, type SyncLog} from './diagnostics.ts';
+import {addImport, readImports} from './imports.ts';
+import {pathKey} from './remote.ts';
+import {importsPath} from '../core/paths.ts';
+import type {ImportTest, SharedImport} from '../domain/shared-import.ts';
 export function syncController(
   storage: ReturnType<typeof songStorage>,
   hooks: {
@@ -254,6 +258,7 @@ export function syncController(
         }
       });
       localPending = Boolean(state?.pending && !state?.awaitingDownload);
+      if (wasManual && completed) await refreshImports(user.id, ticket);
       if (wasManual) {
         await hooks.downloaded();
         await refresh();
@@ -425,6 +430,75 @@ export function syncController(
       return undefined;
     }
     return withDropbox(engine => engine.withSharedFolder(bookId, adapter.sharedLink));
+  }
+  // Imports are stored with cloud book IDs; the app shows and chooses local ones.
+  const localBook = (id: string) =>
+    Object.entries(state?.bindings?.books ?? {}).find(([, wire]) => wire === id)?.[0] ?? id;
+  const wireBook = (id: string) => state?.bindings?.books[id] ?? id;
+  /** The import list from the last Synkroniser or registration, with local songbook IDs. */
+  async function imports(): Promise<SharedImport[]> {
+    const user = account();
+    if (!user) return [];
+    const saved = await syncStore.imports(user.id);
+    return (saved?.imports ?? []).map(item => ({...item, songbookId: localBook(item.songbookId)}));
+  }
+  /**
+   * After a completed manual sync, downloads the account's imports only when the sync's fresh
+   * metadata index shows another rev than the saved list. The list never fails the sync.
+   */
+  async function refreshImports(accountId: string, ticket: number) {
+    try {
+      const saved = await syncStore.imports(accountId),
+        index = state?.remote?.entries,
+        rev = index ? (index[pathKey(importsPath)]?.rev ?? null) : undefined;
+      if (rev !== undefined && rev === (saved?.rev ?? null)) return;
+      // The index shows no list in Dropbox, so there is nothing to download.
+      if (rev === null) {
+        await syncStore.saveImports(accountId, null, []);
+        return;
+      }
+      await navigator.locks.request(`${env.namespace}:dropbox-sync`, async () => {
+        if (ticket !== epoch || paused || hooks.busy() || account()?.id !== accountId) return;
+        requestEpoch = ticket;
+        requestAccount = accountId;
+        requestManual = true;
+        requestGeneration = null;
+        const current = await readImports(adapter.files);
+        await syncStore.saveImports(accountId, current.rev, current.imports);
+      });
+    } catch {
+      /* The previous list stays until the next Synkroniser. */
+    }
+  }
+  /** #101 F05. Without sharing consent the user is first sent to Dropbox to give it. */
+  async function testImport(folder: string): Promise<ImportTest | 'consent'> {
+    const user = account();
+    if (!user || navigator.onLine === false) return 'unavailable';
+    if (!adapter.sharingAllowed()) {
+      await adapter.connect('');
+      return 'consent';
+    }
+    try {
+      return await withDropbox(async () => {
+        const saved = await syncStore.status(user.id),
+          own = new Set<string>();
+        for (const book of Object.values(saved.state?.manifest.books ?? {})) if (book.folderId) own.add(book.folderId);
+        return adapter.testSharedFolder(folder, own);
+      });
+    } catch {
+      return 'unavailable';
+    }
+  }
+  /** Saves a tested import in Dropbox; `check` repeats the field rules against the freshest list. */
+  async function saveImport(entry: SharedImport, check: (current: SharedImport[]) => void) {
+    const user = account();
+    if (!user || navigator.onLine === false) throw new DeferredSync('connection', 'Dropbox er utilgjengelig.');
+    const saved = await withDropbox(() =>
+      addImport(adapter.files, {...entry, songbookId: wireBook(entry.songbookId)}, current =>
+        check(current.map(item => ({...item, songbookId: localBook(item.songbookId)}))),
+      ),
+    );
+    await syncStore.saveImports(user.id, saved.rev, saved.imports);
   }
   function localChanged() {
     adapter.cancelPending();
@@ -599,6 +673,9 @@ export function syncController(
     cachedPublication,
     publish,
     shareBook,
+    imports,
+    testImport,
+    saveImport,
     running: () => running,
     syncing: () => running || syncingPublication,
     connect: async () => {

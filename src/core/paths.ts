@@ -6,6 +6,7 @@ export const libraryPath = '/.app/library.json';
 export const mutationPath = '/.app/mutation.json';
 export const uploadIndexPath = '/.app/upload-index.json';
 export const syncErrorsPath = '/.app/sync-errors.json';
+export const importsPath = '/.app/imports.json';
 export const personalFolder = '/.app/songs';
 export const stagingFolder = '/.app/uploads';
 export const songbooksFolder = '/Songbooks';
@@ -27,3 +28,5 @@ export const isBookPath = (path: string) => /^\/Songbooks\/[^/]+$/i.test(path);
 export const journalKey = 'private-local-v1';
 /** Nøkkelen til synktilstanden for en Dropbox-konto i IndexedDB-lageret `sync`. */
 export const syncStateKey = (accountId: string) => `private-account-v1:${accountId}`;
+/** Nøkkelen til kontoens sist leste importliste i IndexedDB-lageret `sync`. */
+export const importsKey = (accountId: string) => `imports-v1:${accountId}`;

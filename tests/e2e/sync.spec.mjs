@@ -131,6 +131,7 @@ test('AK37-01/10: local/no account, centered connect, no OAuth before click; N01
   await page.goto(url);
   await syncPage(page);
   expect(mock.calls).toHaveLength(0);
+  await expect(page.locator('#import-list')).toBeHidden();
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({width, height: 800});
     await expect(page.locator('#dropbox-connect')).toBeVisible();
@@ -196,6 +197,39 @@ test('AK37-02/04/07: real IndexedDB outbox, view/edit/settings pause, auto uploa
   await expect(page.locator('#sync-status')).not.toContainText('venter på opplasting');
   await goSongs(page);
   await expect(page.locator('#song-list .song-choice')).toContainText('Fra annen enhet');
+});
+test('#104: one page with sync panel, import list and account panel in that order', async ({page, context}) => {
+  const mock = await dropboxMock(context);
+  await page.goto(url);
+  await expect.poll(() => Boolean(mock.find('/.app/library.json'))).toBe(true);
+  await syncPage(page);
+  await expect(page.locator('#dropbox-sync')).toBeVisible();
+  expect(await page.locator('#sync [role=tab], #sync [role=tablist]').count()).toBe(0);
+  await expect(page.locator('#import-list > li')).toHaveCount(0);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({width, height: 800});
+    const layout = await page.evaluate(() => {
+      const box = selector => document.querySelector(selector).getBoundingClientRect();
+      const panel = box('#sync .display-settings'),
+        list = box('#import-list'),
+        account = box('#sync .app-info'),
+        disconnect = box('#dropbox-disconnect');
+      return {
+        order: [...document.querySelector('#import-list').parentElement.children].map(e => e.className),
+        listBelowPanel: list.top >= panel.bottom,
+        accountBelowList: account.top >= list.bottom,
+        disconnect: disconnect.height,
+        overflow: document.documentElement.scrollWidth > innerWidth,
+      };
+    });
+    expect(layout.order).toEqual(['display-settings', 'song-list import-list', 'app-info', 'floating-action']);
+    expect(layout.listBelowPanel && layout.accountBelowList).toBe(true);
+    expect(layout.disconnect).toBeGreaterThanOrEqual(44);
+    expect(layout.overflow).toBe(false);
+  }
+  await page.locator('#dropbox-disconnect').click();
+  await expect(page.locator('dialog[open] h2')).toHaveText('Koble fra Dropbox');
+  await expect(page.locator('dialog[open] footer button').first()).toBeFocused();
 });
 test('AK37-06/10: E04/E03 conflict decisions, safe Enter, Escape, both conflicts and safe disconnect', async ({
   page,

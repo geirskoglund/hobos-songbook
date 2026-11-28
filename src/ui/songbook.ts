@@ -30,7 +30,11 @@ export function startSongbook() {
   const setlists = startSetlists(storage);
   const library = startSongLibrary(storage, {
     cachedPublication: () => cloud.cachedPublication(),
-    accepted: snapshot => bookManager.accept(snapshot),
+    accepted: snapshot => {
+      bookManager.accept(snapshot);
+      // Import rows show their songbook's current name.
+      cloudPage.drawImports();
+    },
     filterChanged: () => publication.render(),
     open: song => void songPage.open(song),
     importing: () => importer.importing(),
@@ -70,6 +74,11 @@ export function startSongbook() {
       if (currentPage() === 'publication' || currentPage() === 'songbooks') void navigate('sync');
     },
     sharing: async consent => {
+      // An empty book ID is consent asked by an import's connection test.
+      if (!consent.bookId) {
+        await navigate('sync');
+        return;
+      }
       await navigate('songbooks');
       await bookManager.copyShare(consent.bookId, consent.authorized);
     },
@@ -89,7 +98,7 @@ export function startSongbook() {
   });
   byId('header-actions').append(library.filterButton, songPage.editButton);
   byId('back').replaceChildren(icon('tilbake'));
-  const cloudPage = syncPage(cloud);
+  const cloudPage = syncPage(cloud, bookManager);
   const publication = publicationPage(cloud, {
     books: library.books,
     selected: library.selected,
@@ -106,6 +115,7 @@ export function startSongbook() {
     if (id !== filterAccount) {
       filterAccount = id;
       library.forgetRemoteFilter();
+      void cloudPage.refreshImports();
     }
     nav.publicationAvailable(Boolean(id));
     publication.accountChanged(id);
@@ -147,6 +157,7 @@ export function startSongbook() {
         if (page === 'library') void library.refresh();
         if (page === 'setlists') void setlists.refresh();
         if (page === 'songbooks') await bookManager.refresh();
+        if (page === 'sync') void cloudPage.refreshImports();
         byId(page === 'library' ? 'library-title' : `${page}-title`).focus({preventScroll: true});
         window.scrollTo(0, 0);
       },

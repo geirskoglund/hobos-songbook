@@ -3,7 +3,11 @@ import {openDialog} from './dialog.ts';
 import type {syncController} from '../sync/controller.ts';
 import type {Conflict} from '../sync/state.ts';
 import {copyText} from './clipboard.ts';
-export function syncPage(controller: ReturnType<typeof syncController>) {
+import {floatingAction, titleRow} from './list-controls.ts';
+import {importDialog} from './import-dialog.ts';
+import type {startSongbooks} from './songbooks.ts';
+import type {SharedImport} from '../domain/shared-import.ts';
+export function syncPage(controller: ReturnType<typeof syncController>, books: ReturnType<typeof startSongbooks>) {
   const root = document.getElementById('sync')!;
   const disconnected = document.createElement('div');
   disconnected.className = 'sync-connect';
@@ -22,6 +26,7 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
   connectionStatus.setAttribute('role', 'status');
   disconnected.append(connect, connectionStatus);
   const connected = document.createElement('div');
+  connected.className = 'sync-connected';
   const panel = document.createElement('section');
   panel.className = 'display-settings';
   const sync = actionButton(
@@ -45,7 +50,55 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
   disconnect.id = 'dropbox-disconnect';
   disconnect.className = 'secondary';
   accountPanel.append(identity, disconnect);
-  connected.append(panel, accountPanel);
+  // L02 rows as on Setlister; the row menu (H04) arrives with deleting an import.
+  const imports = document.createElement('ul');
+  imports.id = 'import-list';
+  imports.className = 'song-list import-list';
+  imports.setAttribute('aria-label', 'Importer');
+  const add = floatingAction('Ny import', () => {
+    void register();
+  });
+  add.id = 'add-import';
+  connected.append(panel, imports, accountPanel, add);
+  let importItems: SharedImport[] = [],
+    reading = 0,
+    wasRunning = false;
+  function drawImports() {
+    imports.replaceChildren(
+      ...[...importItems]
+        .sort((a, b) => a.name.localeCompare(b.name, 'nb'))
+        .map(item => {
+          const {row} = titleRow(item.name, books.bookName(item.songbookId) ?? '');
+          row.dataset.importId = item.id;
+          return row;
+        }),
+    );
+  }
+  /** Reads the saved import list; songbook names come from the latest library read. */
+  async function refreshImports() {
+    const current = ++reading;
+    try {
+      const next = await controller.imports();
+      if (current !== reading) return;
+      importItems = next;
+      drawImports();
+    } catch {
+      /* The shown list stays; the next Synkroniser or visit reads it again. */
+    }
+  }
+  async function register() {
+    await Promise.all([books.refresh(false), refreshImports()]);
+    importDialog({
+      opener: add,
+      books,
+      imports: () => importItems,
+      test: folder => controller.testImport(folder),
+      save: (entry, check) => controller.saveImport(entry, check),
+      saved: () => {
+        void refreshImports().then(() => add.focus({preventScroll: true}));
+      },
+    });
+  }
   root.append(disconnected, connected);
   const messages = [connectionStatus, status].map(node => {
     const text = document.createTextNode(''),
@@ -93,6 +146,9 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
     connected.hidden = !account;
     identity.textContent = account ? `${account.name} · ${account.email}` : '';
     sync.toggleAttribute('data-syncing', controller.running());
+    // A finished Synkroniser may have read imports registered on another device.
+    if (wasRunning && !controller.running()) void refreshImports();
+    wasRunning = controller.running();
     sync.disabled = controller.syncing() || navigator.onLine === false;
     const message = controller.status(),
       hasReport = Boolean(controller.reportText());
@@ -147,5 +203,6 @@ export function syncPage(controller: ReturnType<typeof syncController>) {
       }),
   );
   render();
-  return {render};
+  void refreshImports();
+  return {render, refreshImports, drawImports};
 }

@@ -13,6 +13,10 @@
   --comment: #c7baa9;
   --dynamic-color: #9b8573;
   --highlight: #d6b77c;
+  /* Feilmeldinger: dempet rød med minst 4,5:1 kontrast mot --bg, --panel og --raised. */
+  --error: #f0a093;
+  /* Plassholdertekst i tomme felt: tydelig svakere enn skrevet tekst. */
+  --placeholder: #9e8f80;
   --font-ui: 'Inter', sans-serif;
   --font-song: 'Gentium Book Plus', serif;
   --font-chord: 'Cousine', monospace;

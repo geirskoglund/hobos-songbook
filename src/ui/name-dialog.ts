@@ -25,7 +25,7 @@ export function nameDialog(options: {
   const error = document.createElement('p');
   error.id = `${options.id}-error`;
   error.setAttribute('role', 'alert');
-  error.className = 'hint';
+  error.className = 'hint error-text';
   let writing: Promise<void> | undefined;
   const valid = (show = false) => {
     try {

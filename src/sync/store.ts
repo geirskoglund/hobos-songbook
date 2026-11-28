@@ -3,7 +3,8 @@ import type {Songbook} from '../domain/songbook.ts';
 import {emptyJournal, type LocalJournal} from '../core/sync-model.ts';
 import {newSyncState, type SyncState, type NamespaceJob, type PlacementJob} from './state.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../core/failure.ts';
-import {journalKey, syncStateKey} from '../core/paths.ts';
+import {importsKey, journalKey, syncStateKey} from '../core/paths.ts';
+import type {SharedImport} from '../domain/shared-import.ts';
 // Synkens poster i IndexedDB-lageret `sync`: synktilstanden per konto, journalens
 // generasjon og åpne sangøkter, og kvitteringer for Dropbox-jobber. Sanglageret i
 // storage/ teller bare opp journalen ved lokale endringer (storage/journal.ts).
@@ -13,6 +14,12 @@ export interface SyncSnapshot {
   personal: SongPersonal[];
   journal: LocalJournal;
   state: SyncState;
+}
+interface ImportsRecord {
+  id: string;
+  version: 1;
+  rev: string | null;
+  imports: SharedImport[];
 }
 export function syncStorage(open: () => Promise<IDBDatabase>) {
   async function database() {
@@ -266,5 +273,38 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
       };
     });
   }
-  return {snapshot, status, commit, session, recoverSessions, transport, placementReceipt};
+  /** The account's last read import list (/.app/imports.json), shown while offline. */
+  async function imports(accountId: string): Promise<ImportsRecord | undefined> {
+    const db = await database();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('sync'),
+        get = tx.objectStore('sync').get(importsKey(accountId));
+      tx.oncomplete = () => {
+        db.close();
+        const value: ImportsRecord | undefined = get.result;
+        resolve(value?.version === 1 && Array.isArray(value.imports) ? value : undefined);
+      };
+      tx.onabort = tx.onerror = () => {
+        db.close();
+        reject(new SyncFailure({code: failureCodes.storage, stage: 'sync.storage'}, 'Kunne ikke lese importene.'));
+      };
+    });
+  }
+  async function saveImports(accountId: string, rev: string | null, list: SharedImport[]) {
+    const db = await database();
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('sync', 'readwrite'),
+        record: ImportsRecord = {id: importsKey(accountId), version: 1, rev, imports: list};
+      tx.objectStore('sync').put(record);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onabort = tx.onerror = () => {
+        db.close();
+        reject(new SyncFailure({code: failureCodes.storage, stage: 'sync.storage'}, 'Kunne ikke lagre importene.'));
+      };
+    });
+  }
+  return {snapshot, status, commit, session, recoverSessions, transport, placementReceipt, imports, saveImports};
 }
