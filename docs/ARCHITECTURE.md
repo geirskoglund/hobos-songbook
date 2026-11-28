@@ -106,7 +106,7 @@ Begge Dropbox-appene er App Folder med `account_info.read`, `files.metadata.read
 /.app/upload-index.json                   proveniens for opplastinger som ikke er ferdige
 /.app/uploads/<operasjons-ID>.cho         midlertidig fil før plassering
 /.app/sync-errors.json                    opplastede diagnoserapporter
-/.app/imports.json                        registrerte importer: navn, delingslenke og sangbok-ID
+/.app/imports.json                        registrerte importer: navn, delingslenke og sangbok-ID; importer slettet med innhold som ikke er fjernet ennå
 /.app/import-state.json                   per import: kildens fil-ID-er koblet til sang-ID og kopi, og en cursor per kildemappe
 ```
 
@@ -160,6 +160,7 @@ Dropbox har ingen transaksjon over flere filer. Reglene under erstatter den.
 20. Kildens fil-ID følger filen ved navneendring og flytting. En ny fil med samme sti som en fjernet fil får samme sang-ID. En fil som forsvinner fra kilden, beholdes.
 21. `import-state.json` skrives før manifestet, så et avbrudd aldri gir to sanger for samme kildefil.
 22. Svar fra delingslenken stopper bare den ene importen. Nett-, tilgangs- og ratefeil stopper synken som ellers.
+23. Sletting av en import fjerner den fra `imports.json`, og ingen enhet henter den mer. Slettes den med innhold, står den i `removals` til en manuell Synkroniser har fjernet innholdet. Synken gjør da sangene med importens `sourceId` til bekreftet slettede før flettingen, sletter `Import/<import>/` med innhold som en egen sletteoppføring i navneromskøen, og fjerner oppføringen fra `removals` først etter at manifestet er skrevet. Et avbrudd fullføres av neste manuelle Synkroniser på hvilken som helst enhet.
 
 ### Når synk kjører
 

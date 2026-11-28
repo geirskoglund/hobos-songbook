@@ -1,13 +1,14 @@
 import type {FileValue, MoveEntry, SharedListing} from '../core/sync-model.ts';
 import type {ImportSource, ImportSourceFile, ImportStateFile, Manifest} from './state.ts';
 import type {SyncSession} from './session.ts';
-import type {SharedImport} from '../domain/shared-import.ts';
+import type {ImportRemoval, SharedImport} from '../domain/shared-import.ts';
 import {importStatePath, importsPath} from '../core/paths.ts';
 import {failureCodes, SyncFailure} from '../core/failure.ts';
 import {maxBatchAppendBytes, maxFileBytes, SkippedFile, textBytes} from '../core/limits.ts';
 import {DropboxError} from '../adapters/dropbox.ts';
 import {pathKey} from './remote.ts';
-import {readImports} from './imports.ts';
+import {clearRemovals, readImports, type ImportList} from './imports.ts';
+import {deleteSong} from './removals.ts';
 import {same} from './model.ts';
 
 /**
@@ -69,15 +70,15 @@ async function guarded<T>(s: SyncSession, operation: () => Promise<T>): Promise<
   return result;
 }
 
-/** The registered imports, with wire book IDs. The saved list is used while its rev is current. */
-async function registeredImports(s: SyncSession): Promise<SharedImport[]> {
+/** The registered imports and removals, with wire book IDs. The saved list is used while its rev is current. */
+async function registeredImports(s: SyncSession): Promise<Omit<ImportList, 'rev'>> {
   const entry = s.index.find(importsPath);
-  if (!entry?.rev) return [];
+  if (!entry?.rev) return {imports: [], removals: []};
   const saved = 'imports' in s.storage ? await s.storage.imports(s.accountId) : undefined;
-  if (saved?.rev === entry.rev) return saved.imports;
+  if (saved?.rev === entry.rev && saved.removals) return {imports: saved.imports, removals: saved.removals};
   const current = await s.step(() => readImports(s.files));
-  if ('saveImports' in s.storage) await s.storage.saveImports(s.accountId, current.rev, current.imports);
-  return current.imports;
+  if ('saveImports' in s.storage) await s.storage.saveImports(s.accountId, current);
+  return current;
 }
 
 async function readState(s: SyncSession): Promise<{rev: string | null; value: ImportStateFile}> {
@@ -399,15 +400,13 @@ function linkSongs(s: SyncSession, item: SharedImport, next: ImportSource, merge
 export async function fetchImports(s: SyncSession, merged: Manifest): Promise<Set<string>> {
   const added = new Set<string>();
   if (!s.rawFiles.listShared || !s.rawFiles.readShared) return added;
-  const imports = await registeredImports(s);
+  const {imports} = await registeredImports(s);
   const status = (s.state.sharedImports ??= {status: {}}).status;
   for (const id of Object.keys(status)) if (!imports.some(item => item.id === id)) delete status[id];
-  if (!imports.length) {
-    await s.save();
-    return added;
-  }
   const {rev, value} = await readState(s),
     before = structuredClone(value);
+  // #101 F17: a deleted import's mapping leaves the state; its songs stay or are removed.
+  for (const id of Object.keys(value.imports)) if (!imports.some(item => item.id === id)) delete value.imports[id];
   const works: ImportWork[] = [];
   for (const item of [...imports].sort((a, b) => a.id.localeCompare(b.id))) {
     const book = merged.books[item.songbookId],
@@ -457,7 +456,8 @@ export async function fetchImports(s: SyncSession, merged: Manifest): Promise<Se
  */
 export async function importsPending(s: SyncSession): Promise<boolean> {
   if (!s.rawFiles.listShared) return false;
-  const imports = await registeredImports(s);
+  const {imports, removals} = await registeredImports(s);
+  if (removals.length) return true;
   if (!imports.length) return false;
   const {value} = await readState(s);
   const folders: {item: SharedImport; path: string; cursor: string}[] = [];
@@ -479,4 +479,56 @@ export async function importsPending(s: SyncSession): Promise<boolean> {
     }
   });
   return pending;
+}
+
+/**
+ * #101 F17, Slett import og innhold: before the libraries are merged, the songs of every
+ * removed import become confirmed deletions, like copies deleted in Dropbox, and its copy
+ * folder is deleted. Personal data and the songs on this device then go as for any deleted
+ * song. The removal stays in the import list until the library without the songs is written
+ * (`finishRemovals`), so an interrupted run is completed by the next Synkroniser.
+ */
+export async function removeImports(s: SyncSession, remote: Manifest) {
+  if (!s.rawFiles.listShared) return;
+  const {removals} = await registeredImports(s);
+  const shared = (s.state.sharedImports ??= {status: {}});
+  delete shared.removing;
+  if (!removals.length) return;
+  shared.removing = Object.fromEntries(removals.map(item => [item.id, true]));
+  await s.save();
+  const removing = new Set(removals.map(item => item.id));
+  for (const link of [...Object.values(s.state.manifest.songs), ...Object.values(remote.songs)])
+    if (link.origin.kind === 'external' && link.origin.sourceId && removing.has(link.origin.sourceId))
+      deleteSong(remote, link);
+  const folders = removals.flatMap((item: ImportRemoval) => {
+    const book = s.state.folders[item.songbookId] ?? remote.books[item.songbookId],
+      folder = book?.path && !book.deleted ? s.index.find(`${book.path}/Import/${item.name}`) : undefined;
+    // A deleted songbook's folder is archived with the book.
+    return folder?.folder && folder.id
+      ? [
+          {
+            key: `import:${item.id}`,
+            path: folder.id,
+            fileId: folder.id,
+            folder: true,
+            category: 'import' as const,
+            sourcePath: folder.path,
+          },
+        ]
+      : [];
+  });
+  await s.namespace.remove(folders);
+}
+
+/** After the library is written: the removals of this run are done and leave the import list. */
+export async function finishRemovals(s: SyncSession) {
+  const removing = s.state.sharedImports?.removing;
+  if (!removing) return;
+  const current = await clearRemovals(
+    {read: path => s.read(path), write: (path, text, rev) => s.write(path, text, rev)},
+    new Set(Object.keys(removing)),
+  );
+  if ('saveImports' in s.storage) await s.storage.saveImports(s.accountId, current);
+  delete s.state.sharedImports!.removing;
+  await s.save();
 }

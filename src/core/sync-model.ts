@@ -117,7 +117,8 @@ export interface DeleteEntry {
   fileId: string;
   rev?: string;
   folder?: boolean;
-  category: 'personal' | 'staging' | 'folder';
+  /** `import`: an import's copy folder `Import/<import>`, deleted with its content (#101 F17). */
+  category: 'personal' | 'staging' | 'folder' | 'import';
   sourcePath?: string;
   bookId?: string;
 }

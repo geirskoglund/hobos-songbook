@@ -77,7 +77,11 @@ export function fixture() {
           results.push({failure: {code: 'SYNC-006', stage: 'dropbox.delete-batch', status: 200}, collision: true});
           continue;
         }
-        if (entry.folder) {
+        if (entry.folder && entry.category === 'import') {
+          // Dropbox deletes a folder with its content.
+          for (const k of [...entries.keys()])
+            if (k === old.path.toLowerCase() || k.startsWith(old.path.toLowerCase() + '/')) entries.delete(k);
+        } else if (entry.folder) {
           if (!(await files.removeEmpty(old.path))) {
             results.push({failure: {code: 'SYNC-006', stage: 'dropbox.delete-batch', status: 200}, collision: true});
             continue;

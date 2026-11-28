@@ -126,3 +126,83 @@ test('#106: opening Synkronisering shows imports registered on another device be
   expect(list().at(-1).endpoint).toMatch(/files\/get_metadata$/);
   await expect(page.locator('#import-list .row-title')).toHaveText(['Bandet']);
 });
+
+test('#107: the row menu deletes an import, with or without its content, after confirmation', async ({
+  page,
+  context,
+}) => {
+  const mock = await dropboxMock(context, {sharing: true});
+  mock.shareForeign(source, {files: {'/Alfa.cho': '{t: Alfa}\n[C]Ord', '/Viser/Beta.cho': '{t: Beta}\n[G]Ord'}});
+  const other = 'https://www.dropbox.com/scl/fo/kilde/Andre?rlkey=b';
+  mock.shareForeign(other, {files: {'/Gamma.cho': '{t: Gamma}\n[D]Ord'}});
+  await page.goto(url);
+  await expect.poll(() => Boolean(mock.find('/.app/library.json'))).toBe(true);
+  mock.put(
+    '/.app/imports.json',
+    JSON.stringify({
+      version: 1,
+      imports: {
+        andre: {name: 'Andre', folder: other, songbookId: 'standard'},
+        bandet: {name: 'Bandet', folder: source, songbookId: 'standard'},
+      },
+    }),
+  );
+  // Dropbox lists the folder that holds the copies; this mock makes only folders it is given.
+  mock.put(base, '', true);
+  await synchronize(page);
+  await expect(page.locator('#import-list .row-title')).toHaveText(['Andre', 'Bandet']);
+  const list = () => mock.find('/.app/imports.json').text;
+
+  // F08/F17: the row has a separate H04 menu with the two delete choices only.
+  const menu = page.getByRole('button', {name: 'Handlinger for Bandet'});
+  await menu.click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Slett import', 'Slett import og innhold']);
+  await page.getByRole('menuitem', {name: 'Slett import og innhold'}).click();
+  // E03: Avbryt has the initial focus and changes nothing.
+  const dialog = page.getByRole('dialog', {name: 'Slett import og innhold'});
+  await expect(dialog.getByRole('button', {name: 'Avbryt'})).toBeFocused();
+  const before = list();
+  await dialog.getByRole('button', {name: 'Avbryt'}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(menu).toBeFocused();
+  expect(list()).toBe(before);
+
+  // Without a connection nothing is deleted, and the dialog says so.
+  await context.setOffline(true);
+  await menu.click();
+  await page.getByRole('menuitem', {name: 'Slett import og innhold'}).click();
+  await dialog.getByRole('button', {name: 'Slett'}).click();
+  await expect(dialog.getByRole('alert')).toHaveText(/Kunne ikke slette importen/);
+  await dialog.getByRole('button', {name: 'Avbryt'}).click();
+  expect(list()).toBe(before);
+  await expect(page.locator('#import-list .row-title')).toHaveText(['Andre', 'Bandet']);
+  await context.setOffline(false);
+
+  // Slett import og innhold: the row, the import folder and its songs go.
+  await menu.click();
+  await page.getByRole('menuitem', {name: 'Slett import og innhold'}).click();
+  await dialog.getByRole('button', {name: 'Slett'}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('#import-list .row-title')).toHaveText(['Andre']);
+  await expect(page.locator('#dropbox-sync')).not.toHaveAttribute('data-syncing');
+  await expect(page.locator('#sync-status')).toHaveText(/^Sist synkronisert: /);
+  await expect.poll(() => mock.find(base)).toBeUndefined();
+  expect(mock.find(`${base}/Alfa.cho`)).toBeUndefined();
+  expect(JSON.parse(list()).removals).toBeUndefined();
+  await goSongs(page);
+  await expect(page.locator('#song-list .row-title')).toHaveText(['Gamma']);
+
+  // Slett import: fetching stops; the songs stay.
+  await go(page, 'Synkronisering');
+  await page.getByRole('button', {name: 'Handlinger for Andre'}).click();
+  await page.getByRole('menuitem', {name: 'Slett import', exact: true}).click();
+  await page.getByRole('dialog', {name: 'Slett import'}).getByRole('button', {name: 'Slett'}).click();
+  await expect(page.locator('#import-list > *')).toHaveCount(0);
+  await expect(page.locator('#add-import')).toBeFocused();
+  expect(JSON.parse(list())).toEqual({version: 1, imports: {}});
+  mock.sharePut(other, '/Delta.cho', '{t: Delta}\n[E]Ord');
+  await synchronize(page);
+  await goSongs(page);
+  await expect(page.locator('#song-list .row-title')).toHaveText(['Gamma']);
+  expect(mock.find('/Songbooks/Standard/Import/Andre/Gamma.cho')).toBeTruthy();
+});

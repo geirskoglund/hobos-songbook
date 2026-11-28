@@ -18,7 +18,7 @@ import {
 } from '../core/failure.ts';
 import {syncDiagnostics, type SyncLog} from './diagnostics.ts';
 import {syncTiming} from './timing.ts';
-import {addImport, readImports} from './imports.ts';
+import {addImport, readImports, removeImport} from './imports.ts';
 import {pathKey} from './remote.ts';
 import {importsPath} from '../core/paths.ts';
 import type {ImportStatus, ImportTest, SharedImport} from '../domain/shared-import.ts';
@@ -469,10 +469,10 @@ export function syncController(
       const saved = await syncStore.imports(accountId),
         index = state?.remote?.entries,
         rev = index ? (index[pathKey(importsPath)]?.rev ?? null) : undefined;
-      if (rev !== undefined && rev === (saved?.rev ?? null)) return;
+      if (rev !== undefined && saved?.removals && rev === saved.rev) return;
       // The index shows no list in Dropbox, so there is nothing to download.
       if (rev === null) {
-        await syncStore.saveImports(accountId, null, []);
+        await syncStore.saveImports(accountId, {rev: null, imports: [], removals: []});
         return;
       }
       await navigator.locks.request(`${env.namespace}:dropbox-sync`, async () => {
@@ -482,7 +482,7 @@ export function syncController(
         requestManual = true;
         requestGeneration = null;
         const current = await readImports(adapter.files);
-        await syncStore.saveImports(accountId, current.rev, current.imports);
+        await syncStore.saveImports(accountId, current);
       });
     } catch {
       /* The previous list stays until the next Synkroniser. */
@@ -507,9 +507,9 @@ export function syncController(
         requestGeneration = null;
         const saved = await syncStore.imports(user.id),
           rev = (await adapter.files.metadata!(importsPath))?.rev ?? null;
-        if (saved && rev === saved.rev) return;
-        const current = rev === null ? {rev: null, imports: []} : await readImports(adapter.files);
-        await syncStore.saveImports(user.id, current.rev, current.imports);
+        if (saved?.removals && rev === saved.rev) return;
+        const current = rev === null ? {rev: null, imports: [], removals: []} : await readImports(adapter.files);
+        await syncStore.saveImports(user.id, current);
       });
     } catch {
       /* The last known list stays; the next Synkroniser reads it again. */
@@ -546,7 +546,20 @@ export function syncController(
         check(current.map(item => ({...item, songbookId: localBook(item.songbookId)}))),
       ),
     );
-    await syncStore.saveImports(user.id, saved.rev, saved.imports);
+    await syncStore.saveImports(user.id, saved);
+  }
+  /**
+   * #101 F17: deletes an import from the list in Dropbox, so no device fetches it again. With
+   * `content`, a Synkroniser starts at once and removes the import folder and its songs; an
+   * interrupted removal is completed by the next Synkroniser on any device.
+   */
+  async function deleteImport(id: string, content: boolean) {
+    const user = account();
+    if (!user || navigator.onLine === false) throw new DeferredSync('connection', 'Dropbox er utilgjengelig.');
+    const saved = await withDropbox(() => removeImport(adapter.files, id, content));
+    await syncStore.saveImports(user.id, saved);
+    channel.postMessage('changed');
+    if (content) void manual();
   }
   function localChanged() {
     adapter.cancelPending();
@@ -731,6 +744,7 @@ export function syncController(
     importStatus,
     testImport,
     saveImport,
+    deleteImport,
     running: () => running,
     syncing: () => running || syncingPublication,
     connect: async () => {

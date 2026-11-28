@@ -20,7 +20,7 @@ import {hasLocalWork, hasUnconfirmedNamespaceChanges, localManifest, personalOf}
 import {inspectRemovals, removedChanges} from './removals.ts';
 import {discover, ensureBooks, finishBookNames, refreshBookNames} from './books.ts';
 import {finishContent, prepareSong, songDestination, type SongPlan} from './song-plan.ts';
-import {fetchImports, importsPending} from './shared-imports.ts';
+import {fetchImports, finishRemovals, importsPending, removeImports} from './shared-imports.ts';
 import {deletedFolder, isBookPath, libraryPath, mutationPath, personalPath, syncErrorsPath} from '../core/paths.ts';
 
 type Resolution = {conflict: Conflict; choice: 'local' | 'dropbox' | 'copy'};
@@ -81,6 +81,7 @@ export async function run(s: SyncSession, manual: boolean, resolution?: Resoluti
     merged.songs = readySongs;
     complete = settleBooks(merged, remote, readySongs, pendingNames) && complete;
     await writeLibrary(s, manifestFile, merged);
+    if (manual) await finishRemovals(s);
     acknowledgeLibrary(s, merged, local, readySongs);
     if (manual) await applyLibrary(s, merged, local);
     complete = (await settleNamespace(s, merged)) && complete;
@@ -329,6 +330,8 @@ async function mergeLibrary(
   publishedIds: Set<string>,
   manual: boolean,
 ) {
+  // A deleted import's songs are removed from the remote library before it is merged.
+  if (manual) await removeImports(s, remote);
   let local = localManifest(s);
   // The automatically seeded Standard book is not a conflicting user edit on a new device.
   if (s.identities.emptySeed() && Object.keys(remote.books).length) local.books = {};

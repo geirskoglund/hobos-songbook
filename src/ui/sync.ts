@@ -3,7 +3,7 @@ import {openDialog} from './dialog.ts';
 import type {syncController} from '../sync/controller.ts';
 import type {Conflict} from '../sync/state.ts';
 import {copyText} from './clipboard.ts';
-import {floatingAction, listRow} from './list-controls.ts';
+import {contextMenu, floatingAction, listRow} from './list-controls.ts';
 import {importDialog} from './import-dialog.ts';
 import type {startSongbooks} from './songbooks.ts';
 import {importStatusText, type SharedImport} from '../domain/shared-import.ts';
@@ -50,7 +50,7 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
   disconnect.id = 'dropbox-disconnect';
   disconnect.className = 'secondary';
   accountPanel.append(identity, disconnect);
-  // L01 rows without an action; the row menu (H04) arrives with deleting an import.
+  // #101 F08: L01 rows with a separate row menu (H04), as in Setlister.
   let checking = 0;
   const imports = document.createElement('ul');
   imports.id = 'import-list';
@@ -69,11 +69,21 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
       ...[...importItems]
         .sort((a, b) => a.name.localeCompare(b.name, 'nb'))
         .map(item => {
-          const {row} = listRow({
+          const {row, more} = listRow({
             title: item.name,
             details: [books.bookName(item.songbookId) ?? '', importStatusText(controller.importStatus(item.id))],
+            menu: opener =>
+              contextMenu(
+                opener,
+                [
+                  {name: 'Slett import', icon: 'slett', run: () => remove(opener, item, false)},
+                  {name: 'Slett import og innhold', icon: 'slett', run: () => remove(opener, item, true)},
+                ],
+                'below',
+              ),
           });
           row.dataset.importId = item.id;
+          more.id = `import-menu-${item.id}`;
           return row;
         }),
     );
@@ -119,6 +129,63 @@ export function syncPage(controller: ReturnType<typeof syncController>, books: R
         void refreshImports().then(() => add.focus({preventScroll: true}));
       },
     });
+  }
+  /** #101 F17: both choices are confirmed in E03; Avbryt has the initial focus and changes nothing. */
+  function remove(opener: HTMLElement, item: SharedImport, content: boolean) {
+    const title = content ? 'Slett import og innhold' : 'Slett import';
+    const box = dialogFrame(title, 'name-dialog sync-dialog');
+    const text = document.createElement('p');
+    text.textContent = content
+      ? `Vil du slette «${item.name}» med innhold? Importmappen og sangene fjernes fra biblioteket på alle enheter, med personlige tilpasninger.`
+      : `Vil du slette «${item.name}»? Sangene blir liggende i sangboken og kan fortsatt ikke redigeres.`;
+    const error = document.createElement('p');
+    error.setAttribute('role', 'alert');
+    let writing = false;
+    const cancel = () => {
+      if (!writing) lifecycle.close();
+    };
+    const footer = dialogFooter([
+      {id: 'cancel', label: 'Avbryt', icon: 'avbryt', run: cancel},
+      {
+        id: 'delete',
+        label: 'Slett',
+        icon: 'slett',
+        primary: true,
+        run: () => {
+          void confirm();
+        },
+      },
+    ]);
+    box.append(controlHeading(title), text, error, footer);
+    const lifecycle = openDialog(box, {opener, focus: footer.querySelector('button')!, cancel});
+    async function confirm() {
+      if (writing) return;
+      writing = true;
+      const buttons = footer.querySelectorAll('button');
+      buttons.forEach(button => {
+        button.disabled = true;
+      });
+      try {
+        await controller.deleteImport(item.id, content);
+        const order = [...imports.querySelectorAll<HTMLElement>('.list-row')].map(row => row.dataset.importId),
+          index = order.indexOf(item.id);
+        importItems = importItems.filter(current => current.id !== item.id);
+        drawImports();
+        writing = false;
+        lifecycle.close();
+        (
+          imports.querySelectorAll<HTMLButtonElement>('.row-menu')[Math.min(index, importItems.length - 1)] ?? add
+        ).focus({
+          preventScroll: true,
+        });
+      } catch {
+        writing = false;
+        error.textContent = 'Kunne ikke slette importen. Prøv igjen når Dropbox er tilgjengelig.';
+        buttons.forEach(button => {
+          button.disabled = false;
+        });
+      }
+    }
   }
   root.append(disconnected, connected);
   const messages = [connectionStatus, status].map(node => {

@@ -143,6 +143,8 @@ export interface SyncState {
   sharedImports?: {
     file?: {id: string; rev: string; value: ImportStateFile};
     status: Record<string, {synced?: string; failed?: boolean}>;
+    /** Imports whose copy folder this run may delete (#101 F17); authorizes the delete job. */
+    removing?: Record<string, true>;
   };
 }
 export const emptyManifest = (): Manifest => ({version: 1, books: {}, songs: {}});
