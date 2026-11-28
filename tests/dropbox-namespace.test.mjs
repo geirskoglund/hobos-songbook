@@ -429,3 +429,47 @@ for (const status of [500, 408])
     assert.equal(launched, 1);
     assert.equal(f.data.state.pending, true);
   });
+
+test('#107: an import folder is deleted with its content only while its import is being removed', async () => {
+  const root = {id: 'id:book', path: '/Songbooks/Book', folder: true},
+    folder = {id: 'id:import', path: '/Songbooks/Book/Import/Bandet', folder: true},
+    copy = {id: 'id:copy', path: '/Songbooks/Book/Import/Bandet/Alfa.cho', rev: 'r1'};
+  const book = {id: 'book', name: 'Book', path: root.path, folderId: root.id};
+  const manifest = {books: {book}, songs: {}},
+    state = {manifest, library: {value: manifest}, folders: {}, reservations: {}, sharedImports: {status: {}}};
+  const sent = [],
+    noop = () => {};
+  const files = {
+    metadataSnapshot: async () => [root, folder, copy],
+    async deleteBatch(entries) {
+      sent.push(entries.map(entry => entry.path));
+      return {entries: entries.map(() => ({value: folder}))};
+    },
+  };
+  const queue = namespaceQueue(files, state, {
+    check: noop,
+    save: noop,
+    receipt: noop,
+    freshList: async () => [],
+    find: noop,
+    removed: noop,
+    moved: noop,
+  });
+  const entry = (sourcePath = folder.path) => ({
+    key: 'import:bandet',
+    path: folder.id,
+    fileId: folder.id,
+    folder: true,
+    category: 'import',
+    sourcePath,
+  });
+  await assert.rejects(queue.remove([entry()]), /Ugyldig fullmakt/);
+  state.sharedImports.removing = {bandet: true};
+  delete state.namespaceJob;
+  await assert.rejects(queue.remove([entry('/Songbooks/Book/Import')]), /Ugyldig fullmakt/);
+  delete state.namespaceJob;
+  assert.deepEqual(sent, []);
+  // The folder is not empty; an import folder goes with its content.
+  await queue.remove([entry()]);
+  assert.deepEqual(sent, [[folder.id]]);
+});

@@ -9,6 +9,16 @@ export interface SharedImport {
   songbookId: string;
 }
 
+/**
+ * An import deleted with its content (#101 F17) whose copies are not yet removed. The next
+ * Synkroniser on any device removes the import folder and its songs, then the removal.
+ */
+export interface ImportRemoval {
+  id: string;
+  name: string;
+  songbookId: string;
+}
+
 /** Same characters and uniqueness as songbook names, unique among imports. */
 export function importName(value: string, imports: readonly SharedImport[], ownId?: string): string {
   return folderName(value, imports, ownId, {

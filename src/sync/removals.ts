@@ -4,7 +4,7 @@ import type {Manifest} from './state.ts';
 import {pathKey} from './remote.ts';
 import type {SyncSession} from './session.ts';
 import {isBookPath} from '../core/paths.ts';
-function deleteSong(remote: Manifest, link: SongLink) {
+export function deleteSong(remote: Manifest, link: SongLink) {
   (remote.deletedSongs ??= {})[link.id] = {
     id: link.id,
     ...(link.fileId ? {fileId: link.fileId} : {}),

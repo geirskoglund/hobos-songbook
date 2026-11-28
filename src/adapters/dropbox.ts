@@ -962,7 +962,7 @@ export function dropboxAdapter(
           {
             resource:
               new Set(entries.map(entry => entry.category)).size === 1
-                ? entries[0].category === 'folder'
+                ? entries[0].category === 'folder' || entries[0].category === 'import'
                   ? 'folder'
                   : entries[0].category
                 : 'mixed',

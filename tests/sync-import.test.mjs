@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import {DropboxError} from '../src/adapters/dropbox.ts';
 import {fixture} from './sync-fixture.mjs';
 import {createEditSession} from '../src/domain/edit-session.ts';
+import {removeImport} from '../src/sync/imports.ts';
 
 const url = 'https://www.dropbox.com/scl/fo/kilde/Bandet?rlkey=a';
 const base = '/Songbooks/Standard/Import/Bandet';
@@ -68,8 +69,8 @@ function sharedFolder(f) {
   // The saved import list, as the app keeps it between runs.
   let saved;
   f.storage.imports = async () => saved && structuredClone(saved);
-  f.storage.saveImports = async (_account, rev, imports) => {
-    saved = {version: 1, rev, imports: structuredClone(imports)};
+  f.storage.saveImports = async (_account, list) => {
+    saved = {version: 1, ...structuredClone(list)};
   };
   f.files.readShared = async (link, path) => {
     calls.push(['read', path]);
@@ -297,3 +298,125 @@ for (const lost of ['/.app/import-state.json', '/.app/library.json'])
     const manifest = JSON.parse(await read(f, '/.app/library.json'));
     assert.equal(Object.values(manifest.songs).filter(song => song.origin.kind === 'external').length, 2);
   });
+
+/** Two imports in Standard with one song each, fetched, and a personal adaptation on Alpha. */
+async function twoImports() {
+  const f = fixture();
+  await f.run();
+  const source = sharedFolder(f);
+  source.put('/Alpha.cho', '{t: Alpha}\nA');
+  source.put('/Viser/Beta.cho', '{t: Beta}\nB');
+  await register(f, {
+    bandet: {name: 'Bandet', folder: url, songbookId: 'standard'},
+    borte: {name: 'Borte', folder: 'https://www.dropbox.com/scl/fo/borte/B?rlkey=b', songbookId: 'standard'},
+  });
+  await f.run();
+  // Dropbox lists the folders that hold the copies; this fixture makes only the import folder.
+  await f.files.folder(base);
+  const alpha = byTitle(f, 'Alpha').id;
+  f.change(d => {
+    d.personal = d.personal.filter(p => p.songId !== alpha);
+    d.personal.push({songId: alpha, version: 3, chorus: {}, capo: 3});
+  });
+  await f.run();
+  assert.ok(await read(f, `/.app/songs/${alpha}.json`));
+  return {f, source, alpha};
+}
+const importList = async f => JSON.parse(await read(f, '/.app/imports.json'));
+
+test('#107: Slett import stops fetching; the songs stay and are still read-only', async () => {
+  const {f, source, alpha} = await twoImports();
+  await removeImport(f.files, 'bandet', false);
+  assert.deepEqual(await importList(f), {
+    version: 1,
+    imports: {borte: {name: 'Borte', folder: 'https://www.dropbox.com/scl/fo/borte/B?rlkey=b', songbookId: 'standard'}},
+  });
+  source.put('/Gamma.cho', '{t: Gamma}\nG');
+  await f.run();
+  assert.deepEqual(
+    imported(f)
+      .map(song => song.title)
+      .sort(),
+    ['Alpha', 'Beta'],
+  );
+  assert.equal(await read(f, `${base}/Alpha.cho`), '{t: Alpha}\nA');
+  assert.equal(f.data.personal.find(p => p.songId === alpha).capo, 3);
+  // The import's status and mapping leave this device and Dropbox.
+  assert.equal(f.data.state.sharedImports.status.bandet, undefined);
+  assert.equal(JSON.parse(await read(f, '/.app/import-state.json')).imports.bandet, undefined);
+  const session = createEditSession(byTitle(f, 'Alpha'), {songId: alpha, version: 3, chorus: {}});
+  assert.throws(() => session.replaceOriginal({...session.song, original: 'endret'}), /kan ikke redigeres/);
+});
+
+test('#107: Slett import og innhold removes the folder, the songs and their personal data', async () => {
+  const {f, alpha} = await twoImports();
+  const beta = byTitle(f, 'Beta').id,
+    own = f.data.songs.filter(song => song.origin.kind !== 'external').map(song => song.id);
+  await removeImport(f.files, 'bandet', true);
+  // Until a Synkroniser has removed the content, the removal stays in the list.
+  assert.deepEqual((await importList(f)).removals, {bandet: {name: 'Bandet', songbookId: 'standard'}});
+  await f.run();
+  assert.equal(await read(f, `${base}/Alpha.cho`), undefined);
+  assert.equal(await read(f, `${base}/Viser/Beta.cho`), undefined);
+  assert.equal(f.entries.get(base.toLowerCase()), undefined);
+  assert.deepEqual(imported(f), []);
+  assert.deepEqual(
+    f.data.songs.map(song => song.id),
+    own,
+  );
+  assert.equal(
+    f.data.personal.find(p => p.songId === alpha),
+    undefined,
+  );
+  assert.equal(await read(f, `/.app/songs/${alpha}.json`), undefined);
+  const manifest = JSON.parse(await read(f, '/.app/library.json'));
+  assert.ok(manifest.deletedSongs[alpha] && manifest.deletedSongs[beta]);
+  assert.equal(manifest.songs[alpha], undefined);
+  assert.equal((await importList(f)).removals, undefined);
+  assert.equal(f.data.state.sharedImports.removing, undefined);
+  // The next Synkroniser has nothing left to remove. (Borte fails on purpose, so it still runs.)
+  f.calls.length = 0;
+  await f.run();
+  assert.deepEqual(
+    f.calls.filter(([kind, path]) => kind === 'deleteBatch' || (kind === 'write' && /library|imports.json/.test(path))),
+    [],
+  );
+});
+
+for (const lost of ['/.app/library.json', '/.app/imports.json'])
+  test(`#107: Slett import og innhold interrupted before ${lost} is completed by the next Synkroniser`, async () => {
+    const {f, alpha} = await twoImports();
+    await removeImport(f.files, 'bandet', true);
+    const write = f.files.write;
+    let failed = false;
+    f.files.write = async (path, ...rest) => {
+      if (path === lost && !failed && (lost !== '/.app/imports.json' || JSON.parse(rest[0]).removals === undefined)) {
+        failed = true;
+        throw new Error('nettet forsvant');
+      }
+      return write(path, ...rest);
+    };
+    await assert.rejects(f.run());
+    f.files.write = write;
+    await f.run();
+    assert.ok(failed);
+    assert.deepEqual(imported(f), []);
+    assert.equal(f.entries.get(base.toLowerCase()), undefined);
+    assert.equal(await read(f, `${base}/Alpha.cho`), undefined);
+    assert.equal(await read(f, `/.app/songs/${alpha}.json`), undefined);
+    assert.equal((await importList(f)).removals, undefined);
+  });
+
+test('#107: an import deleted on another device is removed here at the next Synkroniser', async () => {
+  const {f} = await twoImports();
+  // Another device deleted the import with content, removed it and cleared the removal.
+  const copies = Object.values(JSON.parse(await read(f, '/.app/library.json')).songs).filter(
+    song => song.origin.sourceId === 'bandet',
+  );
+  await removeImport(f.files, 'bandet', true);
+  for (const path of [`${base}/Alpha.cho`, `${base}/Viser/Beta.cho`])
+    await f.files.deleteFile(path, (await f.files.read(path)).rev);
+  assert.equal(copies.length, 2);
+  await f.run();
+  assert.deepEqual(imported(f), []);
+});

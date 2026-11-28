@@ -155,6 +155,26 @@ export function namespaceQueue(files: RemoteFiles, state: SyncState, hooks: Hook
             } else if ((await inspect(actual.path.slice(0, actual.path.lastIndexOf('/'))))?.id !== book.folderId)
               throw invalid();
           }
+        } else if (entry.category === 'import') {
+          // #101 F17: only the copy folder of an import being deleted, in an active songbook.
+          const id = /^import:([a-zA-Z0-9_-]{1,128})$/.exec(entry.key)?.[1];
+          if (
+            !id ||
+            !state.sharedImports?.removing?.[id] ||
+            !entry.folder ||
+            entry.rev ||
+            entry.path !== entry.fileId ||
+            typeof entry.sourcePath !== 'string' ||
+            !/^\/Songbooks\/[^/]+\/Import\/[^/]+$/i.test(entry.sourcePath)
+          )
+            throw invalid();
+          const actual = await inspect(entry.fileId);
+          if (actual) {
+            if (!actual.folder || pathKey(actual.path) !== pathKey(entry.sourcePath)) throw invalid();
+            const root = await inspect(actual.path.split('/').slice(0, 3).join('/'));
+            if (!Object.values(books).some(book => !book.deleted && book.folderId && book.folderId === root?.id))
+              throw invalid();
+          }
         } else throw invalid();
       } else if (job.kind === 'move') {
         const entry = item as MoveEntry;
@@ -606,7 +626,8 @@ export function namespaceQueue(files: RemoteFiles, state: SyncState, hooks: Hook
         }
     if (job.kind === 'delete')
       for (const entry of job.entries as DeleteEntry[])
-        if (entry.folder) {
+        // An import's copy folder is deleted with its content; other folders only when empty.
+        if (entry.folder && entry.category !== 'import') {
           const actual = await inspect(entry.fileId);
           if (actual && (await nonempty(actual.path))) {
             delete state.namespaceJob;

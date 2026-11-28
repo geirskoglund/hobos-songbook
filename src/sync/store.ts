@@ -4,7 +4,8 @@ import {emptyJournal, type LocalJournal} from '../core/sync-model.ts';
 import {newSyncState, type SyncState, type NamespaceJob, type PlacementJob} from './state.ts';
 import {DeferredSync, failureCodes, SyncFailure} from '../core/failure.ts';
 import {importsKey, journalKey, syncStateKey} from '../core/paths.ts';
-import type {SharedImport} from '../domain/shared-import.ts';
+import type {ImportRemoval, SharedImport} from '../domain/shared-import.ts';
+import type {ImportList} from './imports.ts';
 // Synkens poster i IndexedDB-lageret `sync`: synktilstanden per konto, journalens
 // generasjon og åpne sangøkter, og kvitteringer for Dropbox-jobber. Sanglageret i
 // storage/ teller bare opp journalen ved lokale endringer (storage/journal.ts).
@@ -20,6 +21,8 @@ interface ImportsRecord {
   version: 1;
   rev: string | null;
   imports: SharedImport[];
+  /** Missing in records saved before #107: the list is read again. */
+  removals?: ImportRemoval[];
 }
 export function syncStorage(open: () => Promise<IDBDatabase>) {
   async function database() {
@@ -290,11 +293,11 @@ export function syncStorage(open: () => Promise<IDBDatabase>) {
       };
     });
   }
-  async function saveImports(accountId: string, rev: string | null, list: SharedImport[]) {
+  async function saveImports(accountId: string, {rev, imports, removals}: ImportList) {
     const db = await database();
     return new Promise<void>((resolve, reject) => {
       const tx = db.transaction('sync', 'readwrite'),
-        record: ImportsRecord = {id: importsKey(accountId), version: 1, rev, imports: list};
+        record: ImportsRecord = {id: importsKey(accountId), version: 1, rev, imports, removals};
       tx.objectStore('sync').put(record);
       tx.oncomplete = () => {
         db.close();

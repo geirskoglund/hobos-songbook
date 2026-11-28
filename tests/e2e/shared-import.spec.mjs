@@ -136,9 +136,9 @@ test('#105: register a tested import; every test answer, field errors and other 
   await expect(page.locator('#import-list .row-title')).toHaveText('Bandet');
   // #106: before its first Synkroniser the row says so after the songbook.
   await expect(page.locator('#import-list .row-metadata > span')).toHaveText(['Standard', 'Aldri synkronisert']);
-  // The shared L01 row, without an action until the import gets one.
+  // The shared L01 row is not a choice; its only button is the row menu (#107).
   await expect(page.locator('#import-list .row-title')).toHaveCSS('font-weight', '500');
-  await expect(page.locator('#import-list button')).toHaveCount(0);
+  await expect(page.locator('#import-list button')).toHaveAccessibleName('Handlinger for Bandet');
   expect(mock.calls.filter(call => call.endpoint.endsWith('/get_shared_link_file')).length).toBe(downloads);
   const file = JSON.parse(mock.find('/.app/imports.json').text);
   expect(Object.values(file.imports)).toEqual([{name: 'Bandet', folder: source, songbookId: 'standard'}]);
