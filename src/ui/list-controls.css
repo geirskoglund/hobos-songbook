@@ -6,8 +6,21 @@
 }
 /* L01 is the only list row; its rules live here and nowhere else. */
 .list-row {
+  --row-field: transparent;
   display: flex;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  background: var(--row-field) padding-box;
+  /* The field reaches 12px past the text on both sides without taking width, so nothing moves or scrolls. */
+  box-shadow:
+    -12px 0 var(--row-field),
+    12px 0 var(--row-field);
+}
+/* Hover and selection cover the whole row, the menu included. */
+.list-row:has(> button:hover) {
+  --row-field: color-mix(in srgb, var(--raised) 25%, transparent);
+}
+.list-row:has(> .row-choice.row-selected) {
+  --row-field: var(--raised);
 }
 .row-choice {
   display: flex;
@@ -57,9 +70,6 @@
 .row-metadata > span + span::before {
   content: '·';
   padding: 0 8px;
-}
-.row-choice:where(button):hover {
-  background: color-mix(in srgb, var(--raised) 25%, transparent);
 }
 /* H04 at the far right, as tall as the row without setting its height. */
 .row-menu {
@@ -299,6 +309,10 @@ body:has(#update-notice:not([hidden])) .floating-action {
 .row-selected,
 .row-selected:hover {
   background: var(--raised);
+}
+/* In L01 the row carries the selected field, so the button stays clear. */
+.list-row > .row-choice.row-selected {
+  background: none;
 }
 .choice-check {
   width: 24px;

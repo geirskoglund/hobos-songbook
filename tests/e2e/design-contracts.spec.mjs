@@ -342,6 +342,23 @@ test('L01 is one row with optional menu and status icons, measured as the song l
     // The row without an action is neither a button nor focusable.
     await expect(rows[5].locator('.row-choice')).not.toHaveAttribute('tabindex');
     expect(await rows[5].locator('button').count()).toBe(0);
+    // Hover lights the whole row, menu included, 12px past the text on both sides.
+    const field = row =>
+      row.evaluate(n => {
+        const s = getComputedStyle(n);
+        return {background: s.backgroundColor, shadow: s.boxShadow};
+      });
+    const idle = await field(rows[1]);
+    expect(idle.background).toBe('rgba(0, 0, 0, 0)');
+    for (const target of [rows[1].locator('.row-choice'), rows[1].locator('.row-menu')]) {
+      await target.hover();
+      const lit = await field(rows[1]);
+      expect(lit.background).not.toBe(idle.background);
+      expect(lit.shadow).toBe(`${lit.background} -12px 0px 0px 0px, ${lit.background} 12px 0px 0px 0px`);
+    }
+    await rows[5].hover();
+    expect(await field(rows[5])).toEqual(idle);
+    await page.mouse.move(0, 0);
   }
   await page.evaluate(() => document.getElementById('row-fixture').remove());
 });

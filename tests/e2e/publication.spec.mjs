@@ -201,6 +201,11 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
         selectAll: style('.publication-select-all'),
         active: style('[role=tab][aria-selected=true]'),
         row: style('.row-choice[aria-pressed=true]'),
+        field: (() => {
+          const row = document.querySelector('.row-choice[aria-pressed=true]').parentElement,
+            field = getComputedStyle(row);
+          return {background: field.backgroundColor, shadow: field.boxShadow};
+        })(),
         check: style('.choice-check'),
         button: style('.primary-action'),
         bar: style('.publication-actions'),
@@ -219,7 +224,12 @@ test('AK39-01–03: shared components, paginated refresh, scoped selection, mixe
     );
     expect(geometry.selectAll.bottom).toBeLessThan(geometry.row.top);
     expect(geometry.check.width).toBe(24);
-    expect(geometry.row.background).toBe('rgb(64, 56, 49)');
+    // The selected field covers the whole row and reaches 12px past the text on both sides.
+    expect(geometry.field).toEqual({
+      background: 'rgb(64, 56, 49)',
+      shadow: 'rgb(64, 56, 49) -12px 0px 0px 0px, rgb(64, 56, 49) 12px 0px 0px 0px',
+    });
+    expect(geometry.row.background).toBe('rgba(0, 0, 0, 0)');
     expect(geometry.button.height).toBeGreaterThanOrEqual(44);
     expect(geometry.bar.bottom).toBe(560);
     await writeFile(`work/publication/geometry-${width}.json`, JSON.stringify(geometry, null, 2));
